@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts'
 
 interface IssueDetail {
   key: string
@@ -30,7 +30,7 @@ export default function ResolutionTimeChart({ details }: { details: IssueDetail[
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <p className="text-xs text-gray-400 mt-1">🟥 SLA 위반&nbsp; 🟢 SLA 만족</p>
+      <p className="text-xs text-gray-400 mt-1">🟥 SLA 위반   🟢 SLA 만족</p>
     </div>
   )
 }
