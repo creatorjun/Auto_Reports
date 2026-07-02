@@ -1,6 +1,7 @@
 # backend/src/main.py
 import logging
 import sys
+import subprocess
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -20,8 +21,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def run_migrations():
+    """앱 시작 시 alembic 마이그레이션 자동 실행"""
+    try:
+        logger.info("DB 마이그레이션 실행 중...")
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            capture_output=True, text=True, timeout=60
+        )
+        if result.returncode == 0:
+            logger.info("DB 마이그레이션 완료 ✅")
+        else:
+            logger.error(f"마이그레이션 실패: {result.stderr}")
+    except Exception as e:
+        logger.error(f"마이그레이션 예외: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    run_migrations()
+
     settings = get_settings()
     container = Container(settings)
     set_container(container)
