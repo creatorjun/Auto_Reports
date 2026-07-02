@@ -1,6 +1,8 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
+import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useLatestReport, useReportById } from '@/infrastructure/hooks/useReport'
+import { useReportStore } from '@/app/store/reportStore'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import SummaryCard from '@/presentation/components/cards/SummaryCard'
 import AiSummaryCard from '@/presentation/components/cards/AiSummaryCard'
@@ -13,6 +15,13 @@ import IssueDetailTable from '@/presentation/components/tables/IssueDetailTable'
 import type { ReportDetail } from '@/domain/Report'
 
 function DashboardContent({ report }: { report: ReportDetail }) {
+  const { setCurrentReport } = useReportStore()
+
+  useEffect(() => {
+    setCurrentReport(report)
+    return () => setCurrentReport(null)
+  }, [report, setCurrentReport])
+
   const w = report.widgets
   const w12 = w.w12?.breakdown as Record<string, number> ?? {}
   const w7  = w.w7?.breakdown  as Record<string, number> ?? {}
@@ -24,15 +33,12 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-[22px] font-semibold text-apple-dark tracking-tight">TAC 주간 보고서</h1>
-          <p className="text-[13px] text-apple-light mt-1">
-            {report.week_start} – {report.week_end}
-            <span className="mx-2 text-apple-divider">·</span>
-            생성: {report.report_date}
-          </p>
-        </div>
+      <div>
+        <p className="text-[13px] text-apple-light">
+          {report.week_start} – {report.week_end}
+          <span className="mx-2 text-apple-divider">·</span>
+          생성: {report.report_date}
+        </p>
       </div>
 
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
@@ -72,12 +78,12 @@ export default function DashboardPage() {
   const { data, isLoading, error } = id ? byIdQuery : latestQuery
 
   if (isLoading) return <LoadingSpinner text="보고서 로딩 중..." />
-  if (error)     return (
+  if (error) return (
     <div className="card text-[13px] text-red-500">데이터를 불러올 수 없습니다.</div>
   )
   if (!data) return (
     <div className="card text-[13px] text-apple-light text-center py-16">
-      생성된 보고서가 없습니다. 상단의 <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 눌러주세요.
+      생성된 보고서가 없습니다. 좌측 사이드바의 <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 눌러주세요.
     </div>
   )
 

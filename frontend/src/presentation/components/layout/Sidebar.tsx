@@ -1,6 +1,7 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import TriggerButton from '../common/TriggerButton'
 
 const links = [
   {
@@ -48,7 +49,7 @@ export default function Sidebar() {
     <aside
       className={`${
         collapsed ? 'w-14' : 'w-56'
-      } bg-white border-r border-apple-divider/80 flex flex-col py-5 px-2 gap-0.5 transition-all duration-250 ease-in-out`}
+      } bg-white border-r border-apple-divider/80 flex flex-col py-5 px-2 transition-all duration-250 ease-in-out`}
     >
       <button
         onClick={() => setCollapsed(!collapsed)}
@@ -58,22 +59,30 @@ export default function Sidebar() {
         <CollapseIcon collapsed={collapsed} />
       </button>
 
-      {links.map(({ to, icon, label }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={to === '/'}
-          title={collapsed ? label : undefined}
-          className={({ isActive }) =>
-            `nav-link ${
-              collapsed ? 'justify-center px-0' : ''
-            } ${isActive ? 'nav-link-active' : ''}`
-          }
-        >
-          <span className="flex-shrink-0">{icon}</span>
-          {!collapsed && <span>{label}</span>}
-        </NavLink>
-      ))}
+      <div className="flex flex-col gap-0.5 flex-1">
+        {links.map(({ to, icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            title={collapsed ? label : undefined}
+            className={({ isActive }) =>
+              `nav-link ${
+                collapsed ? 'justify-center px-0' : ''
+              } ${isActive ? 'nav-link-active' : ''}`
+            }
+          >
+            <span className="flex-shrink-0">{icon}</span>
+            {!collapsed && <span>{label}</span>}
+          </NavLink>
+        ))}
+      </div>
+
+      <div className={`mt-auto pt-4 border-t border-apple-divider/60 ${
+        collapsed ? 'flex justify-center' : ''
+      }`}>
+        <TriggerButton collapsed={collapsed} />
+      </div>
     </aside>
   )
 }
