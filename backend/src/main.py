@@ -38,14 +38,6 @@ async def lifespan(app: FastAPI):
     container = Container(settings)
     app.state.container = container
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
     scheduler = create_scheduler(settings, container.run_scheduled_job)
     scheduler.start()
     logger.info("TAC Auto Reports 서비스 시작 ✅")
@@ -58,6 +50,14 @@ app = FastAPI(
     title="TAC Auto Reports API",
     version="1.0.0",
     lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 from src.presentation.api.v1.router import router
