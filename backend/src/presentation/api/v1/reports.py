@@ -1,5 +1,4 @@
 # backend/src/presentation/api/v1/reports.py
-from dataclasses import asdict
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -46,8 +45,18 @@ async def get_report(
     return _to_detail(report)
 
 
+@router.delete("/{report_id}", status_code=204)
+async def delete_report(
+    report_id: int,
+    use_case: GetReportUseCase = Depends(get_get_use_case)
+):
+    deleted = await use_case.delete(report_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+
 def _to_detail(report) -> ReportDetailSchema:
-    from src.presentation.schemas.report_schema import WidgetResultSchema, AiAnalysisSchema
+    from src.presentation.schemas.report_schema import AiAnalysisSchema, WidgetResultSchema
     widgets = {
         k: WidgetResultSchema(name=v.name, total=v.total, jql=v.jql, breakdown=v.breakdown)
         for k, v in report.widgets.items()

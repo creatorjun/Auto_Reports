@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { reportApi } from '@/infrastructure/api/reportApi'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
 
@@ -21,3 +21,13 @@ export const useAllReports = () =>
     queryKey: ['reports'],
     queryFn: () => reportApi.getAll()
   })
+
+export const useDeleteReport = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => reportApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reports'] })
+    }
+  })
+}

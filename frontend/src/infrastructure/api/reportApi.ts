@@ -17,5 +17,8 @@ export const reportApi = {
   trigger: async (): Promise<{ report_id: number; message: string }> => {
     const res = await client.post('/trigger/')
     return res.data
+  },
+  delete: async (id: number): Promise<void> => {
+    await client.delete(`/reports/${id}`)
   }
 }

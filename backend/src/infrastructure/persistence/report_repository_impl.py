@@ -2,7 +2,7 @@
 from dataclasses import asdict
 from typing import Optional
 
-from sqlalchemy import desc, select
+from sqlalchemy import delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.report import Report
@@ -17,9 +17,7 @@ class ReportRepositoryImpl(ReportRepository):
         self._session = session
 
     async def save(self, report: Report) -> Report:
-        widgets_dict = {
-            k: asdict(v) for k, v in report.widgets.items()
-        }
+        widgets_dict = {k: asdict(v) for k, v in report.widgets.items()}
         ai_dict = asdict(report.ai_analysis) if report.ai_analysis else None
         orm = ReportORM(
             week_start=report.week_start,
@@ -55,14 +53,17 @@ class ReportRepositoryImpl(ReportRepository):
         )
         return [self._to_entity(orm) for orm in result.scalars().all()]
 
+    async def delete(self, report_id: int) -> bool:
+        result = await self._session.execute(
+            delete(ReportORM).where(ReportORM.id == report_id)
+        )
+        await self._session.commit()
+        return result.rowcount > 0
+
     @staticmethod
     def _to_entity(orm: ReportORM) -> Report:
-        widgets = {
-            k: WidgetResult(**v) for k, v in orm.widgets.items()
-        }
-        ai = None
-        if orm.ai_analysis:
-            ai = AiAnalysis(**orm.ai_analysis)
+        widgets = {k: WidgetResult(**v) for k, v in orm.widgets.items()}
+        ai = AiAnalysis(**orm.ai_analysis) if orm.ai_analysis else None
         return Report(
             id=orm.id,
             week_start=orm.week_start,
