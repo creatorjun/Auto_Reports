@@ -1,0 +1,74 @@
+# backend/src/infrastructure/persistence/report_repository_impl.py
+from dataclasses import asdict
+from typing import Optional
+
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.domain.entities.report import Report
+from src.domain.entities.widget import WidgetResult
+from src.domain.repositories.report_repository import ReportRepository
+from src.domain.value_objects.ai_analysis import AiAnalysis
+from src.infrastructure.persistence.models import ReportORM
+
+
+class ReportRepositoryImpl(ReportRepository):
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def save(self, report: Report) -> Report:
+        widgets_dict = {
+            k: asdict(v) for k, v in report.widgets.items()
+        }
+        ai_dict = asdict(report.ai_analysis) if report.ai_analysis else None
+        orm = ReportORM(
+            week_start=report.week_start,
+            week_end=report.week_end,
+            report_date=report.report_date,
+            widgets=widgets_dict,
+            ai_analysis=ai_dict,
+        )
+        self._session.add(orm)
+        await self._session.commit()
+        await self._session.refresh(orm)
+        report.id = orm.id
+        report.created_at = orm.created_at
+        return report
+
+    async def find_by_id(self, report_id: int) -> Optional[Report]:
+        result = await self._session.execute(
+            select(ReportORM).where(ReportORM.id == report_id)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_entity(orm) if orm else None
+
+    async def find_latest(self) -> Optional[Report]:
+        result = await self._session.execute(
+            select(ReportORM).order_by(desc(ReportORM.created_at)).limit(1)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_entity(orm) if orm else None
+
+    async def find_all(self, limit: int = 20, offset: int = 0) -> list[Report]:
+        result = await self._session.execute(
+            select(ReportORM).order_by(desc(ReportORM.created_at)).limit(limit).offset(offset)
+        )
+        return [self._to_entity(orm) for orm in result.scalars().all()]
+
+    @staticmethod
+    def _to_entity(orm: ReportORM) -> Report:
+        widgets = {
+            k: WidgetResult(**v) for k, v in orm.widgets.items()
+        }
+        ai = None
+        if orm.ai_analysis:
+            ai = AiAnalysis(**orm.ai_analysis)
+        return Report(
+            id=orm.id,
+            week_start=orm.week_start,
+            week_end=orm.week_end,
+            report_date=orm.report_date,
+            widgets=widgets,
+            ai_analysis=ai,
+            created_at=orm.created_at,
+        )

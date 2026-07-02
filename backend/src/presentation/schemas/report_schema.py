@@ -1,0 +1,42 @@
+# backend/src/presentation/schemas/report_schema.py
+from datetime import date, datetime
+from typing import Any, Optional
+from pydantic import BaseModel
+
+
+class AiAnalysisSchema(BaseModel):
+    summary: str
+    risks: list[str]
+    recommendations: list[str]
+    sentiment: str
+
+
+class WidgetResultSchema(BaseModel):
+    name: str
+    total: int
+    jql: str = ""
+    breakdown: dict[str, Any] = {}
+
+
+class ReportSummarySchema(BaseModel):
+    id: int
+    week_start: date
+    week_end: date
+    report_date: str
+    created_at: datetime
+    sentiment: Optional[str] = None
+
+
+class ReportDetailSchema(BaseModel):
+    id: int
+    week_start: date
+    week_end: date
+    report_date: str
+    created_at: datetime
+    widgets: dict[str, WidgetResultSchema]
+    ai_analysis: Optional[AiAnalysisSchema] = None
+
+
+class TriggerResponseSchema(BaseModel):
+    report_id: int
+    message: str
