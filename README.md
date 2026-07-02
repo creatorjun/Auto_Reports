@@ -31,29 +31,138 @@ Infrastructure              ──▶  Domain
 - **Infrastructure** — DB/Jira/Gemini 구현체, Container에서 조립
 - **Presentation** — FastAPI 라우터, Pydantic 스키마
 
-## 빠른 시작
+---
 
+## 배포 가이드
+
+### 1. 클론
+
+**Linux**
 ```bash
-# 1. 환경변수 설정
-cp .env.example .env
-vi .env   # JIRA_EMAIL, JIRA_API_TOKEN, GEMINI_API_KEY 필수 입력
-
-# 2. 빌드 & 실행
-make build
-make up
-
-# 3. DB 마이그레이션
-make migrate
-
-# 4. 대시보드 접속
-open http://localhost
-
-# 5. 즉시 보고서 생성 테스트
-make trigger
-
-# 6. 로그 확인
-make logs
+git clone https://github.com/creatorjun/Auto_Reports.git && cd Auto_Reports
 ```
+
+**Windows CMD**
+```cmd
+git clone https://github.com/creatorjun/Auto_Reports.git && cd Auto_Reports
+```
+
+---
+
+### 2. 환경변수 설정
+
+**Linux**
+```bash
+cp .env.example .env && vi .env
+```
+
+**Windows CMD**
+```cmd
+copy .env.example .env && notepad .env
+```
+
+> 필수 입력: `JIRA_EMAIL`, `JIRA_API_TOKEN`, `GEMINI_API_KEY`
+
+---
+
+### 3. 빌드 & 실행
+
+**Linux**
+```bash
+docker-compose up -d --build
+```
+
+**Windows CMD**
+```cmd
+docker-compose up -d --build
+```
+
+---
+
+### 4. DB 마이그레이션
+
+**Linux**
+```bash
+docker-compose exec backend alembic upgrade head
+```
+
+**Windows CMD**
+```cmd
+docker-compose exec backend alembic upgrade head
+```
+
+---
+
+### 5. 접속 확인
+
+```
+http://서버IP
+```
+
+---
+
+## 운영 명령어
+
+### 로그 확인
+
+| 대상 | Linux / Windows CMD |
+|------|---------------------|
+| 전체 실시간 | `docker-compose logs -f` |
+| 백엔드만 | `docker-compose logs -f backend` |
+| 프론트엔드만 | `docker-compose logs -f frontend` |
+| DB만 | `docker-compose logs -f db` |
+| 최근 100줄 | `docker-compose logs --tail=100 backend` |
+
+### 로그 검색
+
+**Linux**
+```bash
+docker-compose logs backend | grep "ERROR"
+docker-compose logs backend | grep "2026-07"
+```
+
+**Windows CMD**
+```cmd
+docker-compose logs backend | findstr "ERROR"
+docker-compose logs backend | findstr "2026-07"
+```
+
+---
+
+### 한 줄 리빌드 (다운 → 풀 → 재시작)
+
+**Linux**
+```bash
+docker-compose down && git pull && docker-compose up -d --build
+```
+
+**Windows CMD**
+```cmd
+docker-compose down && git pull && docker-compose up -d --build
+```
+
+---
+
+### 컨테이너 상태 확인
+
+**Linux / Windows CMD**
+```bash
+docker-compose ps
+```
+
+### 즉시 보고서 생성
+
+**Linux**
+```bash
+curl -X POST http://localhost/api/v1/trigger/
+```
+
+**Windows CMD**
+```cmd
+curl -X POST http://localhost/api/v1/trigger/
+```
+
+---
 
 ## API 엔드포인트
 
@@ -64,6 +173,8 @@ make logs
 | `GET`  | `/api/v1/reports/` | 보고서 목록 |
 | `GET`  | `/api/v1/reports/latest` | 최신 보고서 |
 | `GET`  | `/api/v1/reports/{id}` | 특정 보고서 |
+
+---
 
 ## 환경변수
 
@@ -77,6 +188,10 @@ make logs
 | `SCHEDULE_CRON` | | 기본값: `0 23 * * 5` (금요일 23시) |
 | `TZ` | | 기본값: `Asia/Seoul` |
 | `APP_PORT` | | 기본값: `80` |
+| `DOMAIN` | | DNS 등록 후 SSL 전환 시 입력 |
+| `SSL_EMAIL` | | DNS 등록 후 SSL 전환 시 입력 |
+
+---
 
 ## 주요 기능
 
