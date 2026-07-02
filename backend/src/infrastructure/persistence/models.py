@@ -18,6 +18,4 @@ class ReportORM(Base):
     report_date: Mapped[str] = mapped_column(String, nullable=False)
     widgets: Mapped[dict] = mapped_column(JSONB, nullable=False)
     ai_analysis: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)

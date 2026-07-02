@@ -46,6 +46,8 @@ async def lifespan(app: FastAPI):
     logger.info("TAC Auto Reports 서비스 종료")
 
 
+settings = get_settings()
+
 app = FastAPI(
     title="TAC Auto Reports API",
     version="1.0.0",
@@ -54,7 +56,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_settings().cors_origins,
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

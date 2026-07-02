@@ -5,9 +5,9 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    jira_base_url: str = "https://your-domain.atlassian.net"
-    jira_email: str = ""
-    jira_api_token: str = ""
+    jira_base_url: str
+    jira_email: str
+    jira_api_token: str
     gemini_api_key: str = ""
     ai_enabled: bool = True
     db_user: str = "postgres"

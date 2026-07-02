@@ -8,8 +8,6 @@ services:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-auto_reports}
-      TZ: Asia/Seoul
-      PGTZ: Asia/Seoul
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,8 +22,6 @@ services:
     container_name: tac_backend
     restart: unless-stopped
     env_file: .env
-    environment:
-      TZ: Asia/Seoul
     depends_on:
       db:
         condition: service_healthy
@@ -47,8 +43,6 @@ services:
     build: ./frontend
     container_name: tac_frontend
     restart: unless-stopped
-    environment:
-      TZ: Asia/Seoul
     depends_on:
       - backend
     ports:
