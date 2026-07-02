@@ -20,13 +20,16 @@ class Container:
             settings.jira_email,
             settings.jira_api_token
         )
-        self._gemini = GeminiClient(settings.gemini_api_key)
+        self._gemini = GeminiClient(settings.gemini_api_key) if settings.ai_enabled else None
 
     def generate_report_use_case(self, session: AsyncSession) -> GenerateReportUseCase:
         repo = ReportRepositoryImpl(session)
         query_builder = WidgetQueryBuilder(self._settings)
         collector = ReportCollector(self._jira, query_builder, self._settings)
-        analyzer = AiAnalyzer(self._gemini)
+        analyzer = AiAnalyzer(
+            gemini=self._gemini,
+            enabled=self._settings.ai_enabled
+        )
         return GenerateReportUseCase(collector, analyzer, repo)
 
     def get_report_use_case(self, session: AsyncSession) -> GetReportUseCase:

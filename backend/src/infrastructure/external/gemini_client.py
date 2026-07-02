@@ -43,10 +43,16 @@ sentiment 판단 기준:
 
 class GeminiClient:
     def __init__(self, api_key: str):
-        genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel("gemini-2.0-flash")
+        if api_key:
+            genai.configure(api_key=api_key)
+            self._model = genai.GenerativeModel("gemini-2.0-flash")
+        else:
+            self._model = None
 
     def analyze(self, report_context: dict) -> Optional[AiAnalysis]:
+        if not self._model:
+            logger.warning("Gemini 모델 미초기화 (API 키 없음)")
+            return None
         prompt = PROMPT_TEMPLATE.format(**report_context)
         try:
             response = self._model.generate_content(

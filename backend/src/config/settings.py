@@ -7,7 +7,8 @@ class Settings(BaseSettings):
     jira_base_url: str = "https://seculayer.atlassian.net"
     jira_email: str
     jira_api_token: str
-    gemini_api_key: str
+    gemini_api_key: str = ""
+    ai_enabled: bool = True
     db_user: str = "postgres"
     db_password: str = "postgres"
     db_host: str = "db"
