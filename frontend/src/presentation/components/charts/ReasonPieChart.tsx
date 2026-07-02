@@ -31,13 +31,24 @@ function CustomLabel({
   )
 }
 
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: { name: string; value: number }[] }) {
+interface TooltipPayload {
+  name: string
+  value: number
+  payload: { name: string; value: number }
+}
+
+function CustomTooltip({ active, payload, total }: {
+  active?: boolean
+  payload?: TooltipPayload[]
+  total: number
+}) {
   if (!active || !payload?.length) return null
   const { name, value } = payload[0]
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0
   return (
     <div className="bg-white border border-apple-divider/60 rounded-xl shadow-apple px-3 py-2 text-[12px]">
       <p className="font-medium text-apple-dark">{name}</p>
-      <p className="text-apple-light">{value}건</p>
+      <p className="text-apple-light">{value}건 <span className="text-apple-mid font-semibold">{pct}%</span></p>
     </div>
   )
 }
@@ -48,6 +59,8 @@ export default function ReasonPieChart({ breakdown }: { breakdown: Record<string
     .sort((a, b) => b.value - a.value)
 
   if (!data.length) return null
+
+  const total = data.reduce((sum, d) => sum + d.value, 0)
 
   return (
     <div className="card flex flex-col">
@@ -67,7 +80,7 @@ export default function ReasonPieChart({ breakdown }: { breakdown: Record<string
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={(props) => <CustomTooltip {...props} total={total} />} />
           <Legend
             layout="horizontal"
             verticalAlign="bottom"
