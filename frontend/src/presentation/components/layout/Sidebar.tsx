@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 
 const links = [
@@ -28,23 +29,49 @@ const links = [
   }
 ]
 
+function CollapseIcon({ collapsed }: { collapsed: boolean }) {
+  return collapsed ? (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ) : (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export default function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false)
+
   return (
-    <aside className="w-56 bg-white border-r border-apple-divider/80 flex flex-col py-5 px-3 gap-0.5">
-      <p className="text-[10px] font-semibold text-apple-light uppercase tracking-widest px-3 mb-2 mt-1">
-        메뉴
-      </p>
+    <aside
+      className={`${
+        collapsed ? 'w-14' : 'w-56'
+      } bg-white border-r border-apple-divider/80 flex flex-col py-5 px-2 gap-0.5 transition-all duration-250 ease-in-out`}
+    >
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex items-center justify-center w-8 h-8 rounded-xl text-apple-light hover:bg-apple-gray hover:text-apple-dark transition-all duration-200 mb-2 self-end"
+        title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+      >
+        <CollapseIcon collapsed={collapsed} />
+      </button>
+
       {links.map(({ to, icon, label }) => (
         <NavLink
           key={to}
           to={to}
           end={to === '/'}
+          title={collapsed ? label : undefined}
           className={({ isActive }) =>
-            `nav-link ${isActive ? 'nav-link-active' : ''}`
+            `nav-link ${
+              collapsed ? 'justify-center px-0' : ''
+            } ${isActive ? 'nav-link-active' : ''}`
           }
         >
-          {icon}
-          <span>{label}</span>
+          <span className="flex-shrink-0">{icon}</span>
+          {!collapsed && <span>{label}</span>}
         </NavLink>
       ))}
     </aside>
