@@ -1,0 +1,18 @@
+# backend/src/domain/value_objects/widget_id.py
+from enum import StrEnum
+
+
+class WidgetId(StrEnum):
+    OVERDUE_ISSUES       = "w1"
+    DEV_SLA_DELAY        = "w2"
+    TAC_QA_SLA_DELAY     = "w3"
+    LAB_UNASSIGNED       = "w4"
+    SLA_DELAY_BY_TYPE    = "w5"
+    SLA_DELAY_BY_STATUS  = "w6"
+    SLA_DELAY_REASON     = "w7"
+    YEARLY_CREATED       = "w8"
+    YEARLY_RESOLVED      = "w9"
+    AVG_RESOLUTION_TYPE  = "w10"
+    RESOLUTION_REPORT    = "w11"
+    SLA_MET_VS_VIOLATED  = "w12"
+    CREATED_VS_RESOLVED  = "w14"

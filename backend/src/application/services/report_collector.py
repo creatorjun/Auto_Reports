@@ -8,6 +8,7 @@ from src.config.settings import Settings
 from src.domain.entities.report import Report
 from src.domain.entities.widget import WidgetResult
 from src.domain.ports.jira_port import JiraPort
+from src.domain.value_objects.widget_id import WidgetId
 
 logger = logging.getLogger(__name__)
 
@@ -22,20 +23,21 @@ class ReportCollector:
         q = self._qb.build(now)
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 
-        widgets: dict[str, WidgetResult] = {}
-        widgets["w1"] = self._collect_w1(q)
-        widgets["w2"] = self._simple("개발 SLA 지연", q.w2_dev_sla())
-        widgets["w3"] = self._simple("TAC & QA SLA 지연", q.w3_tac_qa_sla())
-        widgets["w4"] = self._simple("연구소 대기(담당자 미지정)", q.w4_lab_unassigned())
-        widgets["w5"] = self._breakdown("유형별 SLA 지연", q.w5_by_type())
-        widgets["w6"] = self._breakdown("상태별 SLA 지연", q.w6_by_status())
-        widgets["w7"] = self._breakdown("SLA 지연 사유", q.w7_reason_pie())
-        widgets["w8"] = self._simple(f"{now.year}년 누적 생성", q.w8_yearly_created())
-        widgets["w9"] = self._simple(f"{now.year}년 누적 해결", q.w9_yearly_resolved())
-        widgets["w10"] = self._collect_w10(q)
-        widgets["w11"] = self._collect_w11(q)
-        widgets["w12"] = self._collect_w12(q)
-        widgets["w14"] = self._collect_w14(q)
+        widgets: dict[str, WidgetResult] = {
+            WidgetId.OVERDUE_ISSUES:      self._collect_w1(q),
+            WidgetId.DEV_SLA_DELAY:       self._simple("개발 SLA 지연", q.w2_dev_sla()),
+            WidgetId.TAC_QA_SLA_DELAY:    self._simple("TAC & QA SLA 지연", q.w3_tac_qa_sla()),
+            WidgetId.LAB_UNASSIGNED:      self._simple("연구소 대기(담당자 미지정)", q.w4_lab_unassigned()),
+            WidgetId.SLA_DELAY_BY_TYPE:   self._breakdown("유형별 SLA 지연", q.w5_by_type()),
+            WidgetId.SLA_DELAY_BY_STATUS: self._breakdown("상태별 SLA 지연", q.w6_by_status()),
+            WidgetId.SLA_DELAY_REASON:    self._breakdown("SLA 지연 사유", q.w7_reason_pie()),
+            WidgetId.YEARLY_CREATED:      self._simple(f"{now.year}년 누적 생성", q.w8_yearly_created()),
+            WidgetId.YEARLY_RESOLVED:     self._simple(f"{now.year}년 누적 해결", q.w9_yearly_resolved()),
+            WidgetId.AVG_RESOLUTION_TYPE: self._collect_w10(q),
+            WidgetId.RESOLUTION_REPORT:   self._collect_w11(q),
+            WidgetId.SLA_MET_VS_VIOLATED: self._collect_w12(q),
+            WidgetId.CREATED_VS_RESOLVED: self._collect_w14(q),
+        }
 
         logger.info("데이터 수집 완료 ✅")
         return Report(

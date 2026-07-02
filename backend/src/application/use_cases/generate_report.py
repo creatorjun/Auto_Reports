@@ -1,4 +1,5 @@
 # backend/src/application/use_cases/generate_report.py
+import dataclasses
 import logging
 from datetime import datetime
 
@@ -26,8 +27,9 @@ class GenerateReportUseCase:
         logger.info(f"보고서 생성 시작: {now}")
 
         report = self._collector.collect(now)
-        report.ai_analysis = self._analyzer.analyze(report)
-        saved = await self._repository.save(report)
+        analysis = self._analyzer.analyze(report)
+        report_with_analysis = dataclasses.replace(report, ai_analysis=analysis)
+        saved = await self._repository.save(report_with_analysis)
 
         logger.info(f"보고서 저장 완료: ID={saved.id}")
         return saved
