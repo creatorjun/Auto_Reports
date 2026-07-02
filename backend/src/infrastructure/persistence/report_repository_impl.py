@@ -1,6 +1,6 @@
 # backend/src/infrastructure/persistence/report_repository_impl.py
 from dataclasses import asdict
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
