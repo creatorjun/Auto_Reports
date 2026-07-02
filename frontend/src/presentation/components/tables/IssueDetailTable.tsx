@@ -12,7 +12,8 @@ export default function IssueDetailTable({ details }: { details: IssueDetail[] }
   return (
     <div className="card">
       <h3 className="text-[13px] font-semibold text-apple-dark mb-4">이슈별 해결시간 상세</h3>
-      <div className="overflow-x-auto">
+
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-apple-divider/60">
@@ -37,6 +38,25 @@ export default function IssueDetailTable({ details }: { details: IssueDetail[] }
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="md:hidden divide-y divide-apple-divider/40">
+        {details.map((d) => (
+          <div key={d.key} className="py-3 flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-mono text-brand-600 font-medium">{d.key}</span>
+              <span className={d.res_breached ? 'badge-critical' : 'badge-good'}>
+                {d.res_breached ? 'SLA 위반' : 'SLA 만족'}
+              </span>
+            </div>
+            <p className="text-[12px] text-apple-dark/80 leading-snug">{d.summary}</p>
+            <div className="flex gap-3 text-[11px] text-apple-light">
+              <span>{d.type}</span>
+              <span>·</span>
+              <span>{d.resolution_h ? `${d.resolution_h}h` : '—'}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
