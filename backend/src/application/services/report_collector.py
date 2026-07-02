@@ -2,6 +2,7 @@
 import logging
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.config.settings import Settings
@@ -12,6 +13,8 @@ from src.domain.value_objects.widget_id import WidgetId
 
 logger = logging.getLogger(__name__)
 
+KST = ZoneInfo("Asia/Seoul")
+
 
 class ReportCollector:
     def __init__(self, jira: JiraPort, qb: WidgetQueryBuilder, settings: Settings):
@@ -20,6 +23,8 @@ class ReportCollector:
         self._settings = settings
 
     def collect(self, now: datetime) -> Report:
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=KST)
         q = self._qb.build(now)
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 

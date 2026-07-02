@@ -2,6 +2,7 @@
 import dataclasses
 import logging
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.report_collector import ReportCollector
@@ -9,6 +10,8 @@ from src.domain.entities.report import Report
 from src.domain.repositories.report_repository import ReportRepository
 
 logger = logging.getLogger(__name__)
+
+KST = ZoneInfo("Asia/Seoul")
 
 
 class GenerateReportUseCase:
@@ -23,7 +26,7 @@ class GenerateReportUseCase:
         self._repository = repository
 
     async def execute(self, now: datetime | None = None) -> Report:
-        now = now or datetime.now()
+        now = now or datetime.now(tz=KST)
         logger.info(f"보고서 생성 시작: {now}")
 
         report = self._collector.collect(now)
