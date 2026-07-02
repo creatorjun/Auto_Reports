@@ -32,23 +32,17 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
-      <p className="text-[12px] md:text-[13px] 3xl:text-[14px] text-apple-light">
-        {report.week_start} – {report.week_end}
-        <span className="mx-2 text-apple-divider">·</span>
-        생성: {report.report_date}
-      </p>
-
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
 
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
-        <SummaryCard label="이번 주 생성"       value={w14['생성'] ?? 0}   color="blue"   />
-        <SummaryCard label="이번 주 해결"       value={w14['해결'] ?? 0}   color="green"  />
-        <SummaryCard label="SLA 초과"           value={w.w1?.total ?? 0}  sub="30일 미해결" color="red"    />
-        <SummaryCard label="개발 지연"         value={w.w2?.total ?? 0}  color="yellow" />
-        <SummaryCard label="TAC & QA 지연"    value={w.w3?.total ?? 0}  color="yellow" />
-        <SummaryCard label="연구소 대기 미지정" value={w.w4?.total ?? 0}  color="red"    />
-        <SummaryCard label="2026 생성"          value={w.w8?.total ?? 0}  color="gray"   />
-        <SummaryCard label="2026 해결"          value={w.w9?.total ?? 0}  color="gray"   />
+        <SummaryCard label="이번 주 생성"       value={w14['생성'] ?? 0}  color="blue"   />
+        <SummaryCard label="이번 주 해결"       value={w14['해결'] ?? 0}  color="green"  />
+        <SummaryCard label="SLA 초과"           value={w.w1?.total ?? 0} sub="30일 미해결" color="red"    />
+        <SummaryCard label="개발 지연"         value={w.w2?.total ?? 0} color="yellow" />
+        <SummaryCard label="TAC & QA 지연"    value={w.w3?.total ?? 0} color="yellow" />
+        <SummaryCard label="연구소 대기 미지정" value={w.w4?.total ?? 0} color="red"    />
+        <SummaryCard label="2026 생성"          value={w.w8?.total ?? 0} color="gray"   />
+        <SummaryCard label="2026 해결"          value={w.w9?.total ?? 0} color="gray"   />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 3xl:gap-5">
@@ -65,6 +59,14 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       </div>
 
       <IssueDetailTable details={details} />
+
+      <div className="flex justify-end">
+        <p className="text-[11px] 3xl:text-[12px] text-apple-light tabular-nums">
+          {report.week_start} – {report.week_end}
+          <span className="mx-1.5 text-apple-divider">·</span>
+          생성: {report.report_date}
+        </p>
+      </div>
     </div>
   )
 }

@@ -21,7 +21,7 @@ export default function Header() {
   return (
     <header className="bg-white h-14 3xl:h-16 flex items-center justify-center flex-shrink-0">
       <div className="flex flex-col items-center justify-center gap-0.5">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 3xl:w-8 3xl:h-8 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <rect x="1" y="1" width="5" height="5" rx="1.2" fill="white" />
@@ -30,7 +30,7 @@ export default function Header() {
               <rect x="8" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.4" />
             </svg>
           </div>
-          <span className="text-[15px] 3xl:text-[17px] font-semibold text-apple-dark tracking-tight">{title}</span>
+          <span className="text-[20px] 3xl:text-[24px] font-bold text-apple-dark tracking-tight">{title}</span>
         </div>
         {triggerMessage && (
           <span className="text-[11px] 3xl:text-[12px] text-green-700">{triggerMessage}</span>
