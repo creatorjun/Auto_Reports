@@ -2,6 +2,8 @@ import {
   PieChart, Pie, Cell, Tooltip,
   Legend, ResponsiveContainer
 } from 'recharts'
+import type { TooltipProps } from 'recharts'
+import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 
 const COLORS = ['#3b82f6','#f59e0b','#ef4444','#8b5cf6','#10b981','#f97316']
 
@@ -31,20 +33,13 @@ function CustomLabel({
   )
 }
 
-interface TooltipPayload {
-  name: string
-  value: number
-  payload: { name: string; value: number }
-}
-
-function CustomTooltip({ active, payload, total }: {
-  active?: boolean
-  payload?: TooltipPayload[]
-  total: number
-}) {
+function CustomTooltip({
+  active, payload, total
+}: TooltipProps<ValueType, NameType> & { total: number }) {
   if (!active || !payload?.length) return null
-  const { name, value } = payload[0]
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0
+  const name  = payload[0].name  as string
+  const value = payload[0].value as number
+  const pct   = total > 0 ? Math.round((value / total) * 100) : 0
   return (
     <div className="bg-white border border-apple-divider/60 rounded-xl shadow-apple px-3 py-2 text-[12px]">
       <p className="font-medium text-apple-dark">{name}</p>
