@@ -1,3 +1,4 @@
+// frontend/src/presentation/components/cards/SummaryCard.tsx
 interface Props {
   label: string
   value: number | string
@@ -7,21 +8,25 @@ interface Props {
 }
 
 const colorMap = {
-  blue:   'bg-blue-50   text-blue-700   border-blue-100',
-  red:    'bg-red-50    text-red-700    border-red-100',
-  green:  'bg-green-50  text-green-700  border-green-100',
-  yellow: 'bg-yellow-50 text-yellow-700 border-yellow-100',
-  gray:   'bg-gray-50   text-gray-700   border-gray-100'
+  blue:   { dot: 'bg-blue-500',   val: 'text-blue-600'  },
+  red:    { dot: 'bg-red-500',    val: 'text-red-600'   },
+  green:  { dot: 'bg-green-500',  val: 'text-green-600' },
+  yellow: { dot: 'bg-amber-500',  val: 'text-amber-600' },
+  gray:   { dot: 'bg-gray-400',   val: 'text-gray-700'  }
 }
 
 export default function SummaryCard({ label, value, sub, color = 'blue', icon }: Props) {
+  const c = colorMap[color]
   return (
-    <div className={`card border ${colorMap[color]} flex flex-col gap-1`}>
-      <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
-        {icon && <span className="mr-1">{icon}</span>}{label}
-      </p>
-      <p className="text-3xl font-bold">{value}</p>
-      {sub && <p className="text-xs opacity-60">{sub}</p>}
+    <div className="card flex flex-col gap-2 hover:shadow-apple-lg transition-shadow duration-300">
+      <div className="flex items-center gap-2">
+        <span className={`w-2 h-2 rounded-full ${c.dot} flex-shrink-0`} />
+        <p className="text-[11px] font-semibold text-apple-light uppercase tracking-wider leading-none">
+          {icon && <span className="mr-1">{icon}</span>}{label}
+        </p>
+      </div>
+      <p className={`text-[32px] font-semibold leading-none tracking-tight ${c.val}`}>{value}</p>
+      {sub && <p className="text-[11px] text-apple-light">{sub}</p>}
     </div>
   )
 }

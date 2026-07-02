@@ -1,3 +1,4 @@
+// frontend/src/presentation/pages/HistoryPage.tsx
 import { Link } from 'react-router-dom'
 import { useAllReports } from '@/infrastructure/hooks/useReport'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
@@ -19,43 +20,49 @@ export default function HistoryPage() {
   if (isLoading) return <LoadingSpinner />
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-bold text-gray-900">🗂️ 보고서 히스토리</h1>
+    <div className="space-y-5 max-w-[1400px]">
+      <div>
+        <h1 className="text-[22px] font-semibold text-apple-dark tracking-tight">보고서 히스토리</h1>
+        <p className="text-[13px] text-apple-light mt-1">자동 생성된 TAC 주간 보고서 목록</p>
+      </div>
       <div className="card overflow-hidden p-0">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100">
+        <table className="w-full">
+          <thead className="border-b border-apple-divider/60">
             <tr>
-              <th className="text-left px-6 py-3 font-semibold text-gray-500">ID</th>
-              <th className="text-left px-6 py-3 font-semibold text-gray-500">데이터 범위</th>
-              <th className="text-left px-6 py-3 font-semibold text-gray-500">생성시각</th>
-              <th className="text-left px-6 py-3 font-semibold text-gray-500">AI 상태</th>
-              <th className="px-6 py-3"></th>
+              {['ID', '데이터 범위', '생성 시각', 'AI 상태', ''].map((h, i) => (
+                <th key={i} className="text-left px-6 py-3.5 text-[11px] font-semibold text-apple-light uppercase tracking-wider">{h}</th>
+              ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-apple-divider/40">
             {(data ?? []).map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-3 font-mono text-gray-400">#{r.id}</td>
-                <td className="px-6 py-3">{r.week_start} ~ {r.week_end}</td>
-                <td className="px-6 py-3 text-gray-500">
+              <tr key={r.id} className="hover:bg-apple-gray/60 transition-colors duration-150">
+                <td className="px-6 py-3.5 text-[12px] font-mono text-apple-light">#{r.id}</td>
+                <td className="px-6 py-3.5 text-[13px] text-apple-dark">{r.week_start} – {r.week_end}</td>
+                <td className="px-6 py-3.5 text-[13px] text-apple-light tabular-nums">
                   {format(new Date(r.created_at), 'MM/dd HH:mm', { locale: ko })}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-6 py-3.5">
                   {r.sentiment
                     ? <span className={sentimentLabel[r.sentiment]}>{sentimentText[r.sentiment]}</span>
-                    : <span className="text-gray-300">-</span>
+                    : <span className="text-apple-divider text-[12px]">—</span>
                   }
                 </td>
-                <td className="px-6 py-3">
-                  <Link to={`/reports/${r.id}`} className="text-brand-600 hover:underline text-xs font-medium">
-                    상세 보기 →
+                <td className="px-6 py-3.5 text-right">
+                  <Link
+                    to={`/reports/${r.id}`}
+                    className="text-[12px] text-brand-600 hover:text-brand-700 font-medium transition-colors"
+                  >
+                    상세 보기
                   </Link>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {!data?.length && <p className="text-center text-gray-400 py-12">보고서가 없습니다.</p>}
+        {!data?.length && (
+          <p className="text-center text-[13px] text-apple-light py-16">보고서가 없습니다.</p>
+        )}
       </div>
     </div>
   )

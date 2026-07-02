@@ -1,3 +1,4 @@
+// frontend/src/presentation/components/tables/IssueDetailTable.tsx
 interface IssueDetail {
   key: string
   summary: string
@@ -10,26 +11,24 @@ export default function IssueDetailTable({ details }: { details: IssueDetail[] }
   if (!details?.length) return null
   return (
     <div className="card">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3">📋 이슈별 해결시간 상세</h3>
+      <h3 className="text-[13px] font-semibold text-apple-dark mb-4">이슈별 해결시간 상세</h3>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full">
           <thead>
-            <tr className="text-left border-b border-gray-100">
-              <th className="pb-2 font-semibold text-gray-500">키</th>
-              <th className="pb-2 font-semibold text-gray-500">요약</th>
-              <th className="pb-2 font-semibold text-gray-500">유형</th>
-              <th className="pb-2 font-semibold text-gray-500">해결시간</th>
-              <th className="pb-2 font-semibold text-gray-500">상태</th>
+            <tr className="border-b border-apple-divider/60">
+              {['키', '요약', '유형', '해결시간', '상태'].map(h => (
+                <th key={h} className="text-left pb-3 text-[11px] font-semibold text-apple-light uppercase tracking-wider">{h}</th>
+              ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-apple-divider/40">
             {details.map((d) => (
-              <tr key={d.key} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="py-1.5 font-mono text-brand-600">{d.key}</td>
-                <td className="py-1.5 max-w-xs truncate text-gray-600">{d.summary}</td>
-                <td className="py-1.5 text-gray-500">{d.type}</td>
-                <td className="py-1.5">{d.resolution_h ? `${d.resolution_h}h` : '-'}</td>
-                <td className="py-1.5">
+              <tr key={d.key} className="hover:bg-apple-gray/50 transition-colors duration-150">
+                <td className="py-2.5 text-[12px] font-mono text-brand-600 font-medium">{d.key}</td>
+                <td className="py-2.5 text-[12px] max-w-xs truncate text-apple-dark/80 pr-4">{d.summary}</td>
+                <td className="py-2.5 text-[12px] text-apple-light">{d.type}</td>
+                <td className="py-2.5 text-[12px] text-apple-dark/80 tabular-nums">{d.resolution_h ? `${d.resolution_h}h` : '—'}</td>
+                <td className="py-2.5">
                   <span className={d.res_breached ? 'badge-critical' : 'badge-good'}>
                     {d.res_breached ? 'SLA 위반' : 'SLA 만족'}
                   </span>

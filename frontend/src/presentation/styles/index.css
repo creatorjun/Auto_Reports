@@ -1,18 +1,43 @@
+/* frontend/src/presentation/styles/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900 font-sans;
+    @apply bg-white text-apple-dark font-sans antialiased;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+  }
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6;
+    @apply bg-white rounded-2xl shadow-apple border border-apple-divider/60 p-6;
   }
-  .badge-good    { @apply inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-700; }
-  .badge-warning { @apply inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700; }
-  .badge-critical{ @apply inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700; }
+  .card-flat {
+    @apply bg-apple-gray rounded-2xl p-6;
+  }
+  .badge-good {
+    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full
+           bg-green-50 text-green-700 border border-green-200/60;
+  }
+  .badge-warning {
+    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full
+           bg-amber-50 text-amber-700 border border-amber-200/60;
+  }
+  .badge-critical {
+    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full
+           bg-red-50 text-red-700 border border-red-200/60;
+  }
+  .nav-link {
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium
+           transition-all duration-200 text-apple-mid hover:bg-apple-gray hover:text-apple-dark;
+  }
+  .nav-link-active {
+    @apply bg-white shadow-apple-sm text-apple-dark;
+  }
 }
