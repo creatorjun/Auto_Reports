@@ -7,6 +7,8 @@ from src.application.services.report_collector import ReportCollector
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
 from src.config.settings import Settings
+from src.domain.ports.ai_port import AiPort
+from src.domain.ports.jira_port import JiraPort
 from src.infrastructure.external.gemini_client import GeminiClient
 from src.infrastructure.external.jira_client import JiraClient
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
@@ -15,19 +17,19 @@ from src.infrastructure.persistence.report_repository_impl import ReportReposito
 class Container:
     def __init__(self, settings: Settings):
         self._settings = settings
-        self._jira = JiraClient(
+        self._jira: JiraPort = JiraClient(
             settings.jira_base_url,
             settings.jira_email,
             settings.jira_api_token
         )
-        self._gemini = GeminiClient(settings.gemini_api_key) if settings.ai_enabled else None
+        self._ai: AiPort | None = GeminiClient(settings.gemini_api_key) if settings.ai_enabled else None
 
     def generate_report_use_case(self, session: AsyncSession) -> GenerateReportUseCase:
         repo = ReportRepositoryImpl(session)
         query_builder = WidgetQueryBuilder(self._settings)
         collector = ReportCollector(self._jira, query_builder, self._settings)
         analyzer = AiAnalyzer(
-            gemini=self._gemini,
+            ai=self._ai,
             enabled=self._settings.ai_enabled
         )
         return GenerateReportUseCase(collector, analyzer, repo)
