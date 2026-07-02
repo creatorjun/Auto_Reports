@@ -49,14 +49,24 @@ interface Props {
 export default function Sidebar({ collapsed, setCollapsed }: Props) {
   return (
     <aside
-      className={`${
-        collapsed ? 'w-14' : 'w-56'
-      } bg-white border-r border-apple-divider/80 flex flex-col py-5 px-2 transition-all duration-250 ease-in-out flex-shrink-0`}
+      className={`
+        ${ collapsed
+          ? 'w-14 3xl:w-16'
+          : 'w-56 xl:w-60 2xl:w-64 3xl:w-72'
+        }
+        bg-white border-r border-apple-divider/80
+        flex flex-col
+        py-5 3xl:py-7
+        px-2 3xl:px-3
+        transition-all duration-250 ease-in-out flex-shrink-0
+      `}
     >
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center w-8 h-8 rounded-xl text-apple-light
-                   hover:bg-apple-gray hover:text-apple-dark transition-all duration-200 mb-2 self-end"
+        className="flex items-center justify-center w-8 h-8 3xl:w-10 3xl:h-10
+                   rounded-xl text-apple-light
+                   hover:bg-apple-gray hover:text-apple-dark
+                   transition-all duration-200 mb-2 self-end"
         title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
       >
         <CollapseIcon collapsed={collapsed} />
@@ -70,7 +80,10 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
             end={to === '/'}
             title={collapsed ? label : undefined}
             className={({ isActive }) =>
-              `nav-link ${collapsed ? 'justify-center px-0' : ''} ${isActive ? 'nav-link-active' : ''}`
+              `nav-link
+               ${ collapsed ? 'justify-center px-0' : '' }
+               ${ isActive ? 'nav-link-active' : '' }
+               3xl:text-sm 3xl:py-2.5`
             }
           >
             <span className="flex-shrink-0">{icon}</span>
@@ -79,7 +92,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
         ))}
       </div>
 
-      <div className={`mt-auto pt-4 border-t border-apple-divider/60 ${collapsed ? 'flex justify-center' : ''}`}>
+      <div className={`mt-auto pt-4 border-t border-apple-divider/60 ${ collapsed ? 'flex justify-center' : '' }`}>
         <TriggerButton collapsed={collapsed} />
       </div>
     </aside>

@@ -2,6 +2,15 @@
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
+    screens: {
+      sm:   '640px',
+      md:   '768px',
+      lg:   '1024px',
+      xl:   '1280px',
+      '2xl':'1536px',
+      '3xl':'1920px',
+      '4xl':'2560px'
+    },
     extend: {
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'sans-serif']
@@ -32,6 +41,12 @@ export default {
         'apple-sm': '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)',
         'apple':    '0 4px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)',
         'apple-lg': '0 12px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)'
+      },
+      maxWidth: {
+        content: '1600px'
+      },
+      spacing: {
+        '18': '4.5rem'
       }
     }
   },

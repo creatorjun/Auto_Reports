@@ -10,14 +10,21 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
-      <div className="hidden md:flex">
+      <div className="hidden md:flex flex-shrink-0">
         <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       </div>
 
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         <Header />
-        <main className="flex-1 overflow-y-auto bg-apple-gray/40 p-4 md:p-7 pb-20 md:pb-7">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto bg-apple-gray/40">
+          <div className="w-full max-w-content mx-auto
+                          px-4 py-4
+                          md:px-6 md:py-6
+                          xl:px-8 xl:py-8
+                          3xl:px-12 3xl:py-10
+                          pb-20 md:pb-6 xl:pb-8 3xl:pb-10">
+            <Outlet />
+          </div>
         </main>
       </div>
 
