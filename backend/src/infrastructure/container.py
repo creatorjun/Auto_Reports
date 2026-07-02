@@ -1,4 +1,6 @@
 # backend/src/infrastructure/container.py
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.services.ai_analyzer import AiAnalyzer
@@ -11,7 +13,10 @@ from src.domain.ports.ai_port import AiPort
 from src.domain.ports.jira_port import JiraPort
 from src.infrastructure.external.gemini_client import GeminiClient
 from src.infrastructure.external.jira_client import JiraClient
+from src.infrastructure.persistence.database import AsyncSessionLocal
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
+
+logger = logging.getLogger(__name__)
 
 
 class Container:
@@ -37,3 +42,8 @@ class Container:
     def get_report_use_case(self, session: AsyncSession) -> GetReportUseCase:
         repo = ReportRepositoryImpl(session)
         return GetReportUseCase(repo)
+
+    async def run_scheduled_job(self) -> None:
+        async with AsyncSessionLocal() as session:
+            uc = self.generate_report_use_case(session)
+            await uc.execute()
