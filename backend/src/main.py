@@ -1,9 +1,10 @@
 # backend/src/main.py
 import logging
-import subprocess
 import sys
 
 from contextlib import asynccontextmanager
+from alembic import command
+from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,19 +20,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_migrations():
+def run_migrations() -> None:
     try:
         logger.info("DB 마이그레이션 실행 중...")
-        result = subprocess.run(
-            ["alembic", "upgrade", "head"],
-            capture_output=True, text=True, timeout=60
-        )
-        if result.returncode == 0:
-            logger.info("DB 마이그레이션 완료 ✅")
-        else:
-            logger.error(f"마이그레이션 실패: {result.stderr}")
+        alembic_cfg = AlembicConfig("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        logger.info("DB 마이그레이션 완료 ✅")
     except Exception as e:
-        logger.error(f"마이그레이션 예외: {e}")
+        logger.error(f"마이그레이션 실패: {e}")
 
 
 @asynccontextmanager
@@ -50,6 +46,8 @@ async def lifespan(app: FastAPI):
     logger.info("TAC Auto Reports 서비스 종료")
 
 
+settings = get_settings()
+
 app = FastAPI(
     title="TAC Auto Reports API",
     version="1.0.0",
@@ -58,7 +56,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
