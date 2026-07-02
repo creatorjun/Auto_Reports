@@ -27,11 +27,11 @@ services:
     volumes:
       - reports_data:/app/reports
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 30s
     logging:
       driver: json-file
       options:
@@ -43,8 +43,7 @@ services:
     container_name: tac_frontend
     restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     ports:
       - "${APP_PORT:-80}:80"
     logging:
