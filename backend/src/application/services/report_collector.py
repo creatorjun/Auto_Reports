@@ -7,13 +7,13 @@ from src.application.services.query_builder import WidgetQueryBuilder
 from src.config.settings import Settings
 from src.domain.entities.report import Report
 from src.domain.entities.widget import WidgetResult
-from src.infrastructure.external.jira_client import JiraClient
+from src.domain.ports.jira_port import JiraPort
 
 logger = logging.getLogger(__name__)
 
 
 class ReportCollector:
-    def __init__(self, jira: JiraClient, qb: WidgetQueryBuilder, settings: Settings):
+    def __init__(self, jira: JiraPort, qb: WidgetQueryBuilder, settings: Settings):
         self._jira = jira
         self._qb = qb
         self._settings = settings
@@ -30,8 +30,8 @@ class ReportCollector:
         widgets["w5"] = self._breakdown("유형별 SLA 지연", q.w5_by_type())
         widgets["w6"] = self._breakdown("상태별 SLA 지연", q.w6_by_status())
         widgets["w7"] = self._breakdown("SLA 지연 사유", q.w7_reason_pie())
-        widgets["w8"] = self._simple("2026년 누적 생성", q.w8_yearly_created())
-        widgets["w9"] = self._simple("2026년 누적 해결", q.w9_yearly_resolved())
+        widgets["w8"] = self._simple(f"{now.year}년 누적 생성", q.w8_yearly_created())
+        widgets["w9"] = self._simple(f"{now.year}년 누적 해결", q.w9_yearly_resolved())
         widgets["w10"] = self._collect_w10(q)
         widgets["w11"] = self._collect_w11(q)
         widgets["w12"] = self._collect_w12(q)
@@ -151,5 +151,5 @@ class ReportCollector:
             if c > 0:
                 bd[label] = c
                 total += c
-        logger.info(f"[{name}] 총 {total}건")
+        logger.info(f"[{name}] 의 {total}건")
         return WidgetResult(name=name, total=total, breakdown=bd)

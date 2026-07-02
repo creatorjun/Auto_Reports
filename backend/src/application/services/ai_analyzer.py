@@ -3,20 +3,20 @@ import logging
 from typing import Optional
 
 from src.domain.entities.report import Report
+from src.domain.ports.ai_port import AiPort
 from src.domain.value_objects.ai_analysis import AiAnalysis
-from src.infrastructure.external.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
 
 
 class AiAnalyzer:
-    def __init__(self, gemini: GeminiClient, enabled: bool = True):
-        self._gemini = gemini
+    def __init__(self, ai: AiPort, enabled: bool = True):
+        self._ai = ai
         self._enabled = enabled
 
     def analyze(self, report: Report) -> Optional[AiAnalysis]:
         if not self._enabled:
-            logger.info("AI 분석 비활성화 (AI_ENABLED=false)")
+            logger.info("유AI 분석 비활성화 (AI_ENABLED=false)")
             return None
 
         w = report.widgets
@@ -44,4 +44,4 @@ class AiAnalyzer:
             "delay_reasons":       str(w7.breakdown) if w7 else "{}",
         }
         logger.info("Gemini AI 분석 요청 중...")
-        return self._gemini.analyze(context)
+        return self._ai.analyze(context)
