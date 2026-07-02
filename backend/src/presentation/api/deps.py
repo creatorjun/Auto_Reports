@@ -1,6 +1,5 @@
 # backend/src/presentation/api/deps.py
-from typing import AsyncGenerator
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.use_cases.generate_report import GenerateReportUseCase
@@ -8,27 +7,20 @@ from src.application.use_cases.get_report import GetReportUseCase
 from src.infrastructure.container import Container
 from src.infrastructure.persistence.database import get_db_session
 
-_container: Container | None = None
 
-
-def set_container(container: Container) -> None:
-    global _container
-    _container = container
-
-
-def get_container() -> Container:
-    return _container
+def get_container(request: Request) -> Container:
+    return request.app.state.container
 
 
 async def get_generate_use_case(
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
-    container: Container = Depends(get_container)
 ) -> GenerateReportUseCase:
-    return container.generate_report_use_case(session)
+    return request.app.state.container.generate_report_use_case(session)
 
 
 async def get_get_use_case(
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
-    container: Container = Depends(get_container)
 ) -> GetReportUseCase:
-    return container.get_report_use_case(session)
+    return request.app.state.container.get_report_use_case(session)

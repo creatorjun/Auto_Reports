@@ -1,7 +1,7 @@
 # backend/src/main.py
 import logging
-import sys
 import subprocess
+import sys
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -10,8 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.application.scheduler.report_scheduler import create_scheduler
 from src.config.settings import get_settings
 from src.infrastructure.container import Container
-from src.presentation.api.deps import set_container
-from src.presentation.api.v1.router import router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 
 def run_migrations():
-    """앱 시작 시 alembic 마이그레이션 자동 실행"""
     try:
         logger.info("DB 마이그레이션 실행 중...")
         result = subprocess.run(
@@ -43,15 +40,9 @@ async def lifespan(app: FastAPI):
 
     settings = get_settings()
     container = Container(settings)
-    set_container(container)
+    app.state.container = container
 
-    async def _scheduled_job():
-        from src.infrastructure.persistence.database import AsyncSessionLocal
-        async with AsyncSessionLocal() as session:
-            uc = container.generate_report_use_case(session)
-            await uc.execute()
-
-    scheduler = create_scheduler(settings, _scheduled_job)
+    scheduler = create_scheduler(settings, container.run_scheduled_job)
     scheduler.start()
     logger.info("TAC Auto Reports 서비스 시작 ✅")
     yield
@@ -73,6 +64,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from src.presentation.api.v1.router import router
 app.include_router(router)
 
 
