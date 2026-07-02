@@ -3,7 +3,8 @@ import json
 import logging
 from typing import Optional
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from src.domain.value_objects.ai_analysis import AiAnalysis
 
@@ -44,20 +45,20 @@ sentiment 판단 기준:
 class GeminiClient:
     def __init__(self, api_key: str):
         if api_key:
-            genai.configure(api_key=api_key)
-            self._model = genai.GenerativeModel("gemini-2.0-flash")
+            self._client = genai.Client(api_key=api_key)
         else:
-            self._model = None
+            self._client = None
 
     def analyze(self, report_context: dict) -> Optional[AiAnalysis]:
-        if not self._model:
-            logger.warning("Gemini 모델 미초기화 (API 키 없음)")
+        if not self._client:
+            logger.warning("Gemini 클라이언트 미초기화 (API 키 없음)")
             return None
         prompt = PROMPT_TEMPLATE.format(**report_context)
         try:
-            response = self._model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
+            response = self._client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
                     temperature=0.3,
                     response_mime_type="application/json"
                 )
