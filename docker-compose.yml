@@ -8,8 +8,11 @@ services:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-auto_reports}
+      TZ: Asia/Seoul
+      PGTZ: Asia/Seoul
     volumes:
       - db_data:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
@@ -22,11 +25,14 @@ services:
     container_name: tac_backend
     restart: unless-stopped
     env_file: .env
+    environment:
+      TZ: Asia/Seoul
+    volumes:
+      - reports_data:/app/reports
+      - /etc/localtime:/etc/localtime:ro
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - reports_data:/app/reports
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/health || exit 1"]
       interval: 15s
@@ -43,6 +49,10 @@ services:
     build: ./frontend
     container_name: tac_frontend
     restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
     depends_on:
       - backend
     ports:

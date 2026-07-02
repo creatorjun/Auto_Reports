@@ -1,6 +1,8 @@
 # backend/src/infrastructure/persistence/report_repository_impl.py
 from dataclasses import asdict
+from datetime import timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +12,8 @@ from src.domain.entities.widget import WidgetResult
 from src.domain.repositories.report_repository import ReportRepository
 from src.domain.value_objects.ai_analysis import AiAnalysis
 from src.infrastructure.persistence.models import ReportORM
+
+KST = ZoneInfo("Asia/Seoul")
 
 
 class ReportRepositoryImpl(ReportRepository):
@@ -30,7 +34,7 @@ class ReportRepositoryImpl(ReportRepository):
         await self._session.commit()
         await self._session.refresh(orm)
         report.id = orm.id
-        report.created_at = orm.created_at
+        report.created_at = self._to_kst(orm.created_at)
         return report
 
     async def find_by_id(self, report_id: int) -> Optional[Report]:
@@ -61,6 +65,14 @@ class ReportRepositoryImpl(ReportRepository):
         return result.rowcount > 0
 
     @staticmethod
+    def _to_kst(dt: datetime) -> datetime:
+        if dt is None:
+            return dt
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(KST)
+
+    @staticmethod
     def _to_entity(orm: ReportORM) -> Report:
         widgets = {k: WidgetResult(**v) for k, v in orm.widgets.items()}
         ai = AiAnalysis(**orm.ai_analysis) if orm.ai_analysis else None
@@ -71,5 +83,5 @@ class ReportRepositoryImpl(ReportRepository):
             report_date=orm.report_date,
             widgets=widgets,
             ai_analysis=ai,
-            created_at=orm.created_at,
+            created_at=ReportRepositoryImpl._to_kst(orm.created_at),
         )
