@@ -6,6 +6,7 @@ from typing import Optional
 from google import genai
 from google.genai import types
 
+from src.domain.ports.ai_port import AiPort
 from src.domain.value_objects.ai_analysis import AiAnalysis
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ sentiment 판단 기준:
 """
 
 
-class GeminiClient:
+class GeminiClient(AiPort):
     def __init__(self, api_key: str):
         if api_key:
             self._client = genai.Client(api_key=api_key)

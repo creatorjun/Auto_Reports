@@ -5,10 +5,12 @@ from typing import Any
 import requests
 from requests.auth import HTTPBasicAuth
 
+from src.domain.ports.jira_port import JiraPort
+
 logger = logging.getLogger(__name__)
 
 
-class JiraClient:
+class JiraClient(JiraPort):
     def __init__(self, base_url: str, email: str, api_token: str):
         self._base_url = base_url.rstrip("/")
         self._session = requests.Session()
@@ -30,7 +32,12 @@ class JiraClient:
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return 0
 
-    def get_issues(self, jql: str, max_results: int = 200, fields: str = "") -> list[dict[str, Any]]:
+    def get_issues(
+        self,
+        jql: str,
+        max_results: int = 200,
+        fields: str = "",
+    ) -> list[dict[str, Any]]:
         url = f"{self._base_url}/rest/api/3/search/jql"
         payload: dict[str, Any] = {
             "jql": jql,
