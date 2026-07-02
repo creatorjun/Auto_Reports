@@ -54,26 +54,28 @@ export default function MobileTabBar() {
         </NavLink>
       ))}
 
-      {/* \uc0dd\uc131 \ubc84\ud2bc: NavLink \ud0ed\uacfc \ub3d9\uc77c\ud55c \uad6c\uc870 */}
       <button
         onClick={() => mutate()}
         disabled={isTriggerLoading}
         title="\ubcf4\uace0\uc11c \uc0dd\uc131"
         className="flex flex-col items-center gap-1 px-4 py-1 rounded-xl
-                   text-apple-light transition-colors
+                   text-brand-600 transition-colors
                    disabled:opacity-40 disabled:cursor-not-allowed
                    active:scale-95"
       >
-        <span className="w-5 h-5 flex items-center justify-center rounded-md bg-brand-600 text-white">
-          {isTriggerLoading ? (
-            <span className="w-3 h-3 border-[1.5px] border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M5 1v8M1 5h8" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          )}
+        {isTriggerLoading ? (
+          <span className="w-5 h-5 flex items-center justify-center">
+            <span className="w-4 h-4 border-2 border-brand-600/30 border-t-brand-600 rounded-full animate-spin" />
+          </span>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="1" width="14" height="14" rx="3.5" fill="currentColor" opacity="0.15" />
+            <path d="M8 4v8M4 8h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        )}
+        <span className="text-[10px] font-medium">
+          {isTriggerLoading ? '\uc0dd\uc131 \uc911' : '\uc0dd\uc131'}
         </span>
-        <span className="text-[10px] font-medium">{isTriggerLoading ? '\uc0dd\uc131 \uc911' : '\uc0dd\uc131'}</span>
       </button>
     </nav>
   )
