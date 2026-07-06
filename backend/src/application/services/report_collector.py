@@ -1,4 +1,5 @@
 # backend/src/application/services/report_collector.py
+import asyncio
 import logging
 from datetime import datetime
 from typing import Any
@@ -22,28 +23,45 @@ class ReportCollector:
         self._qb = qb
         self._settings = settings
 
-    def collect(self, now: datetime) -> Report:
+    async def collect(self, now: datetime) -> Report:
         if now.tzinfo is None:
             now = now.replace(tzinfo=KST)
         q = self._qb.build(now)
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 
-        widgets: dict[str, WidgetResult] = {
-            WidgetId.OVERDUE_ISSUES:      self._collect_w1(q),
-            WidgetId.DEV_SLA_DELAY:       self._simple("개발 SLA 지연", q.w2_dev_sla()),
-            WidgetId.TAC_QA_SLA_DELAY:    self._simple("TAC & QA SLA 지연", q.w3_tac_qa_sla()),
-            WidgetId.LAB_UNASSIGNED:      self._simple("연구소 대기(담당자 미지정)", q.w4_lab_unassigned()),
-            WidgetId.SLA_DELAY_BY_TYPE:   self._breakdown("유형별 SLA 지연", q.w5_by_type()),
-            WidgetId.SLA_DELAY_BY_STATUS: self._breakdown("상태별 SLA 지연", q.w6_by_status()),
-            WidgetId.SLA_DELAY_REASON:    self._breakdown("SLA 지연 사유", q.w7_reason_pie()),
-            WidgetId.YEARLY_CREATED:      self._simple(f"{now.year}년 누적 생성", q.w8_yearly_created()),
-            WidgetId.YEARLY_RESOLVED:     self._simple(f"{now.year}년 누적 해결", q.w9_yearly_resolved()),
-            WidgetId.AVG_RESOLUTION_TYPE: self._collect_w10(q),
-            WidgetId.RESOLUTION_REPORT:   self._collect_w11(q),
-            WidgetId.SLA_MET_VS_VIOLATED: self._collect_w12(q),
-            WidgetId.CREATED_VS_RESOLVED: self._collect_w14(q),
-        }
+        results = await asyncio.gather(
+            self._collect_w1(q),
+            self._simple("개발 SLA 지연", q.w2_dev_sla()),
+            self._simple("TAC & QA SLA 지연", q.w3_tac_qa_sla()),
+            self._simple("연구소 대기(담당자 미지정)", q.w4_lab_unassigned()),
+            self._breakdown("유형별 SLA 지연", q.w5_by_type()),
+            self._breakdown("상태별 SLA 지연", q.w6_by_status()),
+            self._breakdown("SLA 지연 사유", q.w7_reason_pie()),
+            self._simple(f"{now.year}년 누적 생성", q.w8_yearly_created()),
+            self._simple(f"{now.year}년 누적 해결", q.w9_yearly_resolved()),
+            self._collect_w10(q),
+            self._collect_w11(q),
+            self._collect_w12(q),
+            self._collect_w14(q),
+        )
 
+        widget_ids = [
+            WidgetId.OVERDUE_ISSUES,
+            WidgetId.DEV_SLA_DELAY,
+            WidgetId.TAC_QA_SLA_DELAY,
+            WidgetId.LAB_UNASSIGNED,
+            WidgetId.SLA_DELAY_BY_TYPE,
+            WidgetId.SLA_DELAY_BY_STATUS,
+            WidgetId.SLA_DELAY_REASON,
+            WidgetId.YEARLY_CREATED,
+            WidgetId.YEARLY_RESOLVED,
+            WidgetId.AVG_RESOLUTION_TYPE,
+            WidgetId.RESOLUTION_REPORT,
+            WidgetId.SLA_MET_VS_VIOLATED,
+            WidgetId.CREATED_VS_RESOLVED,
+        ]
+
+        widgets: dict[str, WidgetResult] = dict(zip(widget_ids, results))
         logger.info("데이터 수집 완료 ✅")
         return Report(
             id=None,
@@ -53,22 +71,23 @@ class ReportCollector:
             widgets=widgets
         )
 
-    def _collect_w1(self, q) -> WidgetResult:
+    async def _collect_w1(self, q) -> WidgetResult:
         jql = q.w1_overdue()
-        total = self._jira.get_issue_count(jql)
+        issues = await self._jira.get_issues(jql, max_results=500, fields="issuetype,status")
+        total = len(issues)
         breakdown: dict[str, Any] = {}
-        for itype, sq in q.w1_by_type_status().items():
-            breakdown[itype] = {}
-            for st, qstr in sq.items():
-                c = self._jira.get_issue_count(qstr)
-                if c > 0:
-                    breakdown[itype][st] = c
+        for issue in issues:
+            f = issue.get("fields", {})
+            itype = (f.get("issuetype") or {}).get("name", "기타")
+            st = (f.get("status") or {}).get("name", "기타")
+            breakdown.setdefault(itype, {})
+            breakdown[itype][st] = breakdown[itype].get(st, 0) + 1
         logger.info(f"[W1] {total}건")
         return WidgetResult(name="생성 1달 이상 된 이슈", total=total, jql=jql, breakdown=breakdown)
 
-    def _collect_w10(self, q) -> WidgetResult:
+    async def _collect_w10(self, q) -> WidgetResult:
         jql = q.w10_11_resolved()
-        issues = self._jira.get_issues(
+        issues = await self._jira.get_issues(
             jql, max_results=200,
             fields="summary,issuetype,created,resolutiondate"
         )
@@ -90,9 +109,9 @@ class ReportCollector:
         logger.info(f"[W10] {total}건")
         return WidgetResult(name="유형별 평균 처리일", total=total, jql=jql, breakdown=breakdown)
 
-    def _collect_w11(self, q) -> WidgetResult:
+    async def _collect_w11(self, q) -> WidgetResult:
         jql = q.w10_11_resolved()
-        issues = self._jira.get_issues(
+        issues = await self._jira.get_issues(
             jql, max_results=200,
             fields="summary,issuetype,created,resolutiondate"
         )
@@ -131,32 +150,34 @@ class ReportCollector:
         logger.info(f"[W11] 평균 {avg}h ({len(resolution_list)}건)")
         return WidgetResult(name="해결시간 보고서", total=len(resolution_list), jql=jql, breakdown=breakdown)
 
-    def _collect_w12(self, q) -> WidgetResult:
+    async def _collect_w12(self, q) -> WidgetResult:
         met_jql, viol_jql = q.w12_sla()
-        met = self._jira.get_issue_count(met_jql)
-        viol = self._jira.get_issue_count(viol_jql)
+        met, viol = await asyncio.gather(
+            self._jira.get_issue_count(met_jql),
+            self._jira.get_issue_count(viol_jql),
+        )
         logger.info(f"[W12] 만족 {met}건 / 위반 {viol}건")
         return WidgetResult(name="SLA 만족 vs 위반", total=met + viol,
                             breakdown={"SLA 만족": met, "SLA 위반": viol})
 
-    def _collect_w14(self, q) -> WidgetResult:
+    async def _collect_w14(self, q) -> WidgetResult:
         c_jql, r_jql = q.w14_created_vs_resolved()
-        c = self._jira.get_issue_count(c_jql)
-        r = self._jira.get_issue_count(r_jql)
+        c, r = await asyncio.gather(
+            self._jira.get_issue_count(c_jql),
+            self._jira.get_issue_count(r_jql),
+        )
         logger.info(f"[W14] 생성 {c}건 / 해결 {r}건")
         return WidgetResult(name="생성 vs 해결", total=c + r, breakdown={"생성": c, "해결": r})
 
-    def _simple(self, name: str, jql: str) -> WidgetResult:
-        total = self._jira.get_issue_count(jql)
+    async def _simple(self, name: str, jql: str) -> WidgetResult:
+        total = await self._jira.get_issue_count(jql)
         logger.info(f"[{name}] {total}건")
         return WidgetResult(name=name, total=total, jql=jql)
 
-    def _breakdown(self, name: str, queries: dict[str, str]) -> WidgetResult:
-        bd, total = {}, 0
-        for label, jql in queries.items():
-            c = self._jira.get_issue_count(jql)
-            if c > 0:
-                bd[label] = c
-                total += c
+    async def _breakdown(self, name: str, queries: dict[str, str]) -> WidgetResult:
+        labels = list(queries.keys())
+        counts = await asyncio.gather(*[self._jira.get_issue_count(jql) for jql in queries.values()])
+        bd = {label: cnt for label, cnt in zip(labels, counts) if cnt > 0}
+        total = sum(bd.values())
         logger.info(f"[{name}] 의 {total}건")
         return WidgetResult(name=name, total=total, breakdown=bd)
