@@ -37,6 +37,13 @@ class ReportDetailSchema(BaseModel):
     ai_analysis: Optional[AiAnalysisSchema] = None
 
 
-class TriggerResponseSchema(BaseModel):
-    report_id: int
+class TriggerAcceptedSchema(BaseModel):
+    job_id: str
     message: str
+
+
+class JobStatusSchema(BaseModel):
+    job_id: str
+    status: str
+    report_id: Optional[int] = None
+    error: Optional[str] = None

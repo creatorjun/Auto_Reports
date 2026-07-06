@@ -1,22 +1,39 @@
 # backend/src/presentation/api/v1/trigger.py
-from fastapi import APIRouter, BackgroundTasks, Depends
+import uuid
 
-from src.application.use_cases.generate_report import GenerateReportUseCase
-from src.presentation.api.deps import get_generate_use_case
-from src.presentation.schemas.report_schema import TriggerResponseSchema
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+
+from src.infrastructure.container import Container
+from src.presentation.api.deps import get_container
+from src.presentation.schemas.report_schema import JobStatusSchema, TriggerAcceptedSchema
 
 router = APIRouter(prefix="/trigger", tags=["trigger"])
 
-_last_report_id: dict = {}
 
-
-@router.post("/", response_model=TriggerResponseSchema)
+@router.post("/", response_model=TriggerAcceptedSchema, status_code=202)
 async def trigger_report(
     background_tasks: BackgroundTasks,
-    use_case: GenerateReportUseCase = Depends(get_generate_use_case)
+    container: Container = Depends(get_container),
 ):
-    report = await use_case.execute()
-    return TriggerResponseSchema(
-        report_id=report.id,
-        message=f"보고서 생성 완료 (ID: {report.id}, 기간: {report.week_start} ~ {report.week_end})"
+    job_id = str(uuid.uuid4())
+    background_tasks.add_task(container.execute_in_background, job_id)
+    return TriggerAcceptedSchema(
+        job_id=job_id,
+        message="보고서 생성을 시작했습니다."
+    )
+
+
+@router.get("/{job_id}/status", response_model=JobStatusSchema)
+async def get_job_status(
+    job_id: str,
+    container: Container = Depends(get_container),
+):
+    job = container.get_job_status(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 job_id입니다.")
+    return JobStatusSchema(
+        job_id=job_id,
+        status=job["status"],
+        report_id=job.get("report_id"),
+        error=job.get("error"),
     )
