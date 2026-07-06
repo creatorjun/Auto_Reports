@@ -29,8 +29,14 @@ class GenerateReportUseCase:
         now = now or datetime.now(tz=KST)
         logger.info(f"보고서 생성 시작: {now}")
 
-        report = self._collector.collect(now)
-        analysis = self._analyzer.analyze(report)
+        report = await self._collector.collect(now)
+
+        analysis = None
+        try:
+            analysis = self._analyzer.analyze(report)
+        except Exception as e:
+            logger.error(f"AI 분석 실패 (원시 데이터는 저장됨): {e}")
+
         report_with_analysis = dataclasses.replace(report, ai_analysis=analysis)
         saved = await self._repository.save(report_with_analysis)
 
