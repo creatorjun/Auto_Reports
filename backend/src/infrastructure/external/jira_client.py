@@ -58,5 +58,28 @@ class JiraClient(JiraPort):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return []
 
+    async def get_issue_changelog(
+        self,
+        issue_key: str,
+    ) -> list[dict[str, Any]]:
+        """이슈 changelog 전체 반환 (상태 전환 이력)"""
+        url = f"{self._base_url}/rest/api/3/issue/{issue_key}/changelog"
+        histories: list[dict[str, Any]] = []
+        start = 0
+        while True:
+            try:
+                resp = await self._client.get(url, params={"startAt": start, "maxResults": 100})
+                resp.raise_for_status()
+                body = resp.json()
+                values = body.get("values", [])
+                histories.extend(values)
+                if len(values) < 100:
+                    break
+                start += len(values)
+            except httpx.HTTPError as e:
+                logger.error(f"changelog 조회 실패: {issue_key} → {e}")
+                break
+        return histories
+
     async def aclose(self) -> None:
         await self._client.aclose()

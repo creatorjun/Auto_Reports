@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     tz: str = "Asia/Seoul"
     project_key: str = "TACEA"
     sla_threshold_days: int = 30
+    # 초기 대응 SLA 기준: 이슈 생성 후 '이슈 리뷰 중' 전환까지 허용 시간
+    sla_initial_response_hours: int = 24
     cors_origins: list[str] = ["*"]
     issue_types: list[str] = ["인시던트", "개선", "CVE", "서비스 요청"]
     active_statuses: list[str] = [
@@ -28,6 +30,8 @@ class Settings(BaseSettings):
         "보류 중", "영업본부 검토중"
     ]
     closed_statuses: list[str] = ["Closed", "반려됨", "중복 이슈", "취소됨"]
+    # W15 기준 상태명 (이슈 리뷰 중으로 전환되는 첫 상태)
+    sla_review_status: str = "이슈 리뷰 중"
 
     @property
     def database_url(self) -> str:

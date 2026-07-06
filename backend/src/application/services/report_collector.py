@@ -43,6 +43,8 @@ class ReportCollector:
             self._collect_w11(q),
             self._collect_w12(q),
             self._collect_w14(q),
+            self._collect_w15(q),
+            self._collect_w16(q),
         )
 
         widget_ids = [
@@ -59,6 +61,8 @@ class ReportCollector:
             WidgetId.RESOLUTION_REPORT,
             WidgetId.SLA_MET_VS_VIOLATED,
             WidgetId.CREATED_VS_RESOLVED,
+            WidgetId.SLA_INITIAL_RESPONSE,
+            WidgetId.SLA_RESOLUTION_MONTHLY,
         ]
 
         widgets: dict[str, WidgetResult] = dict(zip(widget_ids, results))
@@ -71,6 +75,95 @@ class ReportCollector:
             widgets=widgets
         )
 
+    # ──────────────────────────────────────────
+    # W15: 초기 대응 SLA (생성 → 이슈 리뷰 중)
+    # ──────────────────────────────────────────
+    async def _collect_w15(self, q) -> WidgetResult:
+        jql = q.w15_initial_response_candidates()
+        issues = await self._jira.get_issues(jql, max_results=300, fields="summary,issuetype,created")
+        if not issues:
+            return WidgetResult(name="초기 대응 SLA (최근 30일)", total=0,
+                                breakdown={"rate": 0.0, "met": 0, "total": 0,
+                                           "threshold_hours": self._settings.sla_initial_response_hours})
+
+        threshold_h = self._settings.sla_initial_response_hours
+        review_status = self._settings.sla_review_status
+
+        async def _check(issue: dict) -> bool | None:
+            key = issue.get("key", "")
+            created_str = (issue.get("fields") or {}).get("created", "")
+            if not created_str:
+                return None
+            created_dt = datetime.fromisoformat(created_str[:19])
+            histories = await self._jira.get_issue_changelog(key)
+            for h in sorted(histories, key=lambda x: x.get("created", "")):
+                for item in h.get("items", []):
+                    if item.get("field") == "status" and item.get("toString") == review_status:
+                        trans_dt = datetime.fromisoformat(h["created"][:19])
+                        hours = (trans_dt - created_dt).total_seconds() / 3600
+                        return hours <= threshold_h
+            return None  # 아직 미전환
+
+        results_raw = await asyncio.gather(*[_check(i) for i in issues])
+        evaluated = [r for r in results_raw if r is not None]
+        met = sum(1 for r in evaluated if r)
+        total = len(evaluated)
+        rate = round(met / total * 100, 1) if total else 0.0
+
+        logger.info(f"[W15] 초기 대응 SLA {rate}% ({met}/{total})")
+        return WidgetResult(
+            name="초기 대응 SLA (최근 30일)",
+            total=total,
+            breakdown={
+                "rate": rate,
+                "met": met,
+                "total": total,
+                "threshold_hours": threshold_h,
+            }
+        )
+
+    # ──────────────────────────────────────────
+    # W16: 해결시간 SLA (생성 → Closed)
+    # ──────────────────────────────────────────
+    async def _collect_w16(self, q) -> WidgetResult:
+        jql = q.w16_resolution_candidates()
+        issues = await self._jira.get_issues(
+            jql, max_results=300, fields="summary,issuetype,created,resolutiondate"
+        )
+        if not issues:
+            return WidgetResult(name="해결시간 SLA (최근 30일)", total=0,
+                                breakdown={"rate": 0.0, "met": 0, "total": 0,
+                                           "threshold_days": self._settings.sla_threshold_days})
+
+        threshold_h = self._settings.sla_threshold_days * 24
+        met, total = 0, 0
+
+        for issue in issues:
+            f = issue.get("fields") or {}
+            c_str, r_str = f.get("created"), f.get("resolutiondate")
+            if not c_str or not r_str:
+                continue
+            hours = (datetime.fromisoformat(r_str[:19]) - datetime.fromisoformat(c_str[:19])).total_seconds() / 3600
+            total += 1
+            if hours <= threshold_h:
+                met += 1
+
+        rate = round(met / total * 100, 1) if total else 0.0
+        logger.info(f"[W16] 해결시간 SLA {rate}% ({met}/{total})")
+        return WidgetResult(
+            name="해결시간 SLA (최근 30일)",
+            total=total,
+            breakdown={
+                "rate": rate,
+                "met": met,
+                "total": total,
+                "threshold_days": self._settings.sla_threshold_days,
+            }
+        )
+
+    # ──────────────────────────────────────────
+    # 기존 collectors
+    # ──────────────────────────────────────────
     async def _collect_w1(self, q) -> WidgetResult:
         jql = q.w1_overdue()
         issues = await self._jira.get_issues(jql, max_results=500, fields="issuetype,status")

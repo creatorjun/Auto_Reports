@@ -16,4 +16,10 @@ class JiraPort(ABC):
     ) -> list[dict[str, Any]]: ...
 
     @abstractmethod
+    async def get_issue_changelog(
+        self,
+        issue_key: str,
+    ) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
     async def aclose(self) -> None: ...

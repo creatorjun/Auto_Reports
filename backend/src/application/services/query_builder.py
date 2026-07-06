@@ -106,3 +106,11 @@ class ResolvedQueries:
     def w14_created_vs_resolved(self) -> Tuple[str, str]:
         return (f"{self._base()} AND created >= \"-7d\"",
                 f"{self._base()} AND resolved >= \"-7d\"")
+
+    def w15_initial_response_candidates(self) -> str:
+        """최근 30일 생성된 이슈 — 초기 대응 SLA 계산 대상"""
+        return f"{self._base()} AND created >= \"-30d\" ORDER BY created ASC"
+
+    def w16_resolution_candidates(self) -> str:
+        """최근 30일 생성 후 해결된 이슈 — 해결시간 SLA 계산 대상"""
+        return f"{self._base()} AND created >= \"-30d\" AND resolved IS NOT EMPTY ORDER BY created ASC"
