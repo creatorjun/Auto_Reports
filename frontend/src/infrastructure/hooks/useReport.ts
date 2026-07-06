@@ -16,10 +16,11 @@ export const useReportById = (id: number) =>
     enabled: !!id
   })
 
-export const useAllReports = () =>
+export const useAllReports = (page = 0, pageSize = 20) =>
   useQuery<ReportSummary[]>({
-    queryKey: ['reports'],
-    queryFn: () => reportApi.getAll()
+    queryKey: ['reports', 'list', page, pageSize],
+    queryFn: () => reportApi.getAll(pageSize, page * pageSize),
+    placeholderData: (prev) => prev,
   })
 
 export const useDeleteReport = () => {
