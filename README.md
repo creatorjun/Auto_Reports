@@ -35,9 +35,25 @@ Infrastructure              ──▶  Domain
 
 ## 배포 가이드
 
+### 사전 요구사항 (macOS)
+
+macOS에서 빌드하려면 [Homebrew](https://brew.sh)와 Docker Desktop이 필요합니다.
+
+```bash
+# Homebrew 설치 (미설치 시)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Docker Desktop 설치
+brew install --cask docker
+```
+
+> Docker Desktop 앱을 실행하여 Docker 엔진이 구동 중인지 확인하세요.
+
+---
+
 ### 1. 클론
 
-**Linux**
+**Linux / macOS**
 ```bash
 git clone https://github.com/creatorjun/Auto_Reports.git && cd Auto_Reports
 ```
@@ -51,7 +67,7 @@ git clone https://github.com/creatorjun/Auto_Reports.git && cd Auto_Reports
 
 ### 2. 환경변수 설정
 
-**Linux**
+**Linux / macOS**
 ```bash
 cp .env.example .env && vi .env
 ```
@@ -67,7 +83,7 @@ copy .env.example .env && notepad .env
 
 ### 3. 빌드 & 실행
 
-**Linux**
+**Linux / macOS**
 ```bash
 docker-compose up -d --build
 ```
@@ -77,11 +93,14 @@ docker-compose up -d --build
 docker-compose up -d --build
 ```
 
+> macOS Apple Silicon(M1/M2/M3/M4)의 경우 Docker Desktop → Settings → General에서
+> **"Use Rosetta for x86/amd64 emulation"** 옵션을 활성화하면 빌드 안정성이 향상됩니다.
+
 ---
 
 ### 4. DB 마이그레이션
 
-**Linux**
+**Linux / macOS**
 ```bash
 docker-compose exec backend alembic upgrade head
 ```
@@ -96,7 +115,7 @@ docker-compose exec backend alembic upgrade head
 ### 5. 접속 확인
 
 ```
-http://서버IP
+http://localhost
 ```
 
 ---
@@ -105,8 +124,8 @@ http://서버IP
 
 ### 로그 확인
 
-| 대상 | Linux / Windows CMD |
-|------|---------------------|
+| 대상 | Linux / macOS / Windows CMD |
+|------|---------------------
 | 전체 실시간 | `docker-compose logs -f` |
 | 백엔드만 | `docker-compose logs -f backend` |
 | 프론트엔드만 | `docker-compose logs -f frontend` |
@@ -115,7 +134,7 @@ http://서버IP
 
 ### 로그 검색
 
-**Linux**
+**Linux / macOS**
 ```bash
 docker-compose logs backend | grep "ERROR"
 docker-compose logs backend | grep "2026-07"
@@ -131,7 +150,7 @@ docker-compose logs backend | findstr "2026-07"
 
 ### 한 줄 리빌드 (다운 → 풀 → 재시작)
 
-**Linux**
+**Linux / macOS**
 ```bash
 docker-compose down && git pull && docker-compose up -d --build
 ```
@@ -145,14 +164,14 @@ docker-compose down && git pull && docker-compose up -d --build
 
 ### 컨테이너 상태 확인
 
-**Linux / Windows CMD**
+**Linux / macOS / Windows CMD**
 ```bash
 docker-compose ps
 ```
 
 ### 즉시 보고서 생성
 
-**Linux**
+**Linux / macOS**
 ```bash
 curl -X POST http://localhost/api/v1/trigger/
 ```
