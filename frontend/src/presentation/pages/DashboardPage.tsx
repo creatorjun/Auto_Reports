@@ -37,8 +37,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w10  = w.w10?.breakdown as Record<string, { avg_days: number; count: number }> ?? {}
   const w11  = w.w11?.breakdown as Record<string, unknown> ?? {}
   const w14  = w.w14?.breakdown as Record<string, number> ?? {}
-  const w15  = (w.w15?.breakdown ?? {}) as SlaBreakdown
-  const w16  = (w.w16?.breakdown ?? {}) as SlaBreakdown
+  const w15  = (w.w15?.breakdown ?? {}) as unknown as SlaBreakdown
+  const w16  = (w.w16?.breakdown ?? {}) as unknown as SlaBreakdown
   const details = (w11.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
 
   return (
