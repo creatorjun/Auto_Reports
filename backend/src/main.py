@@ -41,8 +41,11 @@ async def lifespan(app: FastAPI):
     scheduler = create_scheduler(settings, container.run_scheduled_job)
     scheduler.start()
     logger.info("TAC Auto Reports 서비스 시작 ✅")
+
     yield
+
     scheduler.shutdown()
+    await container.aclose()
     logger.info("TAC Auto Reports 서비스 종료")
 
 

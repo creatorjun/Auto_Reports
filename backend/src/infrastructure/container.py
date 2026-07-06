@@ -1,7 +1,6 @@
 # backend/src/infrastructure/container.py
 import logging
 import uuid
-from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +33,10 @@ class Container:
         )
         self._ai: AiPort | None = GeminiClient(settings.gemini_api_key) if settings.ai_enabled else None
         self._jobs: dict[str, dict] = {}
+
+    async def aclose(self) -> None:
+        await self._jira.aclose()
+        logger.info("JiraClient 커넥션 풀 종료")
 
     def get_job_status(self, job_id: str) -> dict | None:
         return self._jobs.get(job_id)
