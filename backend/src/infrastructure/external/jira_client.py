@@ -2,8 +2,7 @@
 import logging
 from typing import Any
 
-import requests
-from requests.auth import HTTPBasicAuth
+import httpx
 
 from src.domain.ports.jira_port import JiraPort
 
@@ -13,26 +12,29 @@ logger = logging.getLogger(__name__)
 class JiraClient(JiraPort):
     def __init__(self, base_url: str, email: str, api_token: str):
         self._base_url = base_url.rstrip("/")
-        self._session = requests.Session()
-        self._session.auth = HTTPBasicAuth(email, api_token)
-        self._session.headers.update({
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        })
+        self._client = httpx.AsyncClient(
+            auth=(email, api_token),
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            timeout=30.0,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+        )
 
-    def get_issue_count(self, jql: str) -> int:
+    async def get_issue_count(self, jql: str) -> int:
         url = f"{self._base_url}/rest/api/3/search/approximate-count"
         try:
-            resp = self._session.post(url, json={"jql": jql}, timeout=30)
+            resp = await self._client.post(url, json={"jql": jql})
             resp.raise_for_status()
             return resp.json().get("count", 0)
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPError as e:
             logger.error(f"JQL 카운트 실패: {jql[:80]}... → {e}")
-            if hasattr(e, "response") and e.response is not None:
+            if isinstance(e, httpx.HTTPStatusError):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return 0
 
-    def get_issues(
+    async def get_issues(
         self,
         jql: str,
         max_results: int = 200,
@@ -47,11 +49,14 @@ class JiraClient(JiraPort):
         if fields:
             payload["fields"] = fields.split(",")
         try:
-            resp = self._session.post(url, json=payload, timeout=30)
+            resp = await self._client.post(url, json=payload)
             resp.raise_for_status()
             return resp.json().get("issues", [])
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPError as e:
             logger.error(f"JQL 검색 실패: {jql[:80]}... → {e}")
-            if hasattr(e, "response") and e.response is not None:
+            if isinstance(e, httpx.HTTPStatusError):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return []
+
+    async def aclose(self) -> None:
+        await self._client.aclose()
