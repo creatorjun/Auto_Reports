@@ -13,7 +13,7 @@ const sentimentLabel: Record<string, string> = {
   good: 'badge-good', warning: 'badge-warning', critical: 'badge-critical'
 }
 const sentimentText: Record<string, string> = {
-  good: '\uc591\ud638', warning: '\uc8fc\uc758', critical: '\uacbd\uace0'
+  good: '양호', warning: '주의', critical: '경고'
 }
 
 function DeleteConfirmModal({ id, range, onConfirm, onCancel, isPending }: {
@@ -35,12 +35,12 @@ function DeleteConfirmModal({ id, range, onConfirm, onCancel, isPending }: {
             </svg>
           </div>
           <div>
-            <p className="text-[14px] font-semibold text-apple-dark">\ubcf4\uace0\uc11c \uc0ad\uc81c</p>
-            <p className="text-[12px] text-apple-light mt-0.5">#{id} \u00b7 {range}</p>
+            <p className="text-[14px] font-semibold text-apple-dark">보고서 삭제</p>
+            <p className="text-[12px] text-apple-light mt-0.5">#{id} · {range}</p>
           </div>
         </div>
         <p className="text-[13px] text-apple-dark/80 mb-5 leading-relaxed">
-          \uc774 \ubcf4\uace0\uc11c\ub97c \uc0ad\uc81c\ud558\uba74 \ubcf5\uad6c\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.<br />\uc815\ub9d0 \uc0ad\uc81c\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?
+          이 보고서를 삭제하면 복구할 수 없습니다.<br />정말 삭제하시겠습니까?
         </p>
         <div className="flex gap-2">
           <button
@@ -48,7 +48,7 @@ function DeleteConfirmModal({ id, range, onConfirm, onCancel, isPending }: {
             disabled={isPending}
             className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50"
           >
-            \ucde8\uc18c
+            취소
           </button>
           <button
             onClick={onConfirm}
@@ -60,7 +60,7 @@ function DeleteConfirmModal({ id, range, onConfirm, onCancel, isPending }: {
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12"/>
               </svg>
             ) : null}
-            \uc0ad\uc81c
+            삭제
           </button>
         </div>
       </div>
@@ -68,7 +68,16 @@ function DeleteConfirmModal({ id, range, onConfirm, onCancel, isPending }: {
   )
 }
 
-function ReportRow({ r }: { r: ReportSummary }) {
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M2 3.5h10M5.5 3.5V2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1M11.5 3.5l-.6 7.2a1 1 0 0 1-1 .8H4.1a1 1 0 0 1-1-.8L2.5 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M5.5 6.5v3M8.5 6.5v3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+function ReportRow({ r, onDelete }: { r: ReportSummary; onDelete: (id: number) => void }) {
   const formattedDate = useMemo(
     () => format(new Date(r.created_at), 'MM/dd HH:mm', { locale: ko }),
     [r.created_at]
@@ -76,19 +85,29 @@ function ReportRow({ r }: { r: ReportSummary }) {
   return (
     <tr className="hover:bg-apple-gray/60 transition-colors duration-150">
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[12px] 3xl:text-[13px] font-mono text-apple-light">#{r.id}</td>
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-dark">{r.week_start} \u2013 {r.week_end}</td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-dark">{r.week_start} – {r.week_end}</td>
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums">{formattedDate}</td>
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
         {r.sentiment
           ? <span className={sentimentLabel[r.sentiment]}>{sentimentText[r.sentiment]}</span>
-          : <span className="text-apple-divider text-[12px]">\u2014</span>
+          : <span className="text-apple-divider text-[12px]">—</span>
         }
       </td>
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
         <div className="flex items-center justify-end gap-3">
-          <Link to={`/reports/${r.id}`} className="text-[12px] 3xl:text-[13px] text-brand-600 hover:text-brand-700 font-medium transition-colors">
-            \uc0c1\uc138 \ubcf4\uae30
+          <Link
+            to={`/reports/${r.id}`}
+            className="text-[12px] 3xl:text-[13px] text-brand-600 hover:text-brand-700 font-medium transition-colors"
+          >
+            상세 보기
           </Link>
+          <button
+            onClick={() => onDelete(r.id)}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors"
+            title="삭제"
+          >
+            <TrashIcon />
+          </button>
         </div>
       </td>
     </tr>
@@ -103,8 +122,8 @@ function MobileReportRow({ r, onDelete }: { r: ReportSummary; onDelete: (id: num
   return (
     <div className="flex items-center justify-between px-4 py-4 hover:bg-apple-gray/60 transition-colors">
       <Link to={`/reports/${r.id}`} className="flex flex-col gap-1 flex-1 min-w-0">
-        <span className="text-[13px] font-medium text-apple-dark">{r.week_start} \u2013 {r.week_end}</span>
-        <span className="text-[11px] text-apple-light tabular-nums">#{r.id} \u00b7 {formattedDate}</span>
+        <span className="text-[13px] font-medium text-apple-dark">{r.week_start} – {r.week_end}</span>
+        <span className="text-[11px] text-apple-light tabular-nums">#{r.id} · {formattedDate}</span>
       </Link>
       <div className="flex items-center gap-2 flex-shrink-0">
         {r.sentiment && <span className={sentimentLabel[r.sentiment]}>{sentimentText[r.sentiment]}</span>}
@@ -117,10 +136,7 @@ function MobileReportRow({ r, onDelete }: { r: ReportSummary; onDelete: (id: num
           onClick={() => onDelete(r.id)}
           className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M2 3.5h10M5.5 3.5V2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1M11.5 3.5l-.6 7.2a1 1 0 0 1-1 .8H4.1a1 1 0 0 1-1-.8L2.5 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M5.5 6.5v3M8.5 6.5v3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-          </svg>
+          <TrashIcon />
         </button>
       </div>
     </div>
@@ -150,7 +166,7 @@ export default function HistoryPage() {
       {confirmId != null && confirmTarget && (
         <DeleteConfirmModal
           id={confirmTarget.id}
-          range={`${confirmTarget.week_start} \u2013 ${confirmTarget.week_end}`}
+          range={`${confirmTarget.week_start} – ${confirmTarget.week_end}`}
           onConfirm={handleDelete}
           onCancel={() => setConfirmId(null)}
           isPending={isPending}
@@ -159,37 +175,41 @@ export default function HistoryPage() {
 
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-[18px] md:text-[22px] 3xl:text-[26px] font-semibold text-apple-dark tracking-tight">\ubcf4\uace0\uc11c \ud788\uc2a4\ud1a0\ub9ac</h1>
-          <p className="text-[12px] md:text-[13px] 3xl:text-[14px] text-apple-light mt-1">\uc790\ub3d9 \uc0dd\uc131\ub41c TAC \uc8fc\uac04 \ubcf4\uace0\uc11c \ubaa9\ub85d</p>
+          <h1 className="text-[18px] md:text-[22px] 3xl:text-[26px] font-semibold text-apple-dark tracking-tight">보고서 히스토리</h1>
+          <p className="text-[12px] md:text-[13px] 3xl:text-[14px] text-apple-light mt-1">자동 생성된 TAC 주간 보고서 목록</p>
         </div>
         {isFetching && !isLoading && (
-          <span className="text-[11px] text-apple-light">\uc5c5\ub370\uc774\ud2b8 \uc911...</span>
+          <span className="text-[11px] text-apple-light">업데이트 중...</span>
         )}
       </div>
 
       <div className={`card overflow-hidden p-0 transition-opacity duration-200 ${isFetching ? 'opacity-70' : 'opacity-100'}`}>
+        {/* 데스크톱 테이블 */}
         <div className="hidden md:block">
           <table className="w-full">
             <thead className="border-b border-apple-divider/60">
               <tr>
-                {['ID', '\ub370\uc774\ud130 \ubc94\uc704', '\uc0dd\uc131 \uc2dc\uac01', 'AI \uc0c1\ud0dc', ''].map((h, i) => (
+                {['ID', '데이터 범위', '생성 시각', 'AI 상태', ''].map((h, i) => (
                   <th key={i} className="text-left px-6 py-3.5 3xl:px-8 3xl:py-4 text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-apple-divider/40">
-              {(data ?? []).map((r) => <ReportRow key={r.id} r={r} />)}
+              {(data ?? []).map((r) => (
+                <ReportRow key={r.id} r={r} onDelete={setConfirmId} />
+              ))}
             </tbody>
           </table>
         </div>
 
+        {/* 모바일 */}
         <div className="md:hidden divide-y divide-apple-divider/40">
           {(data ?? []).map((r) => (
             <MobileReportRow key={r.id} r={r} onDelete={setConfirmId} />
           ))}
         </div>
 
-        {!data?.length && <p className="text-center text-[13px] text-apple-light py-16">\ubcf4\uace0\uc11c\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.</p>}
+        {!data?.length && <p className="text-center text-[13px] text-apple-light py-16">보고서가 없습니다.</p>}
       </div>
 
       {(hasPrev || hasNext) && (
@@ -199,15 +219,15 @@ export default function HistoryPage() {
             disabled={!hasPrev || isFetching}
             className="px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            \u2190 \uc774\uc804
+            ← 이전
           </button>
-          <span className="text-[12px] text-apple-light">{page + 1} \ud398\uc774\uc9c0</span>
+          <span className="text-[12px] text-apple-light">{page + 1} 페이지</span>
           <button
             onClick={() => setPage(p => p + 1)}
             disabled={!hasNext || isFetching}
             className="px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            \ub2e4\uc74c \u2192
+            다음 →
           </button>
         </div>
       )}
