@@ -29,6 +29,10 @@ class ReportCollector:
         q = self._qb.build(now)
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 
+        # SLA 필드 ID 사전 조회 (이후 W15/W16에서 재사용)
+        sla_field_ids = await self._jira.get_sla_field_ids()
+        logger.info(f"SLA 필드 목록: {list(sla_field_ids.keys())}")
+
         results = await asyncio.gather(
             self._collect_w1(q),
             self._simple("개발 SLA 지연", q.w2_dev_sla()),
@@ -43,9 +47,11 @@ class ReportCollector:
             self._collect_w11(q),
             self._collect_w12(q),
             self._collect_w14(q),
-            self._collect_w15(q),
-            self._collect_w16(q),
+            self._collect_w15_w16(q, sla_field_ids),
         )
+
+        # W15 / W16는 _collect_w15_w16에서 tuple로 반환
+        *base_results, (w15_result, w16_result) = results
 
         widget_ids = [
             WidgetId.OVERDUE_ISSUES,
@@ -61,11 +67,12 @@ class ReportCollector:
             WidgetId.RESOLUTION_REPORT,
             WidgetId.SLA_MET_VS_VIOLATED,
             WidgetId.CREATED_VS_RESOLVED,
-            WidgetId.SLA_INITIAL_RESPONSE,
-            WidgetId.SLA_RESOLUTION_MONTHLY,
         ]
 
-        widgets: dict[str, WidgetResult] = dict(zip(widget_ids, results))
+        widgets: dict[str, WidgetResult] = dict(zip(widget_ids, base_results))
+        widgets[WidgetId.SLA_INITIAL_RESPONSE]   = w15_result
+        widgets[WidgetId.SLA_RESOLUTION_MONTHLY] = w16_result
+
         logger.info("데이터 수집 완료 ✅")
         return Report(
             id=None,
@@ -75,95 +82,126 @@ class ReportCollector:
             widgets=widgets
         )
 
-    # ──────────────────────────────────────────
-    # W15: 초기 대응 SLA (생성 → 이슈 리뷰 중)
-    # ──────────────────────────────────────────
-    async def _collect_w15(self, q) -> WidgetResult:
-        jql = q.w15_initial_response_candidates()
-        issues = await self._jira.get_issues(jql, max_results=300, fields="summary,issuetype,created")
-        if not issues:
-            return WidgetResult(name="초기 대응 SLA (최근 30일)", total=0,
-                                breakdown={"rate": 0.0, "met": 0, "total": 0,
-                                           "threshold_hours": self._settings.sla_initial_response_hours})
+    # ────────────────────────────────────────────────
+    # W15 + W16: Jira SLA 필드 직접 파싱
+    # ────────────────────────────────────────────────
+    async def _collect_w15_w16(
+        self, q, sla_field_ids: dict[str, str]
+    ) -> tuple[WidgetResult, WidgetResult]:
+        """
+        Jira에 등록된 SLA 필드를 읽어 W15(초기 대응)/W16(해결시간) 준수율 계산.
 
-        threshold_h = self._settings.sla_initial_response_hours
-        review_status = self._settings.sla_review_status
-
-        async def _check(issue: dict) -> bool | None:
-            key = issue.get("key", "")
-            created_str = (issue.get("fields") or {}).get("created", "")
-            if not created_str:
-                return None
-            created_dt = datetime.fromisoformat(created_str[:19])
-            histories = await self._jira.get_issue_changelog(key)
-            for h in sorted(histories, key=lambda x: x.get("created", "")):
-                for item in h.get("items", []):
-                    if item.get("field") == "status" and item.get("toString") == review_status:
-                        trans_dt = datetime.fromisoformat(h["created"][:19])
-                        hours = (trans_dt - created_dt).total_seconds() / 3600
-                        return hours <= threshold_h
-            return None  # 아직 미전환
-
-        results_raw = await asyncio.gather(*[_check(i) for i in issues])
-        evaluated = [r for r in results_raw if r is not None]
-        met = sum(1 for r in evaluated if r)
-        total = len(evaluated)
-        rate = round(met / total * 100, 1) if total else 0.0
-
-        logger.info(f"[W15] 초기 대응 SLA {rate}% ({met}/{total})")
-        return WidgetResult(
-            name="초기 대응 SLA (최근 30일)",
-            total=total,
-            breakdown={
-                "rate": rate,
-                "met": met,
-                "total": total,
-                "threshold_hours": threshold_h,
+        Jira SLA 필드 구조 (customfield_NNNNN 값):
+        {
+          "completedCycles": [
+            {
+              "breached": false,
+              "elapsedTime": {"millis": 12345, "friendly": "3h"},
+              "goalDuration":  {"millis": 86400000, "friendly": "24h"},
+              "remainingTime": {"millis": 0, ...}
             }
-        )
+          ],
+          "ongoingCycle": {   # 진행 중인 경우
+            "breached": false / true,
+            "remainingTime": {"millis": -3600000, ...}
+          }
+        }
+        """
+        if not sla_field_ids:
+            logger.warning("SLA 필드를 찾지 못했습니다. W15/W16를 에러 상태로 반환합니다.")
+            empty = WidgetResult(
+                name="SLA (필드 미발견)", total=0,
+                breakdown={"rate": 0.0, "met": 0, "total": 0, "sla_fields": [], "error": "SLA 필드 미발견"}
+            )
+            return empty, empty
 
-    # ──────────────────────────────────────────
-    # W16: 해결시간 SLA (생성 → Closed)
-    # ──────────────────────────────────────────
-    async def _collect_w16(self, q) -> WidgetResult:
-        jql = q.w16_resolution_candidates()
-        issues = await self._jira.get_issues(
-            jql, max_results=300, fields="summary,issuetype,created,resolutiondate"
-        )
-        if not issues:
-            return WidgetResult(name="해결시간 SLA (최근 30일)", total=0,
-                                breakdown={"rate": 0.0, "met": 0, "total": 0,
-                                           "threshold_days": self._settings.sla_threshold_days})
+        # 최근 30일 이슈 + SLA 필드 전체 요청
+        jql = q.w15_initial_response_candidates()  # created >= -30d
+        sla_field_list = list(sla_field_ids.values())
+        fields_str = "summary,issuetype,created,resolutiondate," + ",".join(sla_field_list)
 
-        threshold_h = self._settings.sla_threshold_days * 24
-        met, total = 0, 0
+        issues = await self._jira.get_issues(jql, max_results=500, fields=fields_str)
+        logger.info(f"[W15/W16] SLA 이슈 {len(issues)}건 조회")
+
+        # SLA 필드으로 분류된 준수/위반 카운터
+        # {필드명: {"met": N, "breached": M}}
+        per_field: dict[str, dict[str, int]] = {
+            name: {"met": 0, "breached": 0} for name in sla_field_ids
+        }
 
         for issue in issues:
             f = issue.get("fields") or {}
-            c_str, r_str = f.get("created"), f.get("resolutiondate")
-            if not c_str or not r_str:
-                continue
-            hours = (datetime.fromisoformat(r_str[:19]) - datetime.fromisoformat(c_str[:19])).total_seconds() / 3600
-            total += 1
-            if hours <= threshold_h:
-                met += 1
+            for field_name, field_id in sla_field_ids.items():
+                sla_val = f.get(field_id)
+                if not sla_val:
+                    continue
 
-        rate = round(met / total * 100, 1) if total else 0.0
-        logger.info(f"[W16] 해결시간 SLA {rate}% ({met}/{total})")
-        return WidgetResult(
-            name="해결시간 SLA (최근 30일)",
-            total=total,
-            breakdown={
-                "rate": rate,
-                "met": met,
-                "total": total,
-                "threshold_days": self._settings.sla_threshold_days,
-            }
-        )
+                # completedCycles: 이미 종료된 SLA 주기
+                for cycle in sla_val.get("completedCycles") or []:
+                    if cycle.get("breached"):
+                        per_field[field_name]["breached"] += 1
+                    else:
+                        per_field[field_name]["met"] += 1
 
-    # ──────────────────────────────────────────
+                # ongoingCycle: 아직 진행 중
+                ongoing = sla_val.get("ongoingCycle")
+                if ongoing:
+                    if ongoing.get("breached"):
+                        per_field[field_name]["breached"] += 1
+                    else:
+                        per_field[field_name]["met"] += 1
+
+        # 필드명 매칭: 설정값에 정의된 이름 키워드로 W15/W16 구분
+        initial_keywords  = self._settings.sla_initial_response_field_keywords
+        resolution_keywords = self._settings.sla_resolution_field_keywords
+
+        def _build_result(keywords: list[str], widget_name: str) -> WidgetResult:
+            matched: dict[str, dict[str, int]] = {}
+            for fname, counts in per_field.items():
+                if any(kw.lower() in fname.lower() for kw in keywords):
+                    if counts["met"] > 0 or counts["breached"] > 0:
+                        matched[fname] = counts
+
+            if not matched:
+                # 필드명 매칭 실패 시 데이터가 있는 전체 SLA 필드 통합
+                matched = {k: v for k, v in per_field.items() if v["met"] > 0 or v["breached"] > 0}
+
+            total_met      = sum(v["met"]     for v in matched.values())
+            total_breached = sum(v["breached"] for v in matched.values())
+            total          = total_met + total_breached
+            rate           = round(total_met / total * 100, 1) if total else 0.0
+
+            # 필드별 세부 데이터
+            fields_detail = [
+                {
+                    "name": fname,
+                    "met": v["met"],
+                    "breached": v["breached"],
+                    "rate": round(v["met"] / (v["met"] + v["breached"]) * 100, 1)
+                           if (v["met"] + v["breached"]) > 0 else 0.0,
+                }
+                for fname, v in sorted(matched.items())
+            ]
+
+            logger.info(f"[{widget_name}] {rate}% ({total_met}/{total}) 필드={list(matched.keys())}")
+            return WidgetResult(
+                name=widget_name,
+                total=total,
+                breakdown={
+                    "rate": rate,
+                    "met": total_met,
+                    "total": total,
+                    "sla_fields": fields_detail,
+                },
+            )
+
+        w15 = _build_result(initial_keywords,  "초기 대응 SLA (최근 30일)")
+        w16 = _build_result(resolution_keywords, "해결시간 SLA (최근 30일)")
+        return w15, w16
+
+    # ────────────────────────────────────────────────
     # 기존 collectors
-    # ──────────────────────────────────────────
+    # ────────────────────────────────────────────────
     async def _collect_w1(self, q) -> WidgetResult:
         jql = q.w1_overdue()
         issues = await self._jira.get_issues(jql, max_results=500, fields="issuetype,status")

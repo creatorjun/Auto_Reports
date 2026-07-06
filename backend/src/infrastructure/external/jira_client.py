@@ -21,6 +21,7 @@ class JiraClient(JiraPort):
             timeout=30.0,
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )
+        self._sla_field_ids_cache: dict[str, str] | None = None
 
     async def get_issue_count(self, jql: str) -> int:
         url = f"{self._base_url}/rest/api/3/search/approximate-count"
@@ -58,28 +59,48 @@ class JiraClient(JiraPort):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return []
 
-    async def get_issue_changelog(
-        self,
-        issue_key: str,
-    ) -> list[dict[str, Any]]:
-        """이슈 changelog 전체 반환 (상태 전환 이력)"""
-        url = f"{self._base_url}/rest/api/3/issue/{issue_key}/changelog"
-        histories: list[dict[str, Any]] = []
-        start = 0
-        while True:
-            try:
-                resp = await self._client.get(url, params={"startAt": start, "maxResults": 100})
-                resp.raise_for_status()
-                body = resp.json()
-                values = body.get("values", [])
-                histories.extend(values)
-                if len(values) < 100:
-                    break
-                start += len(values)
-            except httpx.HTTPError as e:
-                logger.error(f"changelog 조회 실패: {issue_key} → {e}")
-                break
-        return histories
+    async def get_sla_field_ids(self) -> dict[str, str]:
+        """
+        Jira 필드 목록에서 schema.custom == 'com.atlassian.jira.plugin.system.customfieldtypes:sd-request-feedback'
+        또는 schema.custom 안에 'sla'가 포함된 필드를 SLA 필드로 구분.
+        {'필드 이름': 'customfield_NNNNN'} 형태로 반환.
+        """
+        if self._sla_field_ids_cache is not None:
+            return self._sla_field_ids_cache
+
+        url = f"{self._base_url}/rest/api/3/field"
+        try:
+            resp = await self._client.get(url)
+            resp.raise_for_status()
+            fields = resp.json()
+        except httpx.HTTPError as e:
+            logger.error(f"field 목록 조회 실패: {e}")
+            return {}
+
+        result: dict[str, str] = {}
+        for f in fields:
+            schema = f.get("schema") or {}
+            custom_type: str = schema.get("custom", "")
+            # Jira Service Management SLA 필드는 custom type에 'sla' 또는
+            # 'com.atlassian.servicedesk' 나 'sd-sla' 키워드를 포함함
+            if "sla" in custom_type.lower() or "servicedesk" in custom_type.lower():
+                field_id = f.get("id", "")
+                field_name = f.get("name", "")
+                if field_id.startswith("customfield_") and field_name:
+                    result[field_name] = field_id
+                    logger.info(f"SLA 필드 발견: '{field_name}' = {field_id}")
+
+        if not result:
+            # fallback: 필드 이름에 'SLA' 또는 '시간'이 포함된 customfield
+            for f in fields:
+                fname = f.get("name", "")
+                fid = f.get("id", "")
+                if fid.startswith("customfield_") and ("SLA" in fname or "시간" in fname or "Time" in fname):
+                    result[fname] = fid
+                    logger.info(f"SLA 필드 (fallback): '{fname}' = {fid}")
+
+        self._sla_field_ids_cache = result
+        return result
 
     async def aclose(self) -> None:
         await self._client.aclose()

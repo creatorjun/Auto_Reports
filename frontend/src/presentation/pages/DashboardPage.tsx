@@ -15,12 +15,19 @@ import IssueDetailTable from '@/presentation/components/tables/IssueDetailTable'
 import SlaRateCard from '@/presentation/components/cards/SlaRateCard'
 import type { ReportDetail } from '@/domain/Report'
 
+interface SlaField {
+  name: string
+  met: number
+  breached: number
+  rate: number
+}
+
 interface SlaBreakdown {
   rate: number
   met: number
   total: number
-  threshold_hours?: number
-  threshold_days?: number
+  sla_fields?: SlaField[]
+  error?: string
 }
 
 function DashboardContent({ report }: { report: ReportDetail }) {
@@ -41,6 +48,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w16  = (w.w16?.breakdown ?? {}) as unknown as SlaBreakdown
   const details = (w11.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
 
+  const showSlaSection = (w15.total ?? 0) > 0 || (w16.total ?? 0) > 0
+
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
@@ -58,29 +67,29 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       </div>
 
       {/* 월별 SLA 준수율 */}
-      {(w15.total > 0 || w16.total > 0) && (
+      {showSlaSection && (
         <div>
           <h2 className="text-[13px] md:text-[14px] font-semibold text-apple-dark mb-3">
             월별 SLA 준수율
-            <span className="ml-2 text-[11px] font-normal text-apple-light">최근 30일 기준</span>
+            <span className="ml-2 text-[11px] font-normal text-apple-light">최근 30일 · Jira SLA 필드 기준</span>
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-            {w15.total > 0 && (
+            {(w15.total ?? 0) > 0 && (
               <SlaRateCard
                 label="초기 대응 SLA"
                 rate={w15.rate ?? 0}
                 met={w15.met ?? 0}
                 total={w15.total ?? 0}
-                thresholdLabel={`${w15.threshold_hours ?? 24}시간 이내 리뷰 전환`}
+                slaFields={w15.sla_fields ?? []}
               />
             )}
-            {w16.total > 0 && (
+            {(w16.total ?? 0) > 0 && (
               <SlaRateCard
                 label="해결시간 SLA"
                 rate={w16.rate ?? 0}
                 met={w16.met ?? 0}
                 total={w16.total ?? 0}
-                thresholdLabel={`${w16.threshold_days ?? 30}일 이내 해결`}
+                slaFields={w16.sla_fields ?? []}
               />
             )}
           </div>

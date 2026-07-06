@@ -16,10 +16,11 @@ class JiraPort(ABC):
     ) -> list[dict[str, Any]]: ...
 
     @abstractmethod
-    async def get_issue_changelog(
-        self,
-        issue_key: str,
-    ) -> list[dict[str, Any]]: ...
+    async def get_sla_field_ids(self) -> dict[str, str]:
+        """이름 → customfield_id 매핑 반환.
+        예) {'시간 안에 첫 응답': 'customfield_10020', '해결 시간': 'customfield_10030'}
+        """
+        ...
 
     @abstractmethod
     async def aclose(self) -> None: ...
