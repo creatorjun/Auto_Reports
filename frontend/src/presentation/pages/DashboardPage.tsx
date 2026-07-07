@@ -11,22 +11,21 @@ import ReasonPieChart from '@/presentation/components/charts/ReasonPieChart'
 import TypeBarChart from '@/presentation/components/charts/TypeBarChart'
 import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTimeChart'
 import TrendLineChart from '@/presentation/components/charts/TrendLineChart'
+import SlaMonthlyLineChart from '@/presentation/components/charts/SlaMonthlyLineChart'
 import IssueDetailTable from '@/presentation/components/tables/IssueDetailTable'
-import SlaRateCard from '@/presentation/components/cards/SlaRateCard'
 import type { ReportDetail } from '@/domain/Report'
 
-interface SlaField {
-  name: string
-  met: number
-  breached: number
-  rate: number
-}
-
-interface SlaBreakdown {
+interface MonthlyEntry {
+  month: string
+  year: number
+  month_num: number
   rate: number
   met: number
   total: number
-  sla_fields?: SlaField[]
+}
+
+interface SlaMonthlyBreakdown {
+  monthly?: MonthlyEntry[]
   error?: string
 }
 
@@ -44,11 +43,13 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w10  = w.w10?.breakdown as Record<string, { avg_days: number; count: number }> ?? {}
   const w11  = w.w11?.breakdown as Record<string, unknown> ?? {}
   const w14  = w.w14?.breakdown as Record<string, number> ?? {}
-  const w15  = (w.w15?.breakdown ?? {}) as unknown as SlaBreakdown
-  const w16  = (w.w16?.breakdown ?? {}) as unknown as SlaBreakdown
+  const w15  = (w.w15?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
+  const w16  = (w.w16?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
   const details = (w11.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
 
-  const showSlaSection = (w15.total ?? 0) > 0 || (w16.total ?? 0) > 0
+  const hasMonthlyData =
+    (w15.monthly?.some((e) => e.total > 0) ?? false) ||
+    (w16.monthly?.some((e) => e.total > 0) ?? false)
 
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
@@ -66,34 +67,9 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <SummaryCard label="2026 해결"          value={w.w9?.total ?? 0} color="gray"   />
       </div>
 
-      {/* 월별 SLA 준수율 */}
-      {showSlaSection && (
-        <div>
-          <h2 className="text-[13px] md:text-[14px] font-semibold text-apple-dark mb-3">
-            월별 SLA 준수율
-            <span className="ml-2 text-[11px] font-normal text-apple-light">최근 30일 · Jira SLA 필드 기준</span>
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-            {(w15.total ?? 0) > 0 && (
-              <SlaRateCard
-                label="초기 대응 SLA"
-                rate={w15.rate ?? 0}
-                met={w15.met ?? 0}
-                total={w15.total ?? 0}
-                slaFields={w15.sla_fields ?? []}
-              />
-            )}
-            {(w16.total ?? 0) > 0 && (
-              <SlaRateCard
-                label="해결시간 SLA"
-                rate={w16.rate ?? 0}
-                met={w16.met ?? 0}
-                total={w16.total ?? 0}
-                slaFields={w16.sla_fields ?? []}
-              />
-            )}
-          </div>
-        </div>
+      {/* 월별 SLA 달성률 켼은선 그래프 */}
+      {hasMonthlyData && (
+        <SlaMonthlyLineChart w15Breakdown={w15} w16Breakdown={w16} />
       )}
 
       {/* 차트 행 1 */}
