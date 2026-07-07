@@ -108,9 +108,18 @@ class ResolvedQueries:
                 f"{self._base()} AND resolved >= \"-7d\"")
 
     def w15_initial_response_candidates(self) -> str:
-        """최근 30일 생성된 이슈 — 초기 대응 SLA 계산 대상"""
         return f"{self._base()} AND created >= \"-30d\" ORDER BY created ASC"
 
     def w16_resolution_candidates(self) -> str:
-        """최근 30일 생성 후 해결된 이슈 — 해결시간 SLA 계산 대상"""
         return f"{self._base()} AND created >= \"-30d\" AND resolved IS NOT EMPTY ORDER BY created ASC"
+
+    def w15_w16_monthly_candidates(self, year: int, month: int) -> str:
+        start = f"{year}-{month:02d}-01"
+        if month == 12:
+            end = f"{year + 1}-01-01"
+        else:
+            end = f"{year}-{month + 1:02d}-01"
+        return (
+            f"{self._base()} AND created >= \"{start}\" AND created < \"{end}\""
+            f" ORDER BY created ASC"
+        )
