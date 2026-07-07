@@ -63,7 +63,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       {(hasW15 || hasW16) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
           <SlaMonthlyLineChart
-            title="📞 초기 대응 SLA"
+            title="✅ 최초응답 SLA"
             subtitle="최근 6개월 · 응답시간 위반 여부"
             monthly={w15Monthly}
             color="#3b82f6"
