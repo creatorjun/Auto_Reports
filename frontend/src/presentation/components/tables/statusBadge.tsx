@@ -2,7 +2,7 @@
 // 실제 Jira 상태목록 기반 배지 함수 (settings.py 싱크)
 
 const CLOSED = new Set([
-  'Closed', '중복 이슈', '반려됨', '취소됨', '닫힐',
+  'Closed', '중복 이슈', '반려됨', '취소됨', '닫힘',
 ])
 
 const ACTIVE = new Set([
