@@ -12,34 +12,38 @@ from src.domain.value_objects.ai_analysis import AiAnalysis
 logger = logging.getLogger(__name__)
 
 PROMPT_TEMPLATE = """
-당신은 IT 서비스 운영 분석 전문가입니다.
-아래 TAC(기술지원센터) 주간 운영 데이터를 분석하고 JSON으로 응답하세요.
+\ub2f9\uc2e0\uc740 IT \uc11c\ube44\uc2a4 \uc6b4\uc601 \ubd84\uc11d \uc804\ubb38\uac00\uc785\ub2c8\ub2e4.
+\uc544\ub798 TAC(\uae30\uc220\uc9c0\uc6d0\uc13c\ud130) \uc8fc\uac04 \uc6b4\uc601 \ub370\uc774\ud130\ub97c \ubd84\uc11d\ud558\uace0 JSON\uc73c\ub85c \uc751\ub2f5\ud558\uc138\uc694.
 
-[주간 운영 데이터]
-- 데이터 범위: {week_start} ~ {week_end}
-- 이번 주 생성 이슈: {created}건
-- 이번 주 해결 이슈: {resolved}건
-- SLA 초과 미해결 (30일 이상): {sla_overdue}건
-- 개발 SLA 지연: {dev_delay}건
-- TAC & QA SLA 지연: {tac_delay}건
-- 연구소 대기(담당자 미지정): {lab_unassigned}건
-- SLA 만족: {sla_met}건 / SLA 위반: {sla_violated}건
-- 평균 해결시간: {avg_resolution_days}일
-- 2026년 누적 생성: {yearly_created}건 / 누적 해결: {yearly_resolved}건
-- SLA 지연 사유: {delay_reasons}
+[\uc8fc\uac04 \uc6b4\uc601 \ub370\uc774\ud130]
+- \ub370\uc774\ud130 \ubc94\uc704: {week_start} ~ {week_end}
+- \uc774\ubc88 \uc8fc \uc0dd\uc131 \uc774\uc288: {created}\uac74
+- \uc774\ubc88 \uc8fc \ud574\uacb0 \uc774\uc288: {resolved}\uac74
+- SLA \ucd08\uacfc \ubbf8\ud574\uacb0 (30\uc77c \uc774\uc0c1): {sla_overdue}\uac74
+- \uc774\uc288 \ub9ac\ubdf0 \uc911 \uc9c0\uc5f0: {issue_review}\uac74
+- \uc790\ub8cc \uc694\uccad \uc911 \uc9c0\uc5f0: {data_request}\uac74
+- \uacb0\uacfc \ub300\uae30 \uc911 \uc9c0\uc5f0: {result_pending}\uac74
+- \uc5f0\uad6c\uc18c \ub300\uae30(\ub2f4\ub2f9\uc790 \ubbf8\uc9c0\uc815): {lab_unassigned}\uac74
+- SLA \ub9cc\uc871: {sla_met}\uac74 / SLA \uc704\ubc18: {sla_violated}\uac74
+- \ud3c9\uade0 \ud574\uacb0\uc2dc\uac04: {avg_resolution_days}\uc77c
+- 2026\ub144 \ub204\uc801 \uc0dd\uc131: {yearly_created}\uac74 / \ub204\uc801 \ud574\uacb0: {yearly_resolved}\uac74
+- SLA \uc9c0\uc5f0 \uc0ac\uc720: {delay_reasons}
 
-[응답 형식 - 반드시 아래 JSON만 반환]
+[SLA \ucd08\uacfc \uc774\uc288 \uc0c1\uc138 (\ucd08\uacfc\uc2dc\uac04 \ub0b4\ub9bc\ucc28\uc21c, \ucd5c\ub300 10\uac74)]
+{overdue_issue_list}
+
+[\uc751\ub2f5 \ud615\uc2dd - \ubc18\ub4dc\uc2dc \uc544\ub798 JSON\ub9cc \ubc18\ud658]
 {{
-  "summary": "핵심 운영 현황 요약 (2~3문장, 한국어)",
-  "risks": ["리스크1", "리스크2"],
-  "recommendations": ["권고사항1", "권고사항2"],
-  "sentiment": "good 또는 warning 또는 critical 중 하나"
+  "summary": "\ud575\uc2ec \uc6b4\uc601 \ud604\ud669 \uc694\uc57d (2~3\ubb38\uc7a5, \ud55c\uad6d\uc5b4). SLA \ucd08\uacfc \uc774\uc288 \uc911 \uc624\ub798\ub41c \ud2b9\uc774\uc0ac\ud56d \uc5b8\uae09",
+  "risks": ["\ub9ac\uc2a4\ud06c1 (\uac00\ub2a5\ud558\uba74 \ud2b9\uc815 \ud0a4 \uba85\uc2dc)", "\ub9ac\uc2a4\ud06c2"],
+  "recommendations": ["\uad8c\uace0\uc0ac\ud56d1", "\uad8c\uace0\uc0ac\ud56d2"],
+  "sentiment": "good \ub610\ub294 warning \ub610\ub294 critical \uc911 \ud558\ub098"
 }}
 
-sentiment 판단 기준:
-- good: SLA 위반율 20% 미만, 미해결 감소 추세
-- warning: SLA 위반율 20~50%, 또는 미해결 증가
-- critical: SLA 위반율 50% 이상, 또는 SLA 초과 30건 이상
+sentiment \ud310\ub2e8 \uae30\uc900:
+- good: SLA \uc704\ubc18\uc728 20% \ubbf8\ub9cc, \ubbf8\ud574\uacb0 \uac10\uc18c \ucd94\uc138
+- warning: SLA \uc704\ubc18\uc728 20~50%, \ub610\ub294 \ubbf8\ud574\uacb0 \uc99d\uac00
+- critical: SLA \uc704\ubc18\uc728 50% \uc774\uc0c1, \ub610\ub294 SLA \ucd08\uacfc 30\uac74 \uc774\uc0c1
 """
 
 
@@ -52,7 +56,7 @@ class GeminiClient(AiPort):
 
     def analyze(self, report_context: dict) -> Optional[AiAnalysis]:
         if not self._client:
-            logger.warning("Gemini 클라이언트 미초기화 (API 키 없음)")
+            logger.warning("Gemini \ud074\ub77c\uc774\uc5b8\ud2b8 \ubbf8\ucd08\uae30\ud654 (API \ud0a4 \uc5c6\uc74c)")
             return None
         prompt = PROMPT_TEMPLATE.format(**report_context)
         try:
@@ -72,5 +76,5 @@ class GeminiClient(AiPort):
                 sentiment=data.get("sentiment", "warning")
             )
         except Exception as e:
-            logger.error(f"Gemini 분석 실패: {e}")
+            logger.error(f"Gemini \ubd84\uc11d \uc2e4\ud328: {e}")
             return None
