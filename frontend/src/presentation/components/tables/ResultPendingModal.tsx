@@ -1,18 +1,8 @@
 // frontend/src/presentation/components/tables/ResultPendingModal.tsx
 import { useEffect } from 'react'
+import { statusBadge } from './statusBadge'
 
 const JIRA_BASE = 'https://seculayer.atlassian.net/browse'
-
-const CLOSED_STATUSES = ['완료', '종료', 'Done', 'Closed', 'Resolved']
-const IN_PROGRESS_STATUSES = ['진행 중', '검토 중', '구현 중', '리뷰 중']
-
-function statusBadge(status: string) {
-  if (CLOSED_STATUSES.some(s => status.includes(s)))
-    return <span className="badge-good">{status}</span>
-  if (IN_PROGRESS_STATUSES.some(s => status.includes(s)))
-    return <span className="badge-warning">{status}</span>
-  return <span className="badge-neutral">{status}</span>
-}
 
 export interface ResultPendingIssue {
   key: string
@@ -65,9 +55,7 @@ export default function ResultPendingModal({ issues, total, onClose }: Props) {
                   <tr key={d.key} className="hover:bg-apple-gray/50 transition-colors duration-150">
                     <td className="py-2.5 pr-4">
                       <a href={`${JIRA_BASE}/${d.key}`} target="_blank" rel="noopener noreferrer"
-                        className="text-[12px] font-mono font-medium text-brand-600 hover:text-brand-700 hover:underline whitespace-nowrap">
-                        {d.key}
-                      </a>
+                        className="text-[12px] font-mono font-medium text-brand-600 hover:text-brand-700 hover:underline whitespace-nowrap">{d.key}</a>
                     </td>
                     <td className="py-2.5 text-[12px] text-apple-dark/80 max-w-xs truncate pr-4">{d.summary}</td>
                     <td className="py-2.5 text-[12px] text-apple-light whitespace-nowrap pr-4">{d.type}</td>
@@ -92,11 +80,7 @@ export default function ResultPendingModal({ issues, total, onClose }: Props) {
                 </div>
                 <p className="text-[12px] text-apple-dark/80 leading-snug">{d.summary}</p>
                 <div className="flex flex-wrap gap-2 items-center text-[11px] text-apple-light">
-                  <span>{d.type}</span>
-                  <span>·</span>
-                  {statusBadge(d.status)}
-                  <span>·</span>
-                  <span>{d.created}</span>
+                  <span>{d.type}</span><span>·</span>{statusBadge(d.status)}<span>·</span><span>{d.created}</span>
                 </div>
               </div>
             ))}
