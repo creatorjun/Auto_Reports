@@ -132,15 +132,18 @@ class ReportCollector:
     async def _collect_w14(self, q) -> WidgetResult:
         c_jql, r_jql = q.w14_created_vs_resolved()
 
-        # 쪹행: 집계 카운트 + 생성 이슈 상세 목록
         c_count_task  = self._jira.get_issue_count(c_jql)
         r_count_task  = self._jira.get_issue_count(r_jql)
         c_issues_task = self._jira.get_issues(
             c_jql, max_results=200,
             fields="summary,issuetype,status,created"
         )
-        c_count, r_count, c_issues = await asyncio.gather(
-            c_count_task, r_count_task, c_issues_task
+        r_issues_task = self._jira.get_issues(
+            r_jql, max_results=200,
+            fields="summary,issuetype,resolutiondate,timespent"
+        )
+        c_count, r_count, c_issues, r_issues = await asyncio.gather(
+            c_count_task, r_count_task, c_issues_task, r_issues_task
         )
 
         created_details: list[dict] = []
@@ -154,18 +157,30 @@ class ReportCollector:
                 "status":  (f.get("status")    or {}).get("name", "\uae30\ud0c0"),
                 "created": (f.get("created") or "")[:16].replace("T", " "),
             })
-
-        # 생성일 기준 최신순
         created_details.sort(key=lambda x: x["created"], reverse=True)
+
+        resolved_details: list[dict] = []
+        for issue in r_issues:
+            key = issue.get("key", "")
+            f   = issue.get("fields", {})
+            r_str = f.get("resolutiondate") or ""
+            resolved_details.append({
+                "key":          key,
+                "summary":      f.get("summary", "")[:60],
+                "type":         (f.get("issuetype") or {}).get("name", "\uae30\ud0c0"),
+                "resolved":     r_str[:16].replace("T", " "),
+            })
+        resolved_details.sort(key=lambda x: x["resolved"], reverse=True)
 
         logger.info(f"[W14] \uc0dd\uc131 {c_count}\uac74 / \ud574\uacb0 {r_count}\uac74")
         return WidgetResult(
             name="\uc0dd\uc131 vs \ud574\uacb0",
             total=c_count + r_count,
             breakdown={
-                "\uc0dd\uc131":  c_count,
-                "\ud574\uacb0":  r_count,
-                "created_details": created_details,
+                "\uc0dd\uc131":           c_count,
+                "\ud574\uacb0":           r_count,
+                "created_details":  created_details,
+                "resolved_details": resolved_details,
             }
         )
 

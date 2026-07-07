@@ -15,6 +15,7 @@ import SlaMonthlyLineChart, { type MonthlyEntry } from '@/presentation/component
 import IssueDetailTable from '@/presentation/components/tables/IssueDetailTable'
 import SlaOverdueModal, { type OverdueIssue } from '@/presentation/components/tables/SlaOverdueModal'
 import WeeklyCreatedModal, { type CreatedIssue } from '@/presentation/components/tables/WeeklyCreatedModal'
+import WeeklyResolvedModal, { type ResolvedIssue } from '@/presentation/components/tables/WeeklyResolvedModal'
 import type { ReportDetail } from '@/domain/Report'
 
 interface SlaMonthlyBreakdown {
@@ -24,8 +25,9 @@ interface SlaMonthlyBreakdown {
 
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
-  const [showOverdue, setShowOverdue]         = useState(false)
-  const [showWeeklyCreated, setShowWeeklyCreated] = useState(false)
+  const [showOverdue, setShowOverdue]               = useState(false)
+  const [showWeeklyCreated, setShowWeeklyCreated]   = useState(false)
+  const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
 
   useEffect(() => {
     setCurrentReport(report)
@@ -44,7 +46,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   const w1Breakdown      = w.w1?.breakdown as Record<string, unknown> ?? {}
   const overdueIssues    = (w1Breakdown.issue_details ?? []) as OverdueIssue[]
-  const weeklyCreated    = (w14.created_details ?? []) as CreatedIssue[]
+  const weeklyCreated    = (w14.created_details  ?? []) as CreatedIssue[]
+  const weeklyResolved   = (w14.resolved_details ?? []) as ResolvedIssue[]
   const w14Created       = (w14['\uc0dd\uc131'] ?? 0) as number
   const w14Resolved      = (w14['\ud574\uacb0'] ?? 0) as number
 
@@ -66,7 +69,13 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           sub="클릭 ↗"
           onClick={() => setShowWeeklyCreated(true)}
         />
-        <SummaryCard label="이번 주 해결"  value={w14Resolved}       color="green"  />
+        <SummaryCard
+          label="이번 주 해결"
+          value={w14Resolved}
+          color="green"
+          sub="클릭 ↗"
+          onClick={() => setShowWeeklyResolved(true)}
+        />
         <SummaryCard label="2026 생성"     value={w.w8?.total ?? 0}  color="gray"   />
         <SummaryCard label="2026 해결"     value={w.w9?.total ?? 0}  color="gray"   />
         <SummaryCard
@@ -81,7 +90,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <SummaryCard label="결과 대기 중" value={w.w13?.total ?? 0} color="yellow" />
       </div>
 
-      {/* SLA 초과 모달 */}
+      {/* 모달들 */}
       {showOverdue && (
         <SlaOverdueModal
           issues={overdueIssues}
@@ -89,13 +98,18 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           onClose={() => setShowOverdue(false)}
         />
       )}
-
-      {/* 이번 주 생성 모달 */}
       {showWeeklyCreated && (
         <WeeklyCreatedModal
           issues={weeklyCreated}
           total={w14Created}
           onClose={() => setShowWeeklyCreated(false)}
+        />
+      )}
+      {showWeeklyResolved && (
+        <WeeklyResolvedModal
+          issues={weeklyResolved}
+          total={w14Resolved}
+          onClose={() => setShowWeeklyResolved(false)}
         />
       )}
 
