@@ -8,7 +8,15 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent / ".env")
+# .env 탐색: backend/.env → 프로젝트 루트 .env 순서로 시도
+_here = Path(__file__).parent
+for _candidate in [_here / ".env", _here.parent / ".env"]:
+    if _candidate.exists():
+        load_dotenv(_candidate)
+        print(f"[INFO] .env 로드: {_candidate}")
+        break
+else:
+    print("[WARN] .env 파일을 찾지 못했습니다. 환경변수가 이미 설정돼 있어야 합니다.")
 
 JIRA_BASE_URL = os.environ["JIRA_BASE_URL"].rstrip("/")
 JIRA_EMAIL    = os.environ["JIRA_EMAIL"]
@@ -19,13 +27,12 @@ ISSUE_TYPES = os.environ.get(
     "ISSUE_TYPES", '"인시던트", "개선", "CVE", "서비스 요청"'
 )
 
-INITIAL_KEYWORDS  = ["\uccab \uc751\ub2f5", "\ucd08\uae30 \ub300\uc751", "First Response", "Time to first response", "Initial"]
-RESOLUTION_KEYWORDS = ["\ud574\uacb0", "Resolution", "Time to resolution", "Time to close"]
+INITIAL_KEYWORDS    = ["첫 응답", "초기 대응", "First Response", "Time to first response", "Initial"]
+RESOLUTION_KEYWORDS = ["해결", "Resolution", "Time to resolution", "Time to close"]
 
-AUTH = (JIRA_EMAIL, JIRA_TOKEN)
+AUTH    = (JIRA_EMAIL, JIRA_TOKEN)
 HEADERS = {"Accept": "application/json", "Content-Type": "application/json"}
-
-SEP = "\n" + "=" * 70 + "\n"
+SEP     = "\n" + "=" * 70 + "\n"
 
 
 async def main() -> None:
@@ -37,20 +44,17 @@ async def main() -> None:
         resp.raise_for_status()
         all_fields: list[dict] = resp.json()
 
-        custom_fields = [
-            f for f in all_fields
-            if f.get("id", "").startswith("customfield_")
-        ]
+        custom_fields = [f for f in all_fields if f.get("id", "").startswith("customfield_")]
         print(f"  customfield 총 {len(custom_fields)}개\n")
 
         sla_candidates: list[dict] = []
         for f in custom_fields:
-            schema = f.get("schema") or {}
-            custom_type: str = schema.get("custom", "")
-            name: str = f.get("name", "")
-            fid: str  = f.get("id", "")
+            schema      = f.get("schema") or {}
+            custom_type = schema.get("custom", "")
+            name        = f.get("name", "")
+            fid         = f.get("id", "")
             is_sla_type = "sla" in custom_type.lower() or "servicedesk" in custom_type.lower()
-            is_sla_name = "SLA" in name or "시간" in name or "Time" in name or "time" in name or "response" in name.lower() or "resolution" in name.lower()
+            is_sla_name = any(k in name for k in ["SLA", "시간", "Time", "time", "response", "Response", "resolution", "Resolution"])
             if is_sla_type or is_sla_name:
                 sla_candidates.append(f)
                 print(f"  [{fid}] {name}")
@@ -60,7 +64,7 @@ async def main() -> None:
 
         if not sla_candidates:
             print("  ⚠️  SLA 후보 필드를 발견하지 못했습니다.")
-            print("  아래에 전체 customfield 목록을 출력합니다.")
+            print("  전체 customfield 목록을 출력합니다 (--dump-all 로 전체 JSON 확인 가능):\n")
             for f in custom_fields:
                 schema = f.get("schema") or {}
                 print(f"  [{f['id']}] {f.get('name','')}  custom={schema.get('custom','')}")
@@ -69,13 +73,14 @@ async def main() -> None:
         print(SEP + "[STEP 2] get_sla_field_ids() 로직 결과" + SEP)
         sla_field_ids: dict[str, str] = {}
         for f in all_fields:
-            schema = f.get("schema") or {}
-            custom_type: str = schema.get("custom", "")
-            fid  = f.get("id", "")
-            name = f.get("name", "")
+            schema      = f.get("schema") or {}
+            custom_type = schema.get("custom", "")
+            fid         = f.get("id", "")
+            name        = f.get("name", "")
             if "sla" in custom_type.lower() or "servicedesk" in custom_type.lower():
                 if fid.startswith("customfield_") and name:
                     sla_field_ids[name] = fid
+        # fallback
         if not sla_field_ids:
             for f in all_fields:
                 fname = f.get("name", "")
@@ -88,22 +93,23 @@ async def main() -> None:
                 print(f"  {fid}  ->  {name}")
         else:
             print("  ❌  SLA 필드를 하나도 발견하지 못했습니다!")
-            print("  STEP 1 결과를 참고하여 SLA 필드의 schema.custom 값을 확인하세요.")
+            print("  → STEP 1 결과의 schema.custom 값을 확인 후 jira_client.py 검출 조건을 수정하세요.")
 
         # ── STEP 3: 키워드 매칭 진단 ──────────────────────────────────────
         print(SEP + "[STEP 3] 키워드 매칭 진단" + SEP)
-        print(f"  INITIAL_KEYWORDS  = {INITIAL_KEYWORDS}")
+        print(f"  INITIAL_KEYWORDS    = {INITIAL_KEYWORDS}")
         print(f"  RESOLUTION_KEYWORDS = {RESOLUTION_KEYWORDS}\n")
         for fname, fid in sla_field_ids.items():
-            matched_initial    = [kw for kw in INITIAL_KEYWORDS    if kw.lower() in fname.lower()]
-            matched_resolution = [kw for kw in RESOLUTION_KEYWORDS if kw.lower() in fname.lower()]
+            matched_i = [kw for kw in INITIAL_KEYWORDS    if kw.lower() in fname.lower()]
+            matched_r = [kw for kw in RESOLUTION_KEYWORDS if kw.lower() in fname.lower()]
             tag = []
-            if matched_initial:    tag.append(f"W15(키워드={matched_initial})")
-            if matched_resolution: tag.append(f"W16(키워드={matched_resolution})")
-            status = " | ".join(tag) if tag else "❌ 매칭 없음"
-            print(f"  [{fid}] {fname}  ->  {status}")
+            if matched_i: tag.append(f"W15(초기대응, 키워드={matched_i})")
+            if matched_r: tag.append(f"W16(해결시간, 키워드={matched_r})")
+            status = " | ".join(tag) if tag else "❌ 매칭 없음  ← settings 키워드 수정 필요"
+            print(f"  [{fid}] {fname}")
+            print(f"    -> {status}\n")
 
-        # ── STEP 4: 이슈 raw SLA 필드 값 ──────────────────────────────────────
+        # ── STEP 4: 이슈 raw SLA 필드 값 ──────────────────────────────────
         print(SEP + "[STEP 4] 최근 5개 이슈의 SLA 필드 raw 값" + SEP)
         if not sla_field_ids:
             print("  SLA 필드가 없어 생략합니다.")
@@ -126,12 +132,13 @@ async def main() -> None:
             )
             resp2.raise_for_status()
             issues = resp2.json().get("issues", [])
-            print(f"  조회된 이슈: {len(issues)}개  (JQL: {jql[:80]}...)\n")
+            print(f"  조회된 이슈: {len(issues)}개")
+            print(f"  JQL: {jql}\n")
 
             for issue in issues:
                 key = issue.get("key", "")
                 f   = issue.get("fields") or {}
-                print(f"  ▶ {key}  |  생성: {str(f.get('created',''))[:10]}")
+                print(f"  ▶ {key}  생성: {str(f.get('created', ''))[:10]}  유형: {(f.get('issuetype') or {}).get('name', '')}")
                 for fname, fid in sla_field_ids.items():
                     val = f.get(fid)
                     if val is None:
@@ -141,10 +148,10 @@ async def main() -> None:
                         print(json.dumps(val, ensure_ascii=False, indent=6))
                 print()
 
-        # ── STEP 5: 필드 리스트 전체 JSON 덤프 (선택) ────────────────────────────
+        # ── STEP 5: 전체 필드 JSON 덤프 (--dump-all 옵션) ─────────────────
         if "--dump-all" in sys.argv:
-            print(SEP + "[STEP 5] 전체 필드 JSON 덤프 (--dump-all 옵션)" + SEP)
-            print(json.dumps(all_fields, ensure_ascii=False, indent=2))
+            print(SEP + "[STEP 5] 전체 customfield JSON 덤프" + SEP)
+            print(json.dumps(custom_fields, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
