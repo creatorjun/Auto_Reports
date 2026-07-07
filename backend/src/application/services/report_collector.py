@@ -30,8 +30,8 @@ class ReportCollector:
 
         results = await asyncio.gather(
             self._collect_w1(q),
-            self._simple("\uac1c\ubc1c SLA \uc9c0\uc5f0", q.w2_dev_sla()),
-            self._simple("TAC SLA \uc9c0\uc5f0", q.w3_tac_sla()),
+            self._simple("\uc774\uc288 \ub9ac\ubdf0 \uc911", q.w2_issue_review()),
+            self._simple("\uc790\ub8cc \uc694\uccad \uc911", q.w3_data_request()),
             self._simple("\uc5f0\uad6c\uc18c \ub300\uae30(\ub2f4\ub2f9\uc790 \ubbf8\uc9c0\uc815)", q.w4_lab_unassigned()),
             self._breakdown("\uc720\ud615\ubcc4 SLA \uc9c0\uc5f0", q.w5_by_type()),
             self._breakdown("\uc0c1\ud0dc\ubcc4 SLA \uc9c0\uc5f0", q.w6_by_status()),
@@ -41,7 +41,7 @@ class ReportCollector:
             self._collect_w10(q),
             self._collect_w11(q),
             self._collect_w12(q),
-            self._simple("QA SLA \uc9c0\uc5f0", q.w13_qa_sla()),
+            self._simple("\uacb0\uacfc \ub300\uae30 \uc911", q.w13_result_pending()),
             self._collect_w14(q),
             self._collect_w15_w16_monthly(q, now),
         )
@@ -50,8 +50,8 @@ class ReportCollector:
 
         widget_ids = [
             WidgetId.OVERDUE_ISSUES,
-            WidgetId.DEV_SLA_DELAY,
-            WidgetId.TAC_SLA_DELAY,
+            WidgetId.ISSUE_REVIEW,
+            WidgetId.DATA_REQUEST,
             WidgetId.LAB_UNASSIGNED,
             WidgetId.SLA_DELAY_BY_TYPE,
             WidgetId.SLA_DELAY_BY_STATUS,
@@ -61,7 +61,7 @@ class ReportCollector:
             WidgetId.AVG_RESOLUTION_TYPE,
             WidgetId.RESOLUTION_REPORT,
             WidgetId.SLA_MET_VS_VIOLATED,
-            WidgetId.QA_SLA_DELAY,
+            WidgetId.RESULT_PENDING,
             WidgetId.CREATED_VS_RESOLVED,
         ]
 

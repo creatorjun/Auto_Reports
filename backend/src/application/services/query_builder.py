@@ -47,20 +47,21 @@ class ResolvedQueries:
                 )
         return result
 
-    def w2_dev_sla(self) -> str:
-        return (f"{self._base()} AND status IN (\"\uc5f0\uad6c\uc18c \uac80\ud1a0 \uc911\",\"\uad6c\ud604 \uc911\",\"\ubc30\ud3ec \ud30c\uc77c \uac80\ud1a0 \uc911\") "
+    def w2_issue_review(self) -> str:
+        """\uc774\uc288 \ub9ac\ubdf0 \uc911 \uc0c1\ud0dc\uc5d0\uc11c SLA \ucd08\uacfc"""
+        return (f"{self._base()} AND status = \"\uc774\uc288 \ub9ac\ubdf0 \uc911\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
-    def w3_tac_sla(self) -> str:
-        """TAC 지연: TAC 담당 상태(할 일, 이슈 리뷰 중, 자료 요청 중, 결과 대기 중)"""
-        return (f"{self._base()} AND status IN (\"\ud560 \uc77c\",\"\uc774\uc288 \ub9ac\ubdf0 \uc911\",\"\uc790\ub8cc \uc694\uccad \uc911\",\"\uacb0\uacfc \ub300\uae30 \uc911\") "
+    def w3_data_request(self) -> str:
+        """\uc790\ub8cc \uc694\uccad \uc911 \uc0c1\ud0dc\uc5d0\uc11c SLA \ucd08\uacfc"""
+        return (f"{self._base()} AND status = \"\uc790\ub8cc \uc694\uccad \uc911\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
-    def w13_qa_sla(self) -> str:
-        """QA 지연: QA 검토 상태(연구소 대기 중)"""
-        return (f"{self._base()} AND status IN (\"\uc5f0\uad6c\uc18c \ub300\uae30 \uc911\") "
+    def w13_result_pending(self) -> str:
+        """\uacb0\uacfc \ub300\uae30 \uc911 \uc0c1\ud0dc\uc5d0\uc11c SLA \ucd08\uacfc"""
+        return (f"{self._base()} AND status = \"\uacb0\uacfc \ub300\uae30 \uc911\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
