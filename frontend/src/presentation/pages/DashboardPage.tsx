@@ -1,5 +1,5 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useLatestReport, useReportById } from '@/infrastructure/hooks/useReport'
 import { useReportStore } from '@/app/store/reportStore'
@@ -13,6 +13,7 @@ import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTime
 import TrendLineChart from '@/presentation/components/charts/TrendLineChart'
 import SlaMonthlyLineChart, { type MonthlyEntry } from '@/presentation/components/charts/SlaMonthlyLineChart'
 import IssueDetailTable from '@/presentation/components/tables/IssueDetailTable'
+import SlaOverdueModal, { type OverdueIssue } from '@/presentation/components/tables/SlaOverdueModal'
 import type { ReportDetail } from '@/domain/Report'
 
 interface SlaMonthlyBreakdown {
@@ -22,6 +23,7 @@ interface SlaMonthlyBreakdown {
 
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
+  const [showOverdue, setShowOverdue] = useState(false)
 
   useEffect(() => {
     setCurrentReport(report)
@@ -38,6 +40,9 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w16    = (w.w16?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
   const details = (w11.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
 
+  const w1Breakdown   = w.w1?.breakdown as Record<string, unknown> ?? {}
+  const overdueIssues = (w1Breakdown.issue_details ?? []) as OverdueIssue[]
+
   const w15Monthly = w15.monthly ?? []
   const w16Monthly = w16.monthly ?? []
   const hasW15 = w15Monthly.some((e) => e.total > 0)
@@ -47,23 +52,38 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
 
-      {/* 요약 카드: 이번주생성 / 이번주해결 / 2026생성 / 2026해결 / SLA초과 / 이슈리뷰중 / 자료요청중 / 결과대기중 */}
+      {/* 요약 카드 */}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label="이번 주 생성"  value={w14['생성'] ?? 0}  color="blue"   />
         <SummaryCard label="이번 주 해결"  value={w14['해결'] ?? 0}  color="green"  />
         <SummaryCard label="2026 생성"     value={w.w8?.total ?? 0}  color="gray"   />
         <SummaryCard label="2026 해결"     value={w.w9?.total ?? 0}  color="gray"   />
-        <SummaryCard label="SLA 초과"      value={w.w1?.total ?? 0}  sub="30일 미해결" color="red"    />
+        <SummaryCard
+          label="SLA 초과"
+          value={w.w1?.total ?? 0}
+          sub="30일 미해결 ↗ 클릭"
+          color="red"
+          onClick={() => setShowOverdue(true)}
+        />
         <SummaryCard label="이슈 리뷰 중" value={w.w2?.total ?? 0}  color="yellow" />
         <SummaryCard label="자료 요청 중" value={w.w3?.total ?? 0}  color="yellow" />
         <SummaryCard label="결과 대기 중" value={w.w13?.total ?? 0} color="yellow" />
       </div>
 
+      {/* SLA 초과 모달 */}
+      {showOverdue && (
+        <SlaOverdueModal
+          issues={overdueIssues}
+          total={w.w1?.total ?? 0}
+          onClose={() => setShowOverdue(false)}
+        />
+      )}
+
       {/* 월별 SLA 달성률 */}
       {(hasW15 || hasW16) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
           <SlaMonthlyLineChart
-            title="✅ 최초응답 SLA"
+            title="📞 초기 대응 SLA"
             subtitle="최근 6개월 · 응답시간 위반 여부"
             monthly={w15Monthly}
             color="#3b82f6"

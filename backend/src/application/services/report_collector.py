@@ -78,6 +78,62 @@ class ReportCollector:
             widgets=widgets
         )
 
+    async def _collect_w1(self, q) -> WidgetResult:
+        jql = q.w1_overdue()
+        issues = await self._jira.get_issues(
+            jql, max_results=500,
+            fields="summary,issuetype,status,created,resolutiondate"
+        )
+        total = len(issues)
+        by_type: dict[str, Any] = {}
+        details: list[dict] = []
+        now_ts = datetime.now()
+        thr_hours = self._settings.sla_threshold_days * 24
+
+        for issue in issues:
+            key = issue.get("key", "")
+            f   = issue.get("fields", {})
+            itype  = (f.get("issuetype") or {}).get("name", "\uae30\ud0c0")
+            status = (f.get("status")    or {}).get("name", "\uae30\ud0c0")
+            c_str  = f.get("created", "")
+            r_str  = f.get("resolutiondate")
+            summary = f.get("summary", "")[:60]
+
+            # 생성일로부터 경과시간 (h)
+            if c_str:
+                created_dt = datetime.fromisoformat(c_str[:19])
+                elapsed_h  = round((now_ts - created_dt).total_seconds() / 3600, 1)
+            else:
+                elapsed_h  = 0.0
+
+            over_h = round(elapsed_h - thr_hours, 1) if elapsed_h > thr_hours else 0.0
+
+            # 응\ub2f5 \uc0c1\ud0dc: \ud574\uacb0\ub418\uc5c8\uc73c\uba74 \uc2a4\ucf64 \uc544\ub2c8\uba74 \uc9c4\ud589 \uc911
+            resp_status = "\uc885\ub8cc" if r_str else "\uc9c4\ud589 \uc911"
+
+            by_type.setdefault(itype, {})
+            by_type[itype][status] = by_type[itype].get(status, 0) + 1
+
+            details.append({
+                "key":         key,
+                "summary":     summary,
+                "type":        itype,
+                "created":     c_str[:16].replace("T", " ") if c_str else "",
+                "resp_status": resp_status,
+                "over_h":      over_h,
+            })
+
+        # 초\uacfc\uc2dc\uac04 \ub0b4\ub9bc\ucc28\uc21c
+        details.sort(key=lambda x: x["over_h"], reverse=True)
+
+        logger.info(f"[W1] {total}\uac74")
+        return WidgetResult(
+            name="\uc0dd\uc131 1\ub2ec \uc774\uc0c1 \ub41c \uc774\uc288",
+            total=total,
+            jql=jql,
+            breakdown={"by_type": by_type, "issue_details": details}
+        )
+
     async def _collect_w15_w16_monthly(
         self, q, now: datetime
     ) -> tuple[WidgetResult, WidgetResult]:
@@ -169,20 +225,6 @@ class ReportCollector:
                 month = 12
                 year -= 1
         return list(reversed(result))
-
-    async def _collect_w1(self, q) -> WidgetResult:
-        jql = q.w1_overdue()
-        issues = await self._jira.get_issues(jql, max_results=500, fields="issuetype,status")
-        total = len(issues)
-        breakdown: dict[str, Any] = {}
-        for issue in issues:
-            f = issue.get("fields", {})
-            itype = (f.get("issuetype") or {}).get("name", "\uae30\ud0c0")
-            st = (f.get("status") or {}).get("name", "\uae30\ud0c0")
-            breakdown.setdefault(itype, {})
-            breakdown[itype][st] = breakdown[itype].get(st, 0) + 1
-        logger.info(f"[W1] {total}\uac74")
-        return WidgetResult(name="\uc0dd\uc131 1\ub2ec \uc774\uc0c1 \ub41c \uc774\uc288", total=total, jql=jql, breakdown=breakdown)
 
     async def _collect_w10(self, q) -> WidgetResult:
         jql = q.w10_11_resolved()
