@@ -14,6 +14,7 @@ import TrendLineChart from '@/presentation/components/charts/TrendLineChart'
 import SlaMonthlyLineChart, { type MonthlyEntry } from '@/presentation/components/charts/SlaMonthlyLineChart'
 import IssueDetailTable from '@/presentation/components/tables/IssueDetailTable'
 import SlaOverdueModal, { type OverdueIssue } from '@/presentation/components/tables/SlaOverdueModal'
+import WeeklyCreatedModal, { type CreatedIssue } from '@/presentation/components/tables/WeeklyCreatedModal'
 import type { ReportDetail } from '@/domain/Report'
 
 interface SlaMonthlyBreakdown {
@@ -23,7 +24,8 @@ interface SlaMonthlyBreakdown {
 
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
-  const [showOverdue, setShowOverdue] = useState(false)
+  const [showOverdue, setShowOverdue]         = useState(false)
+  const [showWeeklyCreated, setShowWeeklyCreated] = useState(false)
 
   useEffect(() => {
     setCurrentReport(report)
@@ -35,13 +37,16 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w7     = w.w7?.breakdown  as Record<string, number> ?? {}
   const w10    = w.w10?.breakdown as Record<string, { avg_days: number; count: number }> ?? {}
   const w11    = w.w11?.breakdown as Record<string, unknown> ?? {}
-  const w14    = w.w14?.breakdown as Record<string, number> ?? {}
+  const w14    = w.w14?.breakdown as Record<string, unknown> ?? {}
   const w15    = (w.w15?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
   const w16    = (w.w16?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
   const details = (w11.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
 
-  const w1Breakdown   = w.w1?.breakdown as Record<string, unknown> ?? {}
-  const overdueIssues = (w1Breakdown.issue_details ?? []) as OverdueIssue[]
+  const w1Breakdown      = w.w1?.breakdown as Record<string, unknown> ?? {}
+  const overdueIssues    = (w1Breakdown.issue_details ?? []) as OverdueIssue[]
+  const weeklyCreated    = (w14.created_details ?? []) as CreatedIssue[]
+  const w14Created       = (w14['\uc0dd\uc131'] ?? 0) as number
+  const w14Resolved      = (w14['\ud574\uacb0'] ?? 0) as number
 
   const w15Monthly = w15.monthly ?? []
   const w16Monthly = w16.monthly ?? []
@@ -54,14 +59,20 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
       {/* 요약 카드 */}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
-        <SummaryCard label="이번 주 생성"  value={w14['생성'] ?? 0}  color="blue"   />
-        <SummaryCard label="이번 주 해결"  value={w14['해결'] ?? 0}  color="green"  />
+        <SummaryCard
+          label="이번 주 생성"
+          value={w14Created}
+          color="blue"
+          sub="클릭 ↗"
+          onClick={() => setShowWeeklyCreated(true)}
+        />
+        <SummaryCard label="이번 주 해결"  value={w14Resolved}       color="green"  />
         <SummaryCard label="2026 생성"     value={w.w8?.total ?? 0}  color="gray"   />
         <SummaryCard label="2026 해결"     value={w.w9?.total ?? 0}  color="gray"   />
         <SummaryCard
           label="SLA 초과"
           value={w.w1?.total ?? 0}
-          sub="30일이상 미해결"
+          sub="30일 미해결 ↗ 클릭"
           color="red"
           onClick={() => setShowOverdue(true)}
         />
@@ -76,6 +87,15 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           issues={overdueIssues}
           total={w.w1?.total ?? 0}
           onClose={() => setShowOverdue(false)}
+        />
+      )}
+
+      {/* 이번 주 생성 모달 */}
+      {showWeeklyCreated && (
+        <WeeklyCreatedModal
+          issues={weeklyCreated}
+          total={w14Created}
+          onClose={() => setShowWeeklyCreated(false)}
         />
       )}
 
@@ -102,7 +122,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <SlaDonutChart met={w12['SLA 만족'] ?? 0} violated={w12['SLA 위반'] ?? 0} />
         <ReasonPieChart breakdown={w7} />
         <div className="sm:col-span-2 md:col-span-1">
-          <TrendLineChart created={w14['생성'] ?? 0} resolved={w14['해결'] ?? 0} />
+          <TrendLineChart created={w14Created} resolved={w14Resolved} />
         </div>
       </div>
 

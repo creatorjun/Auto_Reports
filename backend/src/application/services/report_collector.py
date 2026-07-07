@@ -99,7 +99,6 @@ class ReportCollector:
             r_str  = f.get("resolutiondate")
             summary = f.get("summary", "")[:60]
 
-            # 생성일로부터 경과시간 (h)
             if c_str:
                 created_dt = datetime.fromisoformat(c_str[:19])
                 elapsed_h  = round((now_ts - created_dt).total_seconds() / 3600, 1)
@@ -107,8 +106,6 @@ class ReportCollector:
                 elapsed_h  = 0.0
 
             over_h = round(elapsed_h - thr_hours, 1) if elapsed_h > thr_hours else 0.0
-
-            # 응\ub2f5 \uc0c1\ud0dc: \ud574\uacb0\ub418\uc5c8\uc73c\uba74 \uc2a4\ucf64 \uc544\ub2c8\uba74 \uc9c4\ud589 \uc911
             resp_status = "\uc885\ub8cc" if r_str else "\uc9c4\ud589 \uc911"
 
             by_type.setdefault(itype, {})
@@ -123,15 +120,53 @@ class ReportCollector:
                 "over_h":      over_h,
             })
 
-        # 초\uacfc\uc2dc\uac04 \ub0b4\ub9bc\ucc28\uc21c
         details.sort(key=lambda x: x["over_h"], reverse=True)
-
         logger.info(f"[W1] {total}\uac74")
         return WidgetResult(
             name="\uc0dd\uc131 1\ub2ec \uc774\uc0c1 \ub41c \uc774\uc288",
             total=total,
             jql=jql,
             breakdown={"by_type": by_type, "issue_details": details}
+        )
+
+    async def _collect_w14(self, q) -> WidgetResult:
+        c_jql, r_jql = q.w14_created_vs_resolved()
+
+        # 쪹행: 집계 카운트 + 생성 이슈 상세 목록
+        c_count_task  = self._jira.get_issue_count(c_jql)
+        r_count_task  = self._jira.get_issue_count(r_jql)
+        c_issues_task = self._jira.get_issues(
+            c_jql, max_results=200,
+            fields="summary,issuetype,status,created"
+        )
+        c_count, r_count, c_issues = await asyncio.gather(
+            c_count_task, r_count_task, c_issues_task
+        )
+
+        created_details: list[dict] = []
+        for issue in c_issues:
+            key = issue.get("key", "")
+            f   = issue.get("fields", {})
+            created_details.append({
+                "key":     key,
+                "summary": f.get("summary", "")[:60],
+                "type":    (f.get("issuetype") or {}).get("name", "\uae30\ud0c0"),
+                "status":  (f.get("status")    or {}).get("name", "\uae30\ud0c0"),
+                "created": (f.get("created") or "")[:16].replace("T", " "),
+            })
+
+        # 생성일 기준 최신순
+        created_details.sort(key=lambda x: x["created"], reverse=True)
+
+        logger.info(f"[W14] \uc0dd\uc131 {c_count}\uac74 / \ud574\uacb0 {r_count}\uac74")
+        return WidgetResult(
+            name="\uc0dd\uc131 vs \ud574\uacb0",
+            total=c_count + r_count,
+            breakdown={
+                "\uc0dd\uc131":  c_count,
+                "\ud574\uacb0":  r_count,
+                "created_details": created_details,
+            }
         )
 
     async def _collect_w15_w16_monthly(
@@ -300,15 +335,6 @@ class ReportCollector:
         logger.info(f"[W12] \ub9cc\uc871 {met}\uac74 / \uc704\ubc18 {viol}\uac74")
         return WidgetResult(name="SLA \ub9cc\uc871 vs \uc704\ubc18", total=met + viol,
                             breakdown={"SLA \ub9cc\uc871": met, "SLA \uc704\ubc18": viol})
-
-    async def _collect_w14(self, q) -> WidgetResult:
-        c_jql, r_jql = q.w14_created_vs_resolved()
-        c, r = await asyncio.gather(
-            self._jira.get_issue_count(c_jql),
-            self._jira.get_issue_count(r_jql),
-        )
-        logger.info(f"[W14] \uc0dd\uc131 {c}\uac74 / \ud574\uacb0 {r}\uac74")
-        return WidgetResult(name="\uc0dd\uc131 vs \ud574\uacb0", total=c + r, breakdown={"\uc0dd\uc131": c, "\ud574\uacb0": r})
 
     async def _simple(self, name: str, jql: str) -> WidgetResult:
         total = await self._jira.get_issue_count(jql)
