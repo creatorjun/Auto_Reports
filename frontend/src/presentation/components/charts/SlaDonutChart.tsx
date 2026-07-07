@@ -1,3 +1,4 @@
+// frontend/src/presentation/components/charts/SlaDonutChart.tsx
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 const COLORS = ['#22c55e', '#ef4444']
@@ -13,13 +14,22 @@ export default function SlaDonutChart({ met, violated }: { met: number; violated
     <div className="card">
       <h3 className="text-sm font-semibold text-gray-700 mb-4">🎯 SLA 만족 vs 위반</h3>
       <div className="relative">
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="100%" height={240}>
           <PieChart>
-            <Pie data={data} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value">
+            <Pie data={data} cx="50%" cy="45%" innerRadius={60} outerRadius={90} dataKey="value">
               {data.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
             </Pie>
             <Tooltip formatter={(v) => [`${v}건`]} />
-            <Legend />
+            <Legend
+              layout="horizontal"
+              verticalAlign="bottom"
+              align="center"
+              iconType="circle"
+              iconSize={7}
+              formatter={(value: string) => (
+                <span style={{ fontSize: 11, color: '#86868b' }}>{value}</span>
+              )}
+            />
           </PieChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

@@ -6,6 +6,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
@@ -63,7 +64,7 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
           <h3 className="text-[13px] font-semibold text-apple-dark">{title}</h3>
           <span className="text-[11px] text-apple-light">{subtitle}</span>
         </div>
-        <div className="flex items-center justify-center h-[180px]">
+        <div className="flex items-center justify-center h-[240px]">
           <p className="text-[12px] text-apple-light">SLA 데이터가 없습니다</p>
         </div>
       </div>
@@ -76,7 +77,7 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
         <h3 className="text-[13px] font-semibold text-apple-dark">{title}</h3>
         <span className="text-[11px] text-apple-light">{subtitle}</span>
       </div>
-      <ResponsiveContainer width="100%" height={200}>
+      <ResponsiveContainer width="100%" height={240}>
         <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
           <XAxis
@@ -99,6 +100,16 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
             stroke="#e5e7eb"
             strokeDasharray="4 4"
             label={{ value: '목표 80%', position: 'insideTopRight', fontSize: 10, fill: '#9ca3af' }}
+          />
+          <Legend
+            layout="horizontal"
+            verticalAlign="bottom"
+            align="center"
+            iconType="circle"
+            iconSize={7}
+            formatter={(value: string) => (
+              <span style={{ fontSize: 11, color: '#86868b' }}>{value}</span>
+            )}
           />
           <Line
             type="monotone"
