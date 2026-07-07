@@ -61,7 +61,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <SummaryCard
           label="SLA 초과"
           value={w.w1?.total ?? 0}
-          sub="30일 미해결 ↗ 클릭"
+          sub="30일이상 미해결"
           color="red"
           onClick={() => setShowOverdue(true)}
         />
