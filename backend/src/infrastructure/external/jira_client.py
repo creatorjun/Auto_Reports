@@ -1,4 +1,3 @@
-# backend/src/infrastructure/external/jira_client.py
 import logging
 from typing import Any
 
@@ -7,6 +6,9 @@ import httpx
 from src.domain.ports.jira_port import JiraPort
 
 logger = logging.getLogger(__name__)
+
+# Jira Service Management 실제 SLA 필드의 schema.type 값
+SLA_SCHEMA_TYPE = "sd-servicelevelagreement"
 
 
 class JiraClient(JiraPort):
@@ -61,9 +63,21 @@ class JiraClient(JiraPort):
 
     async def get_sla_field_ids(self) -> dict[str, str]:
         """
-        Jira 필드 목록에서 schema.custom == 'com.atlassian.jira.plugin.system.customfieldtypes:sd-request-feedback'
-        또는 schema.custom 안에 'sla'가 포함된 필드를 SLA 필드로 구분.
-        {'필드 이름': 'customfield_NNNNN'} 형태로 반환.
+        Jira 필드 목록에서 schema.type == 'sd-servicelevelagreement' 인 필드만
+        SLA 필드로 분류한다.
+        {'\ud544\ub4dc \uc774\ub984': 'customfield_NNNNN'} 형태로 반환.
+
+        DataStructure.md 기준 실제 SLA 필드 (9개):
+          customfield_11038  해결까지 시간
+          customfield_12118  QA 검토 SLA
+          customfield_11258  해결 후 종료할 시간
+          customfield_12084  할 일 SLA
+          customfield_12085  연구소 대기 SLA
+          customfield_10317  해결시간
+          customfield_10318  최초 응답 시간
+          customfield_12152  최초 응답 SLA   ← W15 사용
+          customfield_12151  해결 시간 SLA   ← W16 사용
+          customfield_11292  개발 SLA
         """
         if self._sla_field_ids_cache is not None:
             return self._sla_field_ids_cache
@@ -72,32 +86,47 @@ class JiraClient(JiraPort):
         try:
             resp = await self._client.get(url)
             resp.raise_for_status()
-            fields = resp.json()
+            all_fields = resp.json()
         except httpx.HTTPError as e:
             logger.error(f"field 목록 조회 실패: {e}")
             return {}
 
         result: dict[str, str] = {}
-        for f in fields:
-            schema = f.get("schema") or {}
-            custom_type: str = schema.get("custom", "")
-            # Jira Service Management SLA 필드는 custom type에 'sla' 또는
-            # 'com.atlassian.servicedesk' 나 'sd-sla' 키워드를 포함함
-            if "sla" in custom_type.lower() or "servicedesk" in custom_type.lower():
-                field_id = f.get("id", "")
-                field_name = f.get("name", "")
-                if field_id.startswith("customfield_") and field_name:
-                    result[field_name] = field_id
-                    logger.info(f"SLA 필드 발견: '{field_name}' = {field_id}")
+        for f in all_fields:
+            schema     = f.get("schema") or {}
+            field_type = schema.get("type", "")
+            field_id   = f.get("id", "")
+            field_name = f.get("name", "")
+
+            # schema.type 이 'sd-servicelevelagreement' 인 필드만 진짜 SLA 필드로 분류
+            if (
+                field_type == SLA_SCHEMA_TYPE
+                and field_id.startswith("customfield_")
+                and field_name
+            ):
+                result[field_name] = field_id
+                logger.info(f"SLA 필드 발견: '{field_name}' = {field_id}")
 
         if not result:
-            # fallback: 필드 이름에 'SLA' 또는 '시간'이 포함된 customfield
-            for f in fields:
-                fname = f.get("name", "")
-                fid = f.get("id", "")
-                if fid.startswith("customfield_") and ("SLA" in fname or "시간" in fname or "Time" in fname):
-                    result[fname] = fid
-                    logger.info(f"SLA 필드 (fallback): '{fname}' = {fid}")
+            # fallback: schema.custom 안에 'sd-sla-field' 키워드
+            for f in all_fields:
+                schema      = f.get("schema") or {}
+                custom_type = schema.get("custom", "")
+                field_id    = f.get("id", "")
+                field_name  = f.get("name", "")
+                if (
+                    "sd-sla" in custom_type.lower()
+                    and field_id.startswith("customfield_")
+                    and field_name
+                ):
+                    result[field_name] = field_id
+                    logger.info(f"SLA 필드 (fallback): '{field_name}' = {field_id}")
+
+        if not result:
+            logger.error(
+                "SLA 필드를 하나도 발견하지 못했습니다! "
+                "Jira 프로젝트가 Service Management 프로젝트인지 확인하세요."
+            )
 
         self._sla_field_ids_cache = result
         return result
