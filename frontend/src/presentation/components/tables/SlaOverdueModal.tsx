@@ -1,5 +1,6 @@
 // frontend/src/presentation/components/tables/SlaOverdueModal.tsx
 import { useEffect } from 'react'
+import { statusBadge } from './statusBadge'
 
 const JIRA_BASE = 'https://seculayer.atlassian.net/browse'
 
@@ -19,7 +20,6 @@ interface Props {
 }
 
 export default function SlaOverdueModal({ issues, total, onClose }: Props) {
-  // ESC 키 닫기
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
@@ -46,15 +46,15 @@ export default function SlaOverdueModal({ issues, total, onClose }: Props) {
           </button>
         </div>
 
-        {/* 테이블 영역 (스크롤) */}
+        {/* 테이블 영역 */}
         <div className="overflow-y-auto flex-1 px-6 py-4">
           {/* PC 테이블 */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-apple-divider/60">
-                  {['이슈 번호', '제목', '유형', '생성일시', '응답상태', '초과시간'].map(h => (
-                    <th key={h} className="text-left pb-3 text-[11px] font-semibold text-apple-light uppercase tracking-wider whitespace-nowrap">
+                  {['이슈 번호', '제목', '유형', '생성일시', '현재 상태', '초과시간'].map(h => (
+                    <th key={h} className="text-left pb-3 text-[11px] font-semibold text-apple-light uppercase tracking-wider whitespace-nowrap pr-4">
                       {h}
                     </th>
                   ))}
@@ -76,11 +76,7 @@ export default function SlaOverdueModal({ issues, total, onClose }: Props) {
                     <td className="py-2.5 text-[12px] text-apple-dark/80 max-w-xs truncate pr-4">{d.summary}</td>
                     <td className="py-2.5 text-[12px] text-apple-light whitespace-nowrap pr-4">{d.type}</td>
                     <td className="py-2.5 text-[12px] text-apple-light tabular-nums whitespace-nowrap pr-4">{d.created}</td>
-                    <td className="py-2.5 whitespace-nowrap pr-4">
-                      <span className={d.resp_status === '종료' ? 'badge-good' : 'badge-warning'}>
-                        {d.resp_status}
-                      </span>
-                    </td>
+                    <td className="py-2.5 whitespace-nowrap pr-4">{statusBadge(d.resp_status)}</td>
                     <td className="py-2.5 text-[12px] tabular-nums whitespace-nowrap">
                       <span className="font-semibold text-red-500">+{d.over_h}h</span>
                     </td>
@@ -106,12 +102,12 @@ export default function SlaOverdueModal({ issues, total, onClose }: Props) {
                   <span className="text-[12px] font-semibold text-red-500">+{d.over_h}h</span>
                 </div>
                 <p className="text-[12px] text-apple-dark/80 leading-snug">{d.summary}</p>
-                <div className="flex flex-wrap gap-2 text-[11px] text-apple-light">
+                <div className="flex flex-wrap gap-2 items-center text-[11px] text-apple-light">
                   <span>{d.type}</span>
                   <span>·</span>
                   <span>{d.created}</span>
                   <span>·</span>
-                  <span className={d.resp_status === '종료' ? 'text-green-600' : 'text-amber-600'}>{d.resp_status}</span>
+                  {statusBadge(d.resp_status)}
                 </div>
               </div>
             ))}
