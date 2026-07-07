@@ -18,6 +18,7 @@ import WeeklyCreatedModal, { type CreatedIssue } from '@/presentation/components
 import WeeklyResolvedModal, { type ResolvedIssue } from '@/presentation/components/tables/WeeklyResolvedModal'
 import IssueReviewModal, { type ReviewIssue } from '@/presentation/components/tables/IssueReviewModal'
 import DataRequestModal, { type DataRequestIssue } from '@/presentation/components/tables/DataRequestModal'
+import ResultPendingModal, { type ResultPendingIssue } from '@/presentation/components/tables/ResultPendingModal'
 import type { ReportDetail } from '@/domain/Report'
 
 interface SlaMonthlyBreakdown {
@@ -32,6 +33,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
   const [showIssueReview, setShowIssueReview]       = useState(false)
   const [showDataRequest, setShowDataRequest]       = useState(false)
+  const [showResultPending, setShowResultPending]   = useState(false)
 
   useEffect(() => {
     setCurrentReport(report)
@@ -48,16 +50,18 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w16    = (w.w16?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
   const details = (w11.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
 
-  const w1Breakdown      = w.w1?.breakdown  as Record<string, unknown> ?? {}
-  const w2Breakdown      = w.w2?.breakdown  as Record<string, unknown> ?? {}
-  const w3Breakdown      = w.w3?.breakdown  as Record<string, unknown> ?? {}
-  const overdueIssues    = (w1Breakdown.issue_details ?? []) as OverdueIssue[]
-  const reviewIssues     = (w2Breakdown.issue_details ?? []) as ReviewIssue[]
-  const dataRequestIssues = (w3Breakdown.issue_details ?? []) as DataRequestIssue[]
-  const weeklyCreated    = (w14.created_details  ?? []) as CreatedIssue[]
-  const weeklyResolved   = (w14.resolved_details ?? []) as ResolvedIssue[]
-  const w14Created       = (w14['\uc0dd\uc131'] ?? 0) as number
-  const w14Resolved      = (w14['\ud574\uacb0'] ?? 0) as number
+  const w1Breakdown         = w.w1?.breakdown  as Record<string, unknown> ?? {}
+  const w2Breakdown         = w.w2?.breakdown  as Record<string, unknown> ?? {}
+  const w3Breakdown         = w.w3?.breakdown  as Record<string, unknown> ?? {}
+  const w13Breakdown        = w.w13?.breakdown as Record<string, unknown> ?? {}
+  const overdueIssues       = (w1Breakdown.issue_details  ?? []) as OverdueIssue[]
+  const reviewIssues        = (w2Breakdown.issue_details  ?? []) as ReviewIssue[]
+  const dataRequestIssues   = (w3Breakdown.issue_details  ?? []) as DataRequestIssue[]
+  const resultPendingIssues = (w13Breakdown.issue_details ?? []) as ResultPendingIssue[]
+  const weeklyCreated       = (w14.created_details  ?? []) as CreatedIssue[]
+  const weeklyResolved      = (w14.resolved_details ?? []) as ResolvedIssue[]
+  const w14Created          = (w14['\uc0dd\uc131'] ?? 0) as number
+  const w14Resolved         = (w14['\ud574\uacb0'] ?? 0) as number
 
   const w15Monthly = w15.monthly ?? []
   const w16Monthly = w16.monthly ?? []
@@ -107,7 +111,13 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           sub="클릭 ↗"
           onClick={() => setShowDataRequest(true)}
         />
-        <SummaryCard label="결과 대기 중" value={w.w13?.total ?? 0} color="yellow" />
+        <SummaryCard
+          label="결과 대기 중"
+          value={w.w13?.total ?? 0}
+          color="yellow"
+          sub="클릭 ↗"
+          onClick={() => setShowResultPending(true)}
+        />
       </div>
 
       {/* 모달들 */}
@@ -144,6 +154,13 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           issues={dataRequestIssues}
           total={w.w3?.total ?? 0}
           onClose={() => setShowDataRequest(false)}
+        />
+      )}
+      {showResultPending && (
+        <ResultPendingModal
+          issues={resultPendingIssues}
+          total={w.w13?.total ?? 0}
+          onClose={() => setShowResultPending(false)}
         />
       )}
 

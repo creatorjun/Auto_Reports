@@ -41,7 +41,7 @@ class ReportCollector:
             self._collect_w10(q),
             self._collect_w11(q),
             self._collect_w12(q),
-            self._simple("\uacb0\uacfc \ub300\uae30 \uc911", q.w13_result_pending()),
+            self._simple_with_details("\uacb0\uacfc \ub300\uae30 \uc911", q.w13_result_pending()),
             self._collect_w14(q),
             self._collect_w15_w16_monthly(q, now),
         )
