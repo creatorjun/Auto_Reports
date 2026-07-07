@@ -31,7 +31,7 @@ class ReportCollector:
         results = await asyncio.gather(
             self._collect_w1(q),
             self._simple_with_details("\uc774\uc288 \ub9ac\ubdf0 \uc911", q.w2_issue_review()),
-            self._simple("\uc790\ub8cc \uc694\uccad \uc911", q.w3_data_request()),
+            self._simple_with_details("\uc790\ub8cc \uc694\uccad \uc911", q.w3_data_request()),
             self._simple("\uc5f0\uad6c\uc18c \ub300\uae30(\ub2f4\ub2f9\uc790 \ubbf8\uc9c0\uc815)", q.w4_lab_unassigned()),
             self._breakdown("\uc720\ud615\ubcc4 SLA \uc9c0\uc5f0", q.w5_by_type()),
             self._breakdown("\uc0c1\ud0dc\ubcc4 SLA \uc9c0\uc5f0", q.w6_by_status()),
@@ -130,7 +130,7 @@ class ReportCollector:
         )
 
     async def _simple_with_details(self, name: str, jql: str) -> WidgetResult:
-        """count + issue_details(key/summary/type/created/elapsed_days) 수집"""
+        """count + issue_details(key/summary/type/status/created/elapsed_days)"""
         issues = await self._jira.get_issues(
             jql, max_results=200,
             fields="summary,issuetype,status,created"
@@ -142,7 +142,7 @@ class ReportCollector:
             f   = issue.get("fields", {})
             c_str = f.get("created") or ""
             if c_str:
-                created_dt  = datetime.fromisoformat(c_str[:19])
+                created_dt   = datetime.fromisoformat(c_str[:19])
                 elapsed_days = (now_ts - created_dt).days
             else:
                 elapsed_days = 0
@@ -154,7 +154,6 @@ class ReportCollector:
                 "created":      c_str[:16].replace("T", " "),
                 "elapsed_days": elapsed_days,
             })
-        # 오래된 순 (elapsed_days \ub0b4\ub9bc\ucc28\uc21c)
         details.sort(key=lambda x: x["elapsed_days"], reverse=True)
         total = len(details)
         logger.info(f"[{name}] {total}\uac74")
@@ -201,9 +200,9 @@ class ReportCollector:
             f   = issue.get("fields", {})
             r_str = f.get("resolutiondate") or ""
             resolved_details.append({
-                "key":     key,
-                "summary": f.get("summary", "")[:60],
-                "type":    (f.get("issuetype") or {}).get("name", "\uae30\ud0c0"),
+                "key":      key,
+                "summary":  f.get("summary", "")[:60],
+                "type":     (f.get("issuetype") or {}).get("name", "\uae30\ud0c0"),
                 "resolved": r_str[:16].replace("T", " "),
             })
         resolved_details.sort(key=lambda x: x["resolved"], reverse=True)
