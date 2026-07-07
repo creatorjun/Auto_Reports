@@ -1,7 +1,7 @@
 # backend/src/application/services/report_collector.py
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -29,7 +29,6 @@ class ReportCollector:
         q = self._qb.build(now)
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 
-        # SLA 필드 ID 사전 조회 (이후 W15/W16에서 재사용)
         sla_field_ids = await self._jira.get_sla_field_ids()
         logger.info(f"SLA 필드 목록: {list(sla_field_ids.keys())}")
 
@@ -47,10 +46,9 @@ class ReportCollector:
             self._collect_w11(q),
             self._collect_w12(q),
             self._collect_w14(q),
-            self._collect_w15_w16(q, sla_field_ids),
+            self._collect_w15_w16_monthly(q, sla_field_ids, now),
         )
 
-        # W15 / W16는 _collect_w15_w16에서 tuple로 반환
         *base_results, (w15_result, w16_result) = results
 
         widget_ids = [
@@ -82,126 +80,141 @@ class ReportCollector:
             widgets=widgets
         )
 
-    # ────────────────────────────────────────────────
-    # W15 + W16: Jira SLA 필드 직접 파싱
-    # ────────────────────────────────────────────────
-    async def _collect_w15_w16(
-        self, q, sla_field_ids: dict[str, str]
+    # ──────────────────────────────────────────────────
+    # W15 + W16: 최근 6개월 월별 SLA 달성률 시계열
+    # breakdown 구조:
+    # {
+    #   "monthly": [
+    #     {"month": "1월", "year": 2026, "month_num": 1,
+    #      "rate": 87.5, "met": 7, "total": 8},
+    #     ...
+    #   ]
+    # }
+    # ──────────────────────────────────────────────────
+    async def _collect_w15_w16_monthly(
+        self, q, sla_field_ids: dict[str, str], now: datetime
     ) -> tuple[WidgetResult, WidgetResult]:
-        """
-        Jira에 등록된 SLA 필드를 읽어 W15(초기 대응)/W16(해결시간) 준수율 계산.
-
-        Jira SLA 필드 구조 (customfield_NNNNN 값):
-        {
-          "completedCycles": [
-            {
-              "breached": false,
-              "elapsedTime": {"millis": 12345, "friendly": "3h"},
-              "goalDuration":  {"millis": 86400000, "friendly": "24h"},
-              "remainingTime": {"millis": 0, ...}
-            }
-          ],
-          "ongoingCycle": {   # 진행 중인 경우
-            "breached": false / true,
-            "remainingTime": {"millis": -3600000, ...}
-          }
-        }
-        """
         if not sla_field_ids:
             logger.warning("SLA 필드를 찾지 못했습니다. W15/W16를 에러 상태로 반환합니다.")
             empty = WidgetResult(
                 name="SLA (필드 미발견)", total=0,
-                breakdown={"rate": 0.0, "met": 0, "total": 0, "sla_fields": [], "error": "SLA 필드 미발견"}
+                breakdown={"monthly": [], "error": "SLA 필드 미발견"}
             )
             return empty, empty
 
-        # 최근 30일 이슈 + SLA 필드 전체 요청
-        jql = q.w15_initial_response_candidates()  # created >= -30d
+        months = self._last_six_months(now)
         sla_field_list = list(sla_field_ids.values())
         fields_str = "summary,issuetype,created,resolutiondate," + ",".join(sla_field_list)
 
-        issues = await self._jira.get_issues(jql, max_results=500, fields=fields_str)
-        logger.info(f"[W15/W16] SLA 이슈 {len(issues)}건 조회")
+        async def _fetch_month(year: int, month: int):
+            jql = q.w15_w16_monthly_candidates(year, month)
+            issues = await self._jira.get_issues(jql, max_results=500, fields=fields_str)
+            return year, month, issues
 
-        # SLA 필드으로 분류된 준수/위반 카운터
-        # {필드명: {"met": N, "breached": M}}
-        per_field: dict[str, dict[str, int]] = {
-            name: {"met": 0, "breached": 0} for name in sla_field_ids
-        }
+        month_data = await asyncio.gather(*[_fetch_month(y, m) for y, m in months])
 
-        for issue in issues:
-            f = issue.get("fields") or {}
-            for field_name, field_id in sla_field_ids.items():
-                sla_val = f.get(field_id)
-                if not sla_val:
-                    continue
-
-                # completedCycles: 이미 종료된 SLA 주기
-                for cycle in sla_val.get("completedCycles") or []:
-                    if cycle.get("breached"):
-                        per_field[field_name]["breached"] += 1
-                    else:
-                        per_field[field_name]["met"] += 1
-
-                # ongoingCycle: 아직 진행 중
-                ongoing = sla_val.get("ongoingCycle")
-                if ongoing:
-                    if ongoing.get("breached"):
-                        per_field[field_name]["breached"] += 1
-                    else:
-                        per_field[field_name]["met"] += 1
-
-        # 필드명 매칭: 설정값에 정의된 이름 키워드로 W15/W16 구분
         initial_keywords  = self._settings.sla_initial_response_field_keywords
         resolution_keywords = self._settings.sla_resolution_field_keywords
 
-        def _build_result(keywords: list[str], widget_name: str) -> WidgetResult:
-            matched: dict[str, dict[str, int]] = {}
-            for fname, counts in per_field.items():
-                if any(kw.lower() in fname.lower() for kw in keywords):
-                    if counts["met"] > 0 or counts["breached"] > 0:
-                        matched[fname] = counts
+        def _calc_monthly(issues: list, keywords: list[str]) -> dict[str, int]:
+            met = 0
+            breached = 0
+            for issue in issues:
+                f = issue.get("fields") or {}
+                for field_name, field_id in sla_field_ids.items():
+                    if not any(kw.lower() in field_name.lower() for kw in keywords):
+                        continue
+                    sla_val = f.get(field_id)
+                    if not sla_val:
+                        continue
+                    for cycle in sla_val.get("completedCycles") or []:
+                        if cycle.get("breached"):
+                            breached += 1
+                        else:
+                            met += 1
+                    ongoing = sla_val.get("ongoingCycle")
+                    if ongoing:
+                        if ongoing.get("breached"):
+                            breached += 1
+                        else:
+                            met += 1
+            return {"met": met, "breached": breached}
 
-            if not matched:
-                # 필드명 매칭 실패 시 데이터가 있는 전체 SLA 필드 통합
-                matched = {k: v for k, v in per_field.items() if v["met"] > 0 or v["breached"] > 0}
+        def _build_monthly_result(
+            month_data_list, keywords: list[str], widget_name: str, fallback_all: bool = False
+        ) -> WidgetResult:
+            monthly = []
+            total_met = 0
+            total_all = 0
 
-            total_met      = sum(v["met"]     for v in matched.values())
-            total_breached = sum(v["breached"] for v in matched.values())
-            total          = total_met + total_breached
-            rate           = round(total_met / total * 100, 1) if total else 0.0
+            for year, month, issues in month_data_list:
+                counts = _calc_monthly(issues, keywords)
 
-            # 필드별 세부 데이터
-            fields_detail = [
-                {
-                    "name": fname,
-                    "met": v["met"],
-                    "breached": v["breached"],
-                    "rate": round(v["met"] / (v["met"] + v["breached"]) * 100, 1)
-                           if (v["met"] + v["breached"]) > 0 else 0.0,
-                }
-                for fname, v in sorted(matched.items())
-            ]
+                if fallback_all and counts["met"] == 0 and counts["breached"] == 0:
+                    merged: dict[str, int] = {"met": 0, "breached": 0}
+                    for issue in issues:
+                        f = issue.get("fields") or {}
+                        for field_id in sla_field_ids.values():
+                            sla_val = f.get(field_id)
+                            if not sla_val:
+                                continue
+                            for cycle in sla_val.get("completedCycles") or []:
+                                if cycle.get("breached"):
+                                    merged["breached"] += 1
+                                else:
+                                    merged["met"] += 1
+                            ongoing = sla_val.get("ongoingCycle")
+                            if ongoing:
+                                if ongoing.get("breached"):
+                                    merged["breached"] += 1
+                                else:
+                                    merged["met"] += 1
+                    counts = merged
 
-            logger.info(f"[{widget_name}] {rate}% ({total_met}/{total}) 필드={list(matched.keys())}")
+                t = counts["met"] + counts["breached"]
+                rate = round(counts["met"] / t * 100, 1) if t > 0 else 0.0
+                monthly.append({
+                    "month": f"{month}월",
+                    "year": year,
+                    "month_num": month,
+                    "rate": rate,
+                    "met": counts["met"],
+                    "total": t,
+                })
+                total_met += counts["met"]
+                total_all += t
+
+            overall_rate = round(total_met / total_all * 100, 1) if total_all > 0 else 0.0
+            logger.info(f"[{widget_name}] 6개월 종합 {overall_rate}% ({total_met}/{total_all})")
             return WidgetResult(
                 name=widget_name,
-                total=total,
-                breakdown={
-                    "rate": rate,
-                    "met": total_met,
-                    "total": total,
-                    "sla_fields": fields_detail,
-                },
+                total=total_all,
+                breakdown={"monthly": monthly},
             )
 
-        w15 = _build_result(initial_keywords,  "초기 대응 SLA (최근 30일)")
-        w16 = _build_result(resolution_keywords, "해결시간 SLA (최근 30일)")
+        w15 = _build_monthly_result(
+            month_data, initial_keywords, "초기 대응 SLA (최근 6개월)"
+        )
+        w16 = _build_monthly_result(
+            month_data, resolution_keywords, "해결시간 SLA (최근 6개월)", fallback_all=True
+        )
         return w15, w16
 
-    # ────────────────────────────────────────────────
+    @staticmethod
+    def _last_six_months(now: datetime) -> list[tuple[int, int]]:
+        result = []
+        year, month = now.year, now.month
+        for _ in range(6):
+            result.append((year, month))
+            month -= 1
+            if month == 0:
+                month = 12
+                year -= 1
+        return list(reversed(result))
+
+    # ──────────────────────────────────────────────────
     # 기존 collectors
-    # ────────────────────────────────────────────────
+    # ──────────────────────────────────────────────────
     async def _collect_w1(self, q) -> WidgetResult:
         jql = q.w1_overdue()
         issues = await self._jira.get_issues(jql, max_results=500, fields="issuetype,status")
