@@ -8,5 +8,5 @@ reports/
 .DS_Store
 node_modules/
 frontend/dist/
-.venv/
+venv/
 *.egg-info/
