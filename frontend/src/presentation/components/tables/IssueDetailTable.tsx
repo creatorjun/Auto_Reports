@@ -1,4 +1,6 @@
 // frontend/src/presentation/components/tables/IssueDetailTable.tsx
+const JIRA_BASE = 'https://seculayer.atlassian.net/browse'
+
 interface IssueDetail {
   key: string
   summary: string
@@ -25,7 +27,16 @@ export default function IssueDetailTable({ details }: { details: IssueDetail[] }
           <tbody className="divide-y divide-apple-divider/40">
             {details.map((d) => (
               <tr key={d.key} className="hover:bg-apple-gray/50 transition-colors duration-150">
-                <td className="py-2.5 text-[12px] font-mono text-brand-600 font-medium">{d.key}</td>
+                <td className="py-2.5 text-[12px] font-mono font-medium">
+                  <a
+                    href={`${JIRA_BASE}/${d.key}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-600 hover:text-brand-700 hover:underline"
+                  >
+                    {d.key}
+                  </a>
+                </td>
                 <td className="py-2.5 text-[12px] max-w-xs truncate text-apple-dark/80 pr-4">{d.summary}</td>
                 <td className="py-2.5 text-[12px] text-apple-light">{d.type}</td>
                 <td className="py-2.5 text-[12px] text-apple-dark/80 tabular-nums">{d.resolution_h ? `${d.resolution_h}h` : '—'}</td>
@@ -44,7 +55,14 @@ export default function IssueDetailTable({ details }: { details: IssueDetail[] }
         {details.map((d) => (
           <div key={d.key} className="py-3 flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <span className="text-[12px] font-mono text-brand-600 font-medium">{d.key}</span>
+              <a
+                href={`${JIRA_BASE}/${d.key}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[12px] font-mono text-brand-600 font-medium hover:text-brand-700 hover:underline"
+              >
+                {d.key}
+              </a>
               <span className={d.res_breached ? 'badge-critical' : 'badge-good'}>
                 {d.res_breached ? 'SLA 위반' : 'SLA 만족'}
               </span>
