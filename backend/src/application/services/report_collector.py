@@ -30,7 +30,7 @@ class ReportCollector:
 
         results = await asyncio.gather(
             self._collect_w1(q),
-            self._simple("\uc774\uc288 \ub9ac\ubdf0 \uc911", q.w2_issue_review()),
+            self._simple_with_details("\uc774\uc288 \ub9ac\ubdf0 \uc911", q.w2_issue_review()),
             self._simple("\uc790\ub8cc \uc694\uccad \uc911", q.w3_data_request()),
             self._simple("\uc5f0\uad6c\uc18c \ub300\uae30(\ub2f4\ub2f9\uc790 \ubbf8\uc9c0\uc815)", q.w4_lab_unassigned()),
             self._breakdown("\uc720\ud615\ubcc4 SLA \uc9c0\uc5f0", q.w5_by_type()),
@@ -129,6 +129,42 @@ class ReportCollector:
             breakdown={"by_type": by_type, "issue_details": details}
         )
 
+    async def _simple_with_details(self, name: str, jql: str) -> WidgetResult:
+        """count + issue_details(key/summary/type/created/elapsed_days) 수집"""
+        issues = await self._jira.get_issues(
+            jql, max_results=200,
+            fields="summary,issuetype,status,created"
+        )
+        now_ts = datetime.now()
+        details: list[dict] = []
+        for issue in issues:
+            key = issue.get("key", "")
+            f   = issue.get("fields", {})
+            c_str = f.get("created") or ""
+            if c_str:
+                created_dt  = datetime.fromisoformat(c_str[:19])
+                elapsed_days = (now_ts - created_dt).days
+            else:
+                elapsed_days = 0
+            details.append({
+                "key":          key,
+                "summary":      f.get("summary", "")[:60],
+                "type":         (f.get("issuetype") or {}).get("name", "\uae30\ud0c0"),
+                "status":       (f.get("status")    or {}).get("name", "\uae30\ud0c0"),
+                "created":      c_str[:16].replace("T", " "),
+                "elapsed_days": elapsed_days,
+            })
+        # 오래된 순 (elapsed_days \ub0b4\ub9bc\ucc28\uc21c)
+        details.sort(key=lambda x: x["elapsed_days"], reverse=True)
+        total = len(details)
+        logger.info(f"[{name}] {total}\uac74")
+        return WidgetResult(
+            name=name,
+            total=total,
+            jql=jql,
+            breakdown={"issue_details": details}
+        )
+
     async def _collect_w14(self, q) -> WidgetResult:
         c_jql, r_jql = q.w14_created_vs_resolved()
 
@@ -140,7 +176,7 @@ class ReportCollector:
         )
         r_issues_task = self._jira.get_issues(
             r_jql, max_results=200,
-            fields="summary,issuetype,resolutiondate,timespent"
+            fields="summary,issuetype,resolutiondate"
         )
         c_count, r_count, c_issues, r_issues = await asyncio.gather(
             c_count_task, r_count_task, c_issues_task, r_issues_task
@@ -165,10 +201,10 @@ class ReportCollector:
             f   = issue.get("fields", {})
             r_str = f.get("resolutiondate") or ""
             resolved_details.append({
-                "key":          key,
-                "summary":      f.get("summary", "")[:60],
-                "type":         (f.get("issuetype") or {}).get("name", "\uae30\ud0c0"),
-                "resolved":     r_str[:16].replace("T", " "),
+                "key":     key,
+                "summary": f.get("summary", "")[:60],
+                "type":    (f.get("issuetype") or {}).get("name", "\uae30\ud0c0"),
+                "resolved": r_str[:16].replace("T", " "),
             })
         resolved_details.sort(key=lambda x: x["resolved"], reverse=True)
 
@@ -190,9 +226,6 @@ class ReportCollector:
         w15_fid = self._settings.sla_initial_response_field_id
         w16_fid = self._settings.sla_resolution_field_id
         fields_str = f"summary,issuetype,created,resolutiondate,{w15_fid},{w16_fid}"
-
-        logger.info(f"[W15] \ud544\ub4dc ID: {w15_fid}")
-        logger.info(f"[W16] \ud544\ub4dc ID: {w16_fid}")
 
         months = self._last_six_months(now)
 
@@ -229,9 +262,7 @@ class ReportCollector:
                 breached += counts["breached"]
             return {"met": met, "breached": breached}
 
-        def _build_monthly_result(
-            month_data_list, field_id: str, widget_name: str
-        ) -> WidgetResult:
+        def _build_monthly_result(month_data_list, field_id: str, widget_name: str) -> WidgetResult:
             monthly   = []
             total_met = 0
             total_all = 0
@@ -250,15 +281,8 @@ class ReportCollector:
                 total_met += counts["met"]
                 total_all += t
             overall_rate = round(total_met / total_all * 100, 1) if total_all > 0 else 0.0
-            logger.info(
-                f"[{widget_name}] field={field_id} "
-                f"6\uac1c\uc6d4 \uc885\ud569 {overall_rate}% ({total_met}/{total_all})"
-            )
-            return WidgetResult(
-                name=widget_name,
-                total=total_all,
-                breakdown={"monthly": monthly},
-            )
+            logger.info(f"[{widget_name}] field={field_id} 6\uac1c\uc6d4 \uc885\ud569 {overall_rate}% ({total_met}/{total_all})")
+            return WidgetResult(name=widget_name, total=total_all, breakdown={"monthly": monthly})
 
         w15 = _build_monthly_result(month_data, w15_fid, "\ucd5c\ucd08 \uc751\ub2f5 SLA (\ucd5c\uadfc 6\uac1c\uc6d4)")
         w16 = _build_monthly_result(month_data, w16_fid, "\ud574\uacb0\uc2dc\uac04 SLA (\ucd5c\uadfc 6\uac1c\uc6d4)")
