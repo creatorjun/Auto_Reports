@@ -11,18 +11,9 @@ import ReasonPieChart from '@/presentation/components/charts/ReasonPieChart'
 import TypeBarChart from '@/presentation/components/charts/TypeBarChart'
 import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTimeChart'
 import TrendLineChart from '@/presentation/components/charts/TrendLineChart'
-import SlaMonthlyLineChart from '@/presentation/components/charts/SlaMonthlyLineChart'
+import SlaMonthlyLineChart, { type MonthlyEntry } from '@/presentation/components/charts/SlaMonthlyLineChart'
 import IssueDetailTable from '@/presentation/components/tables/IssueDetailTable'
 import type { ReportDetail } from '@/domain/Report'
-
-interface MonthlyEntry {
-  month: string
-  year: number
-  month_num: number
-  rate: number
-  met: number
-  total: number
-}
 
 interface SlaMonthlyBreakdown {
   monthly?: MonthlyEntry[]
@@ -37,19 +28,20 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     return () => setCurrentReport(null)
   }, [report, setCurrentReport])
 
-  const w    = report.widgets
-  const w12  = w.w12?.breakdown as Record<string, number> ?? {}
-  const w7   = w.w7?.breakdown  as Record<string, number> ?? {}
-  const w10  = w.w10?.breakdown as Record<string, { avg_days: number; count: number }> ?? {}
-  const w11  = w.w11?.breakdown as Record<string, unknown> ?? {}
-  const w14  = w.w14?.breakdown as Record<string, number> ?? {}
-  const w15  = (w.w15?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
-  const w16  = (w.w16?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
+  const w      = report.widgets
+  const w12    = w.w12?.breakdown as Record<string, number> ?? {}
+  const w7     = w.w7?.breakdown  as Record<string, number> ?? {}
+  const w10    = w.w10?.breakdown as Record<string, { avg_days: number; count: number }> ?? {}
+  const w11    = w.w11?.breakdown as Record<string, unknown> ?? {}
+  const w14    = w.w14?.breakdown as Record<string, number> ?? {}
+  const w15    = (w.w15?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
+  const w16    = (w.w16?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
   const details = (w11.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
 
-  const hasMonthlyData =
-    (w15.monthly?.some((e) => e.total > 0) ?? false) ||
-    (w16.monthly?.some((e) => e.total > 0) ?? false)
+  const w15Monthly = w15.monthly ?? []
+  const w16Monthly = w16.monthly ?? []
+  const hasW15 = w15Monthly.some((e) => e.total > 0)
+  const hasW16 = w16Monthly.some((e) => e.total > 0)
 
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
@@ -67,9 +59,22 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <SummaryCard label="2026 해결"          value={w.w9?.total ?? 0} color="gray"   />
       </div>
 
-      {/* 월별 SLA 달성률 켼은선 그래프 */}
-      {hasMonthlyData && (
-        <SlaMonthlyLineChart w15Breakdown={w15} w16Breakdown={w16} />
+      {/* 월별 SLA 달성률 — 초기 대응 / 해결시간 각각 독립 카드 */}
+      {(hasW15 || hasW16) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
+          <SlaMonthlyLineChart
+            title="📞 초기 대응 SLA"
+            subtitle="최근 6개월 · 응답시간 위반 여부"
+            monthly={w15Monthly}
+            color="#3b82f6"
+          />
+          <SlaMonthlyLineChart
+            title="✅ 해결시간 SLA"
+            subtitle="최근 6개월 · 해결시간 위반 여부"
+            monthly={w16Monthly}
+            color="#22c55e"
+          />
+        </div>
       )}
 
       {/* 차트 행 1 */}
