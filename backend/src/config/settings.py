@@ -1,4 +1,3 @@
-# backend/src/config/settings.py
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings
@@ -22,14 +21,28 @@ class Settings(BaseSettings):
     sla_threshold_days: int = 30
 
     # W15 초기대응 SLA 필드 매칭 키워드
-    # .env에서 SLA_INITIAL_RESPONSE_FIELD_KEYWORDS=['첫 응답','초기대응']로 오버라이드 가능
+    # 실제 Jira 필드명: "최초 응답 SLA" (customfield_12152)
+    # .env에서 SLA_INITIAL_RESPONSE_FIELD_KEYWORDS=["최초 응답"]로 오버라이드 가능
     sla_initial_response_field_keywords: list[str] = [
-        "첫 응답", "초기 대응", "First Response", "Time to first response", "Initial"
+        "최초 응답",
+        "첫 응답",
+        "초기 대응",
+        "First Response",
+        "Time to first response",
+        "Initial",
     ]
 
     # W16 해결시간 SLA 필드 매칭 키워드
+    # 실제 Jira 필드명: "해결 시간 SLA" (customfield_12151)
+    # "해결까지 시간", "해결시간" 등 다른 해결 관련 필드와 구분하기 위해
+    # 가장 구체적인 키워드를 우선 배치
     sla_resolution_field_keywords: list[str] = [
-        "해결", "Resolution", "Time to resolution", "Time to close"
+        "해결 시간 SLA",
+        "해결시간 SLA",
+        "해결 시간",
+        "Resolution",
+        "Time to resolution",
+        "Time to close",
     ]
 
     cors_origins: list[str] = ["*"]
