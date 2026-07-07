@@ -78,14 +78,12 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           label="이번 주 생성"
           value={w14Created}
           color="blue"
-          sub="클릭 ↗"
           onClick={() => setShowWeeklyCreated(true)}
         />
         <SummaryCard
           label="이번 주 해결"
           value={w14Resolved}
           color="green"
-          sub="클릭 ↗"
           onClick={() => setShowWeeklyResolved(true)}
         />
         <SummaryCard label="2026 생성" value={w.w8?.total ?? 0} color="gray" />
@@ -93,7 +91,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <SummaryCard
           label="SLA 초과"
           value={w.w1?.total ?? 0}
-          sub="30일 미해결 ↗ 클릭"
+          sub="30일 미해결"
           color="red"
           onClick={() => setShowOverdue(true)}
         />
@@ -101,21 +99,18 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           label="이슈 리뷰 중"
           value={w.w2?.total ?? 0}
           color="yellow"
-          sub="클릭 ↗"
           onClick={() => setShowIssueReview(true)}
         />
         <SummaryCard
           label="자료 요청 중"
           value={w.w3?.total ?? 0}
           color="yellow"
-          sub="클릭 ↗"
           onClick={() => setShowDataRequest(true)}
         />
         <SummaryCard
           label="결과 대기 중"
           value={w.w13?.total ?? 0}
           color="yellow"
-          sub="클릭 ↗"
           onClick={() => setShowResultPending(true)}
         />
       </div>
