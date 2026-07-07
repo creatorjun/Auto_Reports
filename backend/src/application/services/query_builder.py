@@ -1,4 +1,3 @@
-# backend/src/application/services/query_builder.py
 from datetime import datetime, timedelta
 from typing import Tuple
 
@@ -49,17 +48,24 @@ class ResolvedQueries:
         return result
 
     def w2_dev_sla(self) -> str:
-        return (f"{self._base()} AND status IN (\"연구소 검토 중\",\"구현 중\",\"배포 파일 검토 중\") "
+        return (f"{self._base()} AND status IN (\"\uc5f0\uad6c\uc18c \uac80\ud1a0 \uc911\",\"\uad6c\ud604 \uc911\",\"\ubc30\ud3ec \ud30c\uc77c \uac80\ud1a0 \uc911\") "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
-    def w3_tac_qa_sla(self) -> str:
-        return (f"{self._base()} AND status IN (\"할 일\",\"이슈 리뷰 중\",\"자료 요청 중\",\"결과 대기 중\") "
+    def w3_tac_sla(self) -> str:
+        """TAC 지연: TAC 담당 상태(할 일, 이슈 리뷰 중, 자료 요청 중, 결과 대기 중)"""
+        return (f"{self._base()} AND status IN (\"\ud560 \uc77c\",\"\uc774\uc288 \ub9ac\ubdf0 \uc911\",\"\uc790\ub8cc \uc694\uccad \uc911\",\"\uacb0\uacfc \ub300\uae30 \uc911\") "
+                f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
+                f"AND status NOT IN ({self._closed()})")
+
+    def w13_qa_sla(self) -> str:
+        """QA 지연: QA 검토 상태(연구소 대기 중)"""
+        return (f"{self._base()} AND status IN (\"\uc5f0\uad6c\uc18c \ub300\uae30 \uc911\") "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
     def w4_lab_unassigned(self) -> str:
-        return (f"{self._base()} AND status = \"연구소 대기 중\" AND assignee IS EMPTY "
+        return (f"{self._base()} AND status = \"\uc5f0\uad6c\uc18c \ub300\uae30 \uc911\" AND assignee IS EMPTY "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\"")
 
     def w5_by_type(self) -> dict[str, str]:
@@ -81,12 +87,12 @@ class ResolvedQueries:
     def w7_reason_pie(self) -> dict[str, str]:
         base = f"{self._base()} AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\""
         return {
-            "TAC 처리 지연": f"{base} AND status IN (\"할 일\",\"이슈 리뷰 중\")",
-            "연구소 대기": f"{base} AND status IN (\"연구소 대기 중\",\"연구소 검토 중\")",
-            "개발 진행 중": f"{base} AND status IN (\"구현 중\",\"배포 파일 검토 중\")",
-            "고객 응답 대기": f"{base} AND status IN (\"자료 요청 중\",\"결과 대기 중\")",
-            "보류": f"{base} AND status = \"보류 중\"",
-            "영업 검토": f"{base} AND status = \"영업본부 검토중\"",
+            "TAC \ucc98\ub9ac \uc9c0\uc5f0": f"{base} AND status IN (\"\ud560 \uc77c\",\"\uc774\uc288 \ub9ac\ubdf0 \uc911\")",
+            "\uc5f0\uad6c\uc18c \ub300\uae30": f"{base} AND status IN (\"\uc5f0\uad6c\uc18c \ub300\uae30 \uc911\",\"\uc5f0\uad6c\uc18c \uac80\ud1a0 \uc911\")",
+            "\uac1c\ubc1c \uc9c4\ud589 \uc911": f"{base} AND status IN (\"\uad6c\ud604 \uc911\",\"\ubc30\ud3ec \ud30c\uc77c \uac80\ud1a0 \uc911\")",
+            "\uace0\uac1d \uc751\ub2f5 \ub300\uae30": f"{base} AND status IN (\"\uc790\ub8cc \uc694\uccad \uc911\",\"\uacb0\uacfc \ub300\uae30 \uc911\")",
+            "\ubcf4\ub958": f"{base} AND status = \"\ubcf4\ub958 \uc911\"",
+            "\uc601\uc5c5 \uac80\ud1a0": f"{base} AND status = \"\uc601\uc5c5\ubcf8\ubd80 \uac80\ud1a0\uc911\"",
         }
 
     def w8_yearly_created(self) -> str:
@@ -106,12 +112,6 @@ class ResolvedQueries:
     def w14_created_vs_resolved(self) -> Tuple[str, str]:
         return (f"{self._base()} AND created >= \"-7d\"",
                 f"{self._base()} AND resolved >= \"-7d\"")
-
-    def w15_initial_response_candidates(self) -> str:
-        return f"{self._base()} AND created >= \"-30d\" ORDER BY created ASC"
-
-    def w16_resolution_candidates(self) -> str:
-        return f"{self._base()} AND created >= \"-30d\" AND resolved IS NOT EMPTY ORDER BY created ASC"
 
     def w15_w16_monthly_candidates(self, year: int, month: int) -> str:
         start = f"{year}-{month:02d}-01"

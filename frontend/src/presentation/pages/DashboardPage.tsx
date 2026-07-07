@@ -47,7 +47,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
 
-      {/* 요약 카드 */}
+      {/* 요약 카드: 이번주생성 / 이번주해결 / 2026생성 / 2026해결 / SLA초과 / TAC지연 / QA지연 / 개발지연 */}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label="이번 주 생성" value={w14['생성'] ?? 0}  color="blue"   />
         <SummaryCard label="이번 주 해결" value={w14['해결'] ?? 0}  color="green"  />
@@ -55,11 +55,11 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <SummaryCard label="2026 해결"    value={w.w9?.total ?? 0} color="gray"   />
         <SummaryCard label="SLA 초과"     value={w.w1?.total ?? 0} sub="30일 미해결" color="red"    />
         <SummaryCard label="TAC 지연"     value={w.w3?.total ?? 0} color="yellow" />
-        <SummaryCard label="QA 지연"      value={w.w3?.total ?? 0} color="yellow" />
+        <SummaryCard label="QA 지연"      value={w.w13?.total ?? 0} color="yellow" />
         <SummaryCard label="개발 지연"    value={w.w2?.total ?? 0} color="yellow" />
       </div>
 
-      {/* 월별 SLA 달성률 — 초기 대응 / 해결시간 각각 독립 카드 */}
+      {/* 월별 SLA 달성률 */}
       {(hasW15 || hasW16) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
           <SlaMonthlyLineChart
