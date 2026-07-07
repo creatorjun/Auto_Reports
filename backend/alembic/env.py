@@ -1,4 +1,3 @@
-# backend/alembic/env.py
 import asyncio
 import os
 from logging.config import fileConfig
@@ -31,14 +30,19 @@ def run_migrations_offline() -> None:
 
 async def run_async_migrations() -> None:
     engine = create_async_engine(DB_URL, connect_args={"ssl": "disable"})
+
     async with engine.begin() as conn:
+        # configure 와 run_migrations 를 동일한 conn 에서 실행
         await conn.run_sync(
-            lambda sync_conn: context.configure(
-                connection=sync_conn, target_metadata=target_metadata
+            lambda sync_conn: (
+                context.configure(
+                    connection=sync_conn,
+                    target_metadata=target_metadata,
+                ),
+                context.run_migrations(),
             )
         )
-        async with engine.begin() as conn:
-            await conn.run_sync(lambda c: context.run_migrations())
+
     await engine.dispose()
 
 
