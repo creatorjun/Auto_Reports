@@ -29,7 +29,6 @@ export default function SummaryCard({ label, value, sub, color = 'blue', onClick
         <p className="text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wider leading-none">
           {label}
         </p>
-        {onClick && <span className="ml-auto text-[10px] text-apple-light/60">클릭 ↗</span>}
       </div>
       <p className={`text-[32px] 3xl:text-[38px] font-semibold leading-none tracking-tight ${c.val}`}>{value}</p>
       {sub && <p className="text-[11px] 3xl:text-[12px] text-apple-light">{sub}</p>}
