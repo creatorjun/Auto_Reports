@@ -104,12 +104,12 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
     ):
         self._jira = jira
         self._q = q
-        self._w15_fid = sla_initial_response_field_id
-        self._w16_fid = sla_resolution_field_id
+        self._initial_fid = sla_initial_response_field_id
+        self._resolution_fid = sla_resolution_field_id
 
     async def collect(self) -> WidgetResult[SlaMetVsViolatedWidgetData]:
-        fields_str = f"summary,issuetype,status,created,resolutiondate,{self._w15_fid},{self._w16_fid}"
-        jql = self._q.w12_sla()
+        fields_str = f"summary,issuetype,status,created,resolutiondate,{self._initial_fid},{self._resolution_fid}"
+        jql = self._q.w9_sla()  # w9: SLA 준수 vs 위반
         issues = await self._jira.get_issues(jql, max_results=500, fields=fields_str)
 
         total_violations = 0
@@ -118,8 +118,8 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
 
         for issue in issues:
             fields = issue.get("fields") or {}
-            initial_response_sla = fields.get(self._w15_fid)
-            resolution_sla = fields.get(self._w16_fid)
+            initial_response_sla = fields.get(self._initial_fid)
+            resolution_sla = fields.get(self._resolution_fid)
             initial_breached = self._is_sla_breached(initial_response_sla)
             resolution_breached = self._is_sla_breached(resolution_sla)
             if initial_response_sla is not None and initial_breached:
@@ -137,7 +137,7 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
                 violation_distribution.append(
                     SlaMetVsViolatedEntry(
                         stage="최초 응답 SLA",
-                        field_id=self._w15_fid,
+                        field_id=self._initial_fid,
                         count=initial_response_violations,
                         rate=round(initial_response_violations / total_violations * 100, 1),
                     )
@@ -146,17 +146,17 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
                 violation_distribution.append(
                     SlaMetVsViolatedEntry(
                         stage="해결 시간 SLA",
-                        field_id=self._w16_fid,
+                        field_id=self._resolution_fid,
                         count=resolution_violations,
                         rate=round(resolution_violations / total_violations * 100, 1),
                     )
                 )
 
         logger.info(
-            f"[W12] 위반 {total_violations}건 (최초응답 {initial_response_violations}건 / 해결시간 {resolution_violations}건)"
+            f"[w9] 위반 {total_violations}건 (최초응답 {initial_response_violations}건 / 해결시간 {resolution_violations}건)"
         )
         return WidgetResult(
-            name="SLA 만족 vs 위반",
+            name="SLA 준수 vs 위반",
             total=total_violations,
             jql=jql,
             data=SlaMetVsViolatedWidgetData(
