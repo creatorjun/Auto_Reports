@@ -84,7 +84,10 @@ class ResolvedQueries:
         return result
 
     def w7_reason_pie(self) -> dict[str, str]:
-        base = f"{self._base()} AND created >= \"-7d\""
+        base = (
+            f"{self._base()} AND created <= \"-{self._thr()}d\" "
+            f"AND updated >= \"-7d\" AND status NOT IN ({self._closed()})"
+        )
         return {
             "TAC \uc815\uc815 \uc9c0\uc5f0": f"{base} AND status IN (\"\ud560 \uc77c\",\"\uc774\uc288 \ub9ac\ubdf0 \uc911\")",
             "\uc5f0\uad6c\uc18c \ub300\uae30": f"{base} AND status IN (\"\uc5f0\uad6c\uc18c \ub300\uae30 \uc911\",\"\uc5f0\uad6c\uc18c \uac80\ud1a0 \uc911\")",
@@ -104,11 +107,10 @@ class ResolvedQueries:
         return f"{self._base()} AND resolved >= \"-7d\" ORDER BY resolved DESC"
 
     def w12_sla(self) -> Tuple[str, str]:
-        base = f"{self._base()} AND created >= \"-7d\""
-        return (
-            f"{base} AND created >= \"-{self._thr()}d\"",
-            f"{base} AND created <= \"-{self._thr()}d\"",
-        )
+        active = f"AND updated >= \"-7d\" AND status NOT IN ({self._closed()})"
+        met_jql  = f"{self._base()} AND created > \"-{self._thr()}d\" {active}"
+        viol_jql = f"{self._base()} AND created <= \"-{self._thr()}d\" {active}"
+        return met_jql, viol_jql
 
     def w14_created_vs_resolved(self) -> Tuple[str, str]:
         return (f"{self._base()} AND created >= \"-7d\"",
