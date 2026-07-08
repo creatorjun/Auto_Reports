@@ -1,4 +1,6 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
+import { useConfig } from '@/infrastructure/hooks/useConfig'
+
 interface IssueDetail {
   key: string
   summary: string
@@ -67,9 +69,17 @@ function ProcessTrack({ stageIndex }: { stageIndex: number }) {
 }
 
 export default function ResolutionTimeChart({ details }: { details: IssueDetail[] }) {
+  const { data: config } = useConfig()
+  const jiraBaseUrl = config?.jira_base_url?.replace(/\/$/, '') ?? ''
+
   if (!details?.length) return null
 
   const usedStatuses = [...new Set(details.map((d) => d.status))]
+
+  const handleClick = (key: string) => {
+    if (!jiraBaseUrl) return
+    window.open(`${jiraBaseUrl}/browse/${key}`, '_blank', 'noopener,noreferrer')
+  }
 
   return (
     <div className="card flex flex-col gap-3">
@@ -92,11 +102,11 @@ export default function ResolutionTimeChart({ details }: { details: IssueDetail[
         {details.map((d) => (
           <div
             key={d.key}
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 transition-colors"
+            onClick={() => handleClick(d.key)}
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors cursor-pointer hover:bg-blue-50 hover:shadow-sm"
+            title={`${d.key} — Jira에서 열기`}
           >
-            <span
-              className="font-mono text-[10px] text-apple-mid flex-shrink-0 w-[72px] truncate"
-            >
+            <span className="font-mono text-[10px] text-blue-500 hover:underline flex-shrink-0 w-[72px] truncate">
               {d.key}
             </span>
 
@@ -108,9 +118,7 @@ export default function ResolutionTimeChart({ details }: { details: IssueDetail[
 
             <StatusBadge status={d.status} />
 
-            <span
-              className="text-[10px] text-apple-light flex-shrink-0 w-[42px] text-right"
-            >
+            <span className="text-[10px] text-apple-light flex-shrink-0 w-[42px] text-right">
               {d.elapsed_days}일
             </span>
           </div>
