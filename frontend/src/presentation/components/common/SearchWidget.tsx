@@ -4,15 +4,32 @@ import { fetchSearchResults, SearchResult } from '@/infrastructure/api/searchApi
 
 const JIRA_COLOR = 'bg-blue-100 text-blue-700'
 const CONFLUENCE_COLOR = 'bg-purple-100 text-purple-700'
+const DIRECT_COLOR = 'bg-brand-100 text-brand-700'
 
-function TypeBadge({ type }: { type: string }) {
+const ISSUE_NUMBER_RE = /^\d{4,5}$/
+
+function isIssueNumber(q: string): boolean {
+  return ISSUE_NUMBER_RE.test(q.trim())
+}
+
+function buildDirectItem(num: string, baseUrl: string): SearchResult {
+  const key = `TACEA-${num}`
+  return {
+    type: 'jira',
+    key,
+    title: `${key} 이슈 바로가기`,
+    status: 'direct',
+    issue_type: 'direct',
+    url: `${baseUrl}/browse/${key}`,
+  }
+}
+
+function TypeBadge({ type, isDirect }: { type: string; isDirect?: boolean }) {
+  const cls = isDirect ? DIRECT_COLOR : type === 'jira' ? JIRA_COLOR : CONFLUENCE_COLOR
+  const label = isDirect ? '직접링크' : type === 'jira' ? 'JIRA' : 'Confluence'
   return (
-    <span
-      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-        type === 'jira' ? JIRA_COLOR : CONFLUENCE_COLOR
-      }`}
-    >
-      {type === 'jira' ? 'JIRA' : 'Confluence'}
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${cls}`}>
+      {label}
     </span>
   )
 }
@@ -20,29 +37,44 @@ function TypeBadge({ type }: { type: string }) {
 function DropdownItem({
   item,
   isActive,
+  isDirect,
   onClick,
 }: {
   item: SearchResult
   isActive: boolean
+  isDirect?: boolean
   onClick: () => void
 }) {
   return (
     <li
       className={`flex items-center gap-2 px-3 py-2 cursor-pointer select-none ${
-        isActive ? 'bg-gray-100' : 'hover:bg-gray-50'
+        isDirect
+          ? isActive
+            ? 'bg-brand-50 border-b border-brand-100'
+            : 'bg-brand-50 border-b border-brand-100 hover:bg-brand-100'
+          : isActive
+          ? 'bg-gray-100'
+          : 'hover:bg-gray-50'
       }`}
       onMouseDown={(e) => {
         e.preventDefault()
         onClick()
       }}
     >
-      <TypeBadge type={item.type} />
-      <span className="text-[12px] font-medium text-gray-800 truncate flex-1">
-        {item.key && <span className="text-gray-400 mr-1">[{item.key}]</span>}
-        {item.title}
+      <TypeBadge type={item.type} isDirect={isDirect} />
+      <span className={`text-[12px] font-medium truncate flex-1 ${
+        isDirect ? 'text-brand-700' : 'text-gray-800'
+      }`}>
+        {item.key && !isDirect && <span className="text-gray-400 mr-1">[{item.key}]</span>}
+        {isDirect ? item.title : item.title}
       </span>
-      {item.status && (
+      {!isDirect && item.status && (
         <span className="text-[10px] text-gray-400 flex-shrink-0">{item.status}</span>
+      )}
+      {isDirect && (
+        <svg className="w-3 h-3 text-brand-400 flex-shrink-0" fill="none" viewBox="0 0 16 16">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       )}
     </li>
   )
@@ -100,43 +132,56 @@ function SearchModal({
           </div>
         ) : (
           <ul className="divide-y">
-            {results.map((item) => (
-              <li key={`${item.type}-${item.key}`}>
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors"
-                >
-                  <TypeBadge type={item.type} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-gray-800 truncate">
-                      {item.key && (
-                        <span className="text-gray-400 mr-1.5">[{item.key}]</span>
-                      )}
-                      {item.title}
-                    </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      {item.issue_type}
-                      {item.status ? ` · ${item.status}` : ''}
-                    </p>
-                  </div>
-                  <svg
-                    className="w-4 h-4 text-gray-300 flex-shrink-0 mt-0.5"
-                    fill="none"
-                    viewBox="0 0 16 16"
+            {results.map((item, idx) => {
+              const isDirect = item.issue_type === 'direct'
+              return (
+                <li key={`${item.type}-${item.key}-${idx}`}>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-start gap-3 px-5 py-3.5 transition-colors ${
+                      isDirect
+                        ? 'bg-brand-50 hover:bg-brand-100'
+                        : 'hover:bg-gray-50'
+                    }`}
                   >
-                    <path
-                      d="M3 8h10M9 4l4 4-4 4"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </a>
-              </li>
-            ))}
+                    <TypeBadge type={item.type} isDirect={isDirect} />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[13px] font-medium truncate ${
+                        isDirect ? 'text-brand-700' : 'text-gray-800'
+                      }`}>
+                        {!isDirect && item.key && (
+                          <span className="text-gray-400 mr-1.5">[{item.key}]</span>
+                        )}
+                        {item.title}
+                      </p>
+                      {!isDirect && (
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {item.issue_type}
+                          {item.status ? ` · ${item.status}` : ''}
+                        </p>
+                      )}
+                    </div>
+                    <svg
+                      className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                        isDirect ? 'text-brand-400' : 'text-gray-300'
+                      }`}
+                      fill="none"
+                      viewBox="0 0 16 16"
+                    >
+                      <path
+                        d="M3 8h10M9 4l4 4-4 4"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </a>
+                </li>
+              )
+            })}
           </ul>
         )}
 
@@ -165,22 +210,38 @@ export default function SearchWidget() {
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  const fetchSuggestions = useCallback(async (q: string) => {
-    if (abortRef.current) abortRef.current.abort()
-    abortRef.current = new AbortController()
-    setIsLoading(true)
-    try {
-      const results = await fetchSearchResults(q, 5)
-      setSuggestions(results)
-      setIsDropdownOpen(results.length > 0)
-      setActiveIndex(-1)
-    } catch {
-      setSuggestions([])
-      setIsDropdownOpen(false)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const jiraBaseUrl = window.location.origin.replace(':5173', '')
+
+  const prependDirectIfNeeded = useCallback(
+    (q: string, items: SearchResult[]): SearchResult[] => {
+      if (!isIssueNumber(q)) return items
+      const direct = buildDirectItem(q.trim(), jiraBaseUrl)
+      return [direct, ...items]
+    },
+    [jiraBaseUrl],
+  )
+
+  const fetchSuggestions = useCallback(
+    async (q: string) => {
+      if (abortRef.current) abortRef.current.abort()
+      abortRef.current = new AbortController()
+      setIsLoading(true)
+      try {
+        const results = await fetchSearchResults(q, 5)
+        const merged = prependDirectIfNeeded(q, results)
+        setSuggestions(merged)
+        setIsDropdownOpen(merged.length > 0)
+        setActiveIndex(-1)
+      } catch {
+        const fallback = prependDirectIfNeeded(q, [])
+        setSuggestions(fallback)
+        setIsDropdownOpen(fallback.length > 0)
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [prependDirectIfNeeded],
+  )
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -195,19 +256,22 @@ export default function SearchWidget() {
     }
   }, [query, fetchSuggestions])
 
-  const openModal = useCallback(async (q: string) => {
-    setIsDropdownOpen(false)
-    setModalQuery(q)
-    setIsLoading(true)
-    try {
-      const results = await fetchSearchResults(q, 5)
-      setModalResults(results)
-    } catch {
-      setModalResults([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const openModal = useCallback(
+    async (q: string) => {
+      setIsDropdownOpen(false)
+      setModalQuery(q)
+      setIsLoading(true)
+      try {
+        const results = await fetchSearchResults(q, 5)
+        setModalResults(prependDirectIfNeeded(q, results))
+      } catch {
+        setModalResults(prependDirectIfNeeded(q, []))
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [prependDirectIfNeeded],
+  )
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isDropdownOpen && e.key !== 'Enter') return
@@ -300,17 +364,21 @@ export default function SearchWidget() {
 
         {isDropdownOpen && suggestions.length > 0 && (
           <ul className="absolute top-full mt-1 left-0 right-0 bg-white rounded-xl shadow-lg border border-gray-100 z-40 overflow-hidden">
-            {suggestions.map((item, idx) => (
-              <DropdownItem
-                key={`${item.type}-${item.key}`}
-                item={item}
-                isActive={idx === activeIndex}
-                onClick={() => {
-                  setIsDropdownOpen(false)
-                  window.open(item.url, '_blank', 'noopener,noreferrer')
-                }}
-              />
-            ))}
+            {suggestions.map((item, idx) => {
+              const isDirect = item.issue_type === 'direct'
+              return (
+                <DropdownItem
+                  key={`${item.type}-${item.key}-${idx}`}
+                  item={item}
+                  isActive={idx === activeIndex}
+                  isDirect={isDirect}
+                  onClick={() => {
+                    setIsDropdownOpen(false)
+                    window.open(item.url, '_blank', 'noopener,noreferrer')
+                  }}
+                />
+              )
+            })}
             <li
               className="px-3 py-1.5 text-center border-t"
               onMouseDown={(e) => {
