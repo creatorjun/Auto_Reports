@@ -1,131 +1,255 @@
-코드를 철저히 분석했습니다. 전체 구조를 파악했으니 클린 아키텍처 관점의 정밀한 리팩토링 계획서를 작성합니다.
+# Auto_Reports 마스터피스 권짇 클린 아키텍처 개선 계획서 v2
 
-***
+> **상태**: Phase 1다의점 5 모두 완료. 이 문서는 다음 단계 개선 과제를 정의한다.
 
-# Auto_Reports 클린 아키텍처 리팩토링 계획서
+---
 
-## 현황 진단 — 잘 된 것들
+## 현황 진단 — 완료된 것들
 
-먼저 긍정적인 부분을 확인합니다. `domain/`, `application/`, `infrastructure/`, `presentation/` 4계층 디렉토리 구조가 이미 존재하고 , `JiraPort`, `AiPort` 같은 추상 인터페이스(Port)가 `domain/ports/`에 분리되어 있어 의존성 역전 원칙(DIP)의 뼈대는 갖춰져 있습니다 . `DateRange`, `AiAnalysis`, `WidgetId` 같은 Value Object들이 `frozen=True` dataclass나 StrEnum으로 올바르게 구현되어 있고 , `GenerateReportUseCase`가 추상 타입에만 의존하는 형태도 의도는 맞습니다 .
+- [x] `WidgetResult.breakdown: dict[str, Any]` → `data: T` 제네릭 타입 강화
+- [x] `ReportCollector` 단일 파일 → `widgets/` 패키지로 분해
+- [x] `PROMPT_TEMPLATE` Infrastructure → Application 이전
+- [x] `Container` 에서 실행 로직 제거, `JobRunner` 도입
+- [x] 루트 스크립트를 `backend/scripts/` 로 격리
 
-***
+---
 
-## 핵심 문제 진단
+## 다음 단계 개선 과제 — 근본 문제에서 시작
 
-### 문제 1 — ReportCollector의 심각한 SRP 위반
+---
 
-현재 `report_collector.py`는 **20,369 바이트, 단일 클래스**에 15개 위젯 수집 로직이 전부 집약되어 있습니다 . `_collect_w1`, `_collect_w7`, `_collect_w10`, `_collect_w11`, `_collect_w12`, `_collect_w14`, `_collect_w15_w16_monthly` 등 각 위젯 수집 메서드가 모두 한 클래스 안에 있으며, 각 메서드는 수십~수백 줄의 독립적인 도메인 로직(날짜 계산, SLA 판정, issue 파싱)을 내포합니다. 이것은 **단일 책임 원칙(SRP)** 의 명백한 위반이며, 새 위젯 추가 시마다 이 파일이 변경되는 **Open/Closed Principle(OCP) 위반**이기도 합니다.
+### 과제 A — `JobRunner._jobs` 인메모리 상태 저장소 교체
 
-또한 `ReportCollector` 내부에서 `self._settings.sla_threshold_days`, `self._settings.sla_initial_response_field_id` 같은 인프라 설정값을 직접 참조하고 있어 , Application 계층이 Config(인프라 관심사)에 직접 결합되어 있는 구조입니다.
+**문제**: `JobRunner._jobs: dict[str, dict]` 는 서버 메모리에만 존재한다. 서버가 재시작되면 모든 job 상태가 소멸되고, 멀티프로세스 환경(Docker 스케일링, Kubernetes)에서는 다른 인스턴스가 job 상태를 조회할 수 없다. 모든 상태가 고어진 `plain dict` 로 관리되어 타입 안전성도 없다.
 
-### 문제 2 — AiAnalyzer의 레이어 위치 오류
-
-`AiAnalyzer`는 `application/services/ai_analyzer.py`에 위치하면서 내부에서 `WidgetId` 열거형으로 특정 위젯 데이터를 직접 파싱하고 AI 프롬프트 컨텍스트를 조립합니다 . 문제는 이 클래스가 `AiPort` 추상 인터페이스를 래핑하는 단순 위임자(Facade)에 불과한데, 프롬프트 템플릿과 컨텍스트 변환 로직이 `GeminiClient`(infrastructure)의 `PROMPT_TEMPLATE` 상수로 하드코딩되어 있다는 점입니다 . 프롬프트는 **도메인 정책**에 해당하는 것인데 인프라 어댑터 파일에 박혀 있어, AI 모델을 교체할 때 프롬프트까지 함께 이전해야 하는 구조입니다.
-
-### 문제 3 — Container의 책임 과적재
-
-`container.py`는 DI 컨테이너인데, `execute_in_background`와 `run_scheduled_job` 메서드가 같이 있어 **오케스트레이션 로직을 직접 실행**합니다 . DI 컨테이너는 객체 조립만 담당해야 하고, 잡 실행 상태 추적(`self._jobs: dict`)이나 비동기 실행은 별도 Application Service나 Scheduler로 분리해야 합니다. 현재는 `AsyncSessionLocal`을 Container가 직접 호출하고 있어 영속성 관리 책임까지 겹쳐 있습니다.
-
-### 문제 4 — WidgetResult Entity의 타입 붕괴
-
-`WidgetResult.breakdown`이 `dict[str, Any]`로 선언되어 있고 , 각 위젯마다 완전히 다른 구조의 딕셔너리를 담고 있습니다 — w1은 `{"by_type": ..., "issue_details": [...]}`, w7은 `{"_distribution": ..., "_issue_details": ...}`, w14는 `{"생성": ..., "해결": ..., "created_details": [...]}` 등. 이런 구조는 타입 시스템을 무력화하고, 컨슈머(presentation layer, ai_analyzer)가 런타임 KeyError에 취약해집니다. 도메인 엔티티의 내부 구조는 명시적이어야 합니다.
-
-### 문제 5 — 파일 위치 오염 (`widget_id.py` 파일 헤더 누락)
-
-`widget_id.py`에 경로 헤더 주석이 없고 , `jira_client.py`에도 경로 헤더가 없습니다 . 준희님의 코드 생성 규칙 5번 — 파일 최상단에 경로명/파일명 주석 — 이 일관되게 적용되지 않았습니다.
-
-### 문제 6 — 루트 레벨 스크립트 오염
-
-`backend/get_data.py`, `backend/test_sla_debug.py`가 패키지 외부에 스크립트로 존재합니다 . 이 파일들은 내부적으로 어떤 레이어를 침범하는지 불명확하고, 프로덕션 코드와 동일한 위치에 존재하는 것 자체가 아키텍처 경계를 흐립니다.
-
-***
-
-## 리팩토링 계획 — Phase별 실행 순서
-
-### Phase 1 — WidgetResult 타입 강화 (도메인 계층)
-
-**목표**: `dict[str, Any]` 를 제거하고 각 위젯 타입에 맞는 명시적 데이터 클래스를 도입합니다.
-
+**목표**:
 ```
-backend/src/domain/entities/
-    widget.py          ← WidgetResult[T] (Generic) 또는 Union 타입
-    widget_data.py     ← OverdueWidgetData, SlaWidgetData, MonthlyWidgetData 등
+backend/src/domain/entities/job.py     ← JobStatus StrEnum, JobRecord dataclass 신규
+backend/src/domain/repositories/job_repository.py  ← JobRepository(ABC) 포트
+backend/src/infrastructure/persistence/
+    job_repository_impl_memory.py      ← 인메모리 구현 (DefaultJobRepository)
+    job_repository_impl_db.py          ← PostgreSQL JSONB 구현 (선택)
+backend/src/infrastructure/persistence/models.py  ← JobORM 새 테이블 추가 (선택)
 ```
 
-`WidgetResult`를 `Generic[T]`로 변경하거나, 위젯 종류별 전용 dataclass를 만들어 `breakdown: Any` 필드를 `data: OverdueWidgetData` 처럼 구체적인 타입으로 교체합니다. 이렇게 하면 `ai_analyzer.py`와 presentation layer의 `breakdown.get(...)` 런타임 접근이 컴파일 타임 타입 체크로 승격됩니다.
+`JobRunner` 단`_jobs dict`를 `JobRepository` 포트로 교체한다. 제스터 주입으로 `JobRepository` 구현체를 바꿀 수 있어 테스트에서는 In-Memory, 프로덕션에서는 DB 구현체를 사용할 수 있다.
 
-### Phase 2 — ReportCollector 분해 (Application 계층)
+```python
+# domain/entities/job.py
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Optional
 
-**목표**: 파일 하나에 몰려 있는 위젯 수집 로직을 위젯별 독립 클래스로 분리합니다.
+class JobStatus(StrEnum):
+    RUNNING = "running"
+    DONE    = "done"
+    ERROR   = "error"
 
-```
-backend/src/application/
-    use_cases/
-        generate_report.py
-        get_report.py
-    services/
-        ai_analyzer.py
-        report_assembler.py     ← 기존 collect() 진입점만 담당
-    widgets/                    ← 신규 패키지
-        base.py                 ← AbstractWidgetCollector(ABC)
-        overdue_collector.py    ← W1
-        sla_delay_collector.py  ← W5, W6, W7
-        sla_monthly_collector.py← W12, W15, W16
-        resolution_collector.py ← W10, W11
-        count_collector.py      ← W2, W3, W4, W8, W9, W13
-        created_vs_resolved_collector.py ← W14
+@dataclass
+class JobRecord:
+    job_id: str
+    status: JobStatus
+    report_id: Optional[int] = None
+    error: Optional[str] = None
 ```
 
-`AbstractWidgetCollector`가 `collect(q: WidgetQuery) -> WidgetResult` 추상 메서드를 정의하고, `ReportAssembler`는 위젯 컬렉터 목록을 주입받아 `asyncio.gather`로 실행만 합니다. 이후 새 위젯 추가는 새 파일만 추가하면 되고 기존 파일은 변경하지 않아도 됩니다 — **OCP 달성**.
+---
 
-`Settings` 직접 참조는 각 위젯 컬렉터 생성 시 필요한 값만 생성자에 주입하는 방식으로 교체합니다. 예: `OverdueCollector(jira, sla_threshold_days=settings.sla_threshold_days)`.
+### 과제 B — `WidgetQueryBuilder` 설정 직접 결합 제거
 
-### Phase 3 — 프롬프트 정책 이전 (Domain → Application 경계)
+**문제**: `WidgetQueryBuilder.__init__(self, settings: Settings)` 는 Application 서비스가 `Settings`(인프라 Config)에 직접 의존한다. 미래에 `project_key`나 `issue_types`가 DB나 외부 API에서 온다면 Application 에 바로 취약점이 된다. 또한 `w8_yearly_created`, `w9_yearly_resolved`를 보면 `"2026-01-01"` 같은 연도가 하드코딩되어 있다.
 
-**목표**: `gemini_client.py`에 있는 `PROMPT_TEMPLATE` 상수를 Application 계층으로 이동합니다.
-
+**목표**:
 ```
-backend/src/application/
-    services/
-        ai_analyzer.py  ← PROMPT_TEMPLATE 상수 이전, 컨텍스트 조립 로직 보유
+backend/src/application/services/query_config.py   ← QueryConfig dataclass 신규
 ```
 
-`GeminiClient`는 `AiPort.analyze(context: dict) -> AiAnalysis` 계약만 이행하고, 프롬프트를 어떻게 만드는지는 몰라야 합니다. Application이 프롬프트를 완성해서 인프라에 전달하는 방식으로 `AiPort` 시그니처도 `analyze(prompt: str) -> AiAnalysis`로 변경하는 것이 더 명확합니다.
+```python
+# application/services/query_config.py
+from dataclasses import dataclass
 
-### Phase 4 — Container 책임 분리 (Infrastructure 계층)
-
-**목표**: DI 컨테이너에서 실행 로직을 제거합니다.
-
+@dataclass(frozen=True)
+class QueryConfig:
+    project_key: str
+    issue_types: list[str]
+    active_statuses: list[str]
+    closed_statuses: list[str]
+    sla_threshold_days: int
+    year_start: int  # w8/w9 연도 시작 대신 하드코딩 제거
 ```
-backend/src/infrastructure/
-    container.py            ← 객체 조립만 담당, jobs/execute 제거
-    job_runner.py           ← execute_in_background, run_scheduled_job 이전
+
+`Container`가 `Settings`에서 `QueryConfig`를 조립하여 `WidgetQueryBuilder`에 주입한다. 이로써 Application 에서 `Settings` import가 완전히 사라진다.
+
+---
+
+### 과제 C — `Presentation → Domain dataclass` 직접 개방
+
+**문제**: `reports.py`에서 `dataclasses.asdict(v.data)` 를 호출하는 것은 Presentation 에서 Domain Entity 내부 구조를 직접 파기하는 행위다. Application 에 직렉한 Mapper(Assembler)가 없다는 못이다. 마찬가지로 `WidgetResultSchema.data: dict[str, Any]` 도 Presentation 에서 타입이 무너진다.
+
+**목표**:
+```
+backend/src/application/mappers/report_mapper.py   ← ReportMapper 신규
+backend/src/presentation/schemas/report_schema.py  ← WidgetDataSchema 타입체 도입
 ```
 
-`Container`는 `generate_report_use_case()`, `get_report_use_case()` 팩토리 메서드만 남기고, `JobRunner`가 `Container`를 주입받아 비동기 실행과 상태 추적을 담당합니다. `AsyncSessionLocal`의 직접 참조는 `JobRunner` 안으로 이전합니다.
+`ReportMapper.to_detail_schema(report: Report) -> ReportDetailSchema` 같은 전담 매퍼를 Application 에 두어 Presentation 이 Domain 내부를 모르게 한다. `WidgetResultSchema.data` 필드도 `dict[str, Any]` 대신 `Union[OverdueWidgetSchema, SlaDelayWidgetSchema, ...]` 모델로 교체하여 API 답변 타입도 명시적으로 만든다.
 
-### Phase 5 — 파일 정리 및 헤더 정규화
+---
 
-`backend/get_data.py`와 `backend/test_sla_debug.py`를 `backend/scripts/` 또는 `backend/tests/` 디렉토리로 이동합니다. 경로 헤더 주석이 누락된 `widget_id.py`, `jira_client.py` 두 파일에 헤더를 추가합니다.
+### 과제 D — `ReportRepositoryImpl` 내부 피클-디피클 직접 구현 분리
 
-***
+**문제**: `report_repository_impl.py` 안에 `_dict_to_dataclass`, `_coerce_field`, `_serialize_widget`, `_deserialize_widget`, `_WIDGET_DATA_TYPE_MAP` 같은 복잡한 직렬화 로직이 몰려 있다. 이 코드는 Repository의 정의라기보다 정로에 가깝다. Repository 역할은 저장/조회인데, 직렬화 전략까지 번들리는 것은 SRP 위반이다.
 
-## 리팩토링 전후 구조 비교
+**목표**:
+```
+backend/src/infrastructure/persistence/
+    widget_serializer.py   ← _serialize_widget, _deserialize_widget, _WIDGET_DATA_TYPE_MAP 이전
+    report_repository_impl.py  ← 저장/조회 SQL 로직만 잔류
+```
 
-| 항목 | 현재 (AS-IS) | 목표 (TO-BE) |
-|---|---|---|
-| `report_collector.py` | 단일 파일, ~600줄, 15개 위젯 로직 | `widgets/` 패키지로 7개 파일 분산 |
-| `WidgetResult.breakdown` | `dict[str, Any]` (타입 붕괴) | 위젯별 전용 dataclass |
-| `PROMPT_TEMPLATE` | `gemini_client.py` (infrastructure) | `ai_analyzer.py` (application) |
-| Container | 조립 + 실행 + 상태추적 혼합 | 조립만, 실행은 `JobRunner` 분리 |
-| 위젯 추가 시 영향 | `report_collector.py` 수정 필수 | 새 파일 추가만으로 완결 |
-| 테스트 용이성 | 전체 Collector mocking 필요 | 위젯 단위로 독립 테스트 가능 |
-| 스크립트 파일 | `backend/` 루트 노출 | `backend/scripts/`, `tests/` 격리 |
+---
 
-***
+### 과제 E — `Report` 엔티티 가변성 문제
 
-## 의존성 방향 최종 정리
+**문제**: `Report.id: Optional[int]` 는 `None`으로 시작해 DB에 저장된 후 뮣도로 `report.id = orm.id`로 외부에서 할당된다. Mutable dataclass의 이 패턴은 `id`가 엔티티 식별자로서 언제부터 유효한지 쭬적하기 어렵다.
 
-클린 아키텍처의 핵심은 의존성 방향이 항상 **안쪽(도메인)을 향해야** 한다는 것입니다. 현재 가장 위험한 흐름은 `ReportCollector`(application)가 `Settings`(infrastructure config)를 직접 임포트한다는 점 과, 프롬프트(application 정책)가 `GeminiClient`(infrastructure)에 있다는 점입니다 . 이 두 가지 방향 오염만 잡아도 전체 아키텍처 순수성이 크게 향상됩니다.
+**목표**: 두 가지 엔티티를 명확히 분리한다.
 
-Phase 순서는 **1 → 2 → 3 → 4 → 5** 순으로 진행하되, Phase 1(타입 강화)이 Phase 2(Collector 분해) 시 타입 안전성을 보장하므로 반드시 선행되어야 합니다. 각 Phase 완료 후 현재 동작이 변하지 않음을 검증하는 회귀 테스트를 붙이는 것을 권장합니다.
+```python
+# domain/entities/report.py
+@dataclass(frozen=True)
+class NewReport:      # 아직 저장되지 않은 보고서, id 없음
+    week_start: date
+    week_end: date
+    report_date: str
+    widgets: dict[str, WidgetResult] = field(default_factory=dict)
+    ai_analysis: Optional[AiAnalysis] = None
+
+@dataclass(frozen=True)
+class Report(NewReport):   # DB 저장 후 식별자를 가진 보고서
+    id: int = 0
+    created_at: Optional[datetime] = None
+```
+
+Repository.save는 `NewReport` 수신, `Report` 반환. Use Case가 반환구조만 수신하면 엔티티가 다시 변이될 수 없다는 보장이 생긴다.
+
+---
+
+### 과제 F — Settings `config/` 레이어 소속문제
+
+**문제**: `src/config/settings.py`는 독립 레이어이지만, 기술적으로는 인프라의 관심사다. DB 접속명, Jira API 토큰 등 인프라에 관한 모든 정보를 일괄 포함하므로 인프라에 있는 것이 더 자연스럽다. 실제로 Application 로직은 `Settings`를 `import`하지 않고 `QueryConfig`(과제 B) 같은 Application 전용 DTO를 통해 필요한 값만 받아야 한다.
+
+**목표**:
+```
+backend/src/config/  →  backend/src/infrastructure/config/
+    settings.py 위치 이동
+```
+
+Application과 Domain은 `Settings`를 응직도 import하지 않는 구조를 목표로 한다. 모든 세부 설정값은 `Container`가 `Settings`로부터 추출해서 Application DTO로 변환한 후 주입한다.
+
+---
+
+### 과제 G — `AiAnalyzer.analyze()` 동기 메서드 문제
+
+**문제**: `GenerateReportUseCase.execute()`에서 `self._analyzer.analyze(report)`를 `await` 없이 호출한다. 결과적으로 Gemini API HTTP 요청이 동기 코루틴을 블록한다. FastAPI는 비동기를 기반으로 하는데 동기 I/O는 이벤트 루프 전체를 잡는 심각한 성능 문제다.
+
+**목표**:
+```python
+# domain/ports/ai_port.py
+class AiPort(ABC):
+    @abstractmethod
+    async def analyze(self, prompt: str) -> AiAnalysis: ...  # 비동기로 변경
+
+# application/services/ai_analyzer.py
+async def analyze(self, report: Report) -> Optional[AiAnalysis]:
+    ...
+    return await self._ai.analyze(prompt)  # await 추가
+```
+
+`GeminiClient.analyze`도 `httpx.AsyncClient`를 이미 사용 중이므로 `async def`로 바꾸면 충돌 없이 적용된다. Use Case에서도 `await self._analyzer.analyze(report)`로 수정한다.
+
+---
+
+### 과제 H — 시스템 테스트 부재
+
+**문제**: `backend/` 전체에 `pytest` 테스트가 단 한 개도 없다. 클린 아키텍처는 배포 시 동작을 보장하는 자동화된 테스트 없이 추상적 설청만 갖추면 의미없다.
+
+**목표**:
+```
+backend/tests/
+    unit/
+        domain/
+            test_report_entity.py        ← NewReport/Report 불변성 검증
+            test_widget_data.py          ← dataclass 직렬화/디직렬화 화람테스트
+        application/
+            test_generate_report_uc.py   ← UseCase 루트 유닛 테스트 (Mock Port)
+            test_ai_analyzer.py          ← 프롬프트 생성 로직 단위 테스트
+            widgets/
+                test_overdue_collector.py
+                test_sla_delay_collector.py
+    integration/
+        test_report_repository.py        ← 실제 DB 라운드트립 (testcontainers-python)
+    conftest.py
+    requirements-test.txt
+```
+
+특히 `GenerateReportUseCase`는 `JiraPort`, `AiPort`, `ReportRepository` 모두 Mock으로 대체 가능하므로 외부 의존 없이 실행할 수 있는 이상적인 단위 테스트 대상이다.
+
+---
+
+### 과제 I — `JobStatusSchema.status` 타입 엄격화
+
+**문제**: `JobStatusSchema.status: str` 로 선언되어 있어 API 컨슈머가 `"running"`, `"done"`, `"error"` 이외의 값을 받는 경우를 사전에 차단하지 못한다.
+
+**목표**: 과제 A에서 만든 `JobStatus` StrEnum을 Pydantic 스키마에도 직접 사용한다.
+
+```python
+# presentation/schemas/report_schema.py
+from src.domain.entities.job import JobStatus
+
+class JobStatusSchema(BaseModel):
+    job_id: str
+    status: JobStatus          # str → StrEnum
+    report_id: Optional[int] = None
+    error: Optional[str] = None
+```
+
+---
+
+### 과제 J — `config/` 에 경로 헤더 누락
+
+**문제**: `backend/src/config/settings.py`에 경로 헤더 주석이 없다. 파일헤더 규칙(5번) 엄수.
+
+**목표**: 파일 최상단에 `# backend/src/config/settings.py` 추가.
+
+---
+
+## 실행 순서
+
+| Phase | 과제 | 위험도 | 우선순위 |
+|---|---|---|---|
+| A | `_jobs dict` → `JobRepository` 포트 | 높음 | ★★★★★ |
+| B | `WidgetQueryBuilder` 설정 직접 결합 제거 | 중간 | ★★★★ |
+| C | Presentation → Domain 직접 개방 차단, Mapper 도입 | 높음 | ★★★★★ |
+| D | `ReportRepositoryImpl` 직렬화 로직 분리 | 낙음 | ★★★ |
+| E | `Report` 엔티티 가변성 문제 | 높음 | ★★★★★ |
+| F | `config/` → `infrastructure/config/` 이동 | 낙음 | ★★★ |
+| G | `AiPort.analyze` 동기 → 비동기 | 중간 | ★★★★ |
+| H | 테스트 코드 게체 | 낙음 | ★★★ |
+| I | `JobStatusSchema.status` StrEnum 엄격화 | 낙음 | ★★ |
+| J | `settings.py` 헤더 주석 | 낙음 | ★ |
+
+단순한 포맸�인 I, J는 모든 Phase와 밟행해 길지직선으로 처리할 수 있다.
+A → B → G → E → C → D → F → H 순서가 구조적 보완성이 가장 높다.
+
+---
+
+## 마스터피스 다다른 기준
+
+어떤 Phase를 실행하든 아래 다섯 가지 기준이 모두 치툼 때 `Auto_Reports`는 몈플리스틸 수준이라 할 수 있다.
+
+1. **의존성 방향**: Domain ← Application ← Infrastructure, 역방향 import이 단 한 건도 없다.
+2. **포트 순수성**: JiraPort, AiPort, ReportRepository, JobRepository 등 모든 외부 의존이 ABC 인터페이스 뒤에 숨어 있다.
+3. **가변성 제어**: Domain Entity는 `frozen=True` dataclass로, 상태 변이는 도메인 서비스나 유즈 케이스로만 가능하다.
+4. **테스트 성은낥**: 모든 필수 비즈니스 로직이 외부 I/O 없이 단위 테스트 가능하다.
+5. **타입 안전성**: API 요청/응답도 `dict[str, Any]`가 없으며, 실마다 Pydantic 또는 dataclass 명세로 바인드된다.
