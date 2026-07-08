@@ -1,4 +1,5 @@
 # backend/src/infrastructure/external/gemini_client.py
+import asyncio
 import json
 import logging
 from typing import Optional
@@ -19,12 +20,13 @@ class GeminiClient(AiPort):
         else:
             self._client = None
 
-    def analyze(self, prompt: str) -> Optional[AiAnalysis]:
+    async def analyze(self, prompt: str) -> Optional[AiAnalysis]:
         if not self._client:
             logger.warning("Gemini 클라이언트 미초기화 (API 키 없음)")
             return None
         try:
-            response = self._client.models.generate_content(
+            response = await asyncio.to_thread(
+                self._client.models.generate_content,
                 model="gemini-2.0-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(

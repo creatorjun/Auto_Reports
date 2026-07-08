@@ -1,5 +1,4 @@
 # backend/src/application/use_cases/generate_report.py
-import dataclasses
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -29,15 +28,16 @@ class GenerateReportUseCase:
         now = now or datetime.now(tz=KST)
         logger.info(f"보고서 생성 시작: {now}")
 
-        report = await self._assembler.collect(now)
+        new_report = await self._assembler.collect(now)
 
         analysis = None
         try:
-            analysis = self._analyzer.analyze(report)
+            analysis = await self._analyzer.analyze(new_report)
         except Exception as e:
             logger.error(f"AI 분석 실패 (원시 데이터는 저장됨): {e}")
 
-        report_with_analysis = dataclasses.replace(report, ai_analysis=analysis)
+        import dataclasses
+        report_with_analysis = dataclasses.replace(new_report, ai_analysis=analysis)
         saved = await self._repository.save(report_with_analysis)
 
         logger.info(f"보고서 저장 완료: ID={saved.id}")

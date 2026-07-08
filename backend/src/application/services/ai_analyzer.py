@@ -2,7 +2,7 @@
 import logging
 from typing import Optional
 
-from src.domain.entities.report import Report
+from src.domain.entities.report import NewReport
 from src.domain.entities.widget_data import (
     CreatedVsResolvedWidgetData,
     OverdueWidgetData,
@@ -57,7 +57,7 @@ class AiAnalyzer:
         self._ai = ai
         self._enabled = enabled
 
-    def analyze(self, report: Report) -> Optional[AiAnalysis]:
+    async def analyze(self, report: NewReport) -> Optional[AiAnalysis]:
         if not self._enabled:
             logger.info("AI 분석 비활성화 (AI_ENABLED=false)")
             return None
@@ -145,4 +145,4 @@ class AiAnalyzer:
 
         prompt = PROMPT_TEMPLATE.format(**context)
         logger.info("Gemini AI 분석 요청 중...")
-        return self._ai.analyze(prompt)
+        return await self._ai.analyze(prompt)

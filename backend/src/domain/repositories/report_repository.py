@@ -2,12 +2,12 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from src.domain.entities.report import Report
+from src.domain.entities.report import NewReport, Report
 
 
 class ReportRepository(ABC):
     @abstractmethod
-    async def save(self, report: Report) -> Report: ...
+    async def save(self, report: NewReport) -> Report: ...
 
     @abstractmethod
     async def find_by_id(self, report_id: int) -> Optional[Report]: ...

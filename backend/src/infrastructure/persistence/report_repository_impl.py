@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.entities.report import Report
+from src.domain.entities.report import NewReport, Report
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import (
     BreakdownWidgetData,
@@ -28,30 +28,29 @@ from src.infrastructure.persistence.models import ReportORM
 KST = ZoneInfo("Asia/Seoul")
 
 _WIDGET_DATA_TYPE_MAP: dict[str, type] = {
-    WidgetId.OVERDUE_ISSUES:        OverdueWidgetData,
-    WidgetId.ISSUE_REVIEW:          SimpleIssueWidgetData,
-    WidgetId.DATA_REQUEST:          SimpleIssueWidgetData,
-    WidgetId.RESULT_PENDING:        SimpleIssueWidgetData,
-    WidgetId.SLA_DELAY_BY_TYPE:     BreakdownWidgetData,
-    WidgetId.SLA_DELAY_BY_STATUS:   BreakdownWidgetData,
-    WidgetId.SLA_DELAY_REASON:      SlaDelayWidgetData,
-    WidgetId.AVG_RESOLUTION_TYPE:   ResolutionTypeWidgetData,
-    WidgetId.RESOLUTION_REPORT:     RecentIssueWidgetData,
-    WidgetId.SLA_MET_VS_VIOLATED:   SlaMetVsViolatedWidgetData,
-    WidgetId.CREATED_VS_RESOLVED:   CreatedVsResolvedWidgetData,
-    WidgetId.SLA_INITIAL_RESPONSE:  SlaMonthlyWidgetData,
+    WidgetId.OVERDUE_ISSUES:         OverdueWidgetData,
+    WidgetId.ISSUE_REVIEW:           SimpleIssueWidgetData,
+    WidgetId.DATA_REQUEST:           SimpleIssueWidgetData,
+    WidgetId.RESULT_PENDING:         SimpleIssueWidgetData,
+    WidgetId.SLA_DELAY_BY_TYPE:      BreakdownWidgetData,
+    WidgetId.SLA_DELAY_BY_STATUS:    BreakdownWidgetData,
+    WidgetId.SLA_DELAY_REASON:       SlaDelayWidgetData,
+    WidgetId.AVG_RESOLUTION_TYPE:    ResolutionTypeWidgetData,
+    WidgetId.RESOLUTION_REPORT:      RecentIssueWidgetData,
+    WidgetId.SLA_MET_VS_VIOLATED:    SlaMetVsViolatedWidgetData,
+    WidgetId.CREATED_VS_RESOLVED:    CreatedVsResolvedWidgetData,
+    WidgetId.SLA_INITIAL_RESPONSE:   SlaMonthlyWidgetData,
     WidgetId.SLA_RESOLUTION_MONTHLY: SlaMonthlyWidgetData,
 }
 
 
 def _serialize_widget(widget: WidgetResult) -> dict[str, Any]:
-    result = {
+    return {
         "name":  widget.name,
         "total": widget.total,
         "jql":   widget.jql,
         "data":  dataclasses.asdict(widget.data) if widget.data is not None else None,
     }
-    return result
 
 
 def _deserialize_widget(widget_id: str, raw: dict[str, Any]) -> WidgetResult:
@@ -73,18 +72,16 @@ def _deserialize_widget(widget_id: str, raw: dict[str, Any]) -> WidgetResult:
 def _dict_to_dataclass(cls: type, data: Any) -> Any:
     if not dataclasses.is_dataclass(cls) or not isinstance(data, dict):
         return data
-    field_types = {f.name: f.type for f in dataclasses.fields(cls)}
     kwargs: dict[str, Any] = {}
-    for field in dataclasses.fields(cls):
-        value = data.get(field.name)
-        kwargs[field.name] = _coerce_field(field.type, value)
+    for f in dataclasses.fields(cls):
+        kwargs[f.name] = _coerce_field(f.type, data.get(f.name))
     return cls(**kwargs)
 
 
 def _coerce_field(type_hint: Any, value: Any) -> Any:
     import typing
     origin = getattr(type_hint, "__origin__", None)
-    args = getattr(type_hint, "__args__", ())
+    args   = getattr(type_hint, "__args__", ())
 
     if origin is list and args:
         item_type = args[0]
@@ -109,7 +106,7 @@ class ReportRepositoryImpl(ReportRepository):
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def save(self, report: Report) -> Report:
+    async def save(self, report: NewReport) -> Report:
         widgets_dict = {k: _serialize_widget(v) for k, v in report.widgets.items()}
         ai_dict = dataclasses.asdict(report.ai_analysis) if report.ai_analysis else None
         orm = ReportORM(
@@ -122,9 +119,15 @@ class ReportRepositoryImpl(ReportRepository):
         self._session.add(orm)
         await self._session.commit()
         await self._session.refresh(orm)
-        report.id = orm.id
-        report.created_at = self._to_kst(orm.created_at)
-        return report
+        return Report(
+            id=orm.id,
+            week_start=report.week_start,
+            week_end=report.week_end,
+            report_date=report.report_date,
+            widgets=report.widgets,
+            ai_analysis=report.ai_analysis,
+            created_at=self._to_kst(orm.created_at),
+        )
 
     async def find_by_id(self, report_id: int) -> Optional[Report]:
         result = await self._session.execute(

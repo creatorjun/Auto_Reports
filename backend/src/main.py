@@ -13,6 +13,7 @@ from src.application.scheduler.report_scheduler import create_scheduler
 from src.config.settings import get_settings
 from src.infrastructure.container import Container
 from src.infrastructure.job_runner import JobRunner
+from src.infrastructure.persistence.job_repository_impl import InMemoryJobRepository
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,7 +45,8 @@ async def lifespan(app: FastAPI):
 
     settings = get_settings()
     container = Container(settings)
-    job_runner = JobRunner(container)
+    job_repository = InMemoryJobRepository()
+    job_runner = JobRunner(container, job_repository)
 
     app.state.container = container
     app.state.job_runner = job_runner

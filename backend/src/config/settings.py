@@ -1,3 +1,4 @@
+# backend/src/config/settings.py
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings
@@ -19,15 +20,8 @@ class Settings(BaseSettings):
     tz: str = "Asia/Seoul"
     project_key: str = "TACEA"
     sla_threshold_days: int = 30
-
-    # W15 최초 응답 SLA 필드 ID (타공 customfield_12152)
-    # .env에서 SLA_INITIAL_RESPONSE_FIELD_ID=customfield_XXXXX 로 오버라이드 가능
     sla_initial_response_field_id: str = "customfield_12152"
-
-    # W16 해결 시간 SLA 필드 ID (타공 customfield_12151)
-    # .env에서 SLA_RESOLUTION_FIELD_ID=customfield_XXXXX 로 오버라이드 가능
     sla_resolution_field_id: str = "customfield_12151"
-
     cors_origins: list[str] = ["*"]
     issue_types: list[str] = ["인시던트", "개선", "CVE", "서비스 요청"]
     active_statuses: list[str] = [

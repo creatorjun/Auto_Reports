@@ -1,7 +1,10 @@
 # backend/src/presentation/schemas/report_schema.py
 from datetime import date, datetime
 from typing import Any, Optional
+
 from pydantic import BaseModel
+
+from src.domain.entities.job import JobStatus
 
 
 class AiAnalysisSchema(BaseModel):
@@ -44,6 +47,6 @@ class TriggerAcceptedSchema(BaseModel):
 
 class JobStatusSchema(BaseModel):
     job_id: str
-    status: str
+    status: JobStatus
     report_id: Optional[int] = None
     error: Optional[str] = None

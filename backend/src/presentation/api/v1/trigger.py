@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from src.infrastructure.job_runner import JobRunner
 from src.presentation.api.deps import get_job_runner
-from src.presentation.schemas.report_schema import JobStatusSchema, TriggerAcceptedSchema
+from src.presentation.schemas.report_schema import JobStatus, JobStatusSchema, TriggerAcceptedSchema
 
 router = APIRouter(prefix="/trigger", tags=["trigger"])
 
@@ -28,12 +28,12 @@ async def get_job_status(
     job_id: str,
     job_runner: JobRunner = Depends(get_job_runner),
 ):
-    job = job_runner.get_job_status(job_id)
-    if job is None:
+    record = await job_runner.get_job_status(job_id)
+    if record is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 job_id입니다.")
     return JobStatusSchema(
-        job_id=job_id,
-        status=job["status"],
-        report_id=job.get("report_id"),
-        error=job.get("error"),
+        job_id=record.job_id,
+        status=record.status,
+        report_id=record.report_id,
+        error=record.error,
     )
