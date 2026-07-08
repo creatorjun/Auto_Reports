@@ -16,6 +16,8 @@ interface Props {
 
 const STAGE_TOTAL = 8
 
+const JIRA_BASE_URL = import.meta.env.VITE_JIRA_BASE_URL ?? 'https://seculayer.atlassian.net'
+
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   '이슈 리뷰 중':    { bg: 'bg-amber-500',   text: 'text-white' },
   '자료 요청 중':    { bg: 'bg-blue-500',    text: 'text-white' },
@@ -91,6 +93,7 @@ export default function ResolutionTimeChart({ details }: Props) {
           <tbody>
             {details.map((issue) => {
               const style = getStatusStyle(issue.status)
+              const jiraUrl = `${JIRA_BASE_URL}/browse/${issue.key}`
               return (
                 <tr
                   key={issue.key}
@@ -99,7 +102,7 @@ export default function ResolutionTimeChart({ details }: Props) {
                   {/* 이슈 키 */}
                   <td className="py-2 pr-3 whitespace-nowrap">
                     <a
-                      href={`https://jira.tac-smart.com/browse/${issue.key}`}
+                      href={jiraUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="text-blue-500 hover:underline font-mono text-[11px]"

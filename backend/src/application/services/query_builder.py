@@ -32,22 +32,18 @@ class ResolvedQueries:
     def _thr(self) -> int:
         return self._c.sla_threshold_days
 
-    # w1: 연도 누적 생성
     def w1_yearly_created(self) -> str:
         return f"{self._base()} AND created >= \"{self._c.year_start}-01-01\""
 
-    # w2: 연도 누적 해결
     def w2_yearly_resolved(self) -> str:
         return f"{self._base()} AND resolved >= \"{self._c.year_start}-01-01\""
 
-    # w3: 주간 생성 vs 해결
     def w3_created_vs_resolved(self) -> Tuple[str, str]:
         return (
             f"{self._base()} AND created >= \"-7d\"",
             f"{self._base()} AND resolved >= \"-7d\"",
         )
 
-    # w4: 이슈 리뷰 중
     def w4_issue_review(self) -> str:
         return (
             f"{self._base()} AND status = \"이슈 리뷰 중\" "
@@ -55,7 +51,6 @@ class ResolvedQueries:
             f"AND status NOT IN ({self._closed()})"
         )
 
-    # w5: 자료 요청 중
     def w5_data_request(self) -> str:
         return (
             f"{self._base()} AND status = \"자료 요청 중\" "
@@ -63,7 +58,6 @@ class ResolvedQueries:
             f"AND status NOT IN ({self._closed()})"
         )
 
-    # w6: 결과 대기 중
     def w6_result_pending(self) -> str:
         return (
             f"{self._base()} AND status = \"결과 대기 중\" "
@@ -71,7 +65,6 @@ class ResolvedQueries:
             f"AND status NOT IN ({self._closed()})"
         )
 
-    # w7 / w8: 월별 SLA (MonthlyCollector 사용)
     def w7_w8_monthly_candidates(self, year: int, month: int) -> str:
         start = f"{year}-{month:02d}-01"
         end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
@@ -80,25 +73,21 @@ class ResolvedQueries:
             f" ORDER BY created ASC"
         )
 
-    # w9: SLA 준수 vs 위반
     def w9_sla(self) -> str:
         return (
             f"{self._base()} AND status NOT IN ({self._closed()}) "
             f"ORDER BY created ASC"
         )
 
-    # w10: SLA 지연 사유
     def w10_sla_violated(self) -> str:
         return (
             f"{self._base()} AND created <= \"-{self._thr()}d\" "
             f"AND status NOT IN ({self._closed()})"
         )
 
-    # w11: 유형별 평균 처리일
     def w11_resolution_resolved(self) -> str:
         return f"{self._base()} AND resolved >= \"-7d\" ORDER BY resolved DESC"
 
-    # w12: SLA 초과 지연 이슈 상세
     def w12_overdue(self) -> str:
         return (
             f"{self._base()} AND created <= \"-{self._thr()}d\" "
@@ -117,9 +106,9 @@ class ResolvedQueries:
                 )
         return result
 
-    # w13: 최근 활성 이슈 (최신 50건)
+    # w13: 최근 이슈 키 기준 상위 50건 (티켓 번호 내림차순)
     def w13_recent(self) -> str:
         return (
             f"{self._base()} AND status NOT IN ({self._closed()}) "
-            f"ORDER BY updated DESC"
+            f"ORDER BY issuekey DESC"
         )
