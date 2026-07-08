@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/common/SearchWidget.tsx
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { fetchSearchResults, SearchResult } from '@/infrastructure/api/searchApi'
+import { fetchSearchResults, fetchJiraBaseUrl, SearchResult } from '@/infrastructure/api/searchApi'
 
 const JIRA_COLOR = 'bg-blue-100 text-blue-700'
 const CONFLUENCE_COLOR = 'bg-purple-100 text-purple-700'
@@ -12,7 +12,7 @@ function isIssueNumber(q: string): boolean {
   return ISSUE_NUMBER_RE.test(q.trim())
 }
 
-function buildDirectItem(num: string, baseUrl: string): SearchResult {
+function buildDirectItem(num: string, jiraBaseUrl: string): SearchResult {
   const key = `TACEA-${num}`
   return {
     type: 'jira',
@@ -20,7 +20,7 @@ function buildDirectItem(num: string, baseUrl: string): SearchResult {
     title: `${key} 이슈 바로가기`,
     status: 'direct',
     issue_type: 'direct',
-    url: `${baseUrl}/browse/${key}`,
+    url: `${jiraBaseUrl}/browse/${key}`,
   }
 }
 
@@ -62,18 +62,26 @@ function DropdownItem({
       }}
     >
       <TypeBadge type={item.type} isDirect={isDirect} />
-      <span className={`text-[12px] font-medium truncate flex-1 ${
-        isDirect ? 'text-brand-700' : 'text-gray-800'
-      }`}>
+      <span
+        className={`text-[12px] font-medium truncate flex-1 ${
+          isDirect ? 'text-brand-700' : 'text-gray-800'
+        }`}
+      >
         {item.key && !isDirect && <span className="text-gray-400 mr-1">[{item.key}]</span>}
-        {isDirect ? item.title : item.title}
+        {item.title}
       </span>
       {!isDirect && item.status && (
         <span className="text-[10px] text-gray-400 flex-shrink-0">{item.status}</span>
       )}
       {isDirect && (
         <svg className="w-3 h-3 text-brand-400 flex-shrink-0" fill="none" viewBox="0 0 16 16">
-          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M3 8h10M9 4l4 4-4 4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       )}
     </li>
@@ -83,10 +91,12 @@ function DropdownItem({
 function SearchModal({
   results,
   query,
+  jiraBaseUrl,
   onClose,
 }: {
   results: SearchResult[]
   query: string
+  jiraBaseUrl: string
   onClose: () => void
 }) {
   useEffect(() => {
@@ -141,16 +151,16 @@ function SearchModal({
                     target="_blank"
                     rel="noopener noreferrer"
                     className={`flex items-start gap-3 px-5 py-3.5 transition-colors ${
-                      isDirect
-                        ? 'bg-brand-50 hover:bg-brand-100'
-                        : 'hover:bg-gray-50'
+                      isDirect ? 'bg-brand-50 hover:bg-brand-100' : 'hover:bg-gray-50'
                     }`}
                   >
                     <TypeBadge type={item.type} isDirect={isDirect} />
                     <div className="flex-1 min-w-0">
-                      <p className={`text-[13px] font-medium truncate ${
-                        isDirect ? 'text-brand-700' : 'text-gray-800'
-                      }`}>
+                      <p
+                        className={`text-[13px] font-medium truncate ${
+                          isDirect ? 'text-brand-700' : 'text-gray-800'
+                        }`}
+                      >
                         {!isDirect && item.key && (
                           <span className="text-gray-400 mr-1.5">[{item.key}]</span>
                         )}
@@ -187,7 +197,9 @@ function SearchModal({
 
         <div className="px-5 py-3 border-t bg-gray-50">
           <a
-            href={`${window.location.origin.replace(':5173', ':8000')}/search?q=${encodeURIComponent(query)}`}
+            href={`${jiraBaseUrl}/issues/?jql=${encodeURIComponent(`text ~ "${query}"`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-[12px] text-brand-600 hover:underline"
           >
             JIRA에서 더 검색하기 →
@@ -206,19 +218,30 @@ export default function SearchWidget() {
   const [isLoading, setIsLoading] = useState(false)
   const [modalResults, setModalResults] = useState<SearchResult[] | null>(null)
   const [modalQuery, setModalQuery] = useState('')
+  const [jiraBaseUrl, setJiraBaseUrl] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const jiraBaseUrlRef = useRef('')
 
-  const jiraBaseUrl = window.location.origin.replace(':5173', '')
+  useEffect(() => {
+    fetchJiraBaseUrl()
+      .then((url) => {
+        setJiraBaseUrl(url)
+        jiraBaseUrlRef.current = url
+      })
+      .catch(() => {
+        jiraBaseUrlRef.current = ''
+      })
+  }, [])
 
   const prependDirectIfNeeded = useCallback(
     (q: string, items: SearchResult[]): SearchResult[] => {
       if (!isIssueNumber(q)) return items
-      const direct = buildDirectItem(q.trim(), jiraBaseUrl)
+      const direct = buildDirectItem(q.trim(), jiraBaseUrlRef.current)
       return [direct, ...items]
     },
-    [jiraBaseUrl],
+    [],
   )
 
   const fetchSuggestions = useCallback(
@@ -335,11 +358,7 @@ export default function SearchWidget() {
                 stroke="currentColor"
                 strokeWidth="3"
               />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8H4z"
-              />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
             </svg>
           ) : (
             <button
@@ -398,6 +417,7 @@ export default function SearchWidget() {
         <SearchModal
           results={modalResults}
           query={modalQuery}
+          jiraBaseUrl={jiraBaseUrl}
           onClose={() => setModalResults(null)}
         />
       )}
