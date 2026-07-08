@@ -16,6 +16,19 @@ logger = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
 
+STATUS_ORDER = [
+    "할 일",
+    "이슈 리뷰 중",
+    "연구소 대기 중",
+    "연구소 검토 중",
+    "구현 중",
+    "배포 파일 검토 중",
+    "자료 요청 중",
+    "결과 대기 중",
+    "보류 중",
+    "영업본부 검토중",
+]
+
 
 class ReportCollector:
     def __init__(self, jira: JiraPort, qb: WidgetQueryBuilder, settings: Settings):
@@ -227,6 +240,45 @@ class ReportCollector:
             breakdown={"issue_details": details}
         )
 
+    async def _collect_w11(self, q) -> WidgetResult:
+        jql = q.w11_recent()
+        issues = await self._jira.get_issues(
+            jql, max_results=15,
+            fields="summary,issuetype,status,created"
+        )
+        now_ts = datetime.now()
+        details: list[dict] = []
+
+        for issue in issues:
+            key = issue.get("key", "")
+            f   = issue.get("fields", {})
+            status = (f.get("status")    or {}).get("name", "기타")
+            itype  = (f.get("issuetype") or {}).get("name", "기타")
+            c_str  = f.get("created") or ""
+            elapsed_days = 0
+            if c_str:
+                created_dt   = datetime.fromisoformat(c_str[:19])
+                elapsed_days = (now_ts - created_dt).days
+            stage_index = STATUS_ORDER.index(status) if status in STATUS_ORDER else len(STATUS_ORDER)
+            details.append({
+                "key":          key,
+                "summary":      f.get("summary", "")[:50],
+                "type":         itype,
+                "status":       status,
+                "stage_index":  stage_index,
+                "created":      c_str[:16].replace("T", " ") if c_str else "",
+                "elapsed_days": elapsed_days,
+            })
+
+        total = len(details)
+        logger.info(f"[W11] 최근 생성 {total}건")
+        return WidgetResult(
+            name="최근 이슈 현황",
+            total=total,
+            jql=jql,
+            breakdown={"issue_details": details}
+        )
+
     async def _collect_w14(self, q) -> WidgetResult:
         c_jql, r_jql = q.w14_created_vs_resolved()
 
@@ -386,47 +438,6 @@ class ReportCollector:
         logger.info(f"[W10] {total}건")
         return WidgetResult(name="유형별 평균 처리일", total=total, jql=jql, breakdown=breakdown)
 
-    async def _collect_w11(self, q) -> WidgetResult:
-        jql = q.w10_11_resolved()
-        issues = await self._jira.get_issues(
-            jql, max_results=200,
-            fields="summary,issuetype,created,resolutiondate"
-        )
-        resolution_list, breached_count, details = [], 0, []
-        thr_hours = self._settings.sla_threshold_days * 24
-
-        for issue in issues:
-            key = issue.get("key", "")
-            f = issue.get("fields", {})
-            c_str, r_str = f.get("created"), f.get("resolutiondate")
-            if not c_str or not r_str:
-                continue
-            hours = round(
-                (datetime.fromisoformat(r_str[:19]) - datetime.fromisoformat(c_str[:19])).total_seconds() / 3600, 2
-            )
-            breached = hours > thr_hours
-            resolution_list.append(hours)
-            if breached:
-                breached_count += 1
-            details.append({
-                "key": key,
-                "summary": f.get("summary", "")[:40],
-                "type": (f.get("issuetype") or {}).get("name", ""),
-                "resolution_h": hours,
-                "res_breached": breached,
-            })
-
-        avg = round(sum(resolution_list) / len(resolution_list), 2) if resolution_list else 0
-        breakdown: dict[str, Any] = {
-            "avg_resolution_hours": avg,
-            "avg_resolution_days": round(avg / 24, 1),
-            "resolution_breached": breached_count,
-            "total_issues": len(resolution_list),
-            "issue_details": details[:20],
-        }
-        logger.info(f"[W11] 평균 {avg}h ({len(resolution_list)}건)")
-        return WidgetResult(name="해결시간 보고서", total=len(resolution_list), jql=jql, breakdown=breakdown)
-
     async def _collect_w12(self, q) -> WidgetResult:
         w15_fid = self._settings.sla_initial_response_field_id
         w16_fid = self._settings.sla_resolution_field_id
@@ -440,19 +451,14 @@ class ReportCollector:
 
         for issue in issues:
             f = issue.get("fields") or {}
-
             ir_sla  = f.get(w15_fid)
             res_sla = f.get(w16_fid)
-
             ir_breached  = self._is_sla_breached(ir_sla)
             res_breached = self._is_sla_breached(res_sla)
-
             if ir_sla is not None and ir_breached:
                 ir_viol += 1
-
             if res_sla is not None and res_breached:
                 res_viol += 1
-
             if (ir_sla is not None and ir_breached) or (res_sla is not None and res_breached):
                 total_viol += 1
 
@@ -478,11 +484,7 @@ class ReportCollector:
             "해결_시간_위반": res_viol,
             "_violation_distribution": violation_distribution,
         }
-
-        logger.info(
-            f"[W12] 위반 총 {total_viol}건 "
-            f"(최초응답 {ir_viol}건 / 해결시간 {res_viol}건)"
-        )
+        logger.info(f"[W12] 위반 원 {total_viol}건 (최초응답 {ir_viol}건 / 해결시간 {res_viol}건)")
         return WidgetResult(
             name="SLA 만족 vs 위반",
             total=total_viol,
