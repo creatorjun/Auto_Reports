@@ -1,3 +1,4 @@
+# backend/src/main.py
 import logging
 import sys
 import threading
@@ -11,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.application.scheduler.report_scheduler import create_scheduler
 from src.config.settings import get_settings
 from src.infrastructure.container import Container
+from src.infrastructure.job_runner import JobRunner
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,10 +23,6 @@ logger = logging.getLogger(__name__)
 
 
 def _run_migrations_in_thread() -> None:
-    """
-    alembic env.py 내의 asyncio.run() 이 FastAPI lifespan 이벤트 루프와
-    충돌하지 않도록 별도 스레드에서 마이그레이션을 실행한다.
-    """
     try:
         logger.info("DB 마이그레이션 실행 중...")
         alembic_cfg = AlembicConfig("alembic.ini")
@@ -37,7 +35,7 @@ def _run_migrations_in_thread() -> None:
 def run_migrations() -> None:
     t = threading.Thread(target=_run_migrations_in_thread, daemon=False)
     t.start()
-    t.join()  # 완료될 때까지 대기 (서버 시작 전에 완료 보장)
+    t.join()
 
 
 @asynccontextmanager
@@ -46,9 +44,12 @@ async def lifespan(app: FastAPI):
 
     settings = get_settings()
     container = Container(settings)
-    app.state.container = container
+    job_runner = JobRunner(container)
 
-    scheduler = create_scheduler(settings, container.run_scheduled_job)
+    app.state.container = container
+    app.state.job_runner = job_runner
+
+    scheduler = create_scheduler(settings, job_runner.run_scheduled_job)
     scheduler.start()
     logger.info("TAC Auto Reports 서비스 시작 ✅")
 
@@ -64,7 +65,7 @@ settings = get_settings()
 app = FastAPI(
     title="TAC Auto Reports API",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(

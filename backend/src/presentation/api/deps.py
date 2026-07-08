@@ -5,11 +5,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
 from src.infrastructure.container import Container
+from src.infrastructure.job_runner import JobRunner
 from src.infrastructure.persistence.database import get_db_session
 
 
 def get_container(request: Request) -> Container:
     return request.app.state.container
+
+
+def get_job_runner(request: Request) -> JobRunner:
+    return request.app.state.job_runner
 
 
 async def get_generate_use_case(
