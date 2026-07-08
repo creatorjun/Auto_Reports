@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
+import { useConfig } from '@/infrastructure/hooks/useConfig'
 
 interface RecentIssue {
   key: string
@@ -15,8 +16,6 @@ interface Props {
 }
 
 const STAGE_TOTAL = 8
-
-const JIRA_BASE_URL = import.meta.env.VITE_JIRA_BASE_URL ?? 'https://seculayer.atlassian.net'
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   '이슈 리뷰 중':    { bg: 'bg-amber-500',   text: 'text-white' },
@@ -58,6 +57,9 @@ function StageBar({ stageIndex }: { stageIndex: number }) {
 }
 
 export default function ResolutionTimeChart({ details }: Props) {
+  const { data: config } = useConfig()
+  const jiraBaseUrl = config?.jira_base_url ?? 'https://seculayer.atlassian.net'
+
   if (!details || details.length === 0) {
     return (
       <div className="card flex items-center justify-center h-48 text-apple-light text-[13px]">
@@ -93,7 +95,7 @@ export default function ResolutionTimeChart({ details }: Props) {
           <tbody>
             {details.map((issue) => {
               const style = getStatusStyle(issue.status)
-              const jiraUrl = `${JIRA_BASE_URL}/browse/${issue.key}`
+              const jiraUrl = `${jiraBaseUrl}/browse/${issue.key}`
               return (
                 <tr
                   key={issue.key}
