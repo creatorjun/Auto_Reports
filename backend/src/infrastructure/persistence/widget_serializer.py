@@ -7,6 +7,7 @@ from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import (
     CreatedVsResolvedWidgetData,
     OverdueWidgetData,
+    RecentIssueWidgetData,
     ResolutionTypeWidgetData,
     SimpleIssueWidgetData,
     SlaDelayWidgetData,
@@ -28,6 +29,7 @@ _WIDGET_DATA_TYPE_MAP: dict[str, type] = {
     WidgetId.SLA_DELAY_REASON:       SlaDelayWidgetData,
     WidgetId.AVG_RESOLUTION_TYPE:    ResolutionTypeWidgetData,
     WidgetId.OVERDUE_ISSUES:         OverdueWidgetData,
+    WidgetId.RECENT_ISSUES:          RecentIssueWidgetData,
 }
 
 

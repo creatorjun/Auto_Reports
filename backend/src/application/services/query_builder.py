@@ -116,3 +116,10 @@ class ResolvedQueries:
                     f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" AND status = \"{st}\""
                 )
         return result
+
+    # w13: 최근 활성 이슈 (최신 50건)
+    def w13_recent(self) -> str:
+        return (
+            f"{self._base()} AND status NOT IN ({self._closed()}) "
+            f"ORDER BY updated DESC"
+        )

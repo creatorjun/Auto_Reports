@@ -13,6 +13,7 @@ from src.application.widgets.count_collector import (
 from src.application.widgets.created_vs_resolved_collector import CreatedVsResolvedCollector
 from src.application.widgets.monthly_collector import MonthlyCollector
 from src.application.widgets.overdue_collector import OverdueCollector
+from src.application.widgets.recent_collector import RecentCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
 from src.application.widgets.sla_delay_collector import SlaDelayCollector
 from src.domain.entities.report import NewReport
@@ -45,19 +46,12 @@ class ReportAssembler:
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 
         collectors = [
-            # w1: 연도 누적 생성
             (WidgetId.YEARLY_CREATED,      SimpleCountCollector(self._jira, f"{now.year}년 누적 생성", q.w1_yearly_created())),
-            # w2: 연도 누적 해결
             (WidgetId.YEARLY_RESOLVED,     SimpleCountCollector(self._jira, f"{now.year}년 누적 해결", q.w2_yearly_resolved())),
-            # w3: 주간 생성 vs 해결
             (WidgetId.CREATED_VS_RESOLVED, CreatedVsResolvedCollector(self._jira, q)),
-            # w4: 이슈 리뷰 중
             (WidgetId.ISSUE_REVIEW,        SimpleWithDetailsCollector(self._jira, "이슈 리뷰 중", q.w4_issue_review())),
-            # w5: 자료 요청 중
             (WidgetId.DATA_REQUEST,        SimpleWithDetailsCollector(self._jira, "자료 요청 중", q.w5_data_request())),
-            # w6: 결과 대기 중
             (WidgetId.RESULT_PENDING,      SimpleWithDetailsCollector(self._jira, "결과 대기 중", q.w6_result_pending())),
-            # w9: SLA 준수 vs 위반
             (
                 WidgetId.SLA_MET_VS_VIOLATED,
                 SlaMetVsViolatedCollector(
@@ -66,12 +60,10 @@ class ReportAssembler:
                     self._sla_resolution_field_id,
                 ),
             ),
-            # w10: SLA 지연 사유
             (WidgetId.SLA_DELAY_REASON,    SlaDelayCollector(self._jira, q, self._sla_threshold_days)),
-            # w11: 유형별 평균 처리일
             (WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(self._jira, q)),
-            # w12: SLA 초과 지연 이슈 상세
             (WidgetId.OVERDUE_ISSUES,      OverdueCollector(self._jira, q, self._sla_threshold_days)),
+            (WidgetId.RECENT_ISSUES,       RecentCollector(self._jira, q)),
         ]
 
         monthly_collector = MonthlyCollector(
