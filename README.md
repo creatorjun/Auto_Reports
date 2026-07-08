@@ -85,7 +85,7 @@ copy .env.example .env && notepad .env
 
 **Linux / macOS**
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 **Windows CMD**
@@ -102,7 +102,7 @@ docker-compose up -d --build
 
 **Linux / macOS**
 ```bash
-docker-compose exec backend alembic upgrade head
+docker compose exec backend alembic upgrade head
 ```
 
 **Windows CMD**
@@ -152,7 +152,7 @@ docker-compose logs backend | findstr "2026-07"
 
 **Linux / macOS**
 ```bash
-git pull && docker compose build --no-cache frontend && docker compose up -d
+git pull && docker compose build --no-cache && docker compose up -d
 ```
 
 **Windows CMD**
