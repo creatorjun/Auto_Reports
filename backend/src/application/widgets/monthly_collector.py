@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
-from src.domain.entities.widget_data import SlaMonthlyWidgetData
+from src.domain.entities.widget_data import MonthlyEntry, SlaMonthlyWidgetData
 from src.domain.ports.jira_port import JiraPort
 
 logger = logging.getLogger(__name__)
@@ -43,8 +43,8 @@ class MonthlyCollector(AbstractWidgetCollector):
                 month = 12
                 year -= 1
 
-        w7_monthly: list[SlaMonthlyWidgetData] = []
-        w8_monthly: list[SlaMonthlyWidgetData] = []
+        w7_entries: list[MonthlyEntry] = []
+        w8_entries: list[MonthlyEntry] = []
 
         for y, m in months:
             jql = self._q.w7_w8_monthly_candidates(y, m)
@@ -60,14 +60,25 @@ class MonthlyCollector(AbstractWidgetCollector):
                 1 for i in issues
                 if self._breached((i.get("fields") or {}).get(self._resolution_fid))
             )
+            init_met = total - init_viol
+            res_met  = total - res_viol
+            init_rate = round((init_met / total * 100), 1) if total > 0 else 0.0
+            res_rate  = round((res_met  / total * 100), 1) if total > 0 else 0.0
+
             label = f"{y}-{m:02d}"
-            w7_monthly.append(SlaMonthlyWidgetData(month=label, total=total, violations=init_viol))
-            w8_monthly.append(SlaMonthlyWidgetData(month=label, total=total, violations=res_viol))
+            w7_entries.append(MonthlyEntry(
+                month=label, year=y, month_num=m,
+                rate=init_rate, met=init_met, total=total,
+            ))
+            w8_entries.append(MonthlyEntry(
+                month=label, year=y, month_num=m,
+                rate=res_rate, met=res_met, total=total,
+            ))
 
         logger.info(f"[w7/w8] 월별 SLA {self.MONTHS_BACK}개월 수집 완료")
         return (
-            WidgetResult(name="최초응답 SLA 월별", total=0, data=w7_monthly),
-            WidgetResult(name="해결시간 SLA 월별", total=0, data=w8_monthly),
+            WidgetResult(name="최초응답 SLA 월별", total=0, data=SlaMonthlyWidgetData(monthly=w7_entries)),
+            WidgetResult(name="해결시간 SLA 월별", total=0, data=SlaMonthlyWidgetData(monthly=w8_entries)),
         )
 
     @staticmethod
