@@ -31,13 +31,13 @@ const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
 }
 
 const LEGEND = [
-  { label: '할 일 / 재오픈',   color: 'bg-gray-400' },
-  { label: '자료 요청 중',    color: 'bg-blue-500' },
-  { label: '이슈 리뷰 중',    color: 'bg-amber-500' },
-  { label: '연구소 대기/검토 중', color: 'bg-purple-500' },
-  { label: '구현 중',         color: 'bg-green-500' },
-  { label: '배포 파일 검토 중', color: 'bg-cyan-500' },
-  { label: '결과 대기 중',    color: 'bg-red-500' },
+  { label: '할 일 / 재오픈',      color: 'bg-gray-400' },
+  { label: '자료 요청 중',       color: 'bg-blue-500' },
+  { label: '이슈 리뷰 중',       color: 'bg-amber-500' },
+  { label: '연구소 대기/검토 중',  color: 'bg-purple-500' },
+  { label: '구현 중',            color: 'bg-green-500' },
+  { label: '배포 파일 검토 중',  color: 'bg-cyan-500' },
+  { label: '결과 대기 중',       color: 'bg-red-500' },
 ]
 
 function getStatusStyle(status: string) {
@@ -99,17 +99,11 @@ export default function ResolutionTimeChart({ details }: Props) {
               return (
                 <tr
                   key={issue.key}
-                  className="border-b border-apple-divider last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                  onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
+                  className="border-b border-apple-divider last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
                 >
-                  <td className="py-2 pr-3 whitespace-nowrap">
-                    <a
-                      href={jiraUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-500 hover:underline font-mono text-[11px]"
-                    >
-                      {issue.key}
-                    </a>
+                  <td className="py-2 pr-3 whitespace-nowrap font-mono text-[11px] text-blue-500">
+                    {issue.key}
                   </td>
                   <td className="py-2 pr-4 text-apple-primary max-w-[400px] truncate">
                     {issue.summary}
