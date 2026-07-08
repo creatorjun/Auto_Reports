@@ -1,3 +1,4 @@
+# backend/src/application/services/query_builder.py
 from datetime import datetime, timedelta
 from typing import Tuple
 
@@ -48,19 +49,16 @@ class ResolvedQueries:
         return result
 
     def w2_issue_review(self) -> str:
-        """\uc774\uc288 \ub9ac\ubdf0 \uc911 \uc0c1\ud0dc\uc5d0\uc11c SLA \ucd08\uacfc"""
         return (f"{self._base()} AND status = \"\uc774\uc288 \ub9ac\ubdf0 \uc911\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
     def w3_data_request(self) -> str:
-        """\uc790\ub8cc \uc694\uccad \uc911 \uc0c1\ud0dc\uc5d0\uc11c SLA \ucd08\uacfc"""
         return (f"{self._base()} AND status = \"\uc790\ub8cc \uc694\uccad \uc911\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
     def w13_result_pending(self) -> str:
-        """\uacb0\uacfc \ub300\uae30 \uc911 \uc0c1\ud0dc\uc5d0\uc11c SLA \ucd08\uacfc"""
         return (f"{self._base()} AND status = \"\uacb0\uacfc \ub300\uae30 \uc911\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
@@ -86,9 +84,9 @@ class ResolvedQueries:
         return result
 
     def w7_reason_pie(self) -> dict[str, str]:
-        base = f"{self._base()} AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\""
+        base = f"{self._base()} AND created >= \"-7d\""
         return {
-            "TAC \ucc98\ub9ac \uc9c0\uc5f0": f"{base} AND status IN (\"\ud560 \uc77c\",\"\uc774\uc288 \ub9ac\ubdf0 \uc911\")",
+            "TAC \uc815\uc815 \uc9c0\uc5f0": f"{base} AND status IN (\"\ud560 \uc77c\",\"\uc774\uc288 \ub9ac\ubdf0 \uc911\")",
             "\uc5f0\uad6c\uc18c \ub300\uae30": f"{base} AND status IN (\"\uc5f0\uad6c\uc18c \ub300\uae30 \uc911\",\"\uc5f0\uad6c\uc18c \uac80\ud1a0 \uc911\")",
             "\uac1c\ubc1c \uc9c4\ud589 \uc911": f"{base} AND status IN (\"\uad6c\ud604 \uc911\",\"\ubc30\ud3ec \ud30c\uc77c \uac80\ud1a0 \uc911\")",
             "\uace0\uac1d \uc751\ub2f5 \ub300\uae30": f"{base} AND status IN (\"\uc790\ub8cc \uc694\uccad \uc911\",\"\uacb0\uacfc \ub300\uae30 \uc911\")",
@@ -106,9 +104,11 @@ class ResolvedQueries:
         return f"{self._base()} AND resolved >= \"-7d\" ORDER BY resolved DESC"
 
     def w12_sla(self) -> Tuple[str, str]:
-        base = f"{self._base()} AND resolved >= \"-7d\""
-        return (f"{base} AND created >= \"-{self._thr()}d\"",
-                f"{base} AND created <= \"-{self._thr()}d\"")
+        base = f"{self._base()} AND created >= \"-7d\""
+        return (
+            f"{base} AND created >= \"-{self._thr()}d\"",
+            f"{base} AND created <= \"-{self._thr()}d\"",
+        )
 
     def w14_created_vs_resolved(self) -> Tuple[str, str]:
         return (f"{self._base()} AND created >= \"-7d\"",
