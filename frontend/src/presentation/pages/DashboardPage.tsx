@@ -26,6 +26,18 @@ interface SlaMonthlyBreakdown {
   error?: string
 }
 
+interface ViolationEntry {
+  stage: string
+  count: number
+  rate: number
+}
+
+interface W12Breakdown {
+  '\ucd5c\ucd08_\uc751\ub2f5_\uc704\ubc18'?: number
+  '\ud574\uacb0_\uc2dc\uac04_\uc704\ubc18'?: number
+  _violation_distribution?: ViolationEntry[]
+}
+
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
   const [showOverdue, setShowOverdue]               = useState(false)
@@ -41,7 +53,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   }, [report, setCurrentReport])
 
   const w      = report.widgets
-  const w12    = w.w12?.breakdown as Record<string, number> ?? {}
+  const w12    = (w.w12?.breakdown ?? {}) as W12Breakdown
   const w7     = w.w7?.breakdown  as Record<string, number> ?? {}
   const w10    = w.w10?.breakdown as Record<string, { avg_days: number; count: number }> ?? {}
   const w11    = w.w11?.breakdown as Record<string, unknown> ?? {}
@@ -67,6 +79,9 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w16Monthly = w16.monthly ?? []
   const hasW15 = w15Monthly.some((e) => e.total > 0)
   const hasW16 = w16Monthly.some((e) => e.total > 0)
+
+  const w12Total        = w.w12?.total ?? 0
+  const w12Distribution = w12._violation_distribution ?? []
 
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
@@ -179,7 +194,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
       {/* 차트 행 1 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 3xl:gap-5">
-        <SlaDonutChart met={w12['SLA 만족'] ?? 0} violated={w12['SLA 위반'] ?? 0} />
+        <SlaDonutChart total={w12Total} distribution={w12Distribution} />
         <ReasonPieChart breakdown={w7} />
         <div className="sm:col-span-2 md:col-span-1">
           <TrendLineChart created={w14Created} resolved={w14Resolved} />
