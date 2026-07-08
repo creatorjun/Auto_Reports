@@ -1,3 +1,4 @@
+# backend/src/domain/value_objects/widget_id.py
 from enum import StrEnum
 
 

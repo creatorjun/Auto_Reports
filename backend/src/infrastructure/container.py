@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.query_builder import WidgetQueryBuilder
-from src.application.services.report_collector import ReportCollector
+from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
 from src.config.settings import Settings
@@ -29,7 +29,7 @@ class Container:
         self._jira: JiraPort = JiraClient(
             settings.jira_base_url,
             settings.jira_email,
-            settings.jira_api_token
+            settings.jira_api_token,
         )
         self._ai: AiPort | None = GeminiClient(settings.gemini_api_key) if settings.ai_enabled else None
         self._jobs: dict[str, dict] = {}
@@ -44,12 +44,18 @@ class Container:
     def generate_report_use_case(self, session: AsyncSession) -> GenerateReportUseCase:
         repo = ReportRepositoryImpl(session)
         query_builder = WidgetQueryBuilder(self._settings)
-        collector = ReportCollector(self._jira, query_builder, self._settings)
+        assembler = ReportAssembler(
+            jira=self._jira,
+            query_builder=query_builder,
+            sla_threshold_days=self._settings.sla_threshold_days,
+            sla_initial_response_field_id=self._settings.sla_initial_response_field_id,
+            sla_resolution_field_id=self._settings.sla_resolution_field_id,
+        )
         analyzer = AiAnalyzer(
             ai=self._ai,
-            enabled=self._settings.ai_enabled
+            enabled=self._settings.ai_enabled,
         )
-        return GenerateReportUseCase(collector, analyzer, repo)
+        return GenerateReportUseCase(assembler, analyzer, repo)
 
     def get_report_use_case(self, session: AsyncSession) -> GetReportUseCase:
         repo = ReportRepositoryImpl(session)

@@ -5,7 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from src.application.services.ai_analyzer import AiAnalyzer
-from src.application.services.report_collector import ReportCollector
+from src.application.services.report_assembler import ReportAssembler
 from src.domain.entities.report import Report
 from src.domain.repositories.report_repository import ReportRepository
 
@@ -17,11 +17,11 @@ KST = ZoneInfo("Asia/Seoul")
 class GenerateReportUseCase:
     def __init__(
         self,
-        collector: ReportCollector,
+        assembler: ReportAssembler,
         analyzer: AiAnalyzer,
-        repository: ReportRepository
+        repository: ReportRepository,
     ):
-        self._collector = collector
+        self._assembler = assembler
         self._analyzer = analyzer
         self._repository = repository
 
@@ -29,7 +29,7 @@ class GenerateReportUseCase:
         now = now or datetime.now(tz=KST)
         logger.info(f"보고서 생성 시작: {now}")
 
-        report = await self._collector.collect(now)
+        report = await self._assembler.collect(now)
 
         analysis = None
         try:

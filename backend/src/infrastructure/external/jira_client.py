@@ -1,3 +1,4 @@
+# backend/src/infrastructure/external/jira_client.py
 import logging
 from typing import Any
 
@@ -61,10 +62,6 @@ class JiraClient(JiraPort):
             return []
 
     async def get_sla_field_ids(self) -> dict[str, str]:
-        """
-        schema.type == 'sd-servicelevelagreement' 인 필드만 반환.
-        {'\ud544\ub4dc \uc774\ub984': 'customfield_NNNNN'}
-        """
         if self._sla_field_ids_cache is not None:
             return self._sla_field_ids_cache
 
