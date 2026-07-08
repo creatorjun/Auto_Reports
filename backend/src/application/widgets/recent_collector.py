@@ -5,7 +5,7 @@ from datetime import datetime
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
-from src.domain.entities.widget_data import RecentIssueWidgetData, RecentIssueEntry
+from src.domain.entities.widget_data import RecentIssueWidgetData, RecentIssueDetail
 from src.domain.ports.jira_port import JiraPort
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class RecentCollector(AbstractWidgetCollector):
                 (now_ts - datetime.fromisoformat(created[:19])).days if created else 0
             )
             issue_details.append(
-                RecentIssueEntry(
+                RecentIssueDetail(
                     key=issue.get("key", ""),
                     summary=(fields.get("summary") or "")[:60],
                     type=(fields.get("issuetype") or {}).get("name", "기타"),
