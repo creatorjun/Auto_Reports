@@ -1,4 +1,5 @@
 # backend/src/config/settings.py
+import datetime
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings
@@ -30,6 +31,11 @@ class Settings(BaseSettings):
         "보류 중", "영업본부 검토중"
     ]
     closed_statuses: list[str] = ["Closed", "반려됨", "중복 이슈", "취소됨"]
+
+    @property
+    def year_start(self) -> int:
+        """w8/w9 연도 누적 쿼리에 사용할 연도. 현재 연도를 자동 반환."""
+        return datetime.date.today().year
 
     @property
     def database_url(self) -> str:

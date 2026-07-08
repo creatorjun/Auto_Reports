@@ -17,7 +17,7 @@ from src.application.widgets.overdue_collector import OverdueCollector
 from src.application.widgets.recent_collector import RecentCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
 from src.application.widgets.sla_delay_collector import SlaDelayCollector
-from src.domain.entities.report import Report
+from src.domain.entities.report import NewReport
 from src.domain.ports.jira_port import JiraPort
 from src.domain.value_objects.widget_id import WidgetId
 
@@ -41,7 +41,7 @@ class ReportAssembler:
         self._sla_initial_response_field_id = sla_initial_response_field_id
         self._sla_resolution_field_id = sla_resolution_field_id
 
-    async def collect(self, now: datetime) -> Report:
+    async def collect(self, now: datetime) -> NewReport:
         if now.tzinfo is None:
             now = now.replace(tzinfo=KST)
         q = self._qb.build(now)
@@ -85,8 +85,7 @@ class ReportAssembler:
         widgets[WidgetId.SLA_RESOLUTION_MONTHLY] = w16_result
 
         logger.info("데이터 수집 완료 ✅")
-        return Report(
-            id=None,
+        return NewReport(
             week_start=q.week_start.date(),
             week_end=q.week_end.date(),
             report_date=now.strftime("%Y-%m-%d %H:%M"),

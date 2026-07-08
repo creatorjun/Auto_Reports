@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.query_builder import WidgetQueryBuilder
+from src.application.services.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
@@ -30,6 +31,14 @@ class Container:
             settings.jira_api_token,
         )
         self._ai: AiPort | None = GeminiClient(settings.gemini_api_key) if settings.ai_enabled else None
+        self._query_config = QueryConfig(
+            project_key=settings.project_key,
+            issue_types=settings.issue_types,
+            active_statuses=settings.active_statuses,
+            closed_statuses=settings.closed_statuses,
+            sla_threshold_days=settings.sla_threshold_days,
+            year_start=settings.year_start,
+        )
 
     async def aclose(self) -> None:
         await self._jira.aclose()
@@ -37,7 +46,7 @@ class Container:
 
     def generate_report_use_case(self, session: AsyncSession) -> GenerateReportUseCase:
         repo = ReportRepositoryImpl(session)
-        query_builder = WidgetQueryBuilder(self._settings)
+        query_builder = WidgetQueryBuilder(self._query_config)
         assembler = ReportAssembler(
             jira=self._jira,
             query_builder=query_builder,
