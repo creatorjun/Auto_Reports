@@ -19,3 +19,8 @@ export async function fetchSearchResults(
   })
   return data
 }
+
+export async function fetchJiraBaseUrl(): Promise<string> {
+  const { data } = await client.get<{ jira_base_url: string }>('/config')
+  return data.jira_base_url.replace(/\/$/, '')
+}
