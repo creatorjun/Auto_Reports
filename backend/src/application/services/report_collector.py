@@ -178,16 +178,19 @@ class ReportCollector:
             for st, cnt in sorted(by_status.items(), key=lambda x: x[1], reverse=True)
         ]
 
+        breakdown: dict[str, Any] = {
+            st: cnt
+            for st, cnt in sorted(by_status.items(), key=lambda x: x[1], reverse=True)
+        }
+        breakdown["_distribution"] = status_distribution
+        breakdown["_issue_details"] = details
+
         logger.info(f"[W7] SLA 위반 {total}건 / 상태 {len(by_status)}종")
         return WidgetResult(
             name="SLA 지연 사유",
             total=total,
             jql=jql,
-            breakdown={
-                "by_status":           by_status,
-                "status_distribution": status_distribution,
-                "issue_details":       details,
-            }
+            breakdown=breakdown
         )
 
     async def _simple_with_details(self, name: str, jql: str) -> WidgetResult:
@@ -432,9 +435,8 @@ class ReportCollector:
         jql = q.w12_sla()
         issues = await self._jira.get_issues(jql, max_results=500, fields=fields_str)
 
-        total_met = total_viol = 0
-        ir_met = ir_viol = 0
-        res_met = res_viol = 0
+        total_viol = 0
+        ir_viol = res_viol = 0
 
         for issue in issues:
             f = issue.get("fields") or {}
@@ -445,63 +447,47 @@ class ReportCollector:
             ir_breached  = self._is_sla_breached(ir_sla)
             res_breached = self._is_sla_breached(res_sla)
 
-            if ir_sla is not None:
-                if ir_breached:
-                    ir_viol += 1
-                else:
-                    ir_met += 1
+            if ir_sla is not None and ir_breached:
+                ir_viol += 1
 
-            if res_sla is not None:
-                if res_breached:
-                    res_viol += 1
-                else:
-                    res_met += 1
+            if res_sla is not None and res_breached:
+                res_viol += 1
 
-            violated = (ir_sla is not None and ir_breached) or (res_sla is not None and res_breached)
-            if violated:
+            if (ir_sla is not None and ir_breached) or (res_sla is not None and res_breached):
                 total_viol += 1
-            elif ir_sla is not None or res_sla is not None:
-                total_met += 1
-
-        grand_total = total_met + total_viol
-
-        ir_total  = ir_met  + ir_viol
-        res_total = res_met + res_viol
 
         violation_distribution: list[dict] = []
         if total_viol > 0:
             if ir_viol > 0:
                 violation_distribution.append({
-                    "stage":       "최초 응답 SLA",
-                    "field_id":    w15_fid,
-                    "count":       ir_viol,
-                    "rate":        round(ir_viol / total_viol * 100, 1),
+                    "stage":    "최초 응답 SLA",
+                    "field_id": w15_fid,
+                    "count":    ir_viol,
+                    "rate":     round(ir_viol / total_viol * 100, 1),
                 })
             if res_viol > 0:
                 violation_distribution.append({
-                    "stage":       "해결 시간 SLA",
-                    "field_id":    w16_fid,
-                    "count":       res_viol,
-                    "rate":        round(res_viol / total_viol * 100, 1),
+                    "stage":    "해결 시간 SLA",
+                    "field_id": w16_fid,
+                    "count":    res_viol,
+                    "rate":     round(res_viol / total_viol * 100, 1),
                 })
 
+        breakdown: dict[str, Any] = {
+            "최초_응답_위반": ir_viol,
+            "해결_시간_위반": res_viol,
+            "_violation_distribution": violation_distribution,
+        }
+
         logger.info(
-            f"[W12] 만족 {total_met}건 / 위반 {total_viol}건 "
-            f"(최초응답 위반 {ir_viol}/{ir_total} / 해결시간 위반 {res_viol}/{res_total})"
+            f"[W12] 위반 총 {total_viol}건 "
+            f"(최초응답 {ir_viol}건 / 해결시간 {res_viol}건)"
         )
         return WidgetResult(
             name="SLA 만족 vs 위반",
-            total=grand_total,
+            total=total_viol,
             jql=jql,
-            breakdown={
-                "SLA 만족":               total_met,
-                "SLA 위반":               total_viol,
-                "최초_응답_만족":          ir_met,
-                "최초_응답_위반":          ir_viol,
-                "해결_시간_만족":          res_met,
-                "해결_시간_위반":          res_viol,
-                "violation_distribution": violation_distribution,
-            }
+            breakdown=breakdown
         )
 
     @staticmethod
