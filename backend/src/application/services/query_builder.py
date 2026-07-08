@@ -32,6 +32,7 @@ class ResolvedQueries:
     def _thr(self) -> int:
         return self._c.sla_threshold_days
 
+    # w1: SLA 지연 이슈 (스냅쇷 + 상세)
     def w1_overdue(self) -> str:
         return (f"{self._base()} AND created <= \"-{self._thr()}d\" "
                 f"AND updated >= \"-7d\" AND status NOT IN ({self._closed()})")
@@ -48,73 +49,64 @@ class ResolvedQueries:
                 )
         return result
 
+    # w2: 이슈 리뷰 중
     def w2_issue_review(self) -> str:
         return (f"{self._base()} AND status = \"이슈 리뷰 중\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
+    # w3: 자료 요청 중
     def w3_data_request(self) -> str:
         return (f"{self._base()} AND status = \"자료 요청 중\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
-    def w13_result_pending(self) -> str:
-        return (f"{self._base()} AND status = \"결과 대기 중\" "
-                f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
-                f"AND status NOT IN ({self._closed()})")
-
-    def w4_lab_unassigned(self) -> str:
-        return (f"{self._base()} AND status = \"연구소 대기 중\" AND assignee IS EMPTY "
-                f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\"")
-
-    def w5_by_type(self) -> dict[str, str]:
-        result = {}
-        for itype in self._c.issue_types:
-            iq = f'"{itype}"' if " " in itype else itype
-            result[itype] = (f"project = {self._c.project_key} AND issuetype = {iq} "
-                             f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
-                             f"AND status NOT IN ({self._closed()})")
-        return result
-
-    def w6_by_status(self) -> dict[str, str]:
-        result = {}
-        for st in self._c.active_statuses:
-            result[st] = (f"{self._base()} AND created <= \"-{self._thr()}d\" "
-                          f"AND updated >= \"-7d\" AND status = \"{st}\"")
-        return result
-
-    def w7_sla_violated(self) -> str:
+    # w4: SLA 지연 사유 (by_status)
+    def w4_sla_violated(self) -> str:
         return (
             f"{self._base()} AND created <= \"-{self._thr()}d\" "
             f"AND status NOT IN ({self._closed()})"
         )
 
-    def w8_yearly_created(self) -> str:
+    # w5: 연도 누적 생성
+    def w5_yearly_created(self) -> str:
         return f"{self._base()} AND created >= \"{self._c.year_start}-01-01\""
 
-    def w9_yearly_resolved(self) -> str:
+    # w6: 연도 누적 해결
+    def w6_yearly_resolved(self) -> str:
         return f"{self._base()} AND resolved >= \"{self._c.year_start}-01-01\""
 
-    def w10_11_resolved(self) -> str:
+    # w7: 유형별 평균 처리일
+    def w7_resolution_resolved(self) -> str:
         return f"{self._base()} AND resolved >= \"-7d\" ORDER BY resolved DESC"
 
-    def w11_recent(self) -> str:
+    # w8: 최근 이슈 (활성 이슈 목록)
+    def w8_recent(self) -> str:
         return (
             f"{self._base()} AND status NOT IN ({self._closed()}) "
             f"ORDER BY created DESC"
         )
 
-    def w12_sla(self) -> str:
+    # w9: SLA 준수 vs 위반
+    def w9_sla(self) -> str:
         return (
             f"{self._base()} AND status NOT IN ({self._closed()}) "
             f"ORDER BY created ASC"
         )
 
-    def w14_created_vs_resolved(self) -> Tuple[str, str]:
+    # w10: 결과 대기 중
+    def w10_result_pending(self) -> str:
+        return (f"{self._base()} AND status = \"결과 대기 중\" "
+                f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
+                f"AND status NOT IN ({self._closed()})")
+
+    # w11: 주간 생성 vs 해결
+    def w11_created_vs_resolved(self) -> Tuple[str, str]:
         return (f"{self._base()} AND created >= \"-7d\"",
                 f"{self._base()} AND resolved >= \"-7d\"")
 
-    def w15_w16_monthly_candidates(self, year: int, month: int) -> str:
+    # w12 / w13: 월별 SLA (MonthlyCollector 사용)
+    def w12_w13_monthly_candidates(self, year: int, month: int) -> str:
         start = f"{year}-{month:02d}-01"
         if month == 12:
             end = f"{year + 1}-01-01"
