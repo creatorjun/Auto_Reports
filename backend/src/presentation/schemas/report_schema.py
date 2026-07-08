@@ -15,7 +15,7 @@ class WidgetResultSchema(BaseModel):
     name: str
     total: int
     jql: str = ""
-    breakdown: dict[str, Any] = {}
+    data: Optional[dict[str, Any]] = None
 
 
 class ReportSummarySchema(BaseModel):
