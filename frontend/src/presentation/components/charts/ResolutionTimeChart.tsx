@@ -9,6 +9,8 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts'
+import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
+import type { Payload } from 'recharts/types/component/DefaultTooltipContent'
 
 interface RecentIssue {
   key: string
@@ -34,6 +36,17 @@ const STATUS_COLORS: Record<string, string> = {
 
 function getColor(status: string): string {
   return STATUS_COLORS[status] ?? '#6b7280'
+}
+
+function tooltipFormatter(
+  value: ValueType,
+  _name: NameType,
+  item: Payload<ValueType, NameType>,
+): [string, string] {
+  const payload = item.payload as { summary?: string; status?: string } | undefined
+  const summary = payload?.summary ?? ''
+  const status  = payload?.status  ?? ''
+  return [`${value}일`, `${summary} [${status}]`]
 }
 
 export default function ResolutionTimeChart({ details }: Props) {
@@ -82,10 +95,7 @@ export default function ResolutionTimeChart({ details }: Props) {
               borderRadius: '8px',
               fontSize: '12px',
             }}
-            formatter={(value: number, _: string, entry: { payload: { summary: string; status: string } }) => [
-              `${value}일`,
-              `${entry.payload.summary} [${entry.payload.status}]`,
-            ]}
+            formatter={tooltipFormatter}
           />
           <Bar dataKey="elapsed_days" radius={[0, 4, 4, 0]} maxBarSize={16}>
             {chartData.map((entry) => (
