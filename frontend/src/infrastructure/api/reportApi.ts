@@ -13,6 +13,10 @@ export interface JobStatus {
   error: string | null
 }
 
+export interface AppConfig {
+  jira_base_url: string
+}
+
 export const reportApi = {
   getLatest: async (): Promise<ReportDetail | null> => {
     const res = await client.get<ReportDetail>('/reports/latest')
@@ -36,5 +40,9 @@ export const reportApi = {
   },
   delete: async (id: number): Promise<void> => {
     await client.delete(`/reports/${id}`)
-  }
+  },
+  getConfig: async (): Promise<AppConfig> => {
+    const res = await client.get<AppConfig>('/config')
+    return res.data
+  },
 }
