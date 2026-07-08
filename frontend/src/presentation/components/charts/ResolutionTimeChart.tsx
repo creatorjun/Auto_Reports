@@ -15,26 +15,29 @@ interface Props {
   details: RecentIssue[]
 }
 
-const STAGE_TOTAL = 8
+// 0=할일/재오픈, 1=자료요청중, 2=이슈리뷰중, 3=연구소대기중, 4=구현중, 5=배포파일검토중, 6=결과대기중
+const STAGE_TOTAL = 7
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  '이슈 리뷰 중':    { bg: 'bg-amber-500',   text: 'text-white' },
+  '할 일':            { bg: 'bg-gray-400',    text: 'text-white' },
+  '재오픈':           { bg: 'bg-gray-400',    text: 'text-white' },
   '자료 요청 중':    { bg: 'bg-blue-500',    text: 'text-white' },
-  '배포 파일 검토 중': { bg: 'bg-cyan-500',    text: 'text-white' },
+  '이슈 리뷰 중':    { bg: 'bg-amber-500',   text: 'text-white' },
+  '연구소 대기 중':   { bg: 'bg-purple-500',  text: 'text-white' },
+  '연구소 검토 중':   { bg: 'bg-violet-500',  text: 'text-white' },
+  '구현 중':         { bg: 'bg-green-500',   text: 'text-white' },
+  '배포 파일 검토 중':  { bg: 'bg-cyan-500',    text: 'text-white' },
   '결과 대기 중':    { bg: 'bg-red-500',     text: 'text-white' },
-  '연구소 대기 중': { bg: 'bg-purple-500',  text: 'text-white' },
-  '연구소 검토 중': { bg: 'bg-violet-500',  text: 'text-white' },
-  '구현 중':        { bg: 'bg-green-500',   text: 'text-white' },
 }
 
 const LEGEND = [
+  { label: '할 일 / 재오픈',   color: 'bg-gray-400' },
   { label: '자료 요청 중',    color: 'bg-blue-500' },
   { label: '이슈 리뷰 중',    color: 'bg-amber-500' },
+  { label: '연구소 대기/검토 중', color: 'bg-purple-500' },
+  { label: '구현 중',         color: 'bg-green-500' },
   { label: '배포 파일 검토 중', color: 'bg-cyan-500' },
   { label: '결과 대기 중',    color: 'bg-red-500' },
-  { label: '연구소 대기 중', color: 'bg-purple-500' },
-  { label: '연구소 검토 중', color: 'bg-violet-500' },
-  { label: '구현 중',        color: 'bg-green-500' },
 ]
 
 function getStatusStyle(status: string) {
@@ -48,7 +51,7 @@ function StageBar({ stageIndex }: { stageIndex: number }) {
         <div
           key={i}
           className={`h-[10px] w-[10px] rounded-[2px] ${
-            i < stageIndex ? 'bg-amber-400' : 'bg-gray-200 dark:bg-gray-700'
+            i <= stageIndex ? 'bg-amber-400' : 'bg-gray-200 dark:bg-gray-700'
           }`}
         />
       ))}
@@ -70,7 +73,6 @@ export default function ResolutionTimeChart({ details }: Props) {
 
   return (
     <div className="card">
-      {/* 헤더 */}
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-[13px] font-semibold text-apple-primary">
@@ -78,7 +80,6 @@ export default function ResolutionTimeChart({ details }: Props) {
             <span className="text-apple-light font-normal">(최신 {details.length}건)</span>
           </h3>
         </div>
-        {/* 범례 */}
         <div className="flex flex-wrap gap-x-3 gap-y-1 justify-end">
           {LEGEND.map((l) => (
             <span key={l.label} className="flex items-center gap-1 text-[11px] text-apple-light">
@@ -89,7 +90,6 @@ export default function ResolutionTimeChart({ details }: Props) {
         </div>
       </div>
 
-      {/* 테이블 */}
       <div className="overflow-x-auto">
         <table className="w-full text-[12px]">
           <tbody>
@@ -101,7 +101,6 @@ export default function ResolutionTimeChart({ details }: Props) {
                   key={issue.key}
                   className="border-b border-apple-divider last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                 >
-                  {/* 이슈 키 */}
                   <td className="py-2 pr-3 whitespace-nowrap">
                     <a
                       href={jiraUrl}
@@ -112,15 +111,12 @@ export default function ResolutionTimeChart({ details }: Props) {
                       {issue.key}
                     </a>
                   </td>
-                  {/* 제목 */}
                   <td className="py-2 pr-4 text-apple-primary max-w-[400px] truncate">
                     {issue.summary}
                   </td>
-                  {/* 단계 바 */}
                   <td className="py-2 pr-4">
                     <StageBar stageIndex={issue.stage_index} />
                   </td>
-                  {/* 상태 배지 */}
                   <td className="py-2 pr-3 whitespace-nowrap">
                     <span
                       className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${style.bg} ${style.text}`}
@@ -128,7 +124,6 @@ export default function ResolutionTimeChart({ details }: Props) {
                       {issue.status}
                     </span>
                   </td>
-                  {/* 경과일 */}
                   <td className="py-2 text-right text-apple-light whitespace-nowrap">
                     {issue.elapsed_days}일
                   </td>
