@@ -3,8 +3,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 
 const COLORS = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981']
 
-export default function TypeBarChart({ breakdown }: { breakdown: Record<string, { avg_days: number; count: number }> }) {
-  const data = Object.entries(breakdown).map(([name, d]) => ({ name, avg_days: d.avg_days, count: d.count }))
+interface ResolutionTypeEntry {
+  avg_days: number
+  avg_hours: number
+  count: number
+}
+
+export default function TypeBarChart({ byType }: { byType: Record<string, ResolutionTypeEntry> }) {
+  const data = Object.entries(byType).map(([name, d]) => ({ name, avg_days: d.avg_days, count: d.count }))
   if (!data.length) return null
   return (
     <div className="card">
@@ -24,7 +30,7 @@ export default function TypeBarChart({ breakdown }: { breakdown: Record<string, 
             payload={data.map((d, i) => ({ value: d.name, type: 'circle', color: COLORS[i % COLORS.length] }))}
             formatter={(value: string) => (
               <span style={{ fontSize: 11, color: '#86868b' }}>
-                {value.length > 10 ? value.slice(0, 10) + '…' : value}
+                {value.length > 10 ? value.slice(0, 10) + '\u2026' : value}
               </span>
             )}
           />

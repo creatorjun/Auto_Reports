@@ -9,7 +9,7 @@ export interface WidgetResult {
   name: string
   total: number
   jql: string
-  breakdown: Record<string, unknown>
+  data: Record<string, unknown> | null
 }
 
 export interface ReportSummary {

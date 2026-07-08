@@ -20,21 +20,17 @@ import DataRequestModal, { type DataRequestIssue } from '@/presentation/componen
 import ResultPendingModal, { type ResultPendingIssue } from '@/presentation/components/tables/ResultPendingModal'
 import type { ReportDetail } from '@/domain/Report'
 
-interface SlaMonthlyBreakdown {
-  monthly?: MonthlyEntry[]
-  error?: string
-}
-
+// ---------- 로컬 타입 ----------
 interface ViolationEntry {
   stage: string
   count: number
   rate: number
 }
 
-interface W12Breakdown {
-  '최초_응답_위반'?: number
-  '해결_시간_위반'?: number
-  _violation_distribution?: ViolationEntry[]
+interface W12Data {
+  initial_response_violations?: number
+  resolution_violations?: number
+  violation_distribution?: ViolationEntry[]
 }
 
 interface RecentIssue {
@@ -47,52 +43,80 @@ interface RecentIssue {
   elapsed_days: number
 }
 
+interface ResolutionTypeEntry {
+  avg_days: number
+  avg_hours: number
+  count: number
+}
+
+// ---------- 헬퍼: data 필드를 안전하게 꺼내는 유틸 ----------
+function getData<T>(widget: { data: Record<string, unknown> | null } | undefined): T | null {
+  return (widget?.data ?? null) as T | null
+}
+
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
-  const [showWeeklyCreated, setShowWeeklyCreated]   = useState(false)
+  const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
-  const [showIssueReview, setShowIssueReview]       = useState(false)
-  const [showDataRequest, setShowDataRequest]       = useState(false)
-  const [showResultPending, setShowResultPending]   = useState(false)
+  const [showIssueReview,    setShowIssueReview]    = useState(false)
+  const [showDataRequest,    setShowDataRequest]    = useState(false)
+  const [showResultPending,  setShowResultPending]  = useState(false)
 
   useEffect(() => {
     setCurrentReport(report)
     return () => setCurrentReport(null)
   }, [report, setCurrentReport])
 
-  const w      = report.widgets
-  const w12    = (w.w12?.breakdown ?? {}) as W12Breakdown
-  const w7     = w.w7?.breakdown  as Record<string, number> ?? {}
-  const w10    = w.w10?.breakdown as Record<string, { avg_days: number; count: number }> ?? {}
-  const w11    = w.w11?.breakdown as Record<string, unknown> ?? {}
-  const w14    = w.w14?.breakdown as Record<string, unknown> ?? {}
-  const w15    = (w.w15?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
-  const w16    = (w.w16?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
+  const w = report.widgets
 
-  const recentIssues = (w11.issue_details ?? []) as RecentIssue[]
+  // ── w7 : SLA 지연 사유 (SlaDelayWidgetData) ──────────────────────────
+  const w7Data      = getData<{ by_status: Record<string, number> }>(w.w7)
+  const w7ByStatus  = w7Data?.by_status ?? {}
 
-  const w2Breakdown         = w.w2?.breakdown  as Record<string, unknown> ?? {}
-  const w3Breakdown         = w.w3?.breakdown  as Record<string, unknown> ?? {}
-  const w13Breakdown        = w.w13?.breakdown as Record<string, unknown> ?? {}
-  const reviewIssues        = (w2Breakdown.issue_details  ?? []) as ReviewIssue[]
-  const dataRequestIssues   = (w3Breakdown.issue_details  ?? []) as DataRequestIssue[]
-  const resultPendingIssues = (w13Breakdown.issue_details ?? []) as ResultPendingIssue[]
-  const weeklyCreated       = (w14.created_details  ?? []) as CreatedIssue[]
-  const weeklyResolved      = (w14.resolved_details ?? []) as ResolvedIssue[]
-  const w14Created          = (w14['생성'] ?? 0) as number
-  const w14Resolved         = (w14['해결'] ?? 0) as number
+  // ── w10 : 유형별 평균 처리일 (ResolutionTypeWidgetData) ───────────────
+  const w10Data   = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w.w10)
+  const w10ByType = w10Data?.by_type ?? {}
 
-  const w15Monthly = w15.monthly ?? []
-  const w16Monthly = w16.monthly ?? []
-  const hasW15 = w15Monthly.some((e) => e.total > 0)
-  const hasW16 = w16Monthly.some((e) => e.total > 0)
+  // ── w11 : 최근 이슈 (RecentIssueWidgetData) ───────────────────────────
+  const w11Data      = getData<{ issue_details: RecentIssue[] }>(w.w11)
+  const recentIssues = w11Data?.issue_details ?? []
 
+  // ── w12 : SLA 준수 vs 위반 (SlaMetVsViolatedWidgetData) ──────────────
+  const w12Data         = getData<W12Data>(w.w12)
   const w12Total        = w.w12?.total ?? 0
-  const w12Distribution = w12._violation_distribution ?? []
+  const w12Distribution = w12Data?.violation_distribution ?? []
 
-  // W1 IssueDetailTable 용 details (breakdown.issue_details)
-  const w1Breakdown = w.w1?.breakdown as Record<string, unknown> ?? {}
-  const w1Details   = (w1Breakdown.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
+  // ── w14 : 주간 생성/해결 (CreatedVsResolvedWidgetData) ────────────────
+  const w14Data     = getData<{
+    created: number
+    resolved: number
+    created_details: CreatedIssue[]
+    resolved_details: ResolvedIssue[]
+  }>(w.w14)
+  const w14Created       = w14Data?.created          ?? 0
+  const w14Resolved      = w14Data?.resolved         ?? 0
+  const weeklyCreated    = w14Data?.created_details  ?? []
+  const weeklyResolved   = w14Data?.resolved_details ?? []
+
+  // ── w15 / w16 : 월별 SLA (SlaMonthlyWidgetData) ───────────────────────
+  const w15Data    = getData<{ monthly: MonthlyEntry[] }>(w.w15)
+  const w16Data    = getData<{ monthly: MonthlyEntry[] }>(w.w16)
+  const w15Monthly = w15Data?.monthly ?? []
+  const w16Monthly = w16Data?.monthly ?? []
+  const hasW15     = w15Monthly.some((e) => e.total > 0)
+  const hasW16     = w16Monthly.some((e) => e.total > 0)
+
+  // ── w1 : 지연 이슈 상세 (OverdueWidgetData) ───────────────────────────
+  const w1Data    = getData<{ issue_details: Parameters<typeof IssueDetailTable>[0]['details'] }>(w.w1)
+  const w1Details = w1Data?.issue_details ?? []
+
+  // ── 모달용 이슈 목록 ─────────────────────────────────────────────────
+  const w2Data              = getData<{ issue_details: ReviewIssue[] }>(w.w2)
+  const w3Data              = getData<{ issue_details: DataRequestIssue[] }>(w.w3)
+  const w13Data             = getData<{ issue_details: ResultPendingIssue[] }>(w.w13)
+  const reviewIssues        = w2Data?.issue_details  ?? []
+  const dataRequestIssues   = w3Data?.issue_details  ?? []
+  const resultPendingIssues = w13Data?.issue_details ?? []
 
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
@@ -134,7 +158,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         />
       </div>
 
-      {/* 모달들 */}
+      {/* 모달 */}
       {showWeeklyCreated && (
         <WeeklyCreatedModal
           issues={weeklyCreated}
@@ -192,7 +216,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       {/* 차트 행 1 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 3xl:gap-5">
         <SlaDonutChart total={w12Total} distribution={w12Distribution} />
-        <ReasonPieChart breakdown={w7} />
+        <ReasonPieChart byStatus={w7ByStatus} />
         <div className="sm:col-span-2 md:col-span-1">
           <TrendLineChart created={w14Created} resolved={w14Resolved} />
         </div>
@@ -200,7 +224,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
       {/* 차트 행 2 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
-        <TypeBarChart breakdown={w10} />
+        <TypeBarChart byType={w10ByType} />
         <ResolutionTimeChart details={recentIssues} />
       </div>
 
@@ -227,7 +251,7 @@ export default function DashboardPage() {
   if (error)     return <div className="card text-[13px] text-red-500">데이터를 불러올 수 없습니다.</div>
   if (!data)     return (
     <div className="card text-[13px] text-apple-light text-center py-16">
-      생성된 보고서가 없습니다. <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 놀러주세요.
+      생성된 보고서가 없습니다. <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 눌러주세요.
     </div>
   )
 

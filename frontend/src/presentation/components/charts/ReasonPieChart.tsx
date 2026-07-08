@@ -48,8 +48,8 @@ function CustomTooltip({
   )
 }
 
-export default function ReasonPieChart({ breakdown }: { breakdown: Record<string, number> }) {
-  const data = Object.entries(breakdown)
+export default function ReasonPieChart({ byStatus }: { byStatus: Record<string, number> }) {
+  const data = Object.entries(byStatus)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
 
@@ -82,7 +82,7 @@ export default function ReasonPieChart({ breakdown }: { breakdown: Record<string
             iconSize={7}
             formatter={(value: string) => (
               <span style={{ fontSize: 11, color: '#86868b' }}>
-                {value.length > 10 ? value.slice(0, 10) + '…' : value}
+                {value.length > 10 ? value.slice(0, 10) + '\u2026' : value}
               </span>
             )}
           />
