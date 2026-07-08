@@ -74,6 +74,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
       {/* 요약 카드 */}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
+        <SummaryCard label="2026 생성" value={w.w8?.total ?? 0} color="gray" />
+        <SummaryCard label="2026 해결" value={w.w9?.total ?? 0} color="gray" />
         <SummaryCard
           label="이번 주 생성"
           value={w14Created}
@@ -86,8 +88,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           color="green"
           onClick={() => setShowWeeklyResolved(true)}
         />
-        <SummaryCard label="2026 생성" value={w.w8?.total ?? 0} color="gray" />
-        <SummaryCard label="2026 해결" value={w.w9?.total ?? 0} color="gray" />
         <SummaryCard
           label="SLA 초과"
           value={w.w1?.total ?? 0}
