@@ -13,7 +13,6 @@ import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTime
 import TrendLineChart from '@/presentation/components/charts/TrendLineChart'
 import SlaMonthlyLineChart, { type MonthlyEntry } from '@/presentation/components/charts/SlaMonthlyLineChart'
 import IssueDetailTable from '@/presentation/components/tables/IssueDetailTable'
-import SlaOverdueModal, { type OverdueIssue } from '@/presentation/components/tables/SlaOverdueModal'
 import WeeklyCreatedModal, { type CreatedIssue } from '@/presentation/components/tables/WeeklyCreatedModal'
 import WeeklyResolvedModal, { type ResolvedIssue } from '@/presentation/components/tables/WeeklyResolvedModal'
 import IssueReviewModal, { type ReviewIssue } from '@/presentation/components/tables/IssueReviewModal'
@@ -33,14 +32,13 @@ interface ViolationEntry {
 }
 
 interface W12Breakdown {
-  '\ucd5c\ucd08_\uc751\ub2f5_\uc704\ubc18'?: number
-  '\ud574\uacb0_\uc2dc\uac04_\uc704\ubc18'?: number
+  '최초_응답_위반'?: number
+  '해결_시간_위반'?: number
   _violation_distribution?: ViolationEntry[]
 }
 
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
-  const [showOverdue, setShowOverdue]               = useState(false)
   const [showWeeklyCreated, setShowWeeklyCreated]   = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
   const [showIssueReview, setShowIssueReview]       = useState(false)
@@ -62,18 +60,16 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w16    = (w.w16?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
   const details = (w11.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
 
-  const w1Breakdown         = w.w1?.breakdown  as Record<string, unknown> ?? {}
   const w2Breakdown         = w.w2?.breakdown  as Record<string, unknown> ?? {}
   const w3Breakdown         = w.w3?.breakdown  as Record<string, unknown> ?? {}
   const w13Breakdown        = w.w13?.breakdown as Record<string, unknown> ?? {}
-  const overdueIssues       = (w1Breakdown.issue_details  ?? []) as OverdueIssue[]
   const reviewIssues        = (w2Breakdown.issue_details  ?? []) as ReviewIssue[]
   const dataRequestIssues   = (w3Breakdown.issue_details  ?? []) as DataRequestIssue[]
   const resultPendingIssues = (w13Breakdown.issue_details ?? []) as ResultPendingIssue[]
   const weeklyCreated       = (w14.created_details  ?? []) as CreatedIssue[]
   const weeklyResolved      = (w14.resolved_details ?? []) as ResolvedIssue[]
-  const w14Created          = (w14['\uc0dd\uc131'] ?? 0) as number
-  const w14Resolved         = (w14['\ud574\uacb0'] ?? 0) as number
+  const w14Created          = (w14['생성'] ?? 0) as number
+  const w14Resolved         = (w14['해결'] ?? 0) as number
 
   const w15Monthly = w15.monthly ?? []
   const w16Monthly = w16.monthly ?? []
@@ -88,7 +84,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
 
       {/* 요약 카드 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-7 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label="2026 생성" value={w.w8?.total ?? 0} color="gray" />
         <SummaryCard label="2026 해결" value={w.w9?.total ?? 0} color="gray" />
         <SummaryCard
@@ -102,13 +98,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           value={w14Resolved}
           color="green"
           onClick={() => setShowWeeklyResolved(true)}
-        />
-        <SummaryCard
-          label="SLA 초과"
-          value={w.w1?.total ?? 0}
-          sub="30일 미해결"
-          color="red"
-          onClick={() => setShowOverdue(true)}
         />
         <SummaryCard
           label="이슈 리뷰 중"
@@ -131,13 +120,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       </div>
 
       {/* 모달들 */}
-      {showOverdue && (
-        <SlaOverdueModal
-          issues={overdueIssues}
-          total={w.w1?.total ?? 0}
-          onClose={() => setShowOverdue(false)}
-        />
-      )}
       {showWeeklyCreated && (
         <WeeklyCreatedModal
           issues={weeklyCreated}
@@ -230,7 +212,7 @@ export default function DashboardPage() {
   if (error)     return <div className="card text-[13px] text-red-500">데이터를 불러올 수 없습니다.</div>
   if (!data)     return (
     <div className="card text-[13px] text-apple-light text-center py-16">
-      생성된 보고서가 없습니다. <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 눌러주세요.
+      생성된 보고서가 없습니다. <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 놀러주세요.
     </div>
   )
 
