@@ -15,7 +15,6 @@ interface Props {
   details: RecentIssue[]
 }
 
-// 0=할일/재오픈, 1=자료요청중, 2=이슈리뷰중, 3=연구소대기중, 4=구현중, 5=배포파일검토중, 6=결과대기중
 const STAGE_TOTAL = 7
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
@@ -75,14 +74,14 @@ export default function ResolutionTimeChart({ details }: Props) {
     <div className="card">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-[13px] font-semibold text-apple-primary">
+          <h3 className="text-[14px] font-semibold text-apple-primary">
             📌 최근 이슈 현황{' '}
             <span className="text-apple-light font-normal">(최신 {details.length}건)</span>
           </h3>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 justify-end">
           {LEGEND.map((l) => (
-            <span key={l.label} className="flex items-center gap-1 text-[11px] text-apple-light">
+            <span key={l.label} className="flex items-center gap-1 text-[12px] text-apple-light">
               <span className={`inline-block w-2 h-2 rounded-full ${l.color}`} />
               {l.label}
             </span>
@@ -91,7 +90,7 @@ export default function ResolutionTimeChart({ details }: Props) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-[12px]">
+        <table className="w-full text-[13px]">
           <tbody>
             {details.map((issue) => {
               const style = getStatusStyle(issue.status)
@@ -102,7 +101,7 @@ export default function ResolutionTimeChart({ details }: Props) {
                   onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
                   className="border-b border-apple-divider last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
                 >
-                  <td className="py-2 pr-3 whitespace-nowrap font-mono text-[11px] text-blue-500">
+                  <td className="py-2 pr-3 whitespace-nowrap font-mono text-[12px] text-blue-500">
                     {issue.key}
                   </td>
                   <td className="py-2 pr-4 text-apple-primary max-w-[400px] truncate">
@@ -113,7 +112,7 @@ export default function ResolutionTimeChart({ details }: Props) {
                   </td>
                   <td className="py-2 pr-3 whitespace-nowrap">
                     <span
-                      className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${style.bg} ${style.text}`}
+                      className={`inline-block px-2 py-0.5 rounded-full text-[12px] font-medium ${style.bg} ${style.text}`}
                     >
                       {issue.status}
                     </span>
