@@ -9,7 +9,6 @@ import AiSummaryCard from '@/presentation/components/cards/AiSummaryCard'
 import SlaDonutChart from '@/presentation/components/charts/SlaDonutChart'
 import ReasonPieChart from '@/presentation/components/charts/ReasonPieChart'
 import TypeBarChart from '@/presentation/components/charts/TypeBarChart'
-import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTimeChart'
 import TrendLineChart from '@/presentation/components/charts/TrendLineChart'
 import SlaMonthlyLineChart, { type MonthlyEntry } from '@/presentation/components/charts/SlaMonthlyLineChart'
 import IssueDetailTable from '@/presentation/components/tables/IssueDetailTable'
@@ -30,16 +29,6 @@ interface W9Data {
   initial_response_violations?: number
   resolution_violations?: number
   violation_distribution?: ViolationEntry[]
-}
-
-interface RecentIssue {
-  key: string
-  summary: string
-  type: string
-  status: string
-  stage_index: number
-  created: string
-  elapsed_days: number
 }
 
 interface ResolutionTypeEntry {
@@ -100,13 +89,9 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w11Data   = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w.w11)
   const w11ByType = w11Data?.by_type ?? {}
 
-  // w12: 최근 활성 이슈
-  const w12Data      = getData<{ issue_details: RecentIssue[] }>(w.w12)
-  const recentIssues = w12Data?.issue_details ?? []
-
-  // w13: SLA 초과 지연 이슈 테이블
-  const w13Data    = getData<{ issue_details: Parameters<typeof IssueDetailTable>[0]['details'] }>(w.w13)
-  const w13Details = w13Data?.issue_details ?? []
+  // w12: SLA 초과 지연 이슈 테이블
+  const w12Data    = getData<{ issue_details: Parameters<typeof IssueDetailTable>[0]['details'] }>(w.w12)
+  const w12Details = w12Data?.issue_details ?? []
 
   // 모달용 이슈 목록
   const w4Data              = getData<{ issue_details: ReviewIssue[] }>(w.w4)
@@ -189,11 +174,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <TypeBarChart byType={w11ByType} />
       </div>
 
-      {/* w12: 최근 이슈 현황 — 전체 폭 */}
-      <ResolutionTimeChart details={recentIssues} />
-
-      {/* w13: SLA 초과 지연 이슈 테이블 */}
-      <IssueDetailTable details={w13Details} />
+      {/* w12: SLA 초과 지연 이슈 테이블 */}
+      <IssueDetailTable details={w12Details} />
 
       <div className="flex justify-end">
         <p className="text-[11px] 3xl:text-[12px] text-apple-light tabular-nums">

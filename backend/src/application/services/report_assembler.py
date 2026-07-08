@@ -13,7 +13,6 @@ from src.application.widgets.count_collector import (
 from src.application.widgets.created_vs_resolved_collector import CreatedVsResolvedCollector
 from src.application.widgets.monthly_collector import MonthlyCollector
 from src.application.widgets.overdue_collector import OverdueCollector
-from src.application.widgets.recent_collector import RecentCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
 from src.application.widgets.sla_delay_collector import SlaDelayCollector
 from src.domain.entities.report import NewReport
@@ -71,9 +70,7 @@ class ReportAssembler:
             (WidgetId.SLA_DELAY_REASON,    SlaDelayCollector(self._jira, q, self._sla_threshold_days)),
             # w11: 유형별 평균 처리일
             (WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(self._jira, q)),
-            # w12: 최근 활성 이슈
-            (WidgetId.RESOLUTION_REPORT,   RecentCollector(self._jira, q)),
-            # w13: SLA 초과 지연 이슈 상세
+            # w12: SLA 초과 지연 이슈 상세
             (WidgetId.OVERDUE_ISSUES,      OverdueCollector(self._jira, q, self._sla_threshold_days)),
         ]
 

@@ -7,7 +7,6 @@ from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import (
     CreatedVsResolvedWidgetData,
     OverdueWidgetData,
-    RecentIssueWidgetData,
     ResolutionTypeWidgetData,
     SimpleIssueWidgetData,
     SlaDelayWidgetData,
@@ -17,7 +16,7 @@ from src.domain.entities.widget_data import (
 from src.domain.value_objects.widget_id import WidgetId
 
 _WIDGET_DATA_TYPE_MAP: dict[str, type] = {
-    WidgetId.YEARLY_CREATED:         None,            # SimpleCountCollector — data=None
+    WidgetId.YEARLY_CREATED:         None,
     WidgetId.YEARLY_RESOLVED:        None,
     WidgetId.CREATED_VS_RESOLVED:    CreatedVsResolvedWidgetData,
     WidgetId.ISSUE_REVIEW:           SimpleIssueWidgetData,
@@ -28,7 +27,6 @@ _WIDGET_DATA_TYPE_MAP: dict[str, type] = {
     WidgetId.SLA_MET_VS_VIOLATED:    SlaMetVsViolatedWidgetData,
     WidgetId.SLA_DELAY_REASON:       SlaDelayWidgetData,
     WidgetId.AVG_RESOLUTION_TYPE:    ResolutionTypeWidgetData,
-    WidgetId.RESOLUTION_REPORT:      RecentIssueWidgetData,
     WidgetId.OVERDUE_ISSUES:         OverdueWidgetData,
 }
 

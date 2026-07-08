@@ -98,21 +98,14 @@ class ResolvedQueries:
     def w11_resolution_resolved(self) -> str:
         return f"{self._base()} AND resolved >= \"-7d\" ORDER BY resolved DESC"
 
-    # w12: 최근 활성 이슈
-    def w12_recent(self) -> str:
-        return (
-            f"{self._base()} AND status NOT IN ({self._closed()}) "
-            f"ORDER BY created DESC"
-        )
-
-    # w13: SLA 초과 지연 이슈 상세
-    def w13_overdue(self) -> str:
+    # w12: SLA 초과 지연 이슈 상세
+    def w12_overdue(self) -> str:
         return (
             f"{self._base()} AND created <= \"-{self._thr()}d\" "
             f"AND updated >= \"-7d\" AND status NOT IN ({self._closed()})"
         )
 
-    def w13_by_type_status(self) -> dict[str, dict[str, str]]:
+    def w12_by_type_status(self) -> dict[str, dict[str, str]]:
         result = {}
         for itype in self._c.issue_types:
             iq = f'"{itype}"' if " " in itype else itype
