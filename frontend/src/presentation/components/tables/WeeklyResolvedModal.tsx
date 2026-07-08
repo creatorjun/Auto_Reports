@@ -59,7 +59,9 @@ export default function WeeklyResolvedModal({ issues, total, onClose }: Props) {
                     <td className="py-2.5 pr-4 text-[12px] font-mono font-medium text-brand-600 whitespace-nowrap">{d.key}</td>
                     <td className="py-2.5 text-[12px] text-apple-dark/80 max-w-xs truncate pr-4">{d.summary}</td>
                     <td className="py-2.5 text-[12px] text-apple-light whitespace-nowrap pr-4">{d.type}</td>
-                    <td className="py-2.5 text-[12px] text-apple-light tabular-nums whitespace-nowrap">{d.resolved}</td>
+                    <td className="py-2.5 text-[12px] text-apple-light tabular-nums whitespace-nowrap">
+                      {d.resolved || '—'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -75,7 +77,7 @@ export default function WeeklyResolvedModal({ issues, total, onClose }: Props) {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-mono font-medium text-brand-600">{d.key}</span>
-                  <span className="text-[11px] text-apple-light tabular-nums">{d.resolved}</span>
+                  <span className="text-[11px] text-apple-light tabular-nums">{d.resolved || '—'}</span>
                 </div>
                 <p className="text-[12px] text-apple-dark/80 leading-snug">{d.summary}</p>
                 <span className="text-[11px] text-apple-light">{d.type}</span>

@@ -105,6 +105,7 @@ class CreatedResolvedIssueDetail:
     key: str
     summary: str
     type: str
+    status: str   # 현재 상태 포함
     created: str
 
 
@@ -113,7 +114,7 @@ class ResolvedIssueDetail:
     key: str
     summary: str
     type: str
-    resolved: str
+    resolved: str  # 해결 일시
 
 
 @dataclass
