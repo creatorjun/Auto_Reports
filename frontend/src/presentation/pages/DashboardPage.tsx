@@ -37,6 +37,16 @@ interface W12Breakdown {
   _violation_distribution?: ViolationEntry[]
 }
 
+interface RecentIssue {
+  key: string
+  summary: string
+  type: string
+  status: string
+  stage_index: number
+  created: string
+  elapsed_days: number
+}
+
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
   const [showWeeklyCreated, setShowWeeklyCreated]   = useState(false)
@@ -58,7 +68,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w14    = w.w14?.breakdown as Record<string, unknown> ?? {}
   const w15    = (w.w15?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
   const w16    = (w.w16?.breakdown ?? {}) as unknown as SlaMonthlyBreakdown
-  const details = (w11.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
+
+  const recentIssues = (w11.issue_details ?? []) as RecentIssue[]
 
   const w2Breakdown         = w.w2?.breakdown  as Record<string, unknown> ?? {}
   const w3Breakdown         = w.w3?.breakdown  as Record<string, unknown> ?? {}
@@ -78,6 +89,10 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   const w12Total        = w.w12?.total ?? 0
   const w12Distribution = w12._violation_distribution ?? []
+
+  // W1 IssueDetailTable 용 details (breakdown.issue_details)
+  const w1Breakdown = w.w1?.breakdown as Record<string, unknown> ?? {}
+  const w1Details   = (w1Breakdown.issue_details ?? []) as Parameters<typeof IssueDetailTable>[0]['details']
 
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
@@ -186,10 +201,10 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       {/* 차트 행 2 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
         <TypeBarChart breakdown={w10} />
-        <ResolutionTimeChart details={details} />
+        <ResolutionTimeChart details={recentIssues} />
       </div>
 
-      <IssueDetailTable details={details} />
+      <IssueDetailTable details={w1Details} />
 
       <div className="flex justify-end">
         <p className="text-[11px] 3xl:text-[12px] text-apple-light tabular-nums">
