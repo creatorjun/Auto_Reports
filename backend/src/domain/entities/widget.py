@@ -1,12 +1,14 @@
 # backend/src/domain/entities/widget.py
+from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Generic, TypeVar
+
+T = TypeVar("T")
 
 
 @dataclass
-class WidgetResult:
+class WidgetResult(Generic[T]):
     name: str
     total: int
     jql: str = ""
-    breakdown: dict[str, Any] = field(default_factory=dict)
-    issues: list[dict] = field(default_factory=list)
+    data: T | None = None
