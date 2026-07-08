@@ -10,6 +10,20 @@ from src.domain.ports.jira_port import JiraPort
 
 logger = logging.getLogger(__name__)
 
+# 상태명 → 단계(칸 갯수) 매핑
+# 전체 8칸 기준: 0 = 할 일, 1 = 이슈 리뷰 중, ..., 7 = 구현 수락
+_STAGE_MAP: dict[str, int] = {
+    "할 일":           0,
+    "이슈 리뷰 중":   1,
+    "자료 요청 중":   2,
+    "결과 대기 중":   3,
+    "연구소 대기 중":  4,
+    "연구소 검토 중":  5,
+    "배포 파일 검토 중": 6,
+    "구현 중":        7,
+    "구현 완료":      8,
+}
+
 
 class RecentCollector(AbstractWidgetCollector):
     """w13: 최근 활성 이슈 목록 (최신 50건)."""
@@ -25,9 +39,10 @@ class RecentCollector(AbstractWidgetCollector):
         )
         now_ts = datetime.now()
         issue_details = []
-        for idx, issue in enumerate(issues):
+        for issue in issues:
             fields = issue.get("fields") or {}
             created = fields.get("created", "")
+            status_name = (fields.get("status") or {}).get("name", "기타")
             elapsed_days = (
                 (now_ts - datetime.fromisoformat(created[:19])).days if created else 0
             )
@@ -36,8 +51,8 @@ class RecentCollector(AbstractWidgetCollector):
                     key=issue.get("key", ""),
                     summary=(fields.get("summary") or "")[:60],
                     type=(fields.get("issuetype") or {}).get("name", "기타"),
-                    status=(fields.get("status") or {}).get("name", "기타"),
-                    stage_index=idx,
+                    status=status_name,
+                    stage_index=_STAGE_MAP.get(status_name, 0),
                     created=created[:16].replace("T", " "),
                     elapsed_days=elapsed_days,
                 )
