@@ -55,8 +55,6 @@ export default function ReasonPieChart({ breakdown }: { breakdown: Record<string
 
   if (!data.length) return null
 
-  const total = data.reduce((sum, d) => sum + d.value, 0)
-
   return (
     <div className="card flex flex-col">
       <h3 className="text-sm font-semibold text-apple-dark mb-3">🥧 SLA 지연 사유</h3>
