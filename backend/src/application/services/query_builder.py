@@ -49,22 +49,22 @@ class ResolvedQueries:
         return result
 
     def w2_issue_review(self) -> str:
-        return (f"{self._base()} AND status = \"이슈 리뷰 중\" "
+        return (f"{self._base()} AND status = \"\uc774\uc288 \ub9ac\ubdf0 \uc911\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
     def w3_data_request(self) -> str:
-        return (f"{self._base()} AND status = \"자료 요청 중\" "
+        return (f"{self._base()} AND status = \"\uc790\ub8cc \uc694\uccad \uc911\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
     def w13_result_pending(self) -> str:
-        return (f"{self._base()} AND status = \"결과 대기 중\" "
+        return (f"{self._base()} AND status = \"\uacb0\uacfc \ub300\uae30 \uc911\" "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
                 f"AND status NOT IN ({self._closed()})")
 
     def w4_lab_unassigned(self) -> str:
-        return (f"{self._base()} AND status = \"연구소 대기 중\" AND assignee IS EMPTY "
+        return (f"{self._base()} AND status = \"\uc5f0\uad6c\uc18c \ub300\uae30 \uc911\" AND assignee IS EMPTY "
                 f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\"")
 
     def w5_by_type(self) -> dict[str, str]:
@@ -97,6 +97,12 @@ class ResolvedQueries:
 
     def w10_11_resolved(self) -> str:
         return f"{self._base()} AND resolved >= \"-7d\" ORDER BY resolved DESC"
+
+    def w11_recent(self) -> str:
+        return (
+            f"{self._base()} AND status NOT IN ({self._closed()}) "
+            f"ORDER BY created DESC"
+        )
 
     def w12_sla(self) -> str:
         return (
