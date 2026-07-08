@@ -1,12 +1,10 @@
 # backend/src/infrastructure/persistence/widget_serializer.py
-"""WidgetResult 직렬화/역직렬화 전담 모듈."""
 import dataclasses
 from typing import Any
 
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import (
     CreatedVsResolvedWidgetData,
-    OverdueWidgetData,
     RecentIssueWidgetData,
     ResolutionTypeWidgetData,
     SimpleIssueWidgetData,
@@ -28,7 +26,6 @@ _WIDGET_DATA_TYPE_MAP: dict[str, type] = {
     WidgetId.SLA_MET_VS_VIOLATED:    SlaMetVsViolatedWidgetData,
     WidgetId.SLA_DELAY_REASON:       SlaDelayWidgetData,
     WidgetId.AVG_RESOLUTION_TYPE:    ResolutionTypeWidgetData,
-    WidgetId.OVERDUE_ISSUES:         OverdueWidgetData,
     WidgetId.RECENT_ISSUES:          RecentIssueWidgetData,
 }
 

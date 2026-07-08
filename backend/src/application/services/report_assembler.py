@@ -12,7 +12,6 @@ from src.application.widgets.count_collector import (
 )
 from src.application.widgets.created_vs_resolved_collector import CreatedVsResolvedCollector
 from src.application.widgets.monthly_collector import MonthlyCollector
-from src.application.widgets.overdue_collector import OverdueCollector
 from src.application.widgets.recent_collector import RecentCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
 from src.application.widgets.sla_delay_collector import SlaDelayCollector
@@ -62,7 +61,6 @@ class ReportAssembler:
             ),
             (WidgetId.SLA_DELAY_REASON,    SlaDelayCollector(self._jira, q, self._sla_threshold_days)),
             (WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(self._jira, q)),
-            (WidgetId.OVERDUE_ISSUES,      OverdueCollector(self._jira, q, self._sla_threshold_days)),
             (WidgetId.RECENT_ISSUES,       RecentCollector(self._jira, q)),
         ]
 

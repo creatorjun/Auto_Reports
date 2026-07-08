@@ -12,7 +12,6 @@ import TypeBarChart from '@/presentation/components/charts/TypeBarChart'
 import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTimeChart'
 import TrendLineChart from '@/presentation/components/charts/TrendLineChart'
 import SlaMonthlyLineChart, { type MonthlyEntry } from '@/presentation/components/charts/SlaMonthlyLineChart'
-import IssueDetailTable from '@/presentation/components/tables/IssueDetailTable'
 import WeeklyCreatedModal, { type CreatedIssue } from '@/presentation/components/tables/WeeklyCreatedModal'
 import WeeklyResolvedModal, { type ResolvedIssue } from '@/presentation/components/tables/WeeklyResolvedModal'
 import IssueReviewModal, { type ReviewIssue } from '@/presentation/components/tables/IssueReviewModal'
@@ -100,13 +99,9 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w11Data   = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w.w11)
   const w11ByType = w11Data?.by_type ?? {}
 
-  // w12: SLA 초과 지연 이슈 테이블
-  const w12Data    = getData<{ issue_details: Parameters<typeof IssueDetailTable>[0]['details'] }>(w.w12)
-  const w12Details = w12Data?.issue_details ?? []
-
-  // w13: 최근 활성 이슈
-  const w13Data      = getData<{ issue_details: RecentIssue[] }>(w.w13)
-  const recentIssues = w13Data?.issue_details ?? []
+  // w12: 최근 활성 이슈
+  const w12Data      = getData<{ issue_details: RecentIssue[] }>(w.w12)
+  const recentIssues = w12Data?.issue_details ?? []
 
   // 모달용 이슈 목록
   const w4Data              = getData<{ issue_details: ReviewIssue[] }>(w.w4)
@@ -181,7 +176,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         </div>
       )}
 
-      {/* w9 / w10 / w3트렌드 / w11: 차트 행 (4단) */}
+      {/* w9 / w10 / w3트렌드 / w11: 차트 행 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
         <SlaDonutChart total={w9Total} distribution={w9Distribution} />
         <ReasonPieChart byStatus={w10ByStatus} />
@@ -189,10 +184,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <TypeBarChart byType={w11ByType} />
       </div>
 
-      {/* w12: SLA 초과 지연 이슈 테이블 */}
-      <IssueDetailTable details={w12Details} />
-
-      {/* w13: 최근 이슈 현황 — 전체 폭 */}
+      {/* w12: 최근 이슈 현황 */}
       <ResolutionTimeChart details={recentIssues} />
 
       <div className="flex justify-end">

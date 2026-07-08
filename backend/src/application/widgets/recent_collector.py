@@ -10,8 +10,6 @@ from src.domain.ports.jira_port import JiraPort
 
 logger = logging.getLogger(__name__)
 
-# 상태명 → 단계(칸 갯수) 매핑
-# 전체 8칸 기준: 0 = 할 일, 1 = 이슈 리뷰 중, ..., 7 = 구현 수락
 _STAGE_MAP: dict[str, int] = {
     "할 일":           0,
     "이슈 리뷰 중":   1,
@@ -26,14 +24,14 @@ _STAGE_MAP: dict[str, int] = {
 
 
 class RecentCollector(AbstractWidgetCollector):
-    """w13: 최근 활성 이슈 목록 (최신 50건)."""
+    """w12: 최근 활성 이슈 목록 (최신 50건)."""
 
     def __init__(self, jira: JiraPort, q: ResolvedQueries):
         self._jira = jira
         self._q = q
 
     async def collect(self) -> WidgetResult[RecentIssueWidgetData]:
-        jql = self._q.w13_recent()
+        jql = self._q.w12_recent()
         issues = await self._jira.get_issues(
             jql, max_results=50, fields="summary,issuetype,status,created",
         )
@@ -58,7 +56,7 @@ class RecentCollector(AbstractWidgetCollector):
                 )
             )
         total = len(issue_details)
-        logger.info(f"[w13-최근이슈] {total}건")
+        logger.info(f"[w12-최근이슈] {total}건")
         return WidgetResult(
             name="최근 활성 이슈",
             total=total,
