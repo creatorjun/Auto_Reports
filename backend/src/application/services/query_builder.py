@@ -83,19 +83,11 @@ class ResolvedQueries:
                           f"AND updated >= \"-7d\" AND status = \"{st}\"")
         return result
 
-    def w7_reason_pie(self) -> dict[str, str]:
-        base = (
+    def w7_sla_violated(self) -> str:
+        return (
             f"{self._base()} AND created <= \"-{self._thr()}d\" "
-            f"AND updated >= \"-7d\" AND status NOT IN ({self._closed()})"
+            f"AND status NOT IN ({self._closed()})"
         )
-        return {
-            "TAC \uc815\uc815 \uc9c0\uc5f0": f"{base} AND status IN (\"\ud560 \uc77c\",\"\uc774\uc288 \ub9ac\ubdf0 \uc911\")",
-            "\uc5f0\uad6c\uc18c \ub300\uae30": f"{base} AND status IN (\"\uc5f0\uad6c\uc18c \ub300\uae30 \uc911\",\"\uc5f0\uad6c\uc18c \uac80\ud1a0 \uc911\")",
-            "\uac1c\ubc1c \uc9c4\ud589 \uc911": f"{base} AND status IN (\"\uad6c\ud604 \uc911\",\"\ubc30\ud3ec \ud30c\uc77c \uac80\ud1a0 \uc911\")",
-            "\uace0\uac1d \uc751\ub2f5 \ub300\uae30": f"{base} AND status IN (\"\uc790\ub8cc \uc694\uccad \uc911\",\"\uacb0\uacfc \ub300\uae30 \uc911\")",
-            "\ubcf4\ub958": f"{base} AND status = \"\ubcf4\ub958 \uc911\"",
-            "\uc601\uc5c5 \uac80\ud1a0": f"{base} AND status = \"\uc601\uc5c5\ubcf8\ubd80 \uac80\ud1a0\uc911\"",
-        }
 
     def w8_yearly_created(self) -> str:
         return f"{self._base()} AND created >= \"2026-01-01\""
@@ -107,9 +99,9 @@ class ResolvedQueries:
         return f"{self._base()} AND resolved >= \"-7d\" ORDER BY resolved DESC"
 
     def w12_sla(self) -> Tuple[str, str]:
-        active = f"AND updated >= \"-7d\" AND status NOT IN ({self._closed()})"
-        met_jql  = f"{self._base()} AND created > \"-{self._thr()}d\" {active}"
-        viol_jql = f"{self._base()} AND created <= \"-{self._thr()}d\" {active}"
+        closed = self._closed()
+        met_jql  = f"{self._base()} AND created > \"-{self._thr()}d\" AND status NOT IN ({closed})"
+        viol_jql = f"{self._base()} AND created <= \"-{self._thr()}d\" AND status NOT IN ({closed})"
         return met_jql, viol_jql
 
     def w14_created_vs_resolved(self) -> Tuple[str, str]:

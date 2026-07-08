@@ -1,3 +1,4 @@
+# backend/src/application/services/report_collector.py
 import asyncio
 import logging
 from datetime import datetime, date
@@ -35,7 +36,7 @@ class ReportCollector:
             self._simple("\uc5f0\uad6c\uc18c \ub300\uae30(\ub2f4\ub2f9\uc790 \ubbf8\uc9c0\uc815)", q.w4_lab_unassigned()),
             self._breakdown("\uc720\ud615\ubcc4 SLA \uc9c0\uc5f0", q.w5_by_type()),
             self._breakdown("\uc0c1\ud0dc\ubcc4 SLA \uc9c0\uc5f0", q.w6_by_status()),
-            self._breakdown("SLA \uc9c0\uc5f0 \uc0ac\uc720", q.w7_reason_pie()),
+            self._collect_w7(q),
             self._simple(f"{now.year}\ub144 \ub204\uc801 \uc0dd\uc131", q.w8_yearly_created()),
             self._simple(f"{now.year}\ub144 \ub204\uc801 \ud574\uacb0", q.w9_yearly_resolved()),
             self._collect_w10(q),
@@ -129,8 +130,27 @@ class ReportCollector:
             breakdown={"by_type": by_type, "issue_details": details}
         )
 
+    async def _collect_w7(self, q) -> WidgetResult:
+        jql = q.w7_sla_violated()
+        issues = await self._jira.get_issues(
+            jql, max_results=500,
+            fields="summary,issuetype,status,created"
+        )
+        breakdown: dict[str, int] = {}
+        for issue in issues:
+            f      = issue.get("fields", {})
+            status = (f.get("status") or {}).get("name", "\uae30\ud0c0")
+            breakdown[status] = breakdown.get(status, 0) + 1
+        total = len(issues)
+        logger.info(f"[W7] SLA \uc704\ubc18 {total}\uac74 / \uc0c1\ud0dc {len(breakdown)}\uc885")
+        return WidgetResult(
+            name="SLA \uc9c0\uc5f0 \uc0ac\uc720",
+            total=total,
+            jql=jql,
+            breakdown=breakdown
+        )
+
     async def _simple_with_details(self, name: str, jql: str) -> WidgetResult:
-        """count + issue_details(key/summary/type/status/created/elapsed_days)"""
         issues = await self._jira.get_issues(
             jql, max_results=200,
             fields="summary,issuetype,status,created"
@@ -371,8 +391,11 @@ class ReportCollector:
             self._jira.get_issue_count(viol_jql),
         )
         logger.info(f"[W12] \ub9cc\uc871 {met}\uac74 / \uc704\ubc18 {viol}\uac74")
-        return WidgetResult(name="SLA \ub9cc\uc871 vs \uc704\ubc18", total=met + viol,
-                            breakdown={"SLA \ub9cc\uc871": met, "SLA \uc704\ubc18": viol})
+        return WidgetResult(
+            name="SLA \ub9cc\uc871 vs \uc704\ubc18",
+            total=met + viol,
+            breakdown={"SLA \ub9cc\uc871": met, "SLA \uc704\ubc18": viol}
+        )
 
     async def _simple(self, name: str, jql: str) -> WidgetResult:
         total = await self._jira.get_issue_count(jql)
