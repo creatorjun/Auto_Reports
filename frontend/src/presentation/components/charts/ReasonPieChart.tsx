@@ -1,3 +1,4 @@
+// frontend/src/presentation/components/charts/ReasonPieChart.tsx
 import {
   PieChart, Pie, Cell, Tooltip,
   Legend, ResponsiveContainer
@@ -34,16 +35,15 @@ function CustomLabel({
 }
 
 function CustomTooltip({
-  active, payload, total
-}: TooltipProps<ValueType, NameType> & { total: number }) {
+  active, payload
+}: TooltipProps<ValueType, NameType>) {
   if (!active || !payload?.length) return null
   const name  = payload[0].name  as string
   const value = payload[0].value as number
-  const pct   = total > 0 ? Math.round((value / total) * 100) : 0
   return (
     <div className="bg-white border border-apple-divider/60 rounded-xl shadow-apple px-3 py-2 text-[12px]">
       <p className="font-medium text-apple-dark">{name}</p>
-      <p className="text-apple-light">{value}건 <span className="text-apple-mid font-semibold">{pct}%</span></p>
+      <p className="text-apple-light">{value}건</p>
     </div>
   )
 }
@@ -75,7 +75,7 @@ export default function ReasonPieChart({ breakdown }: { breakdown: Record<string
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip content={(props) => <CustomTooltip {...props} total={total} />} />
+          <Tooltip content={(props) => <CustomTooltip {...props} />} />
           <Legend
             layout="horizontal"
             verticalAlign="bottom"
