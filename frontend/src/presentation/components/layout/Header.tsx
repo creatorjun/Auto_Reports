@@ -1,6 +1,7 @@
 // frontend/src/presentation/components/layout/Header.tsx
 import { useReportStore } from '@/app/store/reportStore'
 import { useUiStore } from '@/app/store/uiStore'
+import SearchWidget from '@/presentation/components/common/SearchWidget'
 
 function getWeekTitle(weekStart: string): string {
   const date = new Date(weekStart)
@@ -19,7 +20,9 @@ export default function Header() {
     : 'TAC 주간보고'
 
   return (
-    <header className="bg-white h-14 3xl:h-16 flex items-center justify-center flex-shrink-0">
+    <header className="bg-white h-14 3xl:h-16 flex items-center justify-between px-4 flex-shrink-0">
+      <div className="w-56 3xl:w-64" />
+
       <div className="flex flex-col items-center justify-center gap-0.5">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 3xl:w-8 3xl:h-8 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
@@ -36,6 +39,8 @@ export default function Header() {
           <span className="text-[11px] 3xl:text-[12px] text-green-700">{triggerMessage}</span>
         )}
       </div>
+
+      <SearchWidget />
     </header>
   )
 }
