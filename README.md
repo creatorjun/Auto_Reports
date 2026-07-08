@@ -201,7 +201,7 @@ docker compose logs backend | findstr "2026-07"
 
 **Linux / macOS**
 ```bash
-docker compose build down && git pull && docker compose build --no-cache && docker compose up -d
+docker compose down && git pull && docker compose build --no-cache && docker compose up -d
 ```
 
 **Windows CMD**
