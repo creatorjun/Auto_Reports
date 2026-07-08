@@ -17,17 +17,19 @@ from src.domain.entities.widget_data import (
 from src.domain.value_objects.widget_id import WidgetId
 
 _WIDGET_DATA_TYPE_MAP: dict[str, type] = {
-    WidgetId.OVERDUE_ISSUES:         OverdueWidgetData,
+    WidgetId.YEARLY_CREATED:         None,            # SimpleCountCollector — data=None
+    WidgetId.YEARLY_RESOLVED:        None,
+    WidgetId.CREATED_VS_RESOLVED:    CreatedVsResolvedWidgetData,
     WidgetId.ISSUE_REVIEW:           SimpleIssueWidgetData,
     WidgetId.DATA_REQUEST:           SimpleIssueWidgetData,
+    WidgetId.RESULT_PENDING:         SimpleIssueWidgetData,
+    WidgetId.SLA_INITIAL_RESPONSE:   SlaMonthlyWidgetData,
+    WidgetId.SLA_RESOLUTION_MONTHLY: SlaMonthlyWidgetData,
+    WidgetId.SLA_MET_VS_VIOLATED:    SlaMetVsViolatedWidgetData,
     WidgetId.SLA_DELAY_REASON:       SlaDelayWidgetData,
     WidgetId.AVG_RESOLUTION_TYPE:    ResolutionTypeWidgetData,
     WidgetId.RESOLUTION_REPORT:      RecentIssueWidgetData,
-    WidgetId.SLA_MET_VS_VIOLATED:    SlaMetVsViolatedWidgetData,
-    WidgetId.RESULT_PENDING:         SimpleIssueWidgetData,
-    WidgetId.CREATED_VS_RESOLVED:    CreatedVsResolvedWidgetData,
-    WidgetId.SLA_INITIAL_RESPONSE:   SlaMonthlyWidgetData,
-    WidgetId.SLA_RESOLUTION_MONTHLY: SlaMonthlyWidgetData,
+    WidgetId.OVERDUE_ISSUES:         OverdueWidgetData,
 }
 
 

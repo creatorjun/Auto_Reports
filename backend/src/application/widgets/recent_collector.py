@@ -12,27 +12,25 @@ logger = logging.getLogger(__name__)
 
 
 class RecentCollector(AbstractWidgetCollector):
-    """w8: 최근 활성 이슈 목록."""
+    """w12: 최근 활성 이슈 목록."""
 
     def __init__(self, jira: JiraPort, q: ResolvedQueries):
         self._jira = jira
         self._q = q
 
     async def collect(self) -> WidgetResult[RecentIssueWidgetData]:
-        jql = self._q.w8_recent()
+        jql = self._q.w12_recent()
         issues = await self._jira.get_issues(
-            jql,
-            max_results=50,
-            fields="summary,issuetype,status,created",
+            jql, max_results=50, fields="summary,issuetype,status,created",
         )
         now_ts = datetime.now()
         issue_details = []
         for idx, issue in enumerate(issues):
             fields = issue.get("fields") or {}
             created = fields.get("created", "")
-            elapsed_days = 0
-            if created:
-                elapsed_days = (now_ts - datetime.fromisoformat(created[:19])).days
+            elapsed_days = (
+                (now_ts - datetime.fromisoformat(created[:19])).days if created else 0
+            )
             issue_details.append(
                 RecentIssueEntry(
                     key=issue.get("key", ""),
@@ -45,7 +43,7 @@ class RecentCollector(AbstractWidgetCollector):
                 )
             )
         total = len(issue_details)
-        logger.info(f"[w8-최근이슈] {total}건")
+        logger.info(f"[w12-최근이슈] {total}건")
         return WidgetResult(
             name="최근 활성 이슈",
             total=total,

@@ -1,4 +1,5 @@
 # backend/src/application/widgets/created_vs_resolved_collector.py
+import asyncio
 import logging
 from datetime import datetime
 
@@ -12,15 +13,15 @@ logger = logging.getLogger(__name__)
 
 
 class CreatedVsResolvedCollector(AbstractWidgetCollector):
-    """w11: 주간 생성 vs 해결 수 및 이슈 상세."""
+    """w3: 주간 생성 vs 해결 수 및 이슈 상세."""
 
     def __init__(self, jira: JiraPort, q: ResolvedQueries):
         self._jira = jira
         self._q = q
 
     async def collect(self) -> WidgetResult[CreatedVsResolvedWidgetData]:
-        created_jql, resolved_jql = self._q.w11_created_vs_resolved()
-        created_issues, resolved_issues = await __import__("asyncio").gather(
+        created_jql, resolved_jql = self._q.w3_created_vs_resolved()
+        created_issues, resolved_issues = await asyncio.gather(
             self._jira.get_issues(created_jql, max_results=200, fields="summary,issuetype,status,created"),
             self._jira.get_issues(resolved_jql, max_results=200, fields="summary,issuetype,status,created,resolutiondate"),
         )
@@ -41,7 +42,7 @@ class CreatedVsResolvedCollector(AbstractWidgetCollector):
 
         created_details  = [_to_detail(i) for i in created_issues]
         resolved_details = [_to_detail(i) for i in resolved_issues]
-        logger.info(f"[w11-생성vs해결] 생성 {len(created_details)}건 / 해결 {len(resolved_details)}건")
+        logger.info(f"[w3-생성vs해결] 생성 {len(created_details)}건 / 해결 {len(resolved_details)}건")
         return WidgetResult(
             name="주간 생성 vs 해결",
             total=len(created_details),

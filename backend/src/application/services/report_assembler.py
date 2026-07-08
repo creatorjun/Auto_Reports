@@ -21,7 +21,6 @@ from src.domain.ports.jira_port import JiraPort
 from src.domain.value_objects.widget_id import WidgetId
 
 logger = logging.getLogger(__name__)
-
 KST = ZoneInfo("Asia/Seoul")
 
 
@@ -47,22 +46,18 @@ class ReportAssembler:
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 
         collectors = [
-            # w1: SLA 지연 이슈 상세
-            (WidgetId.OVERDUE_ISSUES,      OverdueCollector(self._jira, q, self._sla_threshold_days)),
-            # w2: 이슈 리뷰 중
-            (WidgetId.ISSUE_REVIEW,        SimpleWithDetailsCollector(self._jira, "이슈 리뷰 중", q.w2_issue_review())),
-            # w3: 자료 요청 중
-            (WidgetId.DATA_REQUEST,        SimpleWithDetailsCollector(self._jira, "자료 요청 중", q.w3_data_request())),
-            # w4: SLA 지연 사유
-            (WidgetId.SLA_DELAY_REASON,    SlaDelayCollector(self._jira, q, self._sla_threshold_days)),
-            # w5: 연도 누적 생성
-            (WidgetId.YEARLY_CREATED,      SimpleCountCollector(self._jira, f"{now.year}년 누적 생성", q.w5_yearly_created())),
-            # w6: 연도 누적 해결
-            (WidgetId.YEARLY_RESOLVED,     SimpleCountCollector(self._jira, f"{now.year}년 누적 해결", q.w6_yearly_resolved())),
-            # w7: 유형별 평균 처리일
-            (WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(self._jira, q)),
-            # w8: 최근 활성 이슈
-            (WidgetId.RESOLUTION_REPORT,   RecentCollector(self._jira, q)),
+            # w1: 연도 누적 생성
+            (WidgetId.YEARLY_CREATED,      SimpleCountCollector(self._jira, f"{now.year}년 누적 생성", q.w1_yearly_created())),
+            # w2: 연도 누적 해결
+            (WidgetId.YEARLY_RESOLVED,     SimpleCountCollector(self._jira, f"{now.year}년 누적 해결", q.w2_yearly_resolved())),
+            # w3: 주간 생성 vs 해결
+            (WidgetId.CREATED_VS_RESOLVED, CreatedVsResolvedCollector(self._jira, q)),
+            # w4: 이슈 리뷰 중
+            (WidgetId.ISSUE_REVIEW,        SimpleWithDetailsCollector(self._jira, "이슈 리뷰 중", q.w4_issue_review())),
+            # w5: 자료 요청 중
+            (WidgetId.DATA_REQUEST,        SimpleWithDetailsCollector(self._jira, "자료 요청 중", q.w5_data_request())),
+            # w6: 결과 대기 중
+            (WidgetId.RESULT_PENDING,      SimpleWithDetailsCollector(self._jira, "결과 대기 중", q.w6_result_pending())),
             # w9: SLA 준수 vs 위반
             (
                 WidgetId.SLA_MET_VS_VIOLATED,
@@ -72,10 +67,14 @@ class ReportAssembler:
                     self._sla_resolution_field_id,
                 ),
             ),
-            # w10: 결과 대기 중
-            (WidgetId.RESULT_PENDING,      SimpleWithDetailsCollector(self._jira, "결과 대기 중", q.w10_result_pending())),
-            # w11: 주간 생성 vs 해결
-            (WidgetId.CREATED_VS_RESOLVED, CreatedVsResolvedCollector(self._jira, q)),
+            # w10: SLA 지연 사유
+            (WidgetId.SLA_DELAY_REASON,    SlaDelayCollector(self._jira, q, self._sla_threshold_days)),
+            # w11: 유형별 평균 처리일
+            (WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(self._jira, q)),
+            # w12: 최근 활성 이슈
+            (WidgetId.RESOLUTION_REPORT,   RecentCollector(self._jira, q)),
+            # w13: SLA 초과 지연 이슈 상세
+            (WidgetId.OVERDUE_ISSUES,      OverdueCollector(self._jira, q, self._sla_threshold_days)),
         ]
 
         monthly_collector = MonthlyCollector(
@@ -85,11 +84,11 @@ class ReportAssembler:
         )
 
         base_results = await asyncio.gather(*[c.collect() for _, c in collectors])
-        w12_result, w13_result = await monthly_collector.collect()
+        w7_result, w8_result = await monthly_collector.collect()
 
         widgets = {widget_id: result for (widget_id, _), result in zip(collectors, base_results)}
-        widgets[WidgetId.SLA_INITIAL_RESPONSE]   = w12_result
-        widgets[WidgetId.SLA_RESOLUTION_MONTHLY] = w13_result
+        widgets[WidgetId.SLA_INITIAL_RESPONSE]   = w7_result
+        widgets[WidgetId.SLA_RESOLUTION_MONTHLY] = w8_result
 
         logger.info("데이터 수집 완료 ✅")
         return NewReport(

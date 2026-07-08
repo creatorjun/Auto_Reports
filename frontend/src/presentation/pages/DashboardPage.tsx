@@ -20,7 +20,6 @@ import DataRequestModal, { type DataRequestIssue } from '@/presentation/componen
 import ResultPendingModal, { type ResultPendingIssue } from '@/presentation/components/tables/ResultPendingModal'
 import type { ReportDetail } from '@/domain/Report'
 
-// ---------- 로컬 타입 ----------
 interface ViolationEntry {
   stage: string
   count: number
@@ -49,7 +48,6 @@ interface ResolutionTypeEntry {
   count: number
 }
 
-// ---------- 헬퍼: data 필드를 안전하게 꼼내는 유틸 ----------
 function getData<T>(widget: { data: Record<string, unknown> | null } | undefined): T | null {
   return (widget?.data ?? null) as T | null
 }
@@ -69,166 +67,137 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   const w = report.widgets
 
-  // ── w4 : SLA 지연 사유 (SlaDelayWidgetData) ───────────────────────────
-  const w4Data      = getData<{ by_status: Record<string, number> }>(w.w4)
-  const w4ByStatus  = w4Data?.by_status ?? {}
-
-  // ── w7 : 유형별 평균 처리일 (ResolutionTypeWidgetData) ─────────────────
-  const w7Data   = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w.w7)
-  const w7ByType = w7Data?.by_type ?? {}
-
-  // ── w8 : 최근 이슈 (RecentIssueWidgetData) ─────────────────────────────
-  const w8Data      = getData<{ issue_details: RecentIssue[] }>(w.w8)
-  const recentIssues = w8Data?.issue_details ?? []
-
-  // ── w9 : SLA 준수 vs 위반 (SlaMetVsViolatedWidgetData) ─────────────────
-  const w9Data         = getData<W9Data>(w.w9)
-  const w9Total        = w.w9?.total ?? 0
-  const w9Distribution = w9Data?.violation_distribution ?? []
-
-  // ── w11 : 주간 생성/해결 (CreatedVsResolvedWidgetData) ────────────────
-  const w11Data     = getData<{
+  // w3: 주간 생성 vs 해결
+  const w3Data     = getData<{
     created: number
     resolved: number
     created_details: CreatedIssue[]
     resolved_details: ResolvedIssue[]
-  }>(w.w11)
-  const w11Created       = w11Data?.created          ?? 0
-  const w11Resolved      = w11Data?.resolved         ?? 0
-  const weeklyCreated    = w11Data?.created_details  ?? []
-  const weeklyResolved   = w11Data?.resolved_details ?? []
+  }>(w.w3)
+  const w3Created       = w3Data?.created          ?? 0
+  const w3Resolved      = w3Data?.resolved         ?? 0
+  const weeklyCreated   = w3Data?.created_details  ?? []
+  const weeklyResolved  = w3Data?.resolved_details ?? []
 
-  // ── w12 / w13 : 월별 SLA (SlaMonthlyWidgetData) ───────────────────────
-  const w12Data    = getData<{ monthly: MonthlyEntry[] }>(w.w12)
-  const w13Data    = getData<{ monthly: MonthlyEntry[] }>(w.w13)
-  const w12Monthly = w12Data?.monthly ?? []
-  const w13Monthly = w13Data?.monthly ?? []
-  const hasW12     = w12Monthly.some((e) => e.total > 0)
-  const hasW13     = w13Monthly.some((e) => e.total > 0)
+  // w7 / w8: 월별 SLA
+  const w7Data    = getData<{ monthly: MonthlyEntry[] }>(w.w7)
+  const w8Data    = getData<{ monthly: MonthlyEntry[] }>(w.w8)
+  const w7Monthly = w7Data?.monthly ?? []
+  const w8Monthly = w8Data?.monthly ?? []
+  const hasW7     = w7Monthly.some((e) => e.total > 0)
+  const hasW8     = w8Monthly.some((e) => e.total > 0)
 
-  // ── w1 : 지연 이슈 상세 (OverdueWidgetData) ───────────────────────
-  const w1Data    = getData<{ issue_details: Parameters<typeof IssueDetailTable>[0]['details'] }>(w.w1)
-  const w1Details = w1Data?.issue_details ?? []
+  // w9: SLA 준수 vs 위반
+  const w9Data         = getData<W9Data>(w.w9)
+  const w9Total        = w.w9?.total ?? 0
+  const w9Distribution = w9Data?.violation_distribution ?? []
 
-  // ── 모달용 이슈 목록 ───────────────────────────────────────────
-  const w2Data              = getData<{ issue_details: ReviewIssue[] }>(w.w2)
-  const w3Data              = getData<{ issue_details: DataRequestIssue[] }>(w.w3)
-  const w10Data             = getData<{ issue_details: ResultPendingIssue[] }>(w.w10)
-  const reviewIssues        = w2Data?.issue_details  ?? []
-  const dataRequestIssues   = w3Data?.issue_details  ?? []
-  const resultPendingIssues = w10Data?.issue_details ?? []
+  // w10: SLA 지연 사유
+  const w10Data     = getData<{ by_status: Record<string, number> }>(w.w10)
+  const w10ByStatus = w10Data?.by_status ?? {}
+
+  // w11: 유형별 평균 처리일
+  const w11Data   = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w.w11)
+  const w11ByType = w11Data?.by_type ?? {}
+
+  // w12: 최근 활성 이슈
+  const w12Data      = getData<{ issue_details: RecentIssue[] }>(w.w12)
+  const recentIssues = w12Data?.issue_details ?? []
+
+  // w13: SLA 초과 지연 이슈 테이블
+  const w13Data    = getData<{ issue_details: Parameters<typeof IssueDetailTable>[0]['details'] }>(w.w13)
+  const w13Details = w13Data?.issue_details ?? []
+
+  // 모달용 이슈 목록
+  const w4Data              = getData<{ issue_details: ReviewIssue[] }>(w.w4)
+  const w5Data              = getData<{ issue_details: DataRequestIssue[] }>(w.w5)
+  const w6Data              = getData<{ issue_details: ResultPendingIssue[] }>(w.w6)
+  const reviewIssues        = w4Data?.issue_details ?? []
+  const dataRequestIssues   = w5Data?.issue_details ?? []
+  const resultPendingIssues = w6Data?.issue_details ?? []
 
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
 
-      {/* 요약 카드 */}
+      {/* w1~w6: 요약 카드 */}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-7 gap-3 md:gap-4 3xl:gap-5">
-        <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w5?.total ?? 0} color="gray" />
-        <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w6?.total ?? 0} color="gray" />
+        <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w1?.total ?? 0} color="gray" />
+        <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w2?.total ?? 0} color="gray" />
         <SummaryCard
           label="이번 주 생성"
-          value={w11Created}
+          value={w3Created}
           color="blue"
           onClick={() => setShowWeeklyCreated(true)}
         />
         <SummaryCard
           label="이번 주 해결"
-          value={w11Resolved}
+          value={w3Resolved}
           color="green"
           onClick={() => setShowWeeklyResolved(true)}
         />
         <SummaryCard
           label="이슈 리뷰 중"
-          value={w.w2?.total ?? 0}
+          value={w.w4?.total ?? 0}
           color="yellow"
           onClick={() => setShowIssueReview(true)}
         />
         <SummaryCard
           label="자료 요청 중"
-          value={w.w3?.total ?? 0}
+          value={w.w5?.total ?? 0}
           color="yellow"
           onClick={() => setShowDataRequest(true)}
         />
         <SummaryCard
           label="결과 대기 중"
-          value={w.w10?.total ?? 0}
+          value={w.w6?.total ?? 0}
           color="yellow"
           onClick={() => setShowResultPending(true)}
         />
       </div>
 
       {/* 모달 */}
-      {showWeeklyCreated && (
-        <WeeklyCreatedModal
-          issues={weeklyCreated}
-          total={w11Created}
-          onClose={() => setShowWeeklyCreated(false)}
-        />
-      )}
-      {showWeeklyResolved && (
-        <WeeklyResolvedModal
-          issues={weeklyResolved}
-          total={w11Resolved}
-          onClose={() => setShowWeeklyResolved(false)}
-        />
-      )}
-      {showIssueReview && (
-        <IssueReviewModal
-          issues={reviewIssues}
-          total={w.w2?.total ?? 0}
-          onClose={() => setShowIssueReview(false)}
-        />
-      )}
-      {showDataRequest && (
-        <DataRequestModal
-          issues={dataRequestIssues}
-          total={w.w3?.total ?? 0}
-          onClose={() => setShowDataRequest(false)}
-        />
-      )}
-      {showResultPending && (
-        <ResultPendingModal
-          issues={resultPendingIssues}
-          total={w.w10?.total ?? 0}
-          onClose={() => setShowResultPending(false)}
-        />
-      )}
+      {showWeeklyCreated  && <WeeklyCreatedModal  issues={weeklyCreated}  total={w3Created}       onClose={() => setShowWeeklyCreated(false)}  />}
+      {showWeeklyResolved && <WeeklyResolvedModal issues={weeklyResolved} total={w3Resolved}      onClose={() => setShowWeeklyResolved(false)} />}
+      {showIssueReview    && <IssueReviewModal    issues={reviewIssues}   total={w.w4?.total ?? 0} onClose={() => setShowIssueReview(false)}    />}
+      {showDataRequest    && <DataRequestModal    issues={dataRequestIssues}   total={w.w5?.total ?? 0} onClose={() => setShowDataRequest(false)}    />}
+      {showResultPending  && <ResultPendingModal  issues={resultPendingIssues} total={w.w6?.total ?? 0} onClose={() => setShowResultPending(false)}  />}
 
-      {/* 월별 SLA 달성률 */}
-      {(hasW12 || hasW13) && (
+      {/* w7 / w8: 월별 SLA 달성률 */}
+      {(hasW7 || hasW8) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
           <SlaMonthlyLineChart
             title="✅ 최초응답 SLA"
             subtitle="최근 6개월 · 응답시간 위반 여부"
-            monthly={w12Monthly}
+            monthly={w7Monthly}
             color="#3b82f6"
           />
           <SlaMonthlyLineChart
             title="✅ 해결시간 SLA"
             subtitle="최근 6개월 · 해결시간 위반 여부"
-            monthly={w13Monthly}
+            monthly={w8Monthly}
             color="#22c55e"
           />
         </div>
       )}
 
-      {/* 차트 행 1 */}
+      {/* w9 / w10 / w3 트렌드: 차트 행 1 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 3xl:gap-5">
         <SlaDonutChart total={w9Total} distribution={w9Distribution} />
-        <ReasonPieChart byStatus={w4ByStatus} />
+        <ReasonPieChart byStatus={w10ByStatus} />
         <div className="sm:col-span-2 md:col-span-1">
-          <TrendLineChart created={w11Created} resolved={w11Resolved} />
+          <TrendLineChart created={w3Created} resolved={w3Resolved} />
         </div>
       </div>
 
-      {/* 차트 행 2 */}
+      {/* w11 / w12: 차트 행 2 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
-        <TypeBarChart byType={w7ByType} />
+        <TypeBarChart byType={w11ByType} />
         <ResolutionTimeChart details={recentIssues} />
       </div>
 
-      <IssueDetailTable details={w1Details} />
+      {/* w13: SLA 초과 지연 이슈 테이블 */}
+      <IssueDetailTable details={w13Details} />
 
       <div className="flex justify-end">
         <p className="text-[11px] 3xl:text-[12px] text-apple-light tabular-nums">
@@ -251,7 +220,7 @@ export default function DashboardPage() {
   if (error)     return <div className="card text-[13px] text-red-500">데이터를 불러올 수 없습니다.</div>
   if (!data)     return (
     <div className="card text-[13px] text-apple-light text-center py-16">
-      생성된 보고서가 없습니다. <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 놀러주세요.
+      생성된 보고서가 없습니다. <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 누르세요.
     </div>
   )
 
