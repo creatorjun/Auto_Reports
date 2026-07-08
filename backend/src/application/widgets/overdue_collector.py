@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class OverdueCollector(AbstractWidgetCollector):
-    """w13: SLA 초과 지연 이슈 상세."""
+    """w12: SLA 초과 지연 이슈 상세."""
 
     def __init__(self, jira: JiraPort, q: ResolvedQueries, sla_threshold_days: int):
         self._jira = jira
@@ -20,8 +20,8 @@ class OverdueCollector(AbstractWidgetCollector):
         self._threshold = sla_threshold_days
 
     async def collect(self) -> WidgetResult[OverdueWidgetData]:
-        jql = self._q.w13_overdue()
-        by_type_status = self._q.w13_by_type_status()
+        jql = self._q.w12_overdue()
+        by_type_status = self._q.w12_by_type_status()
         issues = await self._jira.get_issues(
             jql, max_results=200, fields="summary,issuetype,status,created",
         )
@@ -45,7 +45,7 @@ class OverdueCollector(AbstractWidgetCollector):
             )
         details.sort(key=lambda x: x.elapsed_days, reverse=True)
         total = len(details)
-        logger.info(f"[w13-SLA초과] {total}건")
+        logger.info(f"[w12-SLA초과] {total}건")
         return WidgetResult(
             name="SLA 초과 지연 이슈",
             total=total,
