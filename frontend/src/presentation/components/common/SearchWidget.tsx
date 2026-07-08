@@ -1,0 +1,338 @@
+// frontend/src/presentation/components/common/SearchWidget.tsx
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { fetchSearchResults, SearchResult } from '@/infrastructure/api/searchApi'
+
+const JIRA_COLOR = 'bg-blue-100 text-blue-700'
+const CONFLUENCE_COLOR = 'bg-purple-100 text-purple-700'
+
+function TypeBadge({ type }: { type: string }) {
+  return (
+    <span
+      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+        type === 'jira' ? JIRA_COLOR : CONFLUENCE_COLOR
+      }`}
+    >
+      {type === 'jira' ? 'JIRA' : 'Confluence'}
+    </span>
+  )
+}
+
+function DropdownItem({
+  item,
+  isActive,
+  onClick,
+}: {
+  item: SearchResult
+  isActive: boolean
+  onClick: () => void
+}) {
+  return (
+    <li
+      className={`flex items-center gap-2 px-3 py-2 cursor-pointer select-none ${
+        isActive ? 'bg-gray-100' : 'hover:bg-gray-50'
+      }`}
+      onMouseDown={(e) => {
+        e.preventDefault()
+        onClick()
+      }}
+    >
+      <TypeBadge type={item.type} />
+      <span className="text-[12px] font-medium text-gray-800 truncate flex-1">
+        {item.key && <span className="text-gray-400 mr-1">[{item.key}]</span>}
+        {item.title}
+      </span>
+      {item.status && (
+        <span className="text-[10px] text-gray-400 flex-shrink-0">{item.status}</span>
+      )}
+    </li>
+  )
+}
+
+function SearchModal({
+  results,
+  query,
+  onClose,
+}: {
+  results: SearchResult[]
+  query: string
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <span className="text-[15px] font-semibold text-gray-800">
+            "{query}" 검색 결과
+          </span>
+          <button
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={onClose}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M5 5l10 10M15 5L5 15"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {results.length === 0 ? (
+          <div className="px-5 py-10 text-center text-gray-400 text-[13px]">
+            검색 결과가 없습니다.
+          </div>
+        ) : (
+          <ul className="divide-y">
+            {results.map((item) => (
+              <li key={`${item.type}-${item.key}`}>
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                >
+                  <TypeBadge type={item.type} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-gray-800 truncate">
+                      {item.key && (
+                        <span className="text-gray-400 mr-1.5">[{item.key}]</span>
+                      )}
+                      {item.title}
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {item.issue_type}
+                      {item.status ? ` · ${item.status}` : ''}
+                    </p>
+                  </div>
+                  <svg
+                    className="w-4 h-4 text-gray-300 flex-shrink-0 mt-0.5"
+                    fill="none"
+                    viewBox="0 0 16 16"
+                  >
+                    <path
+                      d="M3 8h10M9 4l4 4-4 4"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="px-5 py-3 border-t bg-gray-50">
+          <a
+            href={`${window.location.origin.replace(':5173', ':8000')}/search?q=${encodeURIComponent(query)}`}
+            className="text-[12px] text-brand-600 hover:underline"
+          >
+            JIRA에서 더 검색하기 →
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function SearchWidget() {
+  const [query, setQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<SearchResult[]>([])
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const [isLoading, setIsLoading] = useState(false)
+  const [modalResults, setModalResults] = useState<SearchResult[] | null>(null)
+  const [modalQuery, setModalQuery] = useState('')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (abortRef.current) abortRef.current.abort()
+    abortRef.current = new AbortController()
+    setIsLoading(true)
+    try {
+      const results = await fetchSearchResults(q, 5)
+      setSuggestions(results)
+      setIsDropdownOpen(results.length > 0)
+      setActiveIndex(-1)
+    } catch {
+      setSuggestions([])
+      setIsDropdownOpen(false)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (query.trim().length === 0) {
+      setSuggestions([])
+      setIsDropdownOpen(false)
+      return
+    }
+    debounceRef.current = setTimeout(() => fetchSuggestions(query.trim()), 1000)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [query, fetchSuggestions])
+
+  const openModal = useCallback(async (q: string) => {
+    setIsDropdownOpen(false)
+    setModalQuery(q)
+    setIsLoading(true)
+    try {
+      const results = await fetchSearchResults(q, 5)
+      setModalResults(results)
+    } catch {
+      setModalResults([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isDropdownOpen && e.key !== 'Enter') return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.max(i - 1, -1))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (activeIndex >= 0 && suggestions[activeIndex]) {
+        window.open(suggestions[activeIndex].url, '_blank', 'noopener,noreferrer')
+      } else if (query.trim()) {
+        openModal(query.trim())
+      }
+    } else if (e.key === 'Escape') {
+      setIsDropdownOpen(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="relative w-56 3xl:w-64">
+        <div className="relative flex items-center">
+          <svg
+            className="absolute left-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none"
+            fill="none"
+            viewBox="0 0 16 16"
+          >
+            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+            <path
+              d="M10 10l3 3"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => suggestions.length > 0 && setIsDropdownOpen(true)}
+            onBlur={() => setTimeout(() => setIsDropdownOpen(false), 150)}
+            placeholder="JIRA / Confluence 검색"
+            className="w-full pl-8 pr-8 py-1.5 text-[12px] bg-gray-100 rounded-lg border border-transparent focus:border-brand-400 focus:bg-white focus:outline-none transition-all placeholder-gray-400"
+          />
+          {isLoading ? (
+            <svg
+              className="absolute right-2.5 w-3.5 h-3.5 text-gray-400 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="3"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8H4z"
+              />
+            </svg>
+          ) : (
+            <button
+              className="absolute right-2 text-gray-400 hover:text-brand-600 transition-colors"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                if (query.trim()) openModal(query.trim())
+              }}
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 16 16">
+                <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                <path
+                  d="M10 10l3 3"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {isDropdownOpen && suggestions.length > 0 && (
+          <ul className="absolute top-full mt-1 left-0 right-0 bg-white rounded-xl shadow-lg border border-gray-100 z-40 overflow-hidden">
+            {suggestions.map((item, idx) => (
+              <DropdownItem
+                key={`${item.type}-${item.key}`}
+                item={item}
+                isActive={idx === activeIndex}
+                onClick={() => {
+                  setIsDropdownOpen(false)
+                  window.open(item.url, '_blank', 'noopener,noreferrer')
+                }}
+              />
+            ))}
+            <li
+              className="px-3 py-1.5 text-center border-t"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                openModal(query.trim())
+              }}
+            >
+              <span className="text-[11px] text-brand-600 cursor-pointer hover:underline">
+                전체 결과 보기
+              </span>
+            </li>
+          </ul>
+        )}
+      </div>
+
+      {modalResults !== null && (
+        <SearchModal
+          results={modalResults}
+          query={modalQuery}
+          onClose={() => setModalResults(null)}
+        />
+      )}
+    </>
+  )
+}
