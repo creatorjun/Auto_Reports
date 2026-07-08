@@ -68,16 +68,16 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w = report.widgets
 
   // w3: 주간 생성 vs 해결
-  const w3Data     = getData<{
+  const w3Data = getData<{
     created: number
     resolved: number
     created_details: CreatedIssue[]
     resolved_details: ResolvedIssue[]
   }>(w.w3)
-  const w3Created       = w3Data?.created          ?? 0
-  const w3Resolved      = w3Data?.resolved         ?? 0
-  const weeklyCreated   = w3Data?.created_details  ?? []
-  const weeklyResolved  = w3Data?.resolved_details ?? []
+  const w3Created      = w3Data?.created          ?? 0
+  const w3Resolved     = w3Data?.resolved         ?? 0
+  const weeklyCreated  = w3Data?.created_details  ?? []
+  const weeklyResolved = w3Data?.resolved_details ?? []
 
   // w7 / w8: 월별 SLA
   const w7Data    = getData<{ monthly: MonthlyEntry[] }>(w.w7)
@@ -157,8 +157,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       </div>
 
       {/* 모달 */}
-      {showWeeklyCreated  && <WeeklyCreatedModal  issues={weeklyCreated}  total={w3Created}       onClose={() => setShowWeeklyCreated(false)}  />}
-      {showWeeklyResolved && <WeeklyResolvedModal issues={weeklyResolved} total={w3Resolved}      onClose={() => setShowWeeklyResolved(false)} />}
+      {showWeeklyCreated  && <WeeklyCreatedModal  issues={weeklyCreated}  total={w3Created}        onClose={() => setShowWeeklyCreated(false)}  />}
+      {showWeeklyResolved && <WeeklyResolvedModal issues={weeklyResolved} total={w3Resolved}       onClose={() => setShowWeeklyResolved(false)} />}
       {showIssueReview    && <IssueReviewModal    issues={reviewIssues}   total={w.w4?.total ?? 0} onClose={() => setShowIssueReview(false)}    />}
       {showDataRequest    && <DataRequestModal    issues={dataRequestIssues}   total={w.w5?.total ?? 0} onClose={() => setShowDataRequest(false)}    />}
       {showResultPending  && <ResultPendingModal  issues={resultPendingIssues} total={w.w6?.total ?? 0} onClose={() => setShowResultPending(false)}  />}
@@ -181,20 +181,16 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         </div>
       )}
 
-      {/* w9 / w10 / w3 트렌드: 차트 행 1 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 3xl:gap-5">
+      {/* w9 / w10 / w3트렌드 / w11: 차트 행 (4단) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
         <SlaDonutChart total={w9Total} distribution={w9Distribution} />
         <ReasonPieChart byStatus={w10ByStatus} />
-        <div className="sm:col-span-2 md:col-span-1">
-          <TrendLineChart created={w3Created} resolved={w3Resolved} />
-        </div>
+        <TrendLineChart created={w3Created} resolved={w3Resolved} />
+        <TypeBarChart byType={w11ByType} />
       </div>
 
-      {/* w11 / w12: 차트 행 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
-        <TypeBarChart byType={w11ByType} />
-        <ResolutionTimeChart details={recentIssues} />
-      </div>
+      {/* w12: 최근 이슈 현황 — 전체 폭 */}
+      <ResolutionTimeChart details={recentIssues} />
 
       {/* w13: SLA 초과 지연 이슈 테이블 */}
       <IssueDetailTable details={w13Details} />
