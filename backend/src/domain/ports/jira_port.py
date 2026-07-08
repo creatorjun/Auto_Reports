@@ -23,4 +23,9 @@ class JiraPort(ABC):
         ...
 
     @abstractmethod
+    async def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        """JIRA 이슈 텍스트 검색. 상위 limit개 결과 반환."""
+        ...
+
+    @abstractmethod
     async def aclose(self) -> None: ...
