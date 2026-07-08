@@ -16,31 +16,6 @@ from src.domain.ports.jira_port import JiraPort
 logger = logging.getLogger(__name__)
 
 
-def _extract_closed_at(issue: dict) -> str:
-    """
-    1순위: resolutiondate 필드
-    2순위: changelog 에서 상태 → '닫힌' 전환 시각 (최신)
-    """
-    fields = issue.get("fields") or {}
-    resolution_date = fields.get("resolutiondate") or ""
-    if resolution_date:
-        return resolution_date[:16].replace("T", " ")
-
-    # changelog fallback
-    changelog = issue.get("changelog") or {}
-    histories: list[dict] = changelog.get("histories", [])
-    closed_ts = ""
-    for history in histories:
-        for item in history.get("items", []):
-            if item.get("field") == "status" and (
-                item.get("toString", "") in ("닫힌", "Closed", "Done", "Resolved")
-            ):
-                ts = history.get("created", "")
-                if ts > closed_ts:
-                    closed_ts = ts
-    return closed_ts[:16].replace("T", " ") if closed_ts else ""
-
-
 class CreatedVsResolvedCollector(AbstractWidgetCollector):
     """w3: 주간 생성 vs 해결 수 및 이슈 상세."""
 
@@ -57,10 +32,10 @@ class CreatedVsResolvedCollector(AbstractWidgetCollector):
             ),
             self._jira.get_issues(
                 resolved_jql, max_results=200,
-                fields="summary,issuetype,resolutiondate",
-                expand="changelog",
+                fields="summary,issuetype,updated",
             ),
         )
+        now_ts = datetime.now()
 
         def _to_created(issue: dict) -> CreatedResolvedIssueDetail:
             fields = issue.get("fields") or {}
@@ -75,11 +50,12 @@ class CreatedVsResolvedCollector(AbstractWidgetCollector):
 
         def _to_resolved(issue: dict) -> ResolvedIssueDetail:
             fields = issue.get("fields") or {}
+            updated = fields.get("updated", "") or ""
             return ResolvedIssueDetail(
                 key=issue.get("key", ""),
                 summary=(fields.get("summary") or "")[:60],
                 type=(fields.get("issuetype") or {}).get("name", "기타"),
-                resolved=_extract_closed_at(issue),
+                resolved=updated[:16].replace("T", " ") if updated else "",
             )
 
         created_details  = [_to_created(i)  for i in created_issues]

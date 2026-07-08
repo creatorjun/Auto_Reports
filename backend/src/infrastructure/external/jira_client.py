@@ -42,7 +42,6 @@ class JiraClient(JiraPort):
         jql: str,
         max_results: int = 200,
         fields: str = "",
-        expand: str = "",
     ) -> list[dict[str, Any]]:
         url = f"{self._base_url}/rest/api/3/search/jql"
         payload: dict[str, Any] = {
@@ -52,8 +51,6 @@ class JiraClient(JiraPort):
         }
         if fields:
             payload["fields"] = fields.split(",")
-        if expand:
-            payload["expand"] = expand.split(",")
         try:
             resp = await self._client.post(url, json=payload)
             resp.raise_for_status()
