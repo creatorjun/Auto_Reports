@@ -60,7 +60,7 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
           <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
           <span className="text-ui-xs text-apple-light">{subtitle}</span>
         </div>
-        <div className="flex items-center justify-center h-[240px]">
+        <div className="flex items-center justify-center h-[360px]">
           <p className="text-ui-sm text-apple-light">SLA 데이터가 없습니다</p>
         </div>
       </div>
@@ -73,7 +73,7 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
         <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
         <span className="text-ui-xs text-apple-light">{subtitle}</span>
       </div>
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer width="100%" height={360}>
         <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">

@@ -20,7 +20,7 @@ export default function SlaDonutChart({
 
   if (total === 0 || data.length === 0) {
     return (
-      <div className="card flex flex-col items-center justify-center" style={{ minHeight: 240 }}>
+      <div className="card flex flex-col items-center justify-center" style={{ minHeight: 360 }}>
         <h3 className="text-sm font-semibold text-gray-700 mb-2">🎯 SLA 위반 분포</h3>
         <p className="text-sm text-gray-400">위반 없음</p>
       </div>
@@ -31,14 +31,14 @@ export default function SlaDonutChart({
     <div className="card">
       <h3 className="text-sm font-semibold text-gray-700 mb-4">🎯 SLA 위반 분포</h3>
       <div className="relative">
-        <ResponsiveContainer width="100%" height={240}>
+        <ResponsiveContainer width="100%" height={360}>
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="45%"
-              innerRadius={60}
-              outerRadius={90}
+              innerRadius={80}
+              outerRadius={130}
               dataKey="value"
               label={({ percent }) =>
                 `${((percent ?? 0) * 100).toFixed(0)}%`
@@ -65,7 +65,7 @@ export default function SlaDonutChart({
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center mt-4">
             <p className="text-2xl font-bold text-gray-800">{total}</p>
-            <p className="text-xs text-gray-400">총 위반</p>
+            <p className="text-xs text-gray-400">완료 위반</p>
           </div>
         </div>
       </div>

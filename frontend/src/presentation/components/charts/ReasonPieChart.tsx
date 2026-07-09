@@ -58,13 +58,13 @@ export default function ReasonPieChart({ byStatus }: { byStatus: Record<string, 
   return (
     <div className="card flex flex-col">
       <h3 className="text-sm font-semibold text-apple-dark mb-3">🥧 SLA 지연 사유</h3>
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer width="100%" height={360}>
         <PieChart>
           <Pie
             data={data}
             cx="50%"
             cy="45%"
-            outerRadius={85}
+            outerRadius={125}
             dataKey="value"
             labelLine={false}
             label={CustomLabel}
