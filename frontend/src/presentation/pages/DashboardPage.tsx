@@ -17,6 +17,7 @@ import WeeklyResolvedModal, { type ResolvedIssue } from '@/presentation/componen
 import IssueReviewModal, { type ReviewIssue } from '@/presentation/components/tables/IssueReviewModal'
 import DataRequestModal, { type DataRequestIssue } from '@/presentation/components/tables/DataRequestModal'
 import ResultPendingModal, { type ResultPendingIssue } from '@/presentation/components/tables/ResultPendingModal'
+import IncompleteIssueModal, { type IncompleteIssue } from '@/presentation/components/tables/IncompleteIssueModal'
 import type { ReportDetail } from '@/domain/Report'
 
 interface ViolationEntry {
@@ -53,11 +54,12 @@ function getData<T>(widget: { data: Record<string, unknown> | null } | undefined
 
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
-  const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
-  const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
-  const [showIssueReview,    setShowIssueReview]    = useState(false)
-  const [showDataRequest,    setShowDataRequest]    = useState(false)
-  const [showResultPending,  setShowResultPending]  = useState(false)
+  const [showWeeklyCreated,   setShowWeeklyCreated]   = useState(false)
+  const [showWeeklyResolved,  setShowWeeklyResolved]  = useState(false)
+  const [showIssueReview,     setShowIssueReview]     = useState(false)
+  const [showDataRequest,     setShowDataRequest]     = useState(false)
+  const [showResultPending,   setShowResultPending]   = useState(false)
+  const [showIncomplete,      setShowIncomplete]      = useState(false)
 
   useEffect(() => {
     setCurrentReport(report)
@@ -66,7 +68,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   const w = report.widgets
 
-  // w3: 주간 생성 vs 해결
   const w3Data = getData<{
     created: number
     resolved: number
@@ -78,7 +79,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const weeklyCreated  = w3Data?.created_details  ?? []
   const weeklyResolved = w3Data?.resolved_details ?? []
 
-  // w7 / w8: 월별 SLA
   const w7Data    = getData<{ monthly: MonthlyEntry[] }>(w.w7)
   const w8Data    = getData<{ monthly: MonthlyEntry[] }>(w.w8)
   const w7Monthly = w7Data?.monthly ?? []
@@ -86,24 +86,29 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const hasW7     = w7Monthly.some((e) => e.total > 0)
   const hasW8     = w8Monthly.some((e) => e.total > 0)
 
-  // w9: SLA 준수 vs 위반
   const w9Data         = getData<W9Data>(w.w9)
   const w9Total        = w.w9?.total ?? 0
   const w9Distribution = w9Data?.violation_distribution ?? []
 
-  // w10: SLA 지연 사유
   const w10Data     = getData<{ by_status: Record<string, number> }>(w.w10)
   const w10ByStatus = w10Data?.by_status ?? {}
 
-  // w11: 유형별 평균 처리일
   const w11Data   = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w.w11)
   const w11ByType = w11Data?.by_type ?? {}
 
-  // w12: 최근 활성 이슈
   const w12Data      = getData<{ issue_details: RecentIssue[] }>(w.w12)
   const recentIssues = w12Data?.issue_details ?? []
 
-  // 모달용 이슈 목록
+  const incompleteIssues: IncompleteIssue[] = recentIssues.map((i) => ({
+    key:          i.key,
+    summary:      i.summary,
+    type:         i.type,
+    status:       i.status,
+    created:      i.created,
+    elapsed_days: i.elapsed_days,
+  }))
+  const incompleteTotal = incompleteIssues.length
+
   const w4Data              = getData<{ issue_details: ReviewIssue[] }>(w.w4)
   const w5Data              = getData<{ issue_details: DataRequestIssue[] }>(w.w5)
   const w6Data              = getData<{ issue_details: ResultPendingIssue[] }>(w.w6)
@@ -115,8 +120,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
 
-      {/* w1~w6: 요약 카드 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-7 gap-3 md:gap-4 3xl:gap-5">
+      {/* w1~w6 + 미완료 이슈: 요약 카드 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w1?.total ?? 0} color="gray" />
         <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w2?.total ?? 0} color="gray" />
         <SummaryCard
@@ -149,14 +154,21 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           color="yellow"
           onClick={() => setShowResultPending(true)}
         />
+        <SummaryCard
+          label="미완료 이슈"
+          value={incompleteTotal}
+          color="red"
+          onClick={() => setShowIncomplete(true)}
+        />
       </div>
 
       {/* 모달 */}
-      {showWeeklyCreated  && <WeeklyCreatedModal  issues={weeklyCreated}  total={w3Created}        onClose={() => setShowWeeklyCreated(false)}  />}
-      {showWeeklyResolved && <WeeklyResolvedModal issues={weeklyResolved} total={w3Resolved}       onClose={() => setShowWeeklyResolved(false)} />}
-      {showIssueReview    && <IssueReviewModal    issues={reviewIssues}   total={w.w4?.total ?? 0} onClose={() => setShowIssueReview(false)}    />}
+      {showWeeklyCreated  && <WeeklyCreatedModal  issues={weeklyCreated}       total={w3Created}        onClose={() => setShowWeeklyCreated(false)}  />}
+      {showWeeklyResolved && <WeeklyResolvedModal issues={weeklyResolved}      total={w3Resolved}       onClose={() => setShowWeeklyResolved(false)} />}
+      {showIssueReview    && <IssueReviewModal    issues={reviewIssues}        total={w.w4?.total ?? 0} onClose={() => setShowIssueReview(false)}    />}
       {showDataRequest    && <DataRequestModal    issues={dataRequestIssues}   total={w.w5?.total ?? 0} onClose={() => setShowDataRequest(false)}    />}
       {showResultPending  && <ResultPendingModal  issues={resultPendingIssues} total={w.w6?.total ?? 0} onClose={() => setShowResultPending(false)}  />}
+      {showIncomplete     && <IncompleteIssueModal issues={incompleteIssues}   total={incompleteTotal}  onClose={() => setShowIncomplete(false)}     />}
 
       {/* w7 / w8: 월별 SLA 달성률 */}
       {(hasW7 || hasW8) && (
