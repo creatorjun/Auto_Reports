@@ -30,14 +30,11 @@ class JiraClient(JiraPort):
         self._sla_field_ids_cache: dict[str, str] | None = None
 
     async def get_issue_count(self, jql: str) -> int:
-        url = f"{self._base_url}/rest/api/3/search/jql"
+        url = f"{self._base_url}/rest/api/3/search/approximate-count"
         try:
-            resp = await self._client.post(
-                url,
-                json={"jql": jql, "maxResults": 0, "fieldsByKeys": False},
-            )
+            resp = await self._client.post(url, json={"jql": jql})
             resp.raise_for_status()
-            return resp.json().get("total", 0)
+            return resp.json().get("count", 0)
         except httpx.HTTPError as e:
             logger.error(f"JQL 카운트 실패: {jql[:80]}... → {e}")
             if isinstance(e, httpx.HTTPStatusError):
