@@ -1,27 +1,10 @@
 // frontend/src/infrastructure/api/reportApi.ts
 import client from './client'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
+import type { TriggerAccepted, JobStatus, TriggerParams } from '@/domain/Job'
+import type { AppConfig } from '@/domain/Config'
 
-export interface TriggerAccepted {
-  job_id: string
-  message: string
-}
-
-export interface JobStatus {
-  job_id: string
-  status: 'running' | 'done' | 'error'
-  report_id: number | null
-  error: string | null
-}
-
-export interface AppConfig {
-  jira_base_url: string
-}
-
-export interface TriggerParams {
-  start_date?: string
-  end_date?: string
-}
+export type { TriggerAccepted, JobStatus, TriggerParams, AppConfig }
 
 export const reportApi = {
   getLatest: async (): Promise<ReportDetail | null> => {

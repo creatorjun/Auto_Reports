@@ -21,6 +21,7 @@ import ResultPendingModal, { type ResultPendingIssue } from '@/presentation/comp
 import IncompleteIssueModal, { type IncompleteIssue } from '@/presentation/components/tables/IncompleteIssueModal'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/shared/constants'
 import type { ReportDetail } from '@/domain/Report'
+import type { RecentIssue } from '@/domain/Issue'
 
 interface ViolationEntry {
   stage: string
@@ -32,18 +33,6 @@ interface W9Data {
   initial_response_violations?: number
   resolution_violations?: number
   violation_distribution?: ViolationEntry[]
-}
-
-export interface RecentIssue {
-  key: string
-  summary: string
-  type: string
-  status: string
-  stage_index: number
-  created: string
-  elapsed_days: number
-  reporter: string
-  tac_team: string
 }
 
 interface ResolutionTypeEntry {
@@ -72,58 +61,36 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   const w = report.widgets
 
-  const {
-    w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange,
-  } = useMemo(() => {
-    const w3Data = getData<{
-      created: number
-      resolved: number
-      created_details: CreatedIssue[]
-      resolved_details: ResolvedIssue[]
-    }>(w.w3)
+  const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange } = useMemo(() => {
+    const w3Data = getData<{ created: number; resolved: number; created_details: CreatedIssue[]; resolved_details: ResolvedIssue[] }>(w.w3)
     return {
       w3Created:      w3Data?.created          ?? 0,
       w3Resolved:     w3Data?.resolved         ?? 0,
       weeklyCreated:  w3Data?.created_details  ?? [],
       weeklyResolved: w3Data?.resolved_details ?? [],
-      dateRange: report.week_start && report.week_end
-        ? { start: report.week_start, end: report.week_end }
-        : undefined,
+      dateRange: report.week_start && report.week_end ? { start: report.week_start, end: report.week_end } : undefined,
     }
   }, [w.w3, report.week_start, report.week_end])
 
   const { w7Monthly, w8Monthly, hasW7, hasW8 } = useMemo(() => {
-    const w7Data    = getData<{ monthly: MonthlyEntry[] }>(w.w7)
-    const w8Data    = getData<{ monthly: MonthlyEntry[] }>(w.w8)
+    const w7Data = getData<{ monthly: MonthlyEntry[] }>(w.w7)
+    const w8Data = getData<{ monthly: MonthlyEntry[] }>(w.w8)
     const w7Monthly = w7Data?.monthly ?? []
     const w8Monthly = w8Data?.monthly ?? []
-    return {
-      w7Monthly,
-      w8Monthly,
-      hasW7: w7Monthly.some((e) => e.total > 0),
-      hasW8: w8Monthly.some((e) => e.total > 0),
-    }
+    return { w7Monthly, w8Monthly, hasW7: w7Monthly.some((e) => e.total > 0), hasW8: w8Monthly.some((e) => e.total > 0) }
   }, [w.w7, w.w8])
 
   const { w13Monthly, w14Monthly, hasW13, hasW14 } = useMemo(() => {
-    const w13Data    = getData<{ monthly: MonthlyCountEntry[] }>(w.w13)
-    const w14Data    = getData<{ monthly: MonthlyCountEntry[] }>(w.w14)
+    const w13Data = getData<{ monthly: MonthlyCountEntry[] }>(w.w13)
+    const w14Data = getData<{ monthly: MonthlyCountEntry[] }>(w.w14)
     const w13Monthly = w13Data?.monthly ?? []
     const w14Monthly = w14Data?.monthly ?? []
-    return {
-      w13Monthly,
-      w14Monthly,
-      hasW13: w13Monthly.some((e) => e.count > 0),
-      hasW14: w14Monthly.some((e) => e.count > 0),
-    }
+    return { w13Monthly, w14Monthly, hasW13: w13Monthly.some((e) => e.count > 0), hasW14: w14Monthly.some((e) => e.count > 0) }
   }, [w.w13, w.w14])
 
   const { w9Total, w9Distribution } = useMemo(() => {
     const w9Data = getData<W9Data>(w.w9)
-    return {
-      w9Total:        w.w9?.total ?? 0,
-      w9Distribution: w9Data?.violation_distribution ?? [],
-    }
+    return { w9Total: w.w9?.total ?? 0, w9Distribution: w9Data?.violation_distribution ?? [] }
   }, [w.w9])
 
   const w10ByStatus = useMemo(() => {
@@ -138,19 +105,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   const { recentIssues, incompleteIssues, incompleteTotal } = useMemo(() => {
     const w12Data = getData<{ issue_details: RecentIssue[] }>(w.w12)
-    const recentIssues = (w12Data?.issue_details ?? []).map((i) => ({
-      ...i,
-      reporter: i.reporter ?? '미지정',
-      tac_team: i.tac_team ?? '미지정',
-    }))
-    const incompleteIssues: IncompleteIssue[] = recentIssues.map((i) => ({
-      key:          i.key,
-      summary:      i.summary,
-      type:         i.type,
-      status:       i.status,
-      created:      i.created,
-      elapsed_days: i.elapsed_days,
-    }))
+    const recentIssues = (w12Data?.issue_details ?? []).map((i) => ({ ...i, reporter: i.reporter ?? '미지정', tac_team: i.tac_team ?? '미지정' }))
+    const incompleteIssues: IncompleteIssue[] = recentIssues.map((i) => ({ key: i.key, summary: i.summary, type: i.type, status: i.status, created: i.created, elapsed_days: i.elapsed_days }))
     return { recentIssues, incompleteIssues, incompleteTotal: incompleteIssues.length }
   }, [w.w12])
 
@@ -158,17 +114,12 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     const w4Data = getData<{ issue_details: ReviewIssue[] }>(w.w4)
     const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w.w5)
     const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w.w6)
-    return {
-      reviewIssues:        w4Data?.issue_details ?? [],
-      dataRequestIssues:   w5Data?.issue_details ?? [],
-      resultPendingIssues: w6Data?.issue_details ?? [],
-    }
+    return { reviewIssues: w4Data?.issue_details ?? [], dataRequestIssues: w5Data?.issue_details ?? [], resultPendingIssues: w6Data?.issue_details ?? [] }
   }, [w.w4, w.w5, w.w6])
 
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
-
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w1?.total ?? 0} color="gray" />
         <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w2?.total ?? 0} color="gray" />
@@ -193,21 +144,18 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           <MonthlyCountChart title="✅ 월별 해결 건수" subtitle="최근 6개월" monthly={w14Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
         </div>
       )}
-
       {(hasW7 || hasW8) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
           <SlaMonthlyLineChart title="✅ 최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w7Monthly} color={SLA_MONTHLY_COLORS.initial}    />
           <SlaMonthlyLineChart title="✅ 해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w8Monthly} color={SLA_MONTHLY_COLORS.resolution} />
         </div>
       )}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
         <SlaDonutChart total={w9Total} distribution={w9Distribution} />
         <ReasonPieChart byStatus={w10ByStatus} />
         <TrendLineChart created={w3Created} resolved={w3Resolved} />
         <TypeBarChart byType={w11ByType} />
       </div>
-
       <ResolutionTimeChart details={recentIssues} />
     </div>
   )
@@ -226,6 +174,5 @@ export default function DashboardPage() {
       생성된 보고서가 없습니다. <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 누르세요.
     </div>
   )
-
   return <DashboardContent report={data} />
 }
