@@ -16,7 +16,7 @@ export default function Layout() {
         </div>
         <div className="flex flex-col flex-1 min-w-0">
           <Header />
-          <main className="flex-1 overflow-y-auto px-4 md:px-6 3xl:px-8 py-4 md:py-6 3xl:py-8">
+          <main className="flex-1 overflow-y-auto px-4 md:px-6 3xl:px-8 py-4 md:py-6 3xl:py-8 pb-20 md:pb-6 3xl:pb-8">
             <Outlet />
           </main>
         </div>
