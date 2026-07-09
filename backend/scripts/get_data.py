@@ -28,7 +28,7 @@ HEADERS = {"Accept": "application/json", "Content-Type": "application/json"}
 OUT_DIR  = _here.parent / "docs"
 OUT_PATH = OUT_DIR / "datastructure.md"
 
-ISSUE_KEY = sys.argv[1] if len(sys.argv) > 1 else None
+ISSUE_KEY = sys.argv[1] if len(sys.argv) > 1 else "TACEA-4547"
 
 
 async def main() -> None:
@@ -92,7 +92,7 @@ async def main() -> None:
         for fname, val in fields.items():
             if any(t in fname.lower() for t in targets):
                 label = names.get(fname, fname)
-                w(f"### `{fname}` — {label}")
+                w(f"### `{fname}` \u2014 {label}")
                 w(f"")
                 w(f"```json")
                 w(json.dumps(val, ensure_ascii=False, indent=2))
