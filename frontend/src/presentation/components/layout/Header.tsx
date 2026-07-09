@@ -40,7 +40,23 @@ export default function Header() {
         )}
       </div>
 
-      <SearchWidget />
+      <div className="flex items-center gap-3">
+        {currentReport && (
+          <div className="hidden sm:flex flex-col items-end gap-0.5">
+            <span className="text-[11px] 3xl:text-[12px] text-apple-light tabular-nums">
+              기준일&nbsp;
+              <span className="text-apple-dark font-medium">
+                {currentReport.week_start} – {currentReport.week_end}
+              </span>
+            </span>
+            <span className="text-[11px] 3xl:text-[12px] text-apple-light tabular-nums">
+              생성&nbsp;
+              <span className="text-apple-dark font-medium">{currentReport.report_date}</span>
+            </span>
+          </div>
+        )}
+        <SearchWidget />
+      </div>
     </header>
   )
 }
