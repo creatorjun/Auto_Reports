@@ -1,4 +1,5 @@
 # backend/src/application/use_cases/generate_report.py
+import dataclasses
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -7,10 +8,12 @@ from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.report_assembler import ReportAssembler
 from src.domain.entities.report import Report
 from src.domain.repositories.report_repository import ReportRepository
+from src.shared.cache import LruCache
+from src.shared.constants import KST
 
 logger = logging.getLogger(__name__)
 
-KST = ZoneInfo("Asia/Seoul")
+_LATEST_KEY = "__latest__"
 
 
 class GenerateReportUseCase:
@@ -19,10 +22,12 @@ class GenerateReportUseCase:
         assembler: ReportAssembler,
         analyzer: AiAnalyzer,
         repository: ReportRepository,
+        cache: LruCache,
     ):
         self._assembler = assembler
         self._analyzer = analyzer
         self._repository = repository
+        self._cache = cache
 
     async def execute(
         self,
@@ -44,9 +49,10 @@ class GenerateReportUseCase:
         except Exception as e:
             logger.error(f"AI 분석 실패 (원시 데이터는 저장됨): {e}")
 
-        import dataclasses
         report_with_analysis = dataclasses.replace(new_report, ai_analysis=analysis)
         saved = await self._repository.save(report_with_analysis)
 
-        logger.info(f"보고서 저장 완료: ID={saved.id}")
+        self._cache.set(saved.id, saved)
+        self._cache.set(_LATEST_KEY, saved)
+        logger.info(f"보고서 저장 완료 및 쳨시 갱신: ID={saved.id}")
         return saved

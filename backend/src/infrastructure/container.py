@@ -16,6 +16,7 @@ from src.domain.ports.jira_port import JiraPort
 from src.infrastructure.external.gemini_client import GeminiClient
 from src.infrastructure.external.jira_client import JiraClient
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
+from src.shared.cache import LruCache
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class Container:
             jira_tac_assignee_field_id=settings.jira_tac_assignee_field_id,
             jira_qa_assignee_field_id=settings.jira_qa_assignee_field_id,
         )
+        self._report_cache: LruCache = LruCache(maxsize=50, ttl_seconds=600.0)
 
     async def aclose(self) -> None:
         await self._jira.aclose()
@@ -62,8 +64,13 @@ class Container:
             ai=self._ai,
             enabled=self._settings.ai_enabled,
         )
-        return GenerateReportUseCase(assembler, analyzer, repo)
+        return GenerateReportUseCase(
+            assembler=assembler,
+            analyzer=analyzer,
+            repository=repo,
+            cache=self._report_cache,
+        )
 
     def get_report_use_case(self, session: AsyncSession) -> GetReportUseCase:
         repo = ReportRepositoryImpl(session)
-        return GetReportUseCase(repo)
+        return GetReportUseCase(repo, cache=self._report_cache)
