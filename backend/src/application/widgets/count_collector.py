@@ -14,6 +14,11 @@ from src.domain.entities.widget_data import (
     SlaMetVsViolatedWidgetData,
 )
 from src.domain.ports.jira_port import JiraPort
+from src.shared.constants import (
+    JIRA_MAX_RESULTS_DEFAULT,
+    JIRA_MAX_RESULTS_LARGE,
+    SUMMARY_TRUNCATE_LEN,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +44,7 @@ class SimpleWithDetailsCollector(AbstractWidgetCollector):
     async def collect(self) -> WidgetResult[SimpleIssueWidgetData]:
         issues = await self._jira.get_issues(
             self._jql,
-            max_results=200,
+            max_results=JIRA_MAX_RESULTS_DEFAULT,
             fields="summary,issuetype,status,created",
         )
         now_ts = datetime.now()
@@ -55,7 +60,7 @@ class SimpleWithDetailsCollector(AbstractWidgetCollector):
             details.append(
                 IssueDetail(
                     key=key,
-                    summary=fields.get("summary", "")[:60],
+                    summary=fields.get("summary", "")[:SUMMARY_TRUNCATE_LEN],
                     type=(fields.get("issuetype") or {}).get("name", "기타"),
                     status=(fields.get("status") or {}).get("name", "기타"),
                     created=created[:16].replace("T", " "),
@@ -109,8 +114,8 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
 
     async def collect(self) -> WidgetResult[SlaMetVsViolatedWidgetData]:
         fields_str = f"summary,issuetype,status,created,resolutiondate,{self._initial_fid},{self._resolution_fid}"
-        jql = self._q.w9_sla()  # w9: SLA 준수 vs 위반
-        issues = await self._jira.get_issues(jql, max_results=500, fields=fields_str)
+        jql = self._q.w9_sla()
+        issues = await self._jira.get_issues(jql, max_results=JIRA_MAX_RESULTS_LARGE, fields=fields_str)
 
         total_violations = 0
         initial_response_violations = 0

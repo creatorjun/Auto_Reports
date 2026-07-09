@@ -38,6 +38,8 @@ class Container:
             closed_statuses=settings.closed_statuses,
             sla_threshold_days=settings.sla_threshold_days,
             year_start=settings.year_start,
+            jira_tac_assignee_field_id=settings.jira_tac_assignee_field_id,
+            jira_qa_assignee_field_id=settings.jira_qa_assignee_field_id,
         )
 
     async def aclose(self) -> None:
@@ -53,6 +55,8 @@ class Container:
             sla_threshold_days=self._settings.sla_threshold_days,
             sla_initial_response_field_id=self._settings.sla_initial_response_field_id,
             sla_resolution_field_id=self._settings.sla_resolution_field_id,
+            jira_tac_assignee_field_id=self._settings.jira_tac_assignee_field_id,
+            jira_qa_assignee_field_id=self._settings.jira_qa_assignee_field_id,
         )
         analyzer = AiAnalyzer(
             ai=self._ai,

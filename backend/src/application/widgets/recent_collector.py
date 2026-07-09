@@ -7,28 +7,16 @@ from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import RecentIssueWidgetData, RecentIssueDetail
 from src.domain.ports.jira_port import JiraPort
+from src.shared.constants import (
+    JIRA_RECENT_PAGE_SIZE,
+    STAGE_MAP,
+    SUMMARY_TRUNCATE_LEN,
+)
 
 logger = logging.getLogger(__name__)
 
-_STAGE_MAP: dict[str, int] = {
-    "할 일":            0,
-    "재오픈":           0,
-    "자료 요청 중":    1,
-    "이슈 리뷰 중":    2,
-    "연구소 대기 중":   3,
-    "연구소 검토 중":   3,
-    "구현 중":         4,
-    "배포 파일 검토 중":  5,
-    "결과 대기 중":    6,
-}
-
-FIELD_TAC_ASSIGNEE = "customfield_10859"
-FIELD_QA_ASSIGNEE  = "customfield_12222"
-PAGE_SIZE = 50
-
 
 def _user_name(value: object) -> str:
-    """user 객체(단일 or 리스트) 에서 displayName 추출."""
     if isinstance(value, list):
         for item in value:
             name = _user_name(item)
@@ -49,20 +37,28 @@ def _pick_user(fields: dict, *field_keys: str) -> str:
 
 
 class RecentCollector(AbstractWidgetCollector):
-    """w12: 최근 활성 이슈 목록 (최신 100건, 페이지당 50건)."""
+    """w12: 최근 활성 이슈 목록."""
 
-    def __init__(self, jira: JiraPort, q: ResolvedQueries):
+    def __init__(
+        self,
+        jira: JiraPort,
+        q: ResolvedQueries,
+        tac_assignee_field_id: str,
+        qa_assignee_field_id: str,
+    ):
         self._jira = jira
         self._q = q
+        self._tac_field = tac_assignee_field_id
+        self._qa_field = qa_assignee_field_id
 
     async def collect(self) -> WidgetResult[RecentIssueWidgetData]:
         jql = self._q.w12_recent()
         issues = await self._jira.get_issues(
             jql,
-            max_results=PAGE_SIZE * 2,
+            max_results=JIRA_RECENT_PAGE_SIZE * 2,
             fields=(
                 f"summary,issuetype,status,created,reporter,assignee,"
-                f"{FIELD_TAC_ASSIGNEE},{FIELD_QA_ASSIGNEE}"
+                f"{self._tac_field},{self._qa_field}"
             ),
         )
         now_ts = datetime.now()
@@ -74,22 +70,15 @@ class RecentCollector(AbstractWidgetCollector):
             elapsed_days = (
                 (now_ts - datetime.fromisoformat(created[:19])).days if created else 0
             )
-
             reporter = _pick_user(fields, "reporter")
-            tac_team = _pick_user(
-                fields,
-                FIELD_TAC_ASSIGNEE,
-                FIELD_QA_ASSIGNEE,
-                "assignee",
-            )
-
+            tac_team = _pick_user(fields, self._tac_field, self._qa_field, "assignee")
             issue_details.append(
                 RecentIssueDetail(
                     key=issue.get("key", ""),
-                    summary=(fields.get("summary") or "")[:60],
+                    summary=(fields.get("summary") or "")[:SUMMARY_TRUNCATE_LEN],
                     type=(fields.get("issuetype") or {}).get("name", "기타"),
                     status=status_name,
-                    stage_index=_STAGE_MAP.get(status_name, 0),
+                    stage_index=STAGE_MAP.get(status_name, 0),
                     created=created[:16].replace("T", " "),
                     elapsed_days=elapsed_days,
                     reporter=reporter,

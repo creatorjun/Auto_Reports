@@ -13,6 +13,7 @@ from src.domain.entities.widget_data import (
 from src.domain.ports.ai_port import AiPort
 from src.domain.value_objects.ai_analysis import AiAnalysis
 from src.domain.value_objects.widget_id import WidgetId
+from src.shared.constants import AI_OVERDUE_DETAIL_LIMIT, SUMMARY_TRUNCATE_SHORT_LEN
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +29,12 @@ PROMPT_TEMPLATE = """
 - 이슈 리뷰 중 지연: {issue_review}건
 - 자료 요청 중 지연: {data_request}건
 - 결과 대기 중 지연: {result_pending}건
-- 연구소 대기(담당자 미지정): {lab_unassigned}건
 - SLA 만족: {sla_met}건 / SLA 위반: {sla_violated}건
 - 평균 해결시간: {avg_resolution_days}일
-- 2026년 누적 생성: {yearly_created}건 / 누적 해결: {yearly_resolved}건
+- 올해 누적 생성: {yearly_created}건 / 누적 해결: {yearly_resolved}건
 - SLA 지연 사유: {delay_reasons}
 
-[SLA 초과 이슈 상세 (초과시간 내림차순, 최대 10건)]
+[SLA 초과 이슈 상세 (초과시간 내림차순, 최대 {overdue_limit}건)]
 {overdue_issue_list}
 
 [응답 형식 - 반드시 아래 JSON만 반환]
@@ -76,10 +76,10 @@ class AiAnalyzer:
         )
         overdue_details = []
         if overdue_data is not None:
-            for detail in overdue_data.issue_details[:10]:
+            for detail in overdue_data.issue_details[:AI_OVERDUE_DETAIL_LIMIT]:
                 overdue_details.append(
                     f"  - {detail.key} [{detail.type}] "
-                    f"{detail.summary[:30]} / "
+                    f"{detail.summary[:SUMMARY_TRUNCATE_SHORT_LEN]} / "
                     f"생성: {detail.created} / "
                     f"상태: {detail.resp_status} / "
                     f"초과: +{detail.over_h}h"
@@ -129,7 +129,6 @@ class AiAnalyzer:
             "issue_review": total(WidgetId.ISSUE_REVIEW),
             "data_request": total(WidgetId.DATA_REQUEST),
             "result_pending": total(WidgetId.RESULT_PENDING),
-            "lab_unassigned": total(WidgetId.LAB_UNASSIGNED),
             "sla_met": 0,
             "sla_violated": (
                 sla_data.initial_response_violations + sla_data.resolution_violations
@@ -140,6 +139,7 @@ class AiAnalyzer:
             "yearly_created": total(WidgetId.YEARLY_CREATED),
             "yearly_resolved": total(WidgetId.YEARLY_RESOLVED),
             "delay_reasons": str(delay_reason_data.by_status) if delay_reason_data is not None else "{}",
+            "overdue_limit": AI_OVERDUE_DETAIL_LIMIT,
             "overdue_issue_list": "\n".join(overdue_details) if overdue_details else "  (데이터 없음)",
         }
 

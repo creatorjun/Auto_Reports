@@ -5,8 +5,9 @@ from datetime import datetime
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
-from src.domain.entities.widget_data import SlaDelayWidgetData
+from src.domain.entities.widget_data import SlaDelayWidgetData, SlaDistributionEntry
 from src.domain.ports.jira_port import JiraPort
+from src.shared.constants import JIRA_MAX_RESULTS_LARGE
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class SlaDelayCollector(AbstractWidgetCollector):
     async def collect(self) -> WidgetResult[SlaDelayWidgetData]:
         jql = self._q.w10_sla_violated()
         issues = await self._jira.get_issues(
-            jql, max_results=500, fields="summary,issuetype,status,created",
+            jql, max_results=JIRA_MAX_RESULTS_LARGE, fields="summary,issuetype,status,created",
         )
         now_ts = datetime.now()
         by_status: dict[str, int] = {}

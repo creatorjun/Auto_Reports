@@ -1,8 +1,4 @@
 # backend/src/infrastructure/config/settings.py
-"""Settings 정의 본체. Infrastructure 레이어에 위치.
-
-루트 import는 하위호환 shim인 src/config/settings.py 를 사용하세요.
-"""
 import datetime
 from functools import lru_cache
 
@@ -27,6 +23,8 @@ class Settings(BaseSettings):
     sla_threshold_days: int = 30
     sla_initial_response_field_id: str = "customfield_12152"
     sla_resolution_field_id: str = "customfield_12151"
+    jira_tac_assignee_field_id: str = "customfield_10859"
+    jira_qa_assignee_field_id: str = "customfield_12222"
     cors_origins: list[str] = ["*"]
     issue_types: list[str] = ["인시던트", "개선", "CVE", "서비스 요청"]
     active_statuses: list[str] = [
@@ -38,7 +36,6 @@ class Settings(BaseSettings):
 
     @property
     def year_start(self) -> int:
-        """w8/w9 연도 누적 쿼리 연도. 현재 연도를 자동 반환."""
         return datetime.date.today().year
 
     @property

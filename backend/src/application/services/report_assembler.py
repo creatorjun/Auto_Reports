@@ -1,7 +1,7 @@
 # backend/src/application/services/report_assembler.py
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from src.application.services.query_builder import WidgetQueryBuilder
@@ -19,9 +19,9 @@ from src.application.widgets.sla_delay_collector import SlaDelayCollector
 from src.domain.entities.report import NewReport
 from src.domain.ports.jira_port import JiraPort
 from src.domain.value_objects.widget_id import WidgetId
+from src.shared.constants import KST
 
 logger = logging.getLogger(__name__)
-KST = ZoneInfo("Asia/Seoul")
 
 
 class ReportAssembler:
@@ -32,12 +32,16 @@ class ReportAssembler:
         sla_threshold_days: int,
         sla_initial_response_field_id: str,
         sla_resolution_field_id: str,
+        jira_tac_assignee_field_id: str,
+        jira_qa_assignee_field_id: str,
     ):
         self._jira = jira
         self._qb = query_builder
         self._sla_threshold_days = sla_threshold_days
         self._sla_initial_response_field_id = sla_initial_response_field_id
         self._sla_resolution_field_id = sla_resolution_field_id
+        self._jira_tac_assignee_field_id = jira_tac_assignee_field_id
+        self._jira_qa_assignee_field_id = jira_qa_assignee_field_id
 
     async def collect(
         self,
@@ -66,7 +70,14 @@ class ReportAssembler:
             ),
             (WidgetId.SLA_DELAY_REASON,    SlaDelayCollector(self._jira, q, self._sla_threshold_days)),
             (WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(self._jira, q)),
-            (WidgetId.RECENT_ISSUES,       RecentCollector(self._jira, q)),
+            (
+                WidgetId.RECENT_ISSUES,
+                RecentCollector(
+                    self._jira, q,
+                    self._jira_tac_assignee_field_id,
+                    self._jira_qa_assignee_field_id,
+                ),
+            ),
         ]
 
         monthly_collector = MonthlyCollector(
