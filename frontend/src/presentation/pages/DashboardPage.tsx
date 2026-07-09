@@ -93,12 +93,12 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const hasW7     = w7Monthly.some((e) => e.total > 0)
   const hasW8     = w8Monthly.some((e) => e.total > 0)
 
-  const w13Data       = getData<{ monthly: MonthlyCountEntry[] }>(w.w13)
-  const w14Data       = getData<{ monthly: MonthlyCountEntry[] }>(w.w14)
-  const w13Monthly    = w13Data?.monthly ?? []
-  const w14Monthly    = w14Data?.monthly ?? []
-  const hasW13        = w13Monthly.some((e) => e.count > 0)
-  const hasW14        = w14Monthly.some((e) => e.count > 0)
+  const w13Data    = getData<{ monthly: MonthlyCountEntry[] }>(w.w13)
+  const w14Data    = getData<{ monthly: MonthlyCountEntry[] }>(w.w14)
+  const w13Monthly = w13Data?.monthly ?? []
+  const w14Monthly = w14Data?.monthly ?? []
+  const hasW13     = w13Monthly.some((e) => e.count > 0)
+  const hasW14     = w14Monthly.some((e) => e.count > 0)
 
   const w9Data         = getData<W9Data>(w.w9)
   const w9Total        = w.w9?.total ?? 0
@@ -178,14 +178,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       </div>
 
       <ResolutionTimeChart details={recentIssues} />
-
-      <div className="flex justify-end">
-        <p className="text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums">
-          {report.week_start} – {report.week_end}
-          <span className="mx-1.5 text-apple-divider">·</span>
-          생성: {report.report_date}
-        </p>
-      </div>
     </div>
   )
 }

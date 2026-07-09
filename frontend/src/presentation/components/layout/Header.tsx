@@ -21,7 +21,15 @@ export default function Header() {
 
   return (
     <header className="bg-white h-14 3xl:h-16 flex items-center justify-between px-4 flex-shrink-0">
-      <div className="w-56 3xl:w-64" />
+      <div className="w-56 3xl:w-64 flex items-center">
+        {currentReport && (
+          <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums">
+            {currentReport.week_start} – {currentReport.week_end}
+            <span className="mx-1.5 text-apple-divider">·</span>
+            생성: {currentReport.report_date}
+          </p>
+        )}
+      </div>
 
       <div className="flex flex-col items-center justify-center gap-0.5">
         <div className="flex items-center gap-2.5">
@@ -40,23 +48,7 @@ export default function Header() {
         )}
       </div>
 
-      <div className="flex items-center gap-3">
-        {currentReport && (
-          <div className="hidden sm:flex flex-col items-end gap-0.5">
-            <span className="text-[11px] 3xl:text-[12px] text-apple-light tabular-nums">
-              기준일&nbsp;
-              <span className="text-apple-dark font-medium">
-                {currentReport.week_start} – {currentReport.week_end}
-              </span>
-            </span>
-            <span className="text-[11px] 3xl:text-[12px] text-apple-light tabular-nums">
-              생성&nbsp;
-              <span className="text-apple-dark font-medium">{currentReport.report_date}</span>
-            </span>
-          </div>
-        )}
-        <SearchWidget />
-      </div>
+      <SearchWidget />
     </header>
   )
 }
