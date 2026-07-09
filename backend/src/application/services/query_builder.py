@@ -49,28 +49,28 @@ class ResolvedQueries:
 
     def w3_created_vs_resolved(self) -> Tuple[str, str]:
         return (
-            f"{self._base()} AND created >= \"-7d\"",
-            f"{self._base()} AND resolved >= \"-7d\"",
+            f"{self._base()} AND created >= \"{self.date_start}\" AND created <= \"{self.date_end}\"",
+            f"{self._base()} AND resolved >= \"{self.date_start}\" AND resolved <= \"{self.date_end}\"",
         )
 
     def w4_issue_review(self) -> str:
         return (
             f"{self._base()} AND status = \"이슈 리뷰 중\" "
-            f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
+            f"AND created <= \"-{self._thr()}d\" "
             f"AND status NOT IN ({self._closed()})"
         )
 
     def w5_data_request(self) -> str:
         return (
             f"{self._base()} AND status = \"자료 요청 중\" "
-            f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
+            f"AND created <= \"-{self._thr()}d\" "
             f"AND status NOT IN ({self._closed()})"
         )
 
     def w6_result_pending(self) -> str:
         return (
             f"{self._base()} AND status = \"결과 대기 중\" "
-            f"AND created <= \"-{self._thr()}d\" AND updated >= \"-7d\" "
+            f"AND created <= \"-{self._thr()}d\" "
             f"AND status NOT IN ({self._closed()})"
         )
 
@@ -95,7 +95,10 @@ class ResolvedQueries:
         )
 
     def w11_resolution_resolved(self) -> str:
-        return f"{self._base()} AND resolved >= \"-7d\" ORDER BY resolved DESC"
+        return (
+            f"{self._base()} AND resolved >= \"{self.date_start}\" "
+            f"AND resolved <= \"{self.date_end}\" ORDER BY resolved DESC"
+        )
 
     def w12_recent(self) -> str:
         return (
