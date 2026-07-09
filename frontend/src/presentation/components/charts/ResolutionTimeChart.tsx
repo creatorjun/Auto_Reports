@@ -10,11 +10,11 @@ const COLS = ['key', 'summary', 'status', 'reporter', 'tac', 'elapsed'] as const
 type ColKey = typeof COLS[number]
 
 const DEFAULT_FRACS: Record<ColKey, number> = {
-  key:      0.08,
-  summary:  0.32,
-  status:   0.22,
-  reporter: 0.12,
-  tac:      0.16,
+  key:      0.10,
+  summary:  0.40,
+  status:   0.15,
+  reporter: 0.15,
+  tac:      0.10,
   elapsed:  0.10,
 }
 const MIN_FRAC = 0.05
