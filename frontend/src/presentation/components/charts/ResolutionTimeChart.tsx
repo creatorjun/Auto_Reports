@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import { useConfig } from '@/infrastructure/hooks/useConfig'
 import { STATUS_STYLE, STATUS_LEGEND, STAGE_TOTAL } from '@/shared/ui'
 import type { RecentIssue } from '@/presentation/pages/DashboardPage'
@@ -8,6 +8,7 @@ const PAGE_SIZE = 50
 
 const COLS = ['key', 'summary', 'status', 'reporter', 'tac', 'elapsed'] as const
 type ColKey = typeof COLS[number]
+type SortDir = 'asc' | 'desc'
 
 const DEFAULT_FRACS: Record<ColKey, number> = {
   key:      0.10,
@@ -42,6 +43,11 @@ function StageBar({ stageIndex }: { stageIndex: number }) {
   )
 }
 
+function SortIcon({ dir }: { dir: SortDir | null }) {
+  if (!dir) return <span className="ml-1 opacity-30 text-[10px]">⇅</span>
+  return <span className="ml-1 text-brand-500 text-[10px]">{dir === 'asc' ? '↑' : '↓'}</span>
+}
+
 function ResizeHandle({
   onDrag,
   tableWidth,
@@ -54,6 +60,7 @@ function ResizeHandle({
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     dragging.current = true
     lastX.current    = e.clientX
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
@@ -61,9 +68,9 @@ function ResizeHandle({
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragging.current) return
-    const dx   = e.clientX - lastX.current
+    const dx = e.clientX - lastX.current
     lastX.current = e.clientX
-    const tw   = tableWidth.current || 1
+    const tw = tableWidth.current || 1
     onDrag(dx / tw)
   }, [onDrag, tableWidth])
 
@@ -83,13 +90,45 @@ function ResizeHandle({
   )
 }
 
+function sortIssues(items: RecentIssue[], key: ColKey, dir: SortDir): RecentIssue[] {
+  return [...items].sort((a, b) => {
+    let av: string | number = ''
+    let bv: string | number = ''
+    switch (key) {
+      case 'key':      av = a.key;          bv = b.key;          break
+      case 'summary':  av = a.summary;      bv = b.summary;      break
+      case 'status':   av = a.stage_index;  bv = b.stage_index;  break
+      case 'reporter': av = a.reporter;     bv = b.reporter;     break
+      case 'tac':      av = a.tac_team;     bv = b.tac_team;     break
+      case 'elapsed':  av = a.elapsed_days; bv = b.elapsed_days; break
+    }
+    if (av < bv) return dir === 'asc' ? -1 : 1
+    if (av > bv) return dir === 'asc' ?  1 : -1
+    return 0
+  })
+}
+
 export default function ResolutionTimeChart({ details }: Props) {
   const { data: config } = useConfig()
-  const jiraBaseUrl  = config?.jira_base_url ?? 'https://seculayer.atlassian.net'
-  const [page, setPage]     = useState(1)
-  const [fracs, setFracs]   = useState({ ...DEFAULT_FRACS })
-  const tableRef             = useRef<HTMLTableElement>(null)
-  const tableWidthRef        = useRef<number>(0)
+  const jiraBaseUrl = config?.jira_base_url ?? 'https://seculayer.atlassian.net'
+  const [page, setPage]       = useState(1)
+  const [fracs, setFracs]     = useState({ ...DEFAULT_FRACS })
+  const [sortKey, setSortKey] = useState<ColKey | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const tableRef              = useRef<HTMLTableElement>(null)
+  const tableWidthRef         = useRef<number>(0)
+
+  const handleSort = useCallback((col: ColKey) => {
+    setSortKey((prev) => {
+      if (prev === col) {
+        setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
+        return col
+      }
+      setSortDir('asc')
+      return col
+    })
+    setPage(1)
+  }, [])
 
   const resize = useCallback((leftCol: ColKey, rightCol: ColKey, df: number) => {
     setFracs((prev) => {
@@ -105,6 +144,11 @@ export default function ResolutionTimeChart({ details }: Props) {
     return tableWidthRef
   }, [])
 
+  const sortedDetails = useMemo(
+    () => sortKey ? sortIssues(details, sortKey, sortDir) : details,
+    [details, sortKey, sortDir],
+  )
+
   if (!details || details.length === 0) {
     return (
       <div className="card flex items-center justify-center h-48 text-apple-light text-ui-base">
@@ -113,18 +157,16 @@ export default function ResolutionTimeChart({ details }: Props) {
     )
   }
 
-  const totalPages = Math.ceil(details.length / PAGE_SIZE)
-  const pageItems  = details.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.ceil(sortedDetails.length / PAGE_SIZE)
+  const pageItems  = sortedDetails.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const thCls = "pb-1.5 text-left font-medium whitespace-nowrap relative pr-5 select-none"
-
-  const headers: { key: ColKey; label: string; rightCol?: ColKey }[] = [
-    { key: 'key',      label: '이슈',      rightCol: 'summary'  },
-    { key: 'summary',  label: '제목',      rightCol: 'status'   },
-    { key: 'status',   label: '진행 상태', rightCol: 'reporter' },
-    { key: 'reporter', label: '보고자',    rightCol: 'tac'      },
-    { key: 'tac',      label: '담당자',    rightCol: 'elapsed'  },
-    { key: 'elapsed',  label: '생성일 (경과)' },
+  const headers: { key: ColKey; label: string; rightCol?: ColKey; alignRight?: boolean }[] = [
+    { key: 'key',      label: '이슈',           rightCol: 'summary'  },
+    { key: 'summary',  label: '제목',           rightCol: 'status'   },
+    { key: 'status',   label: '진행 상태',      rightCol: 'reporter' },
+    { key: 'reporter', label: '보고자',         rightCol: 'tac'      },
+    { key: 'tac',      label: '담당자',         rightCol: 'elapsed'  },
+    { key: 'elapsed',  label: '생성일 (경과)', alignRight: true },
   ]
 
   return (
@@ -157,12 +199,19 @@ export default function ResolutionTimeChart({ details }: Props) {
           </colgroup>
           <thead>
             <tr className="border-b border-apple-divider text-ui-sm text-apple-light">
-              {headers.map(({ key, label, rightCol }) => (
+              {headers.map(({ key, label, rightCol, alignRight }) => (
                 <th
                   key={key}
-                  className={key === 'elapsed' ? 'pb-1.5 text-right font-medium whitespace-nowrap' : thCls}
+                  onClick={() => handleSort(key)}
+                  className={[
+                    'pb-1.5 font-medium whitespace-nowrap relative pr-5 select-none cursor-pointer',
+                    'hover:text-apple-primary transition-colors',
+                    alignRight ? 'text-right' : 'text-left',
+                    sortKey === key ? 'text-apple-primary' : '',
+                  ].join(' ')}
                 >
                   {label}
+                  <SortIcon dir={sortKey === key ? sortDir : null} />
                   {rightCol && (
                     <ResizeHandle
                       tableWidth={getTableWidth()}
@@ -219,7 +268,7 @@ export default function ResolutionTimeChart({ details }: Props) {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-apple-divider">
           <span className="text-ui-sm text-apple-light">
-            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, details.length)} / {details.length}건
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sortedDetails.length)} / {sortedDetails.length}건
           </span>
           <div className="flex gap-1">
             {Array.from({ length: totalPages }).map((_, i) => (
