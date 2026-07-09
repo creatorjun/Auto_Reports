@@ -5,6 +5,7 @@ from typing import Any
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import (
     CreatedVsResolvedWidgetData,
+    MonthlyCountWidgetData,
     RecentIssueWidgetData,
     ResolutionTypeWidgetData,
     SimpleIssueWidgetData,
@@ -27,6 +28,8 @@ _WIDGET_DATA_TYPE_MAP: dict[str, type] = {
     WidgetId.SLA_DELAY_REASON:       SlaDelayWidgetData,
     WidgetId.AVG_RESOLUTION_TYPE:    ResolutionTypeWidgetData,
     WidgetId.RECENT_ISSUES:          RecentIssueWidgetData,
+    WidgetId.MONTHLY_CREATED:        MonthlyCountWidgetData,
+    WidgetId.MONTHLY_RESOLVED:       MonthlyCountWidgetData,
 }
 
 
