@@ -67,7 +67,14 @@ class ReportAssembler:
                     self._sla_resolution_field_id,
                 ),
             ),
-            (WidgetId.SLA_DELAY_REASON,    SlaDelayCollector(self._jira, q, self._sla_threshold_days)),
+            (
+                WidgetId.SLA_DELAY_REASON,
+                SlaDelayCollector(
+                    self._jira, q,
+                    self._sla_initial_response_field_id,
+                    self._sla_resolution_field_id,
+                ),
+            ),
             (WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(self._jira, q)),
             (
                 WidgetId.RECENT_ISSUES,

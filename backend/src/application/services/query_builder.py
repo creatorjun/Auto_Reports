@@ -88,12 +88,6 @@ class ResolvedQueries:
             f"ORDER BY created ASC"
         )
 
-    def w10_sla_violated(self) -> str:
-        return (
-            f"{self._base()} AND created <= \"-{self._thr()}d\" "
-            f"AND status NOT IN ({self._closed()})"
-        )
-
     def w11_resolution_resolved(self) -> str:
         return (
             f"{self._base()} AND resolved >= \"{self.date_start}\" "

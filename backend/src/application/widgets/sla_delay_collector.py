@@ -1,6 +1,5 @@
 # backend/src/application/widgets/sla_delay_collector.py
 import logging
-from datetime import datetime
 
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
@@ -13,23 +12,45 @@ logger = logging.getLogger(__name__)
 
 
 class SlaDelayCollector(AbstractWidgetCollector):
-    """w10: SLA 지연 사유 (by_status 분류)."""
+    """
+    w10: SLA 지연 사유 (by_status 분류)
 
-    def __init__(self, jira: JiraPort, q: ResolvedQueries, sla_threshold_days: int):
+    w9와 동일하게 Jira SLA 필드의 breached 플래그를 기준으로 하여
+    위반 이슈만 추출하고 status별로 그룹핵합니다.
+    """
+
+    def __init__(
+        self,
+        jira: JiraPort,
+        q: ResolvedQueries,
+        sla_initial_response_field_id: str,
+        sla_resolution_field_id: str,
+    ):
         self._jira = jira
         self._q = q
-        self._threshold = sla_threshold_days
+        self._initial_fid = sla_initial_response_field_id
+        self._resolution_fid = sla_resolution_field_id
 
     async def collect(self) -> WidgetResult[SlaDelayWidgetData]:
-        jql = self._q.w10_sla_violated()
-        issues = await self._jira.get_issues(
-            jql, max_results=JIRA_MAX_RESULTS_LARGE, fields="summary,issuetype,status,created",
+        fields_str = (
+            f"summary,issuetype,status,created,"
+            f"{self._initial_fid},{self._resolution_fid}"
         )
+        jql = self._q.w9_sla()
+        issues = await self._jira.get_issues(
+            jql, max_results=JIRA_MAX_RESULTS_LARGE, fields=fields_str
+        )
+
         by_status: dict[str, int] = {}
         for issue in issues:
             fields = issue.get("fields") or {}
+            initial_breached = self._is_sla_breached(fields.get(self._initial_fid))
+            resolution_breached = self._is_sla_breached(fields.get(self._resolution_fid))
+            if not (initial_breached or resolution_breached):
+                continue
             status = (fields.get("status") or {}).get("name", "알 수 없음")
             by_status[status] = by_status.get(status, 0) + 1
+
         total = sum(by_status.values())
         logger.info(f"[w10-SLA지연사유] {total}건")
         return WidgetResult(
@@ -38,3 +59,15 @@ class SlaDelayCollector(AbstractWidgetCollector):
             jql=jql,
             data=SlaDelayWidgetData(by_status=by_status),
         )
+
+    @staticmethod
+    def _is_sla_breached(sla_val: dict | None) -> bool:
+        if not sla_val:
+            return False
+        for cycle in (sla_val.get("completedCycles") or []):
+            if cycle.get("breached"):
+                return True
+        ongoing = sla_val.get("ongoingCycle")
+        if ongoing and ongoing.get("breached"):
+            return True
+        return False
