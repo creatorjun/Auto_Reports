@@ -16,13 +16,13 @@ export default {
         sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'sans-serif']
       },
       fontSize: {
-        'ui-xs':   ['11px', { lineHeight: '1.4' }],
-        'ui-sm':   ['12px', { lineHeight: '1.5' }],
-        'ui-base': ['13px', { lineHeight: '1.6' }],
-        'ui-md':   ['14px', { lineHeight: '1.6' }],
-        'ui-lg':   ['16px', { lineHeight: '1.5' }],
-        'ui-xl':   ['32px', { lineHeight: '1' }],
-        'ui-2xl':  ['38px', { lineHeight: '1' }],
+        'ui-xs':   ['16px', { lineHeight: '1.4' }],
+        'ui-sm':   ['18px', { lineHeight: '1.5' }],
+        'ui-base': ['20px', { lineHeight: '1.6' }],
+        'ui-md':   ['21px', { lineHeight: '1.6' }],
+        'ui-lg':   ['24px', { lineHeight: '1.5' }],
+        'ui-xl':   ['48px', { lineHeight: '1' }],
+        'ui-2xl':  ['57px', { lineHeight: '1' }],
       },
       colors: {
         brand: {
