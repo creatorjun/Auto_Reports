@@ -22,16 +22,27 @@ _STAGE_MAP: dict[str, int] = {
     "결과 대기 중":    6,
 }
 
-FIELD_TAC_TEAM       = "customfield_10713"
-FIELD_TAC_ASSIGNEE   = "customfield_10859"
-FIELD_QA_ASSIGNEE    = "customfield_12222"
+FIELD_TAC_ASSIGNEE = "customfield_10859"
+FIELD_QA_ASSIGNEE  = "customfield_12222"
 PAGE_SIZE = 50
+
+
+def _user_name(value: object) -> str:
+    """user 객체(단일 or 리스트) 에서 displayName 추출."""
+    if isinstance(value, list):
+        for item in value:
+            name = _user_name(item)
+            if name:
+                return name
+        return ""
+    if isinstance(value, dict):
+        return value.get("displayName") or value.get("name") or ""
+    return ""
 
 
 def _pick_user(fields: dict, *field_keys: str) -> str:
     for key in field_keys:
-        user = fields.get(key) or {}
-        name = user.get("displayName") or user.get("name") or ""
+        name = _user_name(fields.get(key))
         if name:
             return name
     return "미지정"
