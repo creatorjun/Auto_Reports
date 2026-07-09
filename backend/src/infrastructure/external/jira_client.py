@@ -5,10 +5,13 @@ from typing import Any
 import httpx
 
 from src.domain.ports.jira_port import JiraPort
+from src.shared.constants import JIRA_MAX_RESULTS_DEFAULT
 
 logger = logging.getLogger(__name__)
 
 SLA_SCHEMA_TYPE = "sd-servicelevelagreement"
+_JIRA_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0)
+_JIRA_LIMITS  = httpx.Limits(max_connections=30, max_keepalive_connections=15)
 
 
 class JiraClient(JiraPort):
@@ -20,8 +23,8 @@ class JiraClient(JiraPort):
                 "Accept": "application/json",
                 "Content-Type": "application/json",
             },
-            timeout=30.0,
-            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+            timeout=_JIRA_TIMEOUT,
+            limits=_JIRA_LIMITS,
         )
         self._sla_field_ids_cache: dict[str, str] | None = None
 
@@ -40,26 +43,43 @@ class JiraClient(JiraPort):
     async def get_issues(
         self,
         jql: str,
-        max_results: int = 200,
+        max_results: int = JIRA_MAX_RESULTS_DEFAULT,
         fields: str = "",
     ) -> list[dict[str, Any]]:
         url = f"{self._base_url}/rest/api/3/search/jql"
-        payload: dict[str, Any] = {
-            "jql": jql,
-            "maxResults": max_results,
-            "fieldsByKeys": False,
-        }
-        if fields:
-            payload["fields"] = fields.split(",")
-        try:
-            resp = await self._client.post(url, json=payload)
-            resp.raise_for_status()
-            return resp.json().get("issues", [])
-        except httpx.HTTPError as e:
-            logger.error(f"JQL 검색 실패: {jql[:80]}... → {e}")
-            if isinstance(e, httpx.HTTPStatusError):
-                logger.error(f"응답 상세: {e.response.text[:200]}")
-            return []
+        fields_list = fields.split(",") if fields else []
+        all_issues: list[dict[str, Any]] = []
+        start_at = 0
+
+        while True:
+            payload: dict[str, Any] = {
+                "jql": jql,
+                "maxResults": min(max_results - len(all_issues), 100),
+                "startAt": start_at,
+                "fieldsByKeys": False,
+            }
+            if fields_list:
+                payload["fields"] = fields_list
+            try:
+                resp = await self._client.post(url, json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+            except httpx.HTTPError as e:
+                logger.error(f"JQL 검색 실패: {jql[:80]}... → {e}")
+                if isinstance(e, httpx.HTTPStatusError):
+                    logger.error(f"응답 상세: {e.response.text[:200]}")
+                break
+
+            issues = data.get("issues", [])
+            all_issues.extend(issues)
+
+            total      = data.get("total", 0)
+            start_at  += len(issues)
+
+            if not issues or start_at >= total or len(all_issues) >= max_results:
+                break
+
+        return all_issues
 
     async def get_sla_field_ids(self) -> dict[str, str]:
         if self._sla_field_ids_cache is not None:

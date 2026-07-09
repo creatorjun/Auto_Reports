@@ -1,17 +1,17 @@
 # backend/src/application/widgets/monthly_collector.py
+import asyncio
 import logging
 from datetime import datetime
 from typing import Tuple
-from zoneinfo import ZoneInfo
 
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import MonthlyEntry, SlaMonthlyWidgetData
 from src.domain.ports.jira_port import JiraPort
+from src.shared.constants import JIRA_MAX_RESULTS_LARGE
 
 logger = logging.getLogger(__name__)
-KST = ZoneInfo("Asia/Seoul")
 
 
 class MonthlyCollector(AbstractWidgetCollector):
@@ -43,14 +43,19 @@ class MonthlyCollector(AbstractWidgetCollector):
                 month = 12
                 year -= 1
 
+        fields_str = f"summary,created,resolutiondate,{self._initial_fid},{self._resolution_fid}"
+
+        async def _fetch_month(y: int, m: int) -> tuple[int, int, list]:
+            jql = self._q.w7_w8_monthly_candidates(y, m)
+            issues = await self._jira.get_issues(jql, max_results=JIRA_MAX_RESULTS_LARGE, fields=fields_str)
+            return y, m, issues
+
+        month_results = await asyncio.gather(*[_fetch_month(y, m) for y, m in months])
+
         w7_entries: list[MonthlyEntry] = []
         w8_entries: list[MonthlyEntry] = []
 
-        for y, m in months:
-            jql = self._q.w7_w8_monthly_candidates(y, m)
-            fields_str = f"summary,created,resolutiondate,{self._initial_fid},{self._resolution_fid}"
-            issues = await self._jira.get_issues(jql, max_results=500, fields=fields_str)
-
+        for y, m, issues in month_results:
             total = len(issues)
             init_viol = sum(
                 1 for i in issues
@@ -60,10 +65,10 @@ class MonthlyCollector(AbstractWidgetCollector):
                 1 for i in issues
                 if self._breached((i.get("fields") or {}).get(self._resolution_fid))
             )
-            init_met = total - init_viol
-            res_met  = total - res_viol
-            init_rate = round((init_met / total * 100), 1) if total > 0 else 0.0
-            res_rate  = round((res_met  / total * 100), 1) if total > 0 else 0.0
+            init_met  = total - init_viol
+            res_met   = total - res_viol
+            init_rate = round(init_met / total * 100, 1) if total > 0 else 0.0
+            res_rate  = round(res_met  / total * 100, 1) if total > 0 else 0.0
 
             label = f"{y}-{m:02d}"
             w7_entries.append(MonthlyEntry(

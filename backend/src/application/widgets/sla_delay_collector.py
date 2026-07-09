@@ -5,7 +5,7 @@ from datetime import datetime
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
-from src.domain.entities.widget_data import SlaDelayWidgetData, SlaDistributionEntry
+from src.domain.entities.widget_data import SlaDelayWidgetData
 from src.domain.ports.jira_port import JiraPort
 from src.shared.constants import JIRA_MAX_RESULTS_LARGE
 
@@ -25,16 +25,11 @@ class SlaDelayCollector(AbstractWidgetCollector):
         issues = await self._jira.get_issues(
             jql, max_results=JIRA_MAX_RESULTS_LARGE, fields="summary,issuetype,status,created",
         )
-        now_ts = datetime.now()
         by_status: dict[str, int] = {}
         for issue in issues:
             fields = issue.get("fields") or {}
             status = (fields.get("status") or {}).get("name", "알 수 없음")
-            created = fields.get("created", "")
-            if created:
-                elapsed = (now_ts - datetime.fromisoformat(created[:19])).days
-                if elapsed >= self._threshold:
-                    by_status[status] = by_status.get(status, 0) + 1
+            by_status[status] = by_status.get(status, 0) + 1
         total = sum(by_status.values())
         logger.info(f"[w10-SLA지연사유] {total}건")
         return WidgetResult(

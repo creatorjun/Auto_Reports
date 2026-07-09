@@ -2,7 +2,6 @@
 import asyncio
 import logging
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.widgets.count_collector import (
@@ -87,9 +86,15 @@ class ReportAssembler:
         )
         monthly_count_collector = MonthlyCountCollector(self._jira, q, now)
 
-        base_results = await asyncio.gather(*[c.collect() for _, c in collectors])
-        w7_result, w8_result = await monthly_collector.collect()
-        w13_result, w14_result = await monthly_count_collector.collect()
+        base_task    = asyncio.gather(*[c.collect() for _, c in collectors])
+        monthly_task = monthly_collector.collect()
+        monthly_count_task = monthly_count_collector.collect()
+
+        base_results, (w7_result, w8_result), (w13_result, w14_result) = await asyncio.gather(
+            base_task,
+            monthly_task,
+            monthly_count_task,
+        )
 
         widgets = {widget_id: result for (widget_id, _), result in zip(collectors, base_results)}
         widgets[WidgetId.SLA_INITIAL_RESPONSE]   = w7_result
