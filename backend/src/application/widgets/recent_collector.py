@@ -10,7 +10,6 @@ from src.domain.ports.jira_port import JiraPort
 
 logger = logging.getLogger(__name__)
 
-# 0=할일/재오픈, 1=자료요청중, 2=이슈리뷰중, 3=연구소대기중, 4=구현중, 5=배포파일검토중, 6=결과대기중
 _STAGE_MAP: dict[str, int] = {
     "할 일":            0,
     "재오픈":           0,
@@ -34,7 +33,7 @@ class RecentCollector(AbstractWidgetCollector):
     async def collect(self) -> WidgetResult[RecentIssueWidgetData]:
         jql = self._q.w12_recent()
         issues = await self._jira.get_issues(
-            jql, max_results=50, fields="summary,issuetype,status,created",
+            jql, max_results=50, fields="summary,issuetype,status,created,assignee",
         )
         now_ts = datetime.now()
         issue_details = []
@@ -45,6 +44,12 @@ class RecentCollector(AbstractWidgetCollector):
             elapsed_days = (
                 (now_ts - datetime.fromisoformat(created[:19])).days if created else 0
             )
+            assignee_field = fields.get("assignee") or {}
+            assignee = (
+                assignee_field.get("displayName")
+                or assignee_field.get("name")
+                or "미지정"
+            )
             issue_details.append(
                 RecentIssueDetail(
                     key=issue.get("key", ""),
@@ -54,6 +59,7 @@ class RecentCollector(AbstractWidgetCollector):
                     stage_index=_STAGE_MAP.get(status_name, 0),
                     created=created[:16].replace("T", " "),
                     elapsed_days=elapsed_days,
+                    assignee=assignee,
                 )
             )
         total = len(issue_details)

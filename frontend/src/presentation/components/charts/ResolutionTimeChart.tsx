@@ -9,6 +9,7 @@ interface RecentIssue {
   stage_index: number
   created: string
   elapsed_days: number
+  assignee?: string
 }
 
 interface Props {
@@ -108,7 +109,12 @@ export default function ResolutionTimeChart({ details }: Props) {
                     {issue.summary}
                   </td>
                   <td className="py-2 pr-4">
-                    <StageBar stageIndex={issue.stage_index} />
+                    <div className="flex items-center gap-2">
+                      <StageBar stageIndex={issue.stage_index} />
+                      <span className="text-[11px] text-apple-light whitespace-nowrap">
+                        {issue.assignee ?? '미지정'}
+                      </span>
+                    </div>
                   </td>
                   <td className="py-2 pr-3 whitespace-nowrap">
                     <span

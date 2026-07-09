@@ -66,6 +66,7 @@ class RecentIssueDetail:
     stage_index: int
     created: str
     elapsed_days: int
+    assignee: str = "미지정"
 
 
 @dataclass
@@ -105,7 +106,7 @@ class CreatedResolvedIssueDetail:
     key: str
     summary: str
     type: str
-    status: str   # 현재 상태 포함
+    status: str
     created: str
 
 
@@ -114,7 +115,7 @@ class ResolvedIssueDetail:
     key: str
     summary: str
     type: str
-    resolved: str  # 해결 일시
+    resolved: str
 
 
 @dataclass

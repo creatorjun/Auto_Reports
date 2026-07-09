@@ -40,6 +40,7 @@ interface RecentIssue {
   stage_index: number
   created: string
   elapsed_days: number
+  assignee?: string
 }
 
 interface ResolutionTypeEntry {
