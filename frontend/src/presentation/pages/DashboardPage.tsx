@@ -1,5 +1,5 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { useLatestReport, useReportById } from '@/infrastructure/hooks/useReport'
 import { useReportStore } from '@/app/store/reportStore'
@@ -72,68 +72,98 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   const w = report.widgets
 
-  const w3Data = getData<{
-    created: number
-    resolved: number
-    created_details: CreatedIssue[]
-    resolved_details: ResolvedIssue[]
-  }>(w.w3)
-  const w3Created      = w3Data?.created          ?? 0
-  const w3Resolved     = w3Data?.resolved         ?? 0
-  const weeklyCreated  = w3Data?.created_details  ?? []
-  const weeklyResolved = w3Data?.resolved_details ?? []
+  const {
+    w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange,
+  } = useMemo(() => {
+    const w3Data = getData<{
+      created: number
+      resolved: number
+      created_details: CreatedIssue[]
+      resolved_details: ResolvedIssue[]
+    }>(w.w3)
+    return {
+      w3Created:      w3Data?.created          ?? 0,
+      w3Resolved:     w3Data?.resolved         ?? 0,
+      weeklyCreated:  w3Data?.created_details  ?? [],
+      weeklyResolved: w3Data?.resolved_details ?? [],
+      dateRange: report.week_start && report.week_end
+        ? { start: report.week_start, end: report.week_end }
+        : undefined,
+    }
+  }, [w.w3, report.week_start, report.week_end])
 
-  const dateRange = report.week_start && report.week_end
-    ? { start: report.week_start, end: report.week_end }
-    : undefined
+  const { w7Monthly, w8Monthly, hasW7, hasW8 } = useMemo(() => {
+    const w7Data    = getData<{ monthly: MonthlyEntry[] }>(w.w7)
+    const w8Data    = getData<{ monthly: MonthlyEntry[] }>(w.w8)
+    const w7Monthly = w7Data?.monthly ?? []
+    const w8Monthly = w8Data?.monthly ?? []
+    return {
+      w7Monthly,
+      w8Monthly,
+      hasW7: w7Monthly.some((e) => e.total > 0),
+      hasW8: w8Monthly.some((e) => e.total > 0),
+    }
+  }, [w.w7, w.w8])
 
-  const w7Data    = getData<{ monthly: MonthlyEntry[] }>(w.w7)
-  const w8Data    = getData<{ monthly: MonthlyEntry[] }>(w.w8)
-  const w7Monthly = w7Data?.monthly ?? []
-  const w8Monthly = w8Data?.monthly ?? []
-  const hasW7     = w7Monthly.some((e) => e.total > 0)
-  const hasW8     = w8Monthly.some((e) => e.total > 0)
+  const { w13Monthly, w14Monthly, hasW13, hasW14 } = useMemo(() => {
+    const w13Data    = getData<{ monthly: MonthlyCountEntry[] }>(w.w13)
+    const w14Data    = getData<{ monthly: MonthlyCountEntry[] }>(w.w14)
+    const w13Monthly = w13Data?.monthly ?? []
+    const w14Monthly = w14Data?.monthly ?? []
+    return {
+      w13Monthly,
+      w14Monthly,
+      hasW13: w13Monthly.some((e) => e.count > 0),
+      hasW14: w14Monthly.some((e) => e.count > 0),
+    }
+  }, [w.w13, w.w14])
 
-  const w13Data    = getData<{ monthly: MonthlyCountEntry[] }>(w.w13)
-  const w14Data    = getData<{ monthly: MonthlyCountEntry[] }>(w.w14)
-  const w13Monthly = w13Data?.monthly ?? []
-  const w14Monthly = w14Data?.monthly ?? []
-  const hasW13     = w13Monthly.some((e) => e.count > 0)
-  const hasW14     = w14Monthly.some((e) => e.count > 0)
+  const { w9Total, w9Distribution } = useMemo(() => {
+    const w9Data = getData<W9Data>(w.w9)
+    return {
+      w9Total:        w.w9?.total ?? 0,
+      w9Distribution: w9Data?.violation_distribution ?? [],
+    }
+  }, [w.w9])
 
-  const w9Data         = getData<W9Data>(w.w9)
-  const w9Total        = w.w9?.total ?? 0
-  const w9Distribution = w9Data?.violation_distribution ?? []
+  const w10ByStatus = useMemo(() => {
+    const w10Data = getData<{ by_status: Record<string, number> }>(w.w10)
+    return w10Data?.by_status ?? {}
+  }, [w.w10])
 
-  const w10Data     = getData<{ by_status: Record<string, number> }>(w.w10)
-  const w10ByStatus = w10Data?.by_status ?? {}
+  const w11ByType = useMemo(() => {
+    const w11Data = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w.w11)
+    return w11Data?.by_type ?? {}
+  }, [w.w11])
 
-  const w11Data   = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w.w11)
-  const w11ByType = w11Data?.by_type ?? {}
+  const { recentIssues, incompleteIssues, incompleteTotal } = useMemo(() => {
+    const w12Data = getData<{ issue_details: RecentIssue[] }>(w.w12)
+    const recentIssues = (w12Data?.issue_details ?? []).map((i) => ({
+      ...i,
+      reporter: i.reporter ?? '미지정',
+      tac_team: i.tac_team ?? '미지정',
+    }))
+    const incompleteIssues: IncompleteIssue[] = recentIssues.map((i) => ({
+      key:          i.key,
+      summary:      i.summary,
+      type:         i.type,
+      status:       i.status,
+      created:      i.created,
+      elapsed_days: i.elapsed_days,
+    }))
+    return { recentIssues, incompleteIssues, incompleteTotal: incompleteIssues.length }
+  }, [w.w12])
 
-  const w12Data      = getData<{ issue_details: RecentIssue[] }>(w.w12)
-  const recentIssues = (w12Data?.issue_details ?? []).map((i) => ({
-    ...i,
-    reporter: i.reporter ?? '미지정',
-    tac_team: i.tac_team ?? '미지정',
-  }))
-
-  const incompleteIssues: IncompleteIssue[] = recentIssues.map((i) => ({
-    key:          i.key,
-    summary:      i.summary,
-    type:         i.type,
-    status:       i.status,
-    created:      i.created,
-    elapsed_days: i.elapsed_days,
-  }))
-  const incompleteTotal = incompleteIssues.length
-
-  const w4Data              = getData<{ issue_details: ReviewIssue[] }>(w.w4)
-  const w5Data              = getData<{ issue_details: DataRequestIssue[] }>(w.w5)
-  const w6Data              = getData<{ issue_details: ResultPendingIssue[] }>(w.w6)
-  const reviewIssues        = w4Data?.issue_details ?? []
-  const dataRequestIssues   = w5Data?.issue_details ?? []
-  const resultPendingIssues = w6Data?.issue_details ?? []
+  const { reviewIssues, dataRequestIssues, resultPendingIssues } = useMemo(() => {
+    const w4Data = getData<{ issue_details: ReviewIssue[] }>(w.w4)
+    const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w.w5)
+    const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w.w6)
+    return {
+      reviewIssues:        w4Data?.issue_details ?? [],
+      dataRequestIssues:   w5Data?.issue_details ?? [],
+      resultPendingIssues: w6Data?.issue_details ?? [],
+    }
+  }, [w.w4, w.w5, w.w6])
 
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
