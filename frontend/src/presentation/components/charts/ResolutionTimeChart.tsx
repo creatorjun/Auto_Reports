@@ -6,10 +6,18 @@ import type { RecentIssue } from '@/presentation/pages/DashboardPage'
 
 const PAGE_SIZE = 50
 
-const COL_DEFAULTS = { key: 100, summary: 360, status: 220, reporter: 100, tac: 100, elapsed: 60 }
-const COL_MIN      = { key:  60, summary: 120, status: 160, reporter:  70, tac:  70, elapsed: 50 }
+const COLS = ['key', 'summary', 'status', 'reporter', 'tac', 'elapsed'] as const
+type ColKey = typeof COLS[number]
 
-type ColKey = keyof typeof COL_DEFAULTS
+const DEFAULT_FRACS: Record<ColKey, number> = {
+  key:      0.08,
+  summary:  0.32,
+  status:   0.22,
+  reporter: 0.12,
+  tac:      0.16,
+  elapsed:  0.10,
+}
+const MIN_FRAC = 0.05
 
 interface Props {
   details: RecentIssue[]
@@ -34,7 +42,13 @@ function StageBar({ stageIndex }: { stageIndex: number }) {
   )
 }
 
-function ResizeHandle({ onDrag }: { onDrag: (dx: number) => void }) {
+function ResizeHandle({
+  onDrag,
+  tableWidth,
+}: {
+  onDrag: (frac: number) => void
+  tableWidth: React.RefObject<number>
+}) {
   const dragging = useRef(false)
   const lastX    = useRef(0)
 
@@ -47,10 +61,11 @@ function ResizeHandle({ onDrag }: { onDrag: (dx: number) => void }) {
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragging.current) return
-    const dx = e.clientX - lastX.current
+    const dx   = e.clientX - lastX.current
     lastX.current = e.clientX
-    onDrag(dx)
-  }, [onDrag])
+    const tw   = tableWidth.current || 1
+    onDrag(dx / tw)
+  }, [onDrag, tableWidth])
 
   const onPointerUp = useCallback(() => { dragging.current = false }, [])
 
@@ -59,8 +74,8 @@ function ResizeHandle({ onDrag }: { onDrag: (dx: number) => void }) {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      className="absolute right-0 top-0 h-full w-[5px] cursor-col-resize select-none
-                 flex items-center justify-center group"
+      className="absolute right-0 top-0 h-full w-[6px] cursor-col-resize select-none
+                 flex items-center justify-center group z-10"
       title="드래그하여 너비 조절"
     >
       <span className="w-[2px] h-4 rounded bg-apple-divider group-hover:bg-brand-500 transition-colors" />
@@ -70,15 +85,24 @@ function ResizeHandle({ onDrag }: { onDrag: (dx: number) => void }) {
 
 export default function ResolutionTimeChart({ details }: Props) {
   const { data: config } = useConfig()
-  const jiraBaseUrl = config?.jira_base_url ?? 'https://seculayer.atlassian.net'
-  const [page, setPage]   = useState(1)
-  const [widths, setWidths] = useState({ ...COL_DEFAULTS })
+  const jiraBaseUrl  = config?.jira_base_url ?? 'https://seculayer.atlassian.net'
+  const [page, setPage]     = useState(1)
+  const [fracs, setFracs]   = useState({ ...DEFAULT_FRACS })
+  const tableRef             = useRef<HTMLTableElement>(null)
+  const tableWidthRef        = useRef<number>(0)
 
-  const resize = useCallback((col: ColKey, dx: number) => {
-    setWidths((prev) => ({
-      ...prev,
-      [col]: Math.max(COL_MIN[col], prev[col] + dx),
-    }))
+  const resize = useCallback((leftCol: ColKey, rightCol: ColKey, df: number) => {
+    setFracs((prev) => {
+      const newLeft  = Math.max(MIN_FRAC, prev[leftCol]  + df)
+      const newRight = Math.max(MIN_FRAC, prev[rightCol] - df)
+      if (newLeft + newRight !== prev[leftCol] + prev[rightCol]) return prev
+      return { ...prev, [leftCol]: newLeft, [rightCol]: newRight }
+    })
+  }, [])
+
+  const getTableWidth = useCallback(() => {
+    tableWidthRef.current = tableRef.current?.offsetWidth ?? tableWidthRef.current
+    return tableWidthRef
   }, [])
 
   if (!details || details.length === 0) {
@@ -92,7 +116,16 @@ export default function ResolutionTimeChart({ details }: Props) {
   const totalPages = Math.ceil(details.length / PAGE_SIZE)
   const pageItems  = details.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const thCls = "pb-1.5 text-left font-medium whitespace-nowrap relative pr-4 select-none"
+  const thCls = "pb-1.5 text-left font-medium whitespace-nowrap relative pr-5 select-none"
+
+  const headers: { key: ColKey; label: string; rightCol?: ColKey }[] = [
+    { key: 'key',      label: '이슈',      rightCol: 'summary'  },
+    { key: 'summary',  label: '제목',      rightCol: 'status'   },
+    { key: 'status',   label: '진행 상태', rightCol: 'reporter' },
+    { key: 'reporter', label: '보고자',    rightCol: 'tac'      },
+    { key: 'tac',      label: '담당자',    rightCol: 'elapsed'  },
+    { key: 'elapsed',  label: '경과' },
+  ]
 
   return (
     <div className="card">
@@ -112,43 +145,37 @@ export default function ResolutionTimeChart({ details }: Props) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="text-ui-base border-collapse" style={{ tableLayout: 'fixed', width: Object.values(widths).reduce((a, b) => a + b, 0) }}>
+        <table
+          ref={tableRef}
+          className="w-full text-ui-base border-collapse"
+          style={{ tableLayout: 'fixed' }}
+        >
           <colgroup>
-            <col style={{ width: widths.key }} />
-            <col style={{ width: widths.summary }} />
-            <col style={{ width: widths.status }} />
-            <col style={{ width: widths.reporter }} />
-            <col style={{ width: widths.tac }} />
-            <col style={{ width: widths.elapsed }} />
+            {COLS.map((col) => (
+              <col key={col} style={{ width: `${(fracs[col] * 100).toFixed(2)}%` }} />
+            ))}
           </colgroup>
           <thead>
             <tr className="border-b border-apple-divider text-ui-sm text-apple-light">
-              <th className={thCls}>
-                이슈
-                <ResizeHandle onDrag={(dx) => resize('key', dx)} />
-              </th>
-              <th className={thCls}>
-                제목
-                <ResizeHandle onDrag={(dx) => resize('summary', dx)} />
-              </th>
-              <th className={thCls}>
-                진행 상태
-                <ResizeHandle onDrag={(dx) => resize('status', dx)} />
-              </th>
-              <th className={thCls}>
-                보고자
-                <ResizeHandle onDrag={(dx) => resize('reporter', dx)} />
-              </th>
-              <th className={thCls}>
-                담당자
-                <ResizeHandle onDrag={(dx) => resize('tac', dx)} />
-              </th>
-              <th className="pb-1.5 text-right font-medium whitespace-nowrap">경과</th>
+              {headers.map(({ key, label, rightCol }) => (
+                <th
+                  key={key}
+                  className={key === 'elapsed' ? 'pb-1.5 text-right font-medium whitespace-nowrap' : thCls}
+                >
+                  {label}
+                  {rightCol && (
+                    <ResizeHandle
+                      tableWidth={getTableWidth()}
+                      onDrag={(df) => resize(key, rightCol, df)}
+                    />
+                  )}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {pageItems.map((issue) => {
-              const style  = getStatusStyle(issue.status)
+              const style   = getStatusStyle(issue.status)
               const jiraUrl = `${jiraBaseUrl}/browse/${issue.key}`
               return (
                 <tr
