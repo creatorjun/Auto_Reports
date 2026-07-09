@@ -145,3 +145,16 @@ class SlaMonthlyWidgetData:
 @dataclass
 class BreakdownWidgetData:
     counts: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
+class MonthlyCountEntry:
+    month: str
+    year: int
+    month_num: int
+    count: int
+
+
+@dataclass
+class MonthlyCountWidgetData:
+    monthly: list[MonthlyCountEntry] = field(default_factory=list)

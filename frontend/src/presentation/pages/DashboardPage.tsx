@@ -12,6 +12,7 @@ import TypeBarChart from '@/presentation/components/charts/TypeBarChart'
 import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTimeChart'
 import TrendLineChart from '@/presentation/components/charts/TrendLineChart'
 import SlaMonthlyLineChart, { type MonthlyEntry } from '@/presentation/components/charts/SlaMonthlyLineChart'
+import MonthlyCountChart, { type MonthlyCountEntry } from '@/presentation/components/charts/MonthlyCountChart'
 import WeeklyCreatedModal, { type CreatedIssue } from '@/presentation/components/tables/WeeklyCreatedModal'
 import WeeklyResolvedModal, { type ResolvedIssue } from '@/presentation/components/tables/WeeklyResolvedModal'
 import IssueReviewModal, { type ReviewIssue } from '@/presentation/components/tables/IssueReviewModal'
@@ -92,6 +93,13 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const hasW7     = w7Monthly.some((e) => e.total > 0)
   const hasW8     = w8Monthly.some((e) => e.total > 0)
 
+  const w13Data       = getData<{ monthly: MonthlyCountEntry[] }>(w.w13)
+  const w14Data       = getData<{ monthly: MonthlyCountEntry[] }>(w.w14)
+  const w13Monthly    = w13Data?.monthly ?? []
+  const w14Monthly    = w14Data?.monthly ?? []
+  const hasW13        = w13Monthly.some((e) => e.count > 0)
+  const hasW14        = w14Monthly.some((e) => e.count > 0)
+
   const w9Data         = getData<W9Data>(w.w9)
   const w9Total        = w.w9?.total ?? 0
   const w9Distribution = w9Data?.violation_distribution ?? []
@@ -147,6 +155,13 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       {showDataRequest    && <DataRequestModal    issues={dataRequestIssues}   total={w.w5?.total ?? 0} onClose={() => setShowDataRequest(false)}    />}
       {showResultPending  && <ResultPendingModal  issues={resultPendingIssues} total={w.w6?.total ?? 0} onClose={() => setShowResultPending(false)}  />}
       {showIncomplete     && <IncompleteIssueModal issues={incompleteIssues}   total={incompleteTotal}  onClose={() => setShowIncomplete(false)}     />}
+
+      {(hasW13 || hasW14) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
+          <MonthlyCountChart title="📋 월별 등록 건수" subtitle="최근 6개월" monthly={w13Monthly} color="#3b82f6" />
+          <MonthlyCountChart title="✅ 월별 해결 건수" subtitle="최근 6개월" monthly={w14Monthly} color="#22c55e" />
+        </div>
+      )}
 
       {(hasW7 || hasW8) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">

@@ -105,3 +105,13 @@ class ResolvedQueries:
             f"{self._base()} AND status NOT IN ({self._closed()}) "
             f"ORDER BY issuekey DESC"
         )
+
+    def w13_monthly_created(self, year: int, month: int) -> str:
+        start = f"{year}-{month:02d}-01"
+        end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
+        return f"{self._base()} AND created >= \"{start}\" AND created < \"{end}\""
+
+    def w14_monthly_resolved(self, year: int, month: int) -> str:
+        start = f"{year}-{month:02d}-01"
+        end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
+        return f"{self._base()} AND resolved >= \"{start}\" AND resolved < \"{end}\""

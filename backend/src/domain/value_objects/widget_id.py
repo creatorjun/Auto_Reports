@@ -15,3 +15,5 @@ class WidgetId(StrEnum):
     SLA_DELAY_REASON       = "w10"
     AVG_RESOLUTION_TYPE    = "w11"
     RECENT_ISSUES          = "w12"
+    MONTHLY_CREATED        = "w13"
+    MONTHLY_RESOLVED       = "w14"

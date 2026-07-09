@@ -12,6 +12,7 @@ from src.application.widgets.count_collector import (
 )
 from src.application.widgets.created_vs_resolved_collector import CreatedVsResolvedCollector
 from src.application.widgets.monthly_collector import MonthlyCollector
+from src.application.widgets.monthly_count_collector import MonthlyCountCollector
 from src.application.widgets.recent_collector import RecentCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
 from src.application.widgets.sla_delay_collector import SlaDelayCollector
@@ -73,13 +74,17 @@ class ReportAssembler:
             self._sla_initial_response_field_id,
             self._sla_resolution_field_id,
         )
+        monthly_count_collector = MonthlyCountCollector(self._jira, q, now)
 
         base_results = await asyncio.gather(*[c.collect() for _, c in collectors])
         w7_result, w8_result = await monthly_collector.collect()
+        w13_result, w14_result = await monthly_count_collector.collect()
 
         widgets = {widget_id: result for (widget_id, _), result in zip(collectors, base_results)}
         widgets[WidgetId.SLA_INITIAL_RESPONSE]   = w7_result
         widgets[WidgetId.SLA_RESOLUTION_MONTHLY] = w8_result
+        widgets[WidgetId.MONTHLY_CREATED]        = w13_result
+        widgets[WidgetId.MONTHLY_RESOLVED]       = w14_result
 
         logger.info("데이터 수집 완료 ✅")
         return NewReport(
