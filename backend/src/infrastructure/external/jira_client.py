@@ -29,13 +29,16 @@ class JiraClient(JiraPort):
         self._sla_field_ids_cache: dict[str, str] | None = None
 
     async def get_issue_count(self, jql: str) -> int:
-        url = f"{self._base_url}/rest/api/3/search/approximate-count"
+        url = f"{self._base_url}/rest/api/3/search/jql"
         try:
-            resp = await self._client.post(url, json={"jql": jql})
+            resp = await self._client.post(
+                url,
+                json={"jql": jql, "maxResults": 0, "fieldsByKeys": False},
+            )
             resp.raise_for_status()
-            return resp.json().get("count", 0)
+            return resp.json().get("total", 0)
         except httpx.HTTPError as e:
-            logger.error(f"JQL 카운트 실패: {jql[:80]}... → {e}")
+            logger.error(f"JQL 카운트 실패: {jql[:80]}... \u2192 {e}")
             if isinstance(e, httpx.HTTPStatusError):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return 0
@@ -65,16 +68,15 @@ class JiraClient(JiraPort):
                 resp.raise_for_status()
                 data = resp.json()
             except httpx.HTTPError as e:
-                logger.error(f"JQL 검색 실패: {jql[:80]}... → {e}")
+                logger.error(f"JQL 검색 실패: {jql[:80]}... \u2192 {e}")
                 if isinstance(e, httpx.HTTPStatusError):
-                    logger.error(f"응답 상세: {e.response.text[:200]}")
+                    logger.error(f"응답 상로: {e.response.text[:200]}")
                 break
 
             issues = data.get("issues", [])
             all_issues.extend(issues)
-
-            total      = data.get("total", 0)
-            start_at  += len(issues)
+            total    = data.get("total", 0)
+            start_at += len(issues)
 
             if not issues or start_at >= total or len(all_issues) >= max_results:
                 break

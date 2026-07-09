@@ -3,16 +3,15 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import Tuple
-from zoneinfo import ZoneInfo
 
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import MonthlyCountEntry, MonthlyCountWidgetData
 from src.domain.ports.jira_port import JiraPort
+from src.shared.constants import JIRA_MAX_RESULTS_LARGE
 
 logger = logging.getLogger(__name__)
-KST = ZoneInfo("Asia/Seoul")
 
 
 class MonthlyCountCollector(AbstractWidgetCollector):
@@ -34,7 +33,7 @@ class MonthlyCountCollector(AbstractWidgetCollector):
                 year -= 1
 
         async def _fetch(y: int, m: int) -> tuple[int, int, int, int]:
-            created_jql = self._q.w13_monthly_created(y, m)
+            created_jql  = self._q.w13_monthly_created(y, m)
             resolved_jql = self._q.w14_monthly_resolved(y, m)
             created_count, resolved_count = await asyncio.gather(
                 self._jira.get_issue_count(created_jql),
