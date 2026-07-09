@@ -124,7 +124,7 @@ export default function ResolutionTimeChart({ details }: Props) {
     { key: 'status',   label: '진행 상태', rightCol: 'reporter' },
     { key: 'reporter', label: '보고자',    rightCol: 'tac'      },
     { key: 'tac',      label: '담당자',    rightCol: 'elapsed'  },
-    { key: 'elapsed',  label: '경과' },
+    { key: 'elapsed',  label: '생성일 (경과)' },
   ]
 
   return (
@@ -177,6 +177,7 @@ export default function ResolutionTimeChart({ details }: Props) {
             {pageItems.map((issue) => {
               const style   = getStatusStyle(issue.status)
               const jiraUrl = `${jiraBaseUrl}/browse/${issue.key}`
+              const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
               return (
                 <tr
                   key={issue.key}
@@ -204,7 +205,9 @@ export default function ResolutionTimeChart({ details }: Props) {
                     <span className="text-ui-sm text-apple-light truncate block">{issue.tac_team}</span>
                   </td>
                   <td className="py-2 text-right text-apple-light whitespace-nowrap">
-                    {issue.elapsed_days}일
+                    <span className="tabular-nums">{createdDate}</span>
+                    <span className="text-ui-xs text-apple-divider mx-1">·</span>
+                    <span className="tabular-nums">{issue.elapsed_days}일</span>
                   </td>
                 </tr>
               )
