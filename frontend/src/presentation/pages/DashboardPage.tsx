@@ -32,7 +32,7 @@ interface W9Data {
   violation_distribution?: ViolationEntry[]
 }
 
-interface RecentIssue {
+export interface RecentIssue {
   key: string
   summary: string
   type: string
@@ -40,7 +40,7 @@ interface RecentIssue {
   stage_index: number
   created: string
   elapsed_days: number
-  assignee?: string
+  assignee: string
 }
 
 interface ResolutionTypeEntry {
@@ -102,7 +102,10 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w11ByType = w11Data?.by_type ?? {}
 
   const w12Data      = getData<{ issue_details: RecentIssue[] }>(w.w12)
-  const recentIssues = w12Data?.issue_details ?? []
+  const recentIssues = (w12Data?.issue_details ?? []).map((i) => ({
+    ...i,
+    assignee: i.assignee ?? '미지정',
+  }))
 
   const incompleteIssues: IncompleteIssue[] = recentIssues.map((i) => ({
     key:          i.key,

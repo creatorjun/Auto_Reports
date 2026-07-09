@@ -1,16 +1,6 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
 import { useConfig } from '@/infrastructure/hooks/useConfig'
-
-interface RecentIssue {
-  key: string
-  summary: string
-  type: string
-  status: string
-  stage_index: number
-  created: string
-  elapsed_days: number
-  assignee?: string
-}
+import type { RecentIssue } from '@/presentation/pages/DashboardPage'
 
 interface Props {
   details: RecentIssue[]
@@ -19,25 +9,25 @@ interface Props {
 const STAGE_TOTAL = 7
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  '할 일':            { bg: 'bg-gray-400',    text: 'text-white' },
-  '재오픈':           { bg: 'bg-gray-400',    text: 'text-white' },
-  '자료 요청 중':    { bg: 'bg-blue-500',    text: 'text-white' },
-  '이슈 리뷰 중':    { bg: 'bg-amber-500',   text: 'text-white' },
-  '연구소 대기 중':   { bg: 'bg-purple-500',  text: 'text-white' },
-  '연구소 검토 중':   { bg: 'bg-violet-500',  text: 'text-white' },
-  '구현 중':         { bg: 'bg-green-500',   text: 'text-white' },
+  '할 일':              { bg: 'bg-gray-400',    text: 'text-white' },
+  '재오픈':             { bg: 'bg-gray-400',    text: 'text-white' },
+  '자료 요청 중':       { bg: 'bg-blue-500',    text: 'text-white' },
+  '이슈 리뷰 중':       { bg: 'bg-amber-500',   text: 'text-white' },
+  '연구소 대기 중':     { bg: 'bg-purple-500',  text: 'text-white' },
+  '연구소 검토 중':     { bg: 'bg-violet-500',  text: 'text-white' },
+  '구현 중':           { bg: 'bg-green-500',   text: 'text-white' },
   '배포 파일 검토 중':  { bg: 'bg-cyan-500',    text: 'text-white' },
-  '결과 대기 중':    { bg: 'bg-red-500',     text: 'text-white' },
+  '결과 대기 중':       { bg: 'bg-red-500',     text: 'text-white' },
 }
 
 const LEGEND = [
   { label: '할 일 / 재오픈',      color: 'bg-gray-400' },
-  { label: '자료 요청 중',       color: 'bg-blue-500' },
-  { label: '이슈 리뷰 중',       color: 'bg-amber-500' },
-  { label: '연구소 대기/검토 중',  color: 'bg-purple-500' },
-  { label: '구현 중',            color: 'bg-green-500' },
-  { label: '배포 파일 검토 중',  color: 'bg-cyan-500' },
-  { label: '결과 대기 중',       color: 'bg-red-500' },
+  { label: '자료 요청 중',        color: 'bg-blue-500' },
+  { label: '이슈 리뷰 중',        color: 'bg-amber-500' },
+  { label: '연구소 대기/검토 중', color: 'bg-purple-500' },
+  { label: '구현 중',             color: 'bg-green-500' },
+  { label: '배포 파일 검토 중',   color: 'bg-cyan-500' },
+  { label: '결과 대기 중',        color: 'bg-red-500' },
 ]
 
 function getStatusStyle(status: string) {
@@ -108,19 +98,19 @@ export default function ResolutionTimeChart({ details }: Props) {
                   <td className="py-2 pr-4 text-apple-primary max-w-[400px] truncate">
                     {issue.summary}
                   </td>
-                  <td className="py-2 pr-4">
+                  <td className="py-2 pr-3">
                     <div className="flex items-center gap-2">
                       <StageBar stageIndex={issue.stage_index} />
-                      <span className="text-[11px] text-apple-light whitespace-nowrap">
-                        {issue.assignee ?? '미지정'}
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-[12px] font-medium ${style.bg} ${style.text} whitespace-nowrap`}
+                      >
+                        {issue.status}
                       </span>
                     </div>
                   </td>
                   <td className="py-2 pr-3 whitespace-nowrap">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-full text-[12px] font-medium ${style.bg} ${style.text}`}
-                    >
-                      {issue.status}
+                    <span className="text-[12px] text-apple-light">
+                      {issue.assignee}
                     </span>
                   </td>
                   <td className="py-2 text-right text-apple-light whitespace-nowrap">
