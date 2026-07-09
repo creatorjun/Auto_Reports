@@ -40,13 +40,14 @@ export interface RecentIssue {
   stage_index: number
   created: string
   elapsed_days: number
-  assignee: string
+  reporter: string
+  tac_team: string
 }
 
 interface ResolutionTypeEntry {
   avg_days: number
   avg_hours: number
-  count: number
+  count: int
 }
 
 function getData<T>(widget: { data: Record<string, unknown> | null } | undefined): T | null {
@@ -104,7 +105,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const w12Data      = getData<{ issue_details: RecentIssue[] }>(w.w12)
   const recentIssues = (w12Data?.issue_details ?? []).map((i) => ({
     ...i,
-    assignee: i.assignee ?? '미지정',
+    reporter: i.reporter ?? '미지정',
+    tac_team: i.tac_team ?? '미지정',
   }))
 
   const incompleteIssues: IncompleteIssue[] = recentIssues.map((i) => ({

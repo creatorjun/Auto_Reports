@@ -22,6 +22,8 @@ _STAGE_MAP: dict[str, int] = {
     "결과 대기 중":    6,
 }
 
+FIELD_TAC_TEAM = "customfield_10713"
+
 
 class RecentCollector(AbstractWidgetCollector):
     """w12: 최근 활성 이슈 목록 (최신 50건)."""
@@ -33,7 +35,9 @@ class RecentCollector(AbstractWidgetCollector):
     async def collect(self) -> WidgetResult[RecentIssueWidgetData]:
         jql = self._q.w12_recent()
         issues = await self._jira.get_issues(
-            jql, max_results=50, fields="summary,issuetype,status,created,assignee",
+            jql,
+            max_results=50,
+            fields=f"summary,issuetype,status,created,reporter,{FIELD_TAC_TEAM}",
         )
         now_ts = datetime.now()
         issue_details = []
@@ -44,12 +48,20 @@ class RecentCollector(AbstractWidgetCollector):
             elapsed_days = (
                 (now_ts - datetime.fromisoformat(created[:19])).days if created else 0
             )
-            assignee_field = fields.get("assignee") or {}
-            assignee = (
-                assignee_field.get("displayName")
-                or assignee_field.get("name")
+
+            reporter_field = fields.get("reporter") or {}
+            reporter = (
+                reporter_field.get("displayName")
+                or reporter_field.get("name")
                 or "미지정"
             )
+
+            tac_groups = fields.get(FIELD_TAC_TEAM) or []
+            tac_team = (
+                ", ".join(g.get("name", "") for g in tac_groups if g.get("name"))
+                or "미지정"
+            )
+
             issue_details.append(
                 RecentIssueDetail(
                     key=issue.get("key", ""),
@@ -59,7 +71,8 @@ class RecentCollector(AbstractWidgetCollector):
                     stage_index=_STAGE_MAP.get(status_name, 0),
                     created=created[:16].replace("T", " "),
                     elapsed_days=elapsed_days,
-                    assignee=assignee,
+                    reporter=reporter,
+                    tac_team=tac_team,
                 )
             )
         total = len(issue_details)

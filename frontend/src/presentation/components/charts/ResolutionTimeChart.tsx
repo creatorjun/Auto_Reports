@@ -82,6 +82,16 @@ export default function ResolutionTimeChart({ details }: Props) {
 
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
+          <thead>
+            <tr className="border-b border-apple-divider text-[12px] text-apple-light">
+              <th className="pb-1.5 pr-3 text-left font-medium whitespace-nowrap">이슈</th>
+              <th className="pb-1.5 pr-4 text-left font-medium">제목</th>
+              <th className="pb-1.5 pr-3 text-left font-medium whitespace-nowrap">진행 상태</th>
+              <th className="pb-1.5 pr-3 text-left font-medium whitespace-nowrap">보고자</th>
+              <th className="pb-1.5 pr-3 text-left font-medium whitespace-nowrap">담당자</th>
+              <th className="pb-1.5 text-right font-medium whitespace-nowrap">경과</th>
+            </tr>
+          </thead>
           <tbody>
             {details.map((issue) => {
               const style = getStatusStyle(issue.status)
@@ -95,7 +105,7 @@ export default function ResolutionTimeChart({ details }: Props) {
                   <td className="py-2 pr-3 whitespace-nowrap font-mono text-[12px] text-blue-500">
                     {issue.key}
                   </td>
-                  <td className="py-2 pr-4 text-apple-primary max-w-[400px] truncate">
+                  <td className="py-2 pr-4 text-apple-primary max-w-[360px] truncate">
                     {issue.summary}
                   </td>
                   <td className="py-2 pr-3">
@@ -109,9 +119,10 @@ export default function ResolutionTimeChart({ details }: Props) {
                     </div>
                   </td>
                   <td className="py-2 pr-3 whitespace-nowrap">
-                    <span className="text-[12px] text-apple-light">
-                      {issue.assignee}
-                    </span>
+                    <span className="text-[12px] text-apple-light">{issue.reporter}</span>
+                  </td>
+                  <td className="py-2 pr-3 whitespace-nowrap">
+                    <span className="text-[12px] text-apple-light">{issue.tac_team}</span>
                   </td>
                   <td className="py-2 text-right text-apple-light whitespace-nowrap">
                     {issue.elapsed_days}일

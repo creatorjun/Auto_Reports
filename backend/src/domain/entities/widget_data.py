@@ -66,7 +66,8 @@ class RecentIssueDetail:
     stage_index: int
     created: str
     elapsed_days: int
-    assignee: str = "미지정"
+    reporter: str = "미지정"
+    tac_team: str = "미지정"
 
 
 @dataclass
