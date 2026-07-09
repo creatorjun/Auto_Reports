@@ -9,16 +9,25 @@ class WidgetQueryBuilder:
     def __init__(self, config: QueryConfig):
         self._c = config
 
-    def build(self, now: datetime) -> "ResolvedQueries":
-        return ResolvedQueries(now, self._c)
+    def build(
+        self,
+        now: datetime,
+        week_start_override: datetime | None = None,
+    ) -> "ResolvedQueries":
+        return ResolvedQueries(now, self._c, week_start_override)
 
 
 class ResolvedQueries:
-    def __init__(self, now: datetime, c: QueryConfig):
+    def __init__(
+        self,
+        now: datetime,
+        c: QueryConfig,
+        week_start_override: datetime | None = None,
+    ):
         self._now = now
         self._c = c
         self.week_end = now
-        self.week_start = now - timedelta(days=6)
+        self.week_start = week_start_override if week_start_override else now - timedelta(days=6)
         self.date_start = self.week_start.strftime("%Y-%m-%d")
         self.date_end = self.week_end.strftime("%Y-%m-%d")
 
@@ -88,7 +97,6 @@ class ResolvedQueries:
     def w11_resolution_resolved(self) -> str:
         return f"{self._base()} AND resolved >= \"-7d\" ORDER BY resolved DESC"
 
-    # w12: 최근 이슈 키 기준 상위 50건
     def w12_recent(self) -> str:
         return (
             f"{self._base()} AND status NOT IN ({self._closed()}) "
