@@ -21,7 +21,7 @@ export default function Header() {
 
   return (
     <header className="bg-white h-14 3xl:h-16 flex items-center justify-between px-4 flex-shrink-0">
-      <div className="w-56 3xl:w-64 flex items-center">
+      <div className="w-[28rem] 3xl:w-[32rem] flex items-center">
         {currentReport && (
           <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums">
             {currentReport.week_start} – {currentReport.week_end}

@@ -318,10 +318,10 @@ export default function SearchWidget() {
 
   return (
     <>
-      <div className="relative w-56 3xl:w-64">
+      <div className="relative w-[28rem] 3xl:w-[32rem]">
         <div className="relative flex items-center">
           <svg
-            className="absolute left-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none"
+            className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none"
             fill="none"
             viewBox="0 0 16 16"
           >
@@ -342,11 +342,11 @@ export default function SearchWidget() {
             onFocus={() => suggestions.length > 0 && setIsDropdownOpen(true)}
             onBlur={() => setTimeout(() => setIsDropdownOpen(false), 150)}
             placeholder="JIRA / Confluence 검색"
-            className="w-full pl-8 pr-8 py-1.5 text-[12px] bg-gray-100 rounded-lg border border-transparent focus:border-brand-400 focus:bg-white focus:outline-none transition-all placeholder-gray-400"
+            className="w-full pl-9 pr-9 py-[0.5625rem] text-[14px] bg-gray-100 rounded-lg border border-transparent focus:border-brand-400 focus:bg-white focus:outline-none transition-all placeholder-gray-400"
           />
           {isLoading ? (
             <svg
-              className="absolute right-2.5 w-3.5 h-3.5 text-gray-400 animate-spin"
+              className="absolute right-3 w-4 h-4 text-gray-400 animate-spin"
               fill="none"
               viewBox="0 0 24 24"
             >
@@ -362,13 +362,13 @@ export default function SearchWidget() {
             </svg>
           ) : (
             <button
-              className="absolute right-2 text-gray-400 hover:text-brand-600 transition-colors"
+              className="absolute right-2.5 text-gray-400 hover:text-brand-600 transition-colors"
               onMouseDown={(e) => {
                 e.preventDefault()
                 if (query.trim()) openModal(query.trim())
               }}
             >
-              <svg width="14" height="14" fill="none" viewBox="0 0 16 16">
+              <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
                 <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
                 <path
                   d="M10 10l3 3"
