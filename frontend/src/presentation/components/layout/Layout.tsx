@@ -6,7 +6,7 @@ import Sidebar from './Sidebar'
 import MobileTabBar from './MobileTabBar'
 
 export default function Layout() {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(true)
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
