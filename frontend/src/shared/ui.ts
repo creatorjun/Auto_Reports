@@ -44,19 +44,27 @@ export const CHART_COLORS = {
   tooltipBorder: '#d2d2d7',
 } as const
 
+export type ModalSize = 'md' | 'lg'
+
+const MODAL_SIZE_CLS: Record<ModalSize, string> = {
+  md: 'max-w-4xl',
+  lg: 'max-w-6xl',
+}
+
 export const MODAL_CLS = {
-  overlay:   'fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm',
-  container: 'bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col',
-  header:    'flex items-center justify-between px-6 py-4 border-b border-apple-divider/60',
-  title:     'text-ui-lg font-semibold text-apple-dark',
-  subtitle:  'text-ui-sm text-apple-light mt-0.5',
-  closeBtn:  'w-8 h-8 flex items-center justify-center rounded-full hover:bg-apple-gray text-apple-light hover:text-apple-dark transition-colors',
-  body:      'overflow-y-auto flex-1 px-6 py-4',
-  footer:    'px-6 py-3 border-t border-apple-divider/60 flex justify-end',
-  closeText: 'px-4 py-1.5 rounded-lg text-ui-base font-medium bg-apple-gray hover:bg-apple-divider text-apple-dark transition-colors',
-  thCell:    'text-left pb-3 text-ui-xs font-semibold text-apple-light uppercase tracking-wider whitespace-nowrap pr-4',
-  keyCell:   'py-2.5 pr-4 text-ui-sm font-mono font-medium text-brand-600 whitespace-nowrap',
-  bodyCell:  'py-2.5 text-ui-sm text-apple-dark/80 max-w-xs truncate pr-4',
-  metaCell:  'py-2.5 text-ui-sm text-apple-light whitespace-nowrap pr-4',
+  overlay:     'fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm',
+  containerBase: 'bg-white rounded-2xl shadow-2xl w-full mx-4 max-h-[85vh] flex flex-col',
+  containerSize: MODAL_SIZE_CLS,
+  header:      'flex items-center justify-between px-6 py-4 border-b border-apple-divider/60',
+  title:       'text-ui-lg font-semibold text-apple-dark',
+  subtitle:    'text-ui-sm text-apple-light mt-0.5',
+  closeBtn:    'w-8 h-8 flex items-center justify-center rounded-full hover:bg-apple-gray text-apple-light hover:text-apple-dark transition-colors',
+  body:        'overflow-y-auto flex-1 px-6 py-4',
+  footer:      'px-6 py-3 border-t border-apple-divider/60 flex justify-end',
+  closeText:   'px-4 py-1.5 rounded-lg text-ui-base font-medium bg-apple-gray hover:bg-apple-divider text-apple-dark transition-colors',
+  thCell:      'text-left pb-3 text-ui-xs font-semibold text-apple-light uppercase tracking-wider whitespace-nowrap pr-4',
+  keyCell:     'py-2.5 pr-4 text-ui-sm font-mono font-medium text-brand-600 whitespace-nowrap',
+  bodyCell:    'py-2.5 text-ui-sm text-apple-dark/80 max-w-xs truncate pr-4',
+  metaCell:    'py-2.5 text-ui-sm text-apple-light whitespace-nowrap pr-4',
   elapsedCell: 'text-ui-sm font-medium text-red-500 tabular-nums',
 } as const
