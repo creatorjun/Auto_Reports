@@ -2,6 +2,7 @@
 import { useReportStore } from '@/app/store/reportStore'
 import { useUiStore } from '@/app/store/uiStore'
 import SearchWidget from '@/presentation/components/common/SearchWidget'
+import RefreshButton from '@/presentation/components/common/RefreshButton'
 
 export default function Header() {
   const { triggerMessage } = useUiStore()
@@ -9,13 +10,16 @@ export default function Header() {
 
   return (
     <header className="bg-white h-14 3xl:h-16 flex items-center justify-between px-4 flex-shrink-0">
-      <div className="w-[28rem] 3xl:w-[32rem] flex items-center">
+      <div className="w-[28rem] 3xl:w-[32rem] flex items-center gap-3">
         {currentReport && (
-          <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums">
-            {currentReport.week_start} – {currentReport.week_end}
-            <span className="mx-1.5 text-apple-divider">·</span>
-            생성: {currentReport.report_date}
-          </p>
+          <>
+            <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums">
+              {currentReport.week_start} – {currentReport.week_end}
+              <span className="mx-1.5 text-apple-divider">·</span>
+              생성: {currentReport.report_date}
+            </p>
+            <RefreshButton />
+          </>
         )}
       </div>
 
