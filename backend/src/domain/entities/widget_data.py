@@ -99,6 +99,7 @@ class SlaMetVsViolatedEntry:
 class SlaMetVsViolatedWidgetData:
     initial_response_violations: int = 0
     resolution_violations: int = 0
+    both_violations: int = 0
     violation_distribution: list[SlaMetVsViolatedEntry] = field(default_factory=list)
 
 

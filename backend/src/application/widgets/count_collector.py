@@ -100,6 +100,17 @@ class BreakdownCollector(AbstractWidgetCollector):
 
 
 class SlaMetVsViolatedCollector(AbstractWidgetCollector):
+    """
+    w9: SLA 준수 vs 위반
+
+    위반 유형을 세 가지로 정확히 분리합니다:
+      1) 최초 응답 SLA만 위반
+      2) 해결 시간 SLA만 위반
+      3) 둘 다 위반 (복합)
+
+    total == sum(distribution counts) 를 항상 보장합니다.
+    """
+
     def __init__(
         self,
         jira: JiraPort,
@@ -113,60 +124,75 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
         self._resolution_fid = sla_resolution_field_id
 
     async def collect(self) -> WidgetResult[SlaMetVsViolatedWidgetData]:
-        fields_str = f"summary,issuetype,status,created,resolutiondate,{self._initial_fid},{self._resolution_fid}"
+        fields_str = (
+            f"summary,issuetype,status,created,resolutiondate,"
+            f"{self._initial_fid},{self._resolution_fid}"
+        )
         jql = self._q.w9_sla()
-        issues = await self._jira.get_issues(jql, max_results=JIRA_MAX_RESULTS_LARGE, fields=fields_str)
+        issues = await self._jira.get_issues(
+            jql, max_results=JIRA_MAX_RESULTS_LARGE, fields=fields_str
+        )
 
-        total_violations = 0
-        initial_response_violations = 0
-        resolution_violations = 0
+        only_initial = 0
+        only_resolution = 0
+        both = 0
 
         for issue in issues:
             fields = issue.get("fields") or {}
-            initial_response_sla = fields.get(self._initial_fid)
-            resolution_sla = fields.get(self._resolution_fid)
-            initial_breached = self._is_sla_breached(initial_response_sla)
-            resolution_breached = self._is_sla_breached(resolution_sla)
-            if initial_response_sla is not None and initial_breached:
-                initial_response_violations += 1
-            if resolution_sla is not None and resolution_breached:
-                resolution_violations += 1
-            if (initial_response_sla is not None and initial_breached) or (
-                resolution_sla is not None and resolution_breached
-            ):
-                total_violations += 1
+            initial_breached = self._is_sla_breached(fields.get(self._initial_fid))
+            resolution_breached = self._is_sla_breached(fields.get(self._resolution_fid))
+
+            if initial_breached and resolution_breached:
+                both += 1
+            elif initial_breached:
+                only_initial += 1
+            elif resolution_breached:
+                only_resolution += 1
+
+        total_violations = only_initial + only_resolution + both
 
         violation_distribution: list[SlaMetVsViolatedEntry] = []
         if total_violations > 0:
-            if initial_response_violations > 0:
+            if only_initial > 0:
                 violation_distribution.append(
                     SlaMetVsViolatedEntry(
                         stage="최초 응답 SLA",
                         field_id=self._initial_fid,
-                        count=initial_response_violations,
-                        rate=round(initial_response_violations / total_violations * 100, 1),
+                        count=only_initial,
+                        rate=round(only_initial / total_violations * 100, 1),
                     )
                 )
-            if resolution_violations > 0:
+            if only_resolution > 0:
                 violation_distribution.append(
                     SlaMetVsViolatedEntry(
                         stage="해결 시간 SLA",
                         field_id=self._resolution_fid,
-                        count=resolution_violations,
-                        rate=round(resolution_violations / total_violations * 100, 1),
+                        count=only_resolution,
+                        rate=round(only_resolution / total_violations * 100, 1),
+                    )
+                )
+            if both > 0:
+                violation_distribution.append(
+                    SlaMetVsViolatedEntry(
+                        stage="둘 다 위반",
+                        field_id="both",
+                        count=both,
+                        rate=round(both / total_violations * 100, 1),
                     )
                 )
 
         logger.info(
-            f"[w9] 위반 {total_violations}건 (최초응답 {initial_response_violations}건 / 해결시간 {resolution_violations}건)"
+            f"[w9] 위반 {total_violations}건 "
+            f"(최초응답만 {only_initial}건 / 해결시ac04만 {only_resolution}건 / 둘다 {both}건)"
         )
         return WidgetResult(
             name="SLA 준수 vs 위반",
             total=total_violations,
             jql=jql,
             data=SlaMetVsViolatedWidgetData(
-                initial_response_violations=initial_response_violations,
-                resolution_violations=resolution_violations,
+                initial_response_violations=only_initial + both,
+                resolution_violations=only_resolution + both,
+                both_violations=both,
                 violation_distribution=violation_distribution,
             ),
         )

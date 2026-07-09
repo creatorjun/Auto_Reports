@@ -9,6 +9,12 @@ interface ViolationEntry {
   rate: number
 }
 
+const STAGE_COLORS: Record<string, string> = {
+  '최초 응답 SLA': '#f59e0b',
+  '해결 시간 SLA': '#ef4444',
+  '둘 다 위반':    '#8b5cf6',
+}
+
 function SlaDonutChart({
   total,
   distribution,
@@ -27,6 +33,8 @@ function SlaDonutChart({
     )
   }
 
+  const distSum = distribution.reduce((s, d) => s + d.count, 0)
+
   return (
     <div className="card">
       <h3 className="text-sm font-semibold text-gray-700 mb-4">🎯 SLA 위반 분포</h3>
@@ -43,11 +51,19 @@ function SlaDonutChart({
               label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
               labelLine={false}
             >
-              {data.map((_, i) => (
-                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+              {data.map((entry, i) => (
+                <Cell
+                  key={i}
+                  fill={STAGE_COLORS[entry.name] ?? PIE_COLORS[i % PIE_COLORS.length]}
+                />
               ))}
             </Pie>
-            <Tooltip formatter={(v, name) => [`${v}건`, name]} />
+            <Tooltip
+              formatter={(v: number, name: string) => {
+                const entry = distribution.find((d) => d.stage === name)
+                return [`${v}건 (${entry?.rate ?? 0}%)`, name]
+              }}
+            />
             <Legend
               layout="horizontal"
               verticalAlign="bottom"
@@ -62,8 +78,8 @@ function SlaDonutChart({
         </ResponsiveContainer>
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center mt-4">
-            <p className="text-2xl font-bold text-gray-800">{total}</p>
-            <p className="text-xs text-gray-400">완료 위반</p>
+            <p className="text-2xl font-bold text-gray-800">{distSum}</p>
+            <p className="text-xs text-gray-400">이슈 단위 위반</p>
           </div>
         </div>
       </div>
