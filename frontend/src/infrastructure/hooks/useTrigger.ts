@@ -53,7 +53,7 @@ export const useTrigger = () => {
   }
 
   return useMutation({
-    mutationFn: (params?: TriggerParams) => reportApi.trigger(params),
+    mutationFn: (params: TriggerParams | void) => reportApi.trigger(params ?? undefined),
     onMutate: () => {
       setTriggerLoading(true)
       setTriggerMessage(null)
