@@ -31,7 +31,7 @@ export default function ResultPendingModal({ issues, total, onClose }: Props) {
 
   return (
     <div className={MODAL_CLS.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className={MODAL_CLS.container}>
+      <div className={`${MODAL_CLS.container} !max-w-6xl`}>
         <div className={MODAL_CLS.header}>
           <div>
             <h2 className={MODAL_CLS.title}>결과 대기 중</h2>
