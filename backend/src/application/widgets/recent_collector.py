@@ -22,8 +22,19 @@ _STAGE_MAP: dict[str, int] = {
     "결과 대기 중":    6,
 }
 
-FIELD_TAC_TEAM = "customfield_10713"
+FIELD_TAC_TEAM       = "customfield_10713"
+FIELD_TAC_ASSIGNEE   = "customfield_10859"
+FIELD_QA_ASSIGNEE    = "customfield_12222"
 PAGE_SIZE = 50
+
+
+def _pick_user(fields: dict, *field_keys: str) -> str:
+    for key in field_keys:
+        user = fields.get(key) or {}
+        name = user.get("displayName") or user.get("name") or ""
+        if name:
+            return name
+    return "미지정"
 
 
 class RecentCollector(AbstractWidgetCollector):
@@ -38,7 +49,10 @@ class RecentCollector(AbstractWidgetCollector):
         issues = await self._jira.get_issues(
             jql,
             max_results=PAGE_SIZE * 2,
-            fields=f"summary,issuetype,status,created,reporter,{FIELD_TAC_TEAM}",
+            fields=(
+                f"summary,issuetype,status,created,reporter,assignee,"
+                f"{FIELD_TAC_ASSIGNEE},{FIELD_QA_ASSIGNEE}"
+            ),
         )
         now_ts = datetime.now()
         issue_details = []
@@ -50,17 +64,12 @@ class RecentCollector(AbstractWidgetCollector):
                 (now_ts - datetime.fromisoformat(created[:19])).days if created else 0
             )
 
-            reporter_field = fields.get("reporter") or {}
-            reporter = (
-                reporter_field.get("displayName")
-                or reporter_field.get("name")
-                or "미지정"
-            )
-
-            tac_groups = fields.get(FIELD_TAC_TEAM) or []
-            tac_team = (
-                ", ".join(g.get("name", "") for g in tac_groups if g.get("name"))
-                or "미지정"
+            reporter = _pick_user(fields, "reporter")
+            tac_team = _pick_user(
+                fields,
+                FIELD_TAC_ASSIGNEE,
+                FIELD_QA_ASSIGNEE,
+                "assignee",
             )
 
             issue_details.append(
