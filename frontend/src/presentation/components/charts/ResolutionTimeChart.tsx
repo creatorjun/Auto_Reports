@@ -1,34 +1,11 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
 import { useConfig } from '@/infrastructure/hooks/useConfig'
+import { STATUS_STYLE, STATUS_LEGEND, STAGE_TOTAL } from '@/shared/ui'
 import type { RecentIssue } from '@/presentation/pages/DashboardPage'
 
 interface Props {
   details: RecentIssue[]
 }
-
-const STAGE_TOTAL = 7
-
-const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  '할 일':              { bg: 'bg-status-todo',    text: 'text-white' },
-  '재오픈':             { bg: 'bg-status-todo',    text: 'text-white' },
-  '자료 요청 중':       { bg: 'bg-status-data',    text: 'text-white' },
-  '이슈 리뷰 중':       { bg: 'bg-status-review',  text: 'text-white' },
-  '연구소 대기 중':     { bg: 'bg-status-lab',     text: 'text-white' },
-  '연구소 검토 중':     { bg: 'bg-status-lab',     text: 'text-white' },
-  '구현 중':           { bg: 'bg-status-impl',    text: 'text-white' },
-  '배포 파일 검토 중':  { bg: 'bg-status-deploy',  text: 'text-white' },
-  '결과 대기 중':       { bg: 'bg-status-pending', text: 'text-white' },
-}
-
-const LEGEND = [
-  { label: '할 일 / 재오픈',      color: 'bg-status-todo'    },
-  { label: '자료 요청 중',        color: 'bg-status-data'    },
-  { label: '이슈 리뷰 중',        color: 'bg-status-review'  },
-  { label: '연구소 대기/검토 중', color: 'bg-status-lab'     },
-  { label: '구현 중',             color: 'bg-status-impl'    },
-  { label: '배포 파일 검토 중',   color: 'bg-status-deploy'  },
-  { label: '결과 대기 중',        color: 'bg-status-pending' },
-]
 
 function getStatusStyle(status: string) {
   return STATUS_STYLE[status] ?? { bg: 'bg-status-todo', text: 'text-white' }
@@ -69,7 +46,7 @@ export default function ResolutionTimeChart({ details }: Props) {
           <span className="text-apple-light font-normal">(최신 {details.length}건)</span>
         </h3>
         <div className="flex flex-wrap gap-x-3 gap-y-1 justify-end">
-          {LEGEND.map((l) => (
+          {STATUS_LEGEND.map((l) => (
             <span key={l.label} className="flex items-center gap-1 text-ui-sm text-apple-light">
               <span className={`inline-block w-2 h-2 rounded-full ${l.color}`} />
               {l.label}

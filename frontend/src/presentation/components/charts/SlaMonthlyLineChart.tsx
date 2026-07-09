@@ -1,15 +1,9 @@
 // frontend/src/presentation/components/charts/SlaMonthlyLineChart.tsx
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ReferenceLine,
-  ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
+import { CHART_COLORS } from '@/shared/ui'
 
 export interface MonthlyEntry {
   month: string
@@ -32,7 +26,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const p = payload[0]
   const meta: MonthlyEntry | undefined = p?.payload?.meta
   return (
-    <div className="bg-white border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-[11px]">
+    <div className={`bg-white border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-ui-xs`}>
       <p className="font-semibold text-apple-dark mb-1">{label}</p>
       <div className="flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
@@ -63,11 +57,11 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
     return (
       <div className="card flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-[13px] font-semibold text-apple-dark">{title}</h3>
-          <span className="text-[11px] text-apple-light">{subtitle}</span>
+          <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
+          <span className="text-ui-xs text-apple-light">{subtitle}</span>
         </div>
         <div className="flex items-center justify-center h-[240px]">
-          <p className="text-[12px] text-apple-light">SLA 데이터가 없습니다</p>
+          <p className="text-ui-sm text-apple-light">SLA 데이터가 없습니다</p>
         </div>
       </div>
     )
@@ -76,8 +70,8 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[13px] font-semibold text-apple-dark">{title}</h3>
-        <span className="text-[11px] text-apple-light">{subtitle}</span>
+        <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
+        <span className="text-ui-xs text-apple-light">{subtitle}</span>
       </div>
       <ResponsiveContainer width="100%" height={240}>
         <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -87,17 +81,17 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
               <stop offset="100%" stopColor={color} stopOpacity={0.03} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis
             dataKey="month"
-            tick={{ fontSize: 11, fill: '#8e8e93' }}
+            tick={{ fontSize: 11, fill: CHART_COLORS.axisText }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
             domain={[0, 100]}
             tickFormatter={(v) => `${v}%`}
-            tick={{ fontSize: 11, fill: '#8e8e93' }}
+            tick={{ fontSize: 11, fill: CHART_COLORS.axisText }}
             axisLine={false}
             tickLine={false}
             width={40}
@@ -105,9 +99,9 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine
             y={80}
-            stroke="#e5e7eb"
+            stroke={CHART_COLORS.slaTarget}
             strokeDasharray="4 4"
-            label={{ value: '목표 80%', position: 'insideTopRight', fontSize: 10, fill: '#9ca3af' }}
+            label={{ value: '목표 80%', position: 'insideTopRight', fontSize: 10, fill: CHART_COLORS.axisText }}
           />
           <Legend
             layout="horizontal"
