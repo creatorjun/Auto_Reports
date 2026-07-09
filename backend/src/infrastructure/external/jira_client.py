@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 SLA_SCHEMA_TYPE = "sd-servicelevelagreement"
 _JIRA_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0)
 _JIRA_LIMITS  = httpx.Limits(max_connections=30, max_keepalive_connections=15)
+_PAGE_SIZE     = 100
 
 
 class JiraClient(JiraPort):
@@ -38,7 +39,7 @@ class JiraClient(JiraPort):
             resp.raise_for_status()
             return resp.json().get("total", 0)
         except httpx.HTTPError as e:
-            logger.error(f"JQL 카운트 실패: {jql[:80]}... \u2192 {e}")
+            logger.error(f"JQL 카운트 실패: {jql[:80]}... → {e}")
             if isinstance(e, httpx.HTTPStatusError):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return 0
@@ -50,14 +51,15 @@ class JiraClient(JiraPort):
         fields: str = "",
     ) -> list[dict[str, Any]]:
         url = f"{self._base_url}/rest/api/3/search/jql"
-        fields_list = fields.split(",") if fields else []
+        fields_list = [f.strip() for f in fields.split(",") if f.strip()] if fields else []
         all_issues: list[dict[str, Any]] = []
         start_at = 0
 
-        while True:
+        while len(all_issues) < max_results:
+            batch_size = min(_PAGE_SIZE, max_results - len(all_issues))
             payload: dict[str, Any] = {
                 "jql": jql,
-                "maxResults": min(max_results - len(all_issues), 100),
+                "maxResults": batch_size,
                 "startAt": start_at,
                 "fieldsByKeys": False,
             }
@@ -68,17 +70,20 @@ class JiraClient(JiraPort):
                 resp.raise_for_status()
                 data = resp.json()
             except httpx.HTTPError as e:
-                logger.error(f"JQL 검색 실패: {jql[:80]}... \u2192 {e}")
+                logger.error(f"JQL 검색 실패: {jql[:80]}... → {e}")
                 if isinstance(e, httpx.HTTPStatusError):
-                    logger.error(f"응답 상로: {e.response.text[:200]}")
+                    logger.error(f"응답 상세: {e.response.text[:200]}")
                 break
 
             issues = data.get("issues", [])
+            if not issues:
+                break
+
             all_issues.extend(issues)
-            total    = data.get("total", 0)
+            total     = data.get("total", 0)
             start_at += len(issues)
 
-            if not issues or start_at >= total or len(all_issues) >= max_results:
+            if start_at >= total:
                 break
 
         return all_issues
