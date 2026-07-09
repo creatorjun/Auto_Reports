@@ -3,6 +3,8 @@ import asyncio
 import json
 import os
 import sys
+from datetime import datetime
+from io import StringIO
 from pathlib import Path
 
 import httpx
@@ -12,10 +14,7 @@ _here = Path(__file__).parent.parent
 for _candidate in [_here / ".env", _here.parent / ".env"]:
     if _candidate.exists():
         load_dotenv(_candidate)
-        print(f"[INFO] .env 로드: {_candidate}")
         break
-else:
-    print("[WARN] .env 파일을 찾지 못했습니다.")
 
 JIRA_BASE_URL = os.environ["JIRA_BASE_URL"].rstrip("/")
 JIRA_EMAIL    = os.environ["JIRA_EMAIL"]
@@ -26,34 +25,38 @@ ISSUE_TYPES   = os.environ.get("ISSUE_TYPES", '"\uc778\uc2dc\ub358\ud2b8", "\uac
 AUTH    = (JIRA_EMAIL, JIRA_TOKEN)
 HEADERS = {"Accept": "application/json", "Content-Type": "application/json"}
 
-OUT_PATH = _here.parent / "IssueStructure.json"
+OUT_DIR  = _here.parent / "docs"
+OUT_PATH = OUT_DIR / "datastructure.md"
 
 ISSUE_KEY = sys.argv[1] if len(sys.argv) > 1 else None
 
 
 async def main() -> None:
+    buf = StringIO()
+
+    def w(line: str = "") -> None:
+        buf.write(line + "\n")
+
     async with httpx.AsyncClient(auth=AUTH, headers=HEADERS, timeout=30.0) as client:
 
         if ISSUE_KEY:
-            print(f"[INFO] 지정 이슈 조회: {ISSUE_KEY}")
             resp = await client.get(
                 f"{JIRA_BASE_URL}/rest/api/3/issue/{ISSUE_KEY}",
-                params={"expand": "renderedFields,names,schema,operations,editmeta,changelog"},
+                params={"expand": "names,schema"},
             )
             resp.raise_for_status()
             issue_data = resp.json()
         else:
-            print(f"[INFO] 이슈 키 미지정 — 프로젝트 최신 1건 자동 선택")
             jql = (
                 f"project = {PROJECT_KEY} AND issuetype IN ({ISSUE_TYPES})"
-                f" AND status NOT IN (\"종료\",\"닫힌\") ORDER BY issuekey DESC"
+                f" AND status NOT IN (\"\uc885\ub8cc\",\"\ub2eb\ud78c\") ORDER BY issuekey DESC"
             )
             payload = {
                 "jql": jql,
                 "maxResults": 1,
                 "fields": ["*all"],
                 "fieldsByKeys": False,
-                "expand": "renderedFields,names,schema",
+                "expand": "names,schema",
             }
             resp = await client.post(
                 f"{JIRA_BASE_URL}/rest/api/3/search/jql",
@@ -62,31 +65,49 @@ async def main() -> None:
             resp.raise_for_status()
             issues = resp.json().get("issues", [])
             if not issues:
-                print("[ERROR] 조회된 이슈가 없습니다.")
+                print("[ERROR] \uc870\ud68c\ub41c \uc774\uc288\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.")
                 return
             issue_data = issues[0]
 
         key    = issue_data.get("key", "unknown")
         fields = issue_data.get("fields") or {}
+        names  = issue_data.get("names") or {}
 
-        print(f"\n{'='*60}")
-        print(f"  이슈 키 : {key}")
-        print(f"  필드 수  : {len(fields)}개")
-        print(f"{'='*60}\n")
+        w(f"# Issue Data Structure")
+        w(f"")
+        w(f"> \uc0dd\uc131: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  |  issue: `{key}`")
+        w(f"")
 
-        print("[[주요 필드 확인]]")
-        for target in ["assignee", "reporter", "customfield"]:
-            for fname, val in fields.items():
-                if target in fname.lower():
-                    preview = json.dumps(val, ensure_ascii=False)[:200] if val else "null"
-                    print(f"  {fname}: {preview}")
+        w(f"## \uc774\uc288 \uc815\ubcf4")
+        w(f"")
+        w(f"| \ud56d\ubaa9 | \uac12 |")
+        w(f"|---|---|")
+        w(f"| key | `{key}` |")
+        w(f"| \ud544\ub4dc \uc218 | {len(fields)}\uac1c |")
+        w(f"")
 
-        OUT_PATH.write_text(
-            json.dumps(issue_data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        print(f"\n✅ 전체 JSON 저장 완료: {OUT_PATH}")
-        print("힘트: IssueStructure.json 에서 assignee / customfield_ 필드명 확인 후 recent_collector.py 수정")
+        w(f"## \uc8fc\uc694 \ud544\ub4dc (assignee / reporter / customfield)")
+        w(f"")
+        targets = ["assignee", "reporter", "customfield"]
+        for fname, val in fields.items():
+            if any(t in fname.lower() for t in targets):
+                label = names.get(fname, fname)
+                w(f"### `{fname}` — {label}")
+                w(f"")
+                w(f"```json")
+                w(json.dumps(val, ensure_ascii=False, indent=2))
+                w(f"```")
+                w(f"")
+
+        w(f"## \uc804\uccb4 fields raw JSON")
+        w(f"")
+        w(f"```json")
+        w(json.dumps(fields, ensure_ascii=False, indent=2))
+        w(f"```")
+
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    OUT_PATH.write_text(buf.getvalue(), encoding="utf-8")
+    print(f"\u2705 \uc800\uc7a5 \uc644\ub8cc: {OUT_PATH}")
 
 
 if __name__ == "__main__":
