@@ -1,3 +1,4 @@
+// frontend/src/infrastructure/api/reportApi.ts
 import client from './client'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
 
@@ -17,6 +18,11 @@ export interface AppConfig {
   jira_base_url: string
 }
 
+export interface TriggerParams {
+  start_date?: string
+  end_date?: string
+}
+
 export const reportApi = {
   getLatest: async (): Promise<ReportDetail | null> => {
     const res = await client.get<ReportDetail>('/reports/latest')
@@ -30,8 +36,8 @@ export const reportApi = {
     const res = await client.get<ReportSummary[]>('/reports/', { params: { limit, offset } })
     return res.data
   },
-  trigger: async (): Promise<TriggerAccepted> => {
-    const res = await client.post<TriggerAccepted>('/trigger/')
+  trigger: async (params?: TriggerParams): Promise<TriggerAccepted> => {
+    const res = await client.post<TriggerAccepted>('/trigger/', params ?? {})
     return res.data
   },
   getJobStatus: async (jobId: string): Promise<JobStatus> => {

@@ -1,6 +1,8 @@
+// frontend/src/infrastructure/hooks/useTrigger.ts
 import { useRef } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { reportApi } from '@/infrastructure/api/reportApi'
+import type { TriggerParams } from '@/infrastructure/api/reportApi'
 import { useUiStore } from '@/app/store/uiStore'
 
 const POLL_INTERVAL_MS = 2000
@@ -51,7 +53,7 @@ export const useTrigger = () => {
   }
 
   return useMutation({
-    mutationFn: reportApi.trigger,
+    mutationFn: (params?: TriggerParams) => reportApi.trigger(params),
     onMutate: () => {
       setTriggerLoading(true)
       setTriggerMessage(null)
