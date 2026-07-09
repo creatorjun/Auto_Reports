@@ -23,10 +23,11 @@ _STAGE_MAP: dict[str, int] = {
 }
 
 FIELD_TAC_TEAM = "customfield_10713"
+PAGE_SIZE = 50
 
 
 class RecentCollector(AbstractWidgetCollector):
-    """w12: 최근 활성 이슈 목록 (최신 50건)."""
+    """w12: 최근 활성 이슈 목록 (최신 100건, 페이지당 50건)."""
 
     def __init__(self, jira: JiraPort, q: ResolvedQueries):
         self._jira = jira
@@ -36,7 +37,7 @@ class RecentCollector(AbstractWidgetCollector):
         jql = self._q.w12_recent()
         issues = await self._jira.get_issues(
             jql,
-            max_results=50,
+            max_results=PAGE_SIZE * 2,
             fields=f"summary,issuetype,status,created,reporter,{FIELD_TAC_TEAM}",
         )
         now_ts = datetime.now()

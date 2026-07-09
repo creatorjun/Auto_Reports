@@ -1,7 +1,10 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
+import { useState } from 'react'
 import { useConfig } from '@/infrastructure/hooks/useConfig'
 import { STATUS_STYLE, STATUS_LEGEND, STAGE_TOTAL } from '@/shared/ui'
 import type { RecentIssue } from '@/presentation/pages/DashboardPage'
+
+const PAGE_SIZE = 50
 
 interface Props {
   details: RecentIssue[]
@@ -29,6 +32,7 @@ function StageBar({ stageIndex }: { stageIndex: number }) {
 export default function ResolutionTimeChart({ details }: Props) {
   const { data: config } = useConfig()
   const jiraBaseUrl = config?.jira_base_url ?? 'https://seculayer.atlassian.net'
+  const [page, setPage] = useState(1)
 
   if (!details || details.length === 0) {
     return (
@@ -37,6 +41,9 @@ export default function ResolutionTimeChart({ details }: Props) {
       </div>
     )
   }
+
+  const totalPages = Math.ceil(details.length / PAGE_SIZE)
+  const pageItems = details.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="card">
@@ -68,7 +75,7 @@ export default function ResolutionTimeChart({ details }: Props) {
             </tr>
           </thead>
           <tbody>
-            {details.map((issue) => {
+            {pageItems.map((issue) => {
               const style = getStatusStyle(issue.status)
               const jiraUrl = `${jiraBaseUrl}/browse/${issue.key}`
               return (
@@ -106,6 +113,29 @@ export default function ResolutionTimeChart({ details }: Props) {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-apple-divider">
+          <span className="text-ui-sm text-apple-light">
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, details.length)} / {details.length}건
+          </span>
+          <div className="flex gap-1">
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i + 1)}
+                className={`px-3 py-1 rounded text-ui-sm font-medium transition-colors ${
+                  page === i + 1
+                    ? 'bg-brand-500 text-white'
+                    : 'bg-gray-100 text-apple-mid hover:bg-gray-200'
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
