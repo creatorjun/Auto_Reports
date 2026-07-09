@@ -1,10 +1,11 @@
 // frontend/src/presentation/components/common/SearchWidget.tsx
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { fetchSearchResults, fetchJiraBaseUrl, SearchResult } from '@/infrastructure/api/searchApi'
+import { DEFAULT_JIRA_BASE_URL } from '@/shared/constants'
 
-const JIRA_COLOR = 'bg-blue-100 text-blue-700'
+const JIRA_COLOR    = 'bg-blue-100 text-blue-700'
 const CONFLUENCE_COLOR = 'bg-purple-100 text-purple-700'
-const DIRECT_COLOR = 'bg-brand-100 text-brand-700'
+const DIRECT_COLOR  = 'bg-brand-100 text-brand-700'
 
 const ISSUE_NUMBER_RE = /^\d{4,5}$/
 
@@ -25,7 +26,7 @@ function buildDirectItem(num: string, jiraBaseUrl: string): SearchResult {
 }
 
 function TypeBadge({ type, isDirect }: { type: string; isDirect?: boolean }) {
-  const cls = isDirect ? DIRECT_COLOR : type === 'jira' ? JIRA_COLOR : CONFLUENCE_COLOR
+  const cls   = isDirect ? DIRECT_COLOR : type === 'jira' ? JIRA_COLOR : CONFLUENCE_COLOR
   const label = isDirect ? '직접링크' : type === 'jira' ? 'JIRA' : 'Confluence'
   return (
     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${cls}`}>
@@ -35,10 +36,7 @@ function TypeBadge({ type, isDirect }: { type: string; isDirect?: boolean }) {
 }
 
 function DropdownItem({
-  item,
-  isActive,
-  isDirect,
-  onClick,
+  item, isActive, isDirect, onClick,
 }: {
   item: SearchResult
   isActive: boolean
@@ -52,21 +50,14 @@ function DropdownItem({
           ? isActive
             ? 'bg-brand-50 border-b border-brand-100'
             : 'bg-brand-50 border-b border-brand-100 hover:bg-brand-100'
-          : isActive
-          ? 'bg-gray-100'
-          : 'hover:bg-gray-50'
+          : isActive ? 'bg-gray-100' : 'hover:bg-gray-50'
       }`}
-      onMouseDown={(e) => {
-        e.preventDefault()
-        onClick()
-      }}
+      onMouseDown={(e) => { e.preventDefault(); onClick() }}
     >
       <TypeBadge type={item.type} isDirect={isDirect} />
-      <span
-        className={`text-[12px] font-medium truncate flex-1 ${
-          isDirect ? 'text-brand-700' : 'text-gray-800'
-        }`}
-      >
+      <span className={`text-[12px] font-medium truncate flex-1 ${
+        isDirect ? 'text-brand-700' : 'text-gray-800'
+      }`}>
         {item.key && !isDirect && <span className="text-gray-400 mr-1">[{item.key}]</span>}
         {item.title}
       </span>
@@ -75,13 +66,7 @@ function DropdownItem({
       )}
       {isDirect && (
         <svg className="w-3 h-3 text-brand-400 flex-shrink-0" fill="none" viewBox="0 0 16 16">
-          <path
-            d="M3 8h10M9 4l4 4-4 4"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
     </li>
@@ -89,10 +74,7 @@ function DropdownItem({
 }
 
 function SearchModal({
-  results,
-  query,
-  jiraBaseUrl,
-  onClose,
+  results, query, jiraBaseUrl, onClose,
 }: {
   results: SearchResult[]
   query: string
@@ -100,9 +82,7 @@ function SearchModal({
   onClose: () => void
 }) {
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
@@ -118,28 +98,16 @@ function SearchModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b">
-          <span className="text-[15px] font-semibold text-gray-800">
-            "{query}" 검색 결과
-          </span>
-          <button
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            onClick={onClose}
-          >
+          <span className="text-[15px] font-semibold text-gray-800">"{query}" 검색 결과</span>
+          <button className="text-gray-400 hover:text-gray-600 transition-colors" onClick={onClose}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path
-                d="M5 5l10 10M15 5L5 15"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
+              <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           </button>
         </div>
 
         {results.length === 0 ? (
-          <div className="px-5 py-10 text-center text-gray-400 text-[13px]">
-            검색 결과가 없습니다.
-          </div>
+          <div className="px-5 py-10 text-center text-gray-400 text-[13px]">검색 결과가 없습니다.</div>
         ) : (
           <ul className="divide-y">
             {results.map((item, idx) => {
@@ -156,11 +124,9 @@ function SearchModal({
                   >
                     <TypeBadge type={item.type} isDirect={isDirect} />
                     <div className="flex-1 min-w-0">
-                      <p
-                        className={`text-[13px] font-medium truncate ${
-                          isDirect ? 'text-brand-700' : 'text-gray-800'
-                        }`}
-                      >
+                      <p className={`text-[13px] font-medium truncate ${
+                        isDirect ? 'text-brand-700' : 'text-gray-800'
+                      }`}>
                         {!isDirect && item.key && (
                           <span className="text-gray-400 mr-1.5">[{item.key}]</span>
                         )}
@@ -168,8 +134,7 @@ function SearchModal({
                       </p>
                       {!isDirect && (
                         <p className="text-[11px] text-gray-400 mt-0.5">
-                          {item.issue_type}
-                          {item.status ? ` · ${item.status}` : ''}
+                          {item.issue_type}{item.status ? ` · ${item.status}` : ''}
                         </p>
                       )}
                     </div>
@@ -177,16 +142,9 @@ function SearchModal({
                       className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
                         isDirect ? 'text-brand-400' : 'text-gray-300'
                       }`}
-                      fill="none"
-                      viewBox="0 0 16 16"
+                      fill="none" viewBox="0 0 16 16"
                     >
-                      <path
-                        d="M3 8h10M9 4l4 4-4 4"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
+                      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </a>
                 </li>
@@ -211,18 +169,17 @@ function SearchModal({
 }
 
 export default function SearchWidget() {
-  const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState<SearchResult[]>([])
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [activeIndex, setActiveIndex] = useState(-1)
-  const [isLoading, setIsLoading] = useState(false)
-  const [modalResults, setModalResults] = useState<SearchResult[] | null>(null)
-  const [modalQuery, setModalQuery] = useState('')
-  const [jiraBaseUrl, setJiraBaseUrl] = useState('')
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const abortRef = useRef<AbortController | null>(null)
-  const jiraBaseUrlRef = useRef('')
+  const [query,         setQuery]         = useState('')
+  const [suggestions,   setSuggestions]   = useState<SearchResult[]>([])
+  const [isDropdownOpen,setIsDropdownOpen]= useState(false)
+  const [activeIndex,   setActiveIndex]   = useState(-1)
+  const [isLoading,     setIsLoading]     = useState(false)
+  const [modalResults,  setModalResults]  = useState<SearchResult[] | null>(null)
+  const [modalQuery,    setModalQuery]    = useState('')
+  const [jiraBaseUrl,   setJiraBaseUrl]   = useState('')
+  const debounceRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortRef       = useRef<AbortController | null>(null)
+  const jiraBaseUrlRef = useRef(DEFAULT_JIRA_BASE_URL)
 
   useEffect(() => {
     fetchJiraBaseUrl()
@@ -230,16 +187,13 @@ export default function SearchWidget() {
         setJiraBaseUrl(url)
         jiraBaseUrlRef.current = url
       })
-      .catch(() => {
-        jiraBaseUrlRef.current = ''
-      })
+      .catch(() => {})
   }, [])
 
   const prependDirectIfNeeded = useCallback(
     (q: string, items: SearchResult[]): SearchResult[] => {
       if (!isIssueNumber(q)) return items
-      const direct = buildDirectItem(q.trim(), jiraBaseUrlRef.current)
-      return [direct, ...items]
+      return [buildDirectItem(q.trim(), jiraBaseUrlRef.current), ...items]
     },
     [],
   )
@@ -250,12 +204,13 @@ export default function SearchWidget() {
       abortRef.current = new AbortController()
       setIsLoading(true)
       try {
-        const results = await fetchSearchResults(q, 5)
-        const merged = prependDirectIfNeeded(q, results)
+        const results = await fetchSearchResults(q, 5, abortRef.current.signal)
+        const merged  = prependDirectIfNeeded(q, results)
         setSuggestions(merged)
         setIsDropdownOpen(merged.length > 0)
         setActiveIndex(-1)
-      } catch {
+      } catch (err: unknown) {
+        if ((err as { name?: string })?.name === 'CanceledError') return
         const fallback = prependDirectIfNeeded(q, [])
         setSuggestions(fallback)
         setIsDropdownOpen(fallback.length > 0)
@@ -274,9 +229,7 @@ export default function SearchWidget() {
       return
     }
     debounceRef.current = setTimeout(() => fetchSuggestions(query.trim()), 1000)
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [query, fetchSuggestions])
 
   const openModal = useCallback(
@@ -320,21 +273,11 @@ export default function SearchWidget() {
     <>
       <div className="relative w-[28rem] 3xl:w-[32rem]">
         <div className="relative flex items-center">
-          <svg
-            className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none"
-            fill="none"
-            viewBox="0 0 16 16"
-          >
+          <svg className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 16 16">
             <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
-            <path
-              d="M10 10l3 3"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
+            <path d="M10 10l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
           <input
-            ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -345,37 +288,18 @@ export default function SearchWidget() {
             className="w-full pl-9 pr-9 py-[0.5625rem] text-[14px] bg-gray-100 rounded-lg border border-transparent focus:border-brand-400 focus:bg-white focus:outline-none transition-all placeholder-gray-400"
           />
           {isLoading ? (
-            <svg
-              className="absolute right-3 w-4 h-4 text-gray-400 animate-spin"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="3"
-              />
+            <svg className="absolute right-3 w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
             </svg>
           ) : (
             <button
               className="absolute right-2.5 text-gray-400 hover:text-brand-600 transition-colors"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                if (query.trim()) openModal(query.trim())
-              }}
+              onMouseDown={(e) => { e.preventDefault(); if (query.trim()) openModal(query.trim()) }}
             >
               <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
                 <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
-                <path
-                  d="M10 10l3 3"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
+                <path d="M10 10l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
           )}
@@ -383,31 +307,23 @@ export default function SearchWidget() {
 
         {isDropdownOpen && suggestions.length > 0 && (
           <ul className="absolute top-full mt-1 left-0 right-0 bg-white rounded-xl shadow-lg border border-gray-100 z-40 overflow-hidden">
-            {suggestions.map((item, idx) => {
-              const isDirect = item.issue_type === 'direct'
-              return (
-                <DropdownItem
-                  key={`${item.type}-${item.key}-${idx}`}
-                  item={item}
-                  isActive={idx === activeIndex}
-                  isDirect={isDirect}
-                  onClick={() => {
-                    setIsDropdownOpen(false)
-                    window.open(item.url, '_blank', 'noopener,noreferrer')
-                  }}
-                />
-              )
-            })}
+            {suggestions.map((item, idx) => (
+              <DropdownItem
+                key={`${item.type}-${item.key}-${idx}`}
+                item={item}
+                isActive={idx === activeIndex}
+                isDirect={item.issue_type === 'direct'}
+                onClick={() => {
+                  setIsDropdownOpen(false)
+                  window.open(item.url, '_blank', 'noopener,noreferrer')
+                }}
+              />
+            ))}
             <li
               className="px-3 py-1.5 text-center border-t"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                openModal(query.trim())
-              }}
+              onMouseDown={(e) => { e.preventDefault(); openModal(query.trim()) }}
             >
-              <span className="text-[11px] text-brand-600 cursor-pointer hover:underline">
-                전체 결과 보기
-              </span>
+              <span className="text-[11px] text-brand-600 cursor-pointer hover:underline">전체 결과 보기</span>
             </li>
           </ul>
         )}

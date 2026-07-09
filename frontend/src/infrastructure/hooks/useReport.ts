@@ -1,3 +1,4 @@
+// frontend/src/infrastructure/hooks/useReport.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { reportApi } from '@/infrastructure/api/reportApi'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
@@ -6,14 +7,17 @@ export const useLatestReport = () =>
   useQuery<ReportDetail | null>({
     queryKey: ['reports', 'latest'],
     queryFn: reportApi.getLatest,
-    refetchInterval: 1000 * 60 * 10
+    staleTime: 1000 * 60 * 5,
+    refetchInterval: 1000 * 60 * 10,
+    refetchIntervalInBackground: false,
   })
 
 export const useReportById = (id: number) =>
   useQuery<ReportDetail>({
     queryKey: ['reports', id],
     queryFn: () => reportApi.getById(id),
-    enabled: !!id
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5,
   })
 
 export const useAllReports = (page = 0, pageSize = 20) =>
@@ -21,6 +25,7 @@ export const useAllReports = (page = 0, pageSize = 20) =>
     queryKey: ['reports', 'list', page, pageSize],
     queryFn: () => reportApi.getAll(pageSize, page * pageSize),
     placeholderData: (prev) => prev,
+    staleTime: 1000 * 60 * 2,
   })
 
 export const useDeleteReport = () => {
@@ -29,6 +34,6 @@ export const useDeleteReport = () => {
     mutationFn: (id: number) => reportApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] })
-    }
+    },
   })
 }

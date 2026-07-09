@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/charts/MonthlyCountChart.tsx
+import { memo } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -40,10 +41,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-export default function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
+function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
   const gradientId = `mc-grad-${color.replace('#', '')}`
-  const chartData = monthly.map((e) => ({ month: e.month, count: e.count }))
-  const hasData = chartData.some((d) => d.count > 0)
+  const chartData  = monthly.map((e) => ({ month: e.month, count: e.count }))
+  const hasData    = chartData.some((d) => d.count > 0)
 
   if (!hasData) {
     return (
@@ -74,36 +75,19 @@ export default function MonthlyCountChart({ title, subtitle, monthly, color }: P
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-          <XAxis
-            dataKey="month"
-            tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            allowDecimals={false}
-            tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }}
-            axisLine={false}
-            tickLine={false}
-            width={36}
-          />
+          <XAxis dataKey="month" tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
+          <YAxis allowDecimals={false} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={36} />
           <Tooltip content={<CustomTooltip />} />
           <Legend
-            layout="horizontal"
-            verticalAlign="bottom"
-            align="center"
-            iconType="circle"
-            iconSize={CHART_LEGEND_ICON_SIZE}
+            layout="horizontal" verticalAlign="bottom" align="center"
+            iconType="circle" iconSize={CHART_LEGEND_ICON_SIZE}
             formatter={(value: string) => (
               <span style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR }}>{value}</span>
             )}
           />
           <Area
-            type="monotone"
-            dataKey="count"
-            name="건수"
-            stroke={color}
-            strokeWidth={CHART_STROKE_WIDTH}
+            type="monotone" dataKey="count" name="건수"
+            stroke={color} strokeWidth={CHART_STROKE_WIDTH}
             fill={`url(#${gradientId})`}
             dot={({ cx, cy }: any) => (
               <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={CHART_DOT_RADIUS} fill={color} stroke="none" />
@@ -115,3 +99,5 @@ export default function MonthlyCountChart({ title, subtitle, monthly, color }: P
     </div>
   )
 }
+
+export default memo(MonthlyCountChart)

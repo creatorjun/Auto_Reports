@@ -13,9 +13,11 @@ export interface SearchResult {
 export async function fetchSearchResults(
   query: string,
   limit = 5,
+  signal?: AbortSignal,
 ): Promise<SearchResult[]> {
   const { data } = await client.get<SearchResult[]>('/search', {
     params: { q: query, limit },
+    signal,
   })
   return data
 }

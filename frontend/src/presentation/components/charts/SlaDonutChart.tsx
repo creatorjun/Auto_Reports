@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/charts/SlaDonutChart.tsx
+import { memo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/shared/constants'
 
@@ -8,7 +9,7 @@ interface ViolationEntry {
   rate: number
 }
 
-export default function SlaDonutChart({
+function SlaDonutChart({
   total,
   distribution,
 }: {
@@ -69,3 +70,5 @@ export default function SlaDonutChart({
     </div>
   )
 }
+
+export default memo(SlaDonutChart)

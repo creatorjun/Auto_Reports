@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/charts/SlaMonthlyLineChart.tsx
+import { memo } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
@@ -29,7 +30,7 @@ interface Props {
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
-  const p = payload[0]
+  const p    = payload[0]
   const meta: MonthlyEntry | undefined = p?.payload?.meta
   return (
     <div className="bg-white border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-ui-xs">
@@ -48,15 +49,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }: Props) {
+function SlaMonthlyLineChart({ title, subtitle, monthly, color }: Props) {
   const gradientId = `sla-grad-${color.replace('#', '')}`
-
-  const chartData = monthly.map((e) => ({
+  const chartData  = monthly.map((e) => ({
     month: e.month,
-    rate: e.total > 0 ? e.rate : null,
-    meta: e,
+    rate:  e.total > 0 ? e.rate : null,
+    meta:  e,
   }))
-
   const hasData = chartData.some((d) => d.rate !== null)
 
   if (!hasData) {
@@ -88,20 +87,8 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-          <XAxis
-            dataKey="month"
-            tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            domain={[0, 100]}
-            tickFormatter={(v) => `${v}%`}
-            tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }}
-            axisLine={false}
-            tickLine={false}
-            width={40}
-          />
+          <XAxis dataKey="month" tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
+          <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={40} />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine
             y={SLA_TARGET_RATE}
@@ -110,26 +97,20 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
             label={{ value: `목표 ${SLA_TARGET_RATE}%`, position: 'insideTopRight', fontSize: 10, fill: CHART_COLORS.axisText }}
           />
           <Legend
-            layout="horizontal"
-            verticalAlign="bottom"
-            align="center"
-            iconType="circle"
-            iconSize={CHART_LEGEND_ICON_SIZE}
+            layout="horizontal" verticalAlign="bottom" align="center"
+            iconType="circle" iconSize={CHART_LEGEND_ICON_SIZE}
             formatter={(value: string) => (
               <span style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR }}>{value}</span>
             )}
           />
           <Area
-            type="monotone"
-            dataKey="rate"
-            name="달성률"
-            stroke={color}
-            strokeWidth={CHART_STROKE_WIDTH}
+            type="monotone" dataKey="rate" name="달성률"
+            stroke={color} strokeWidth={CHART_STROKE_WIDTH}
             fill={`url(#${gradientId})`}
             dot={({ cx, cy, payload }: any) =>
-              payload.rate !== null ? (
-                <circle key={`dot-${payload.month}`} cx={cx} cy={cy} r={CHART_DOT_RADIUS} fill={color} stroke="none" />
-              ) : <g key={`dot-${payload.month}`} />
+              payload.rate !== null
+                ? <circle key={`dot-${payload.month}`} cx={cx} cy={cy} r={CHART_DOT_RADIUS} fill={color} stroke="none" />
+                : <g key={`dot-${payload.month}`} />
             }
             activeDot={{ r: CHART_ACTIVE_DOT_RADIUS }}
             connectNulls
@@ -139,3 +120,5 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
     </div>
   )
 }
+
+export default memo(SlaMonthlyLineChart)

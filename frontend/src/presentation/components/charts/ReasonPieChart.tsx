@@ -1,12 +1,11 @@
 // frontend/src/presentation/components/charts/ReasonPieChart.tsx
-import {
-  PieChart, Pie, Cell, Tooltip,
-  Legend, ResponsiveContainer
-} from 'recharts'
+import { memo } from 'react'
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { TooltipProps } from 'recharts'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
+import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/shared/constants'
 
-const COLORS = ['#3b82f6','#f59e0b','#ef4444','#8b5cf6','#10b981','#f97316']
+const REASON_COLORS = [...PIE_COLORS, '#10b981', '#f97316'] as const
 
 const RADIAN = Math.PI / 180
 
@@ -21,22 +20,13 @@ function CustomLabel({
   const x = cx + radius * Math.cos(-midAngle * RADIAN)
   const y = cy + radius * Math.sin(-midAngle * RADIAN)
   return (
-    <text
-      x={x} y={y}
-      fill="white"
-      textAnchor="middle"
-      dominantBaseline="central"
-      fontSize={11}
-      fontWeight={600}
-    >
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
       {`${Math.round(percent * 100)}%`}
     </text>
   )
 }
 
-function CustomTooltip({
-  active, payload
-}: TooltipProps<ValueType, NameType>) {
+function CustomTooltip({ active, payload }: TooltipProps<ValueType, NameType>) {
   if (!active || !payload?.length) return null
   const name  = payload[0].name  as string
   const value = payload[0].value as number
@@ -48,7 +38,7 @@ function CustomTooltip({
   )
 }
 
-export default function ReasonPieChart({ byStatus }: { byStatus: Record<string, number> }) {
+function ReasonPieChart({ byStatus }: { byStatus: Record<string, number> }) {
   const data = Object.entries(byStatus)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
@@ -58,7 +48,7 @@ export default function ReasonPieChart({ byStatus }: { byStatus: Record<string, 
   return (
     <div className="card flex flex-col">
       <h3 className="text-sm font-semibold text-apple-dark mb-3">🥧 SLA 지연 사유</h3>
-      <ResponsiveContainer width="100%" height={360}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <PieChart>
           <Pie
             data={data}
@@ -70,7 +60,7 @@ export default function ReasonPieChart({ byStatus }: { byStatus: Record<string, 
             label={CustomLabel}
           >
             {data.map((_, i) => (
-              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+              <Cell key={i} fill={REASON_COLORS[i % REASON_COLORS.length]} />
             ))}
           </Pie>
           <Tooltip content={(props) => <CustomTooltip {...props} />} />
@@ -79,10 +69,10 @@ export default function ReasonPieChart({ byStatus }: { byStatus: Record<string, 
             verticalAlign="bottom"
             align="center"
             iconType="circle"
-            iconSize={7}
+            iconSize={CHART_LEGEND_ICON_SIZE}
             formatter={(value: string) => (
-              <span style={{ fontSize: 11, color: '#86868b' }}>
-                {value.length > 10 ? value.slice(0, 10) + '\u2026' : value}
+              <span style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR }}>
+                {value.length > 10 ? value.slice(0, 10) + '…' : value}
               </span>
             )}
           />
@@ -91,3 +81,5 @@ export default function ReasonPieChart({ byStatus }: { byStatus: Record<string, 
     </div>
   )
 }
+
+export default memo(ReasonPieChart)
