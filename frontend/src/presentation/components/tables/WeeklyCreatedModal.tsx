@@ -14,10 +14,11 @@ export interface CreatedIssue {
 interface Props {
   issues: CreatedIssue[]
   total: number
+  dateRange?: { start: string; end: string }
   onClose: () => void
 }
 
-export default function WeeklyCreatedModal({ issues, total, onClose }: Props) {
+export default function WeeklyCreatedModal({ issues, total, dateRange, onClose }: Props) {
   const { data: config } = useConfig()
   const jiraBase = `${config?.jira_base_url ?? 'https://seculayer.atlassian.net'}/browse`
 
@@ -27,6 +28,10 @@ export default function WeeklyCreatedModal({ issues, total, onClose }: Props) {
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
+  const subText = dateRange
+    ? `${dateRange.start} – ${dateRange.end} · 전체 ${total}건 (생성일 최신순)`
+    : `전체 ${total}건 (생성일 최신순)`
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
@@ -35,8 +40,8 @@ export default function WeeklyCreatedModal({ issues, total, onClose }: Props) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-apple-divider/60">
           <div>
-            <h2 className="text-[15px] font-semibold text-apple-dark">이번 주 생성 이슈</h2>
-            <p className="text-[12px] text-apple-light mt-0.5">최근 7일 이내 생성 · 전체 {total}건 (생성일 최신순)</p>
+            <h2 className="text-[15px] font-semibold text-apple-dark">생성 이슈</h2>
+            <p className="text-[12px] text-apple-light mt-0.5">{subText}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-apple-gray text-apple-light hover:text-apple-dark transition-colors">✕</button>
         </div>

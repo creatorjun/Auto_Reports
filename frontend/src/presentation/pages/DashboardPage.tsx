@@ -79,6 +79,10 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const weeklyCreated  = w3Data?.created_details  ?? []
   const weeklyResolved = w3Data?.resolved_details ?? []
 
+  const dateRange = report.week_start && report.week_end
+    ? { start: report.week_start, end: report.week_end }
+    : undefined
+
   const w7Data    = getData<{ monthly: MonthlyEntry[] }>(w.w7)
   const w8Data    = getData<{ monthly: MonthlyEntry[] }>(w.w8)
   const w7Monthly = w7Data?.monthly ?? []
@@ -120,18 +124,17 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
 
-      {/* w1~w6 + 미완료 이슈: 요약 카드 */}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w1?.total ?? 0} color="gray" />
         <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w2?.total ?? 0} color="gray" />
         <SummaryCard
-          label="이번 주 생성"
+          label="생성"
           value={w3Created}
           color="blue"
           onClick={() => setShowWeeklyCreated(true)}
         />
         <SummaryCard
-          label="이번 주 해결"
+          label="완료"
           value={w3Resolved}
           color="green"
           onClick={() => setShowWeeklyResolved(true)}
@@ -162,15 +165,13 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         />
       </div>
 
-      {/* 모달 */}
-      {showWeeklyCreated  && <WeeklyCreatedModal  issues={weeklyCreated}       total={w3Created}        onClose={() => setShowWeeklyCreated(false)}  />}
-      {showWeeklyResolved && <WeeklyResolvedModal issues={weeklyResolved}      total={w3Resolved}       onClose={() => setShowWeeklyResolved(false)} />}
+      {showWeeklyCreated  && <WeeklyCreatedModal  issues={weeklyCreated}       total={w3Created}        dateRange={dateRange} onClose={() => setShowWeeklyCreated(false)}  />}
+      {showWeeklyResolved && <WeeklyResolvedModal issues={weeklyResolved}      total={w3Resolved}       dateRange={dateRange} onClose={() => setShowWeeklyResolved(false)} />}
       {showIssueReview    && <IssueReviewModal    issues={reviewIssues}        total={w.w4?.total ?? 0} onClose={() => setShowIssueReview(false)}    />}
       {showDataRequest    && <DataRequestModal    issues={dataRequestIssues}   total={w.w5?.total ?? 0} onClose={() => setShowDataRequest(false)}    />}
       {showResultPending  && <ResultPendingModal  issues={resultPendingIssues} total={w.w6?.total ?? 0} onClose={() => setShowResultPending(false)}  />}
       {showIncomplete     && <IncompleteIssueModal issues={incompleteIssues}   total={incompleteTotal}  onClose={() => setShowIncomplete(false)}     />}
 
-      {/* w7 / w8: 월별 SLA 달성률 */}
       {(hasW7 || hasW8) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
           <SlaMonthlyLineChart
@@ -188,7 +189,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         </div>
       )}
 
-      {/* w9 / w10 / w3트렌드 / w11: 차트 행 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
         <SlaDonutChart total={w9Total} distribution={w9Distribution} />
         <ReasonPieChart byStatus={w10ByStatus} />
@@ -196,7 +196,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <TypeBarChart byType={w11ByType} />
       </div>
 
-      {/* w12: 최근 이슈 현황 */}
       <ResolutionTimeChart details={recentIssues} />
 
       <div className="flex justify-end">
