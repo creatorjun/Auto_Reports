@@ -1,7 +1,7 @@
 # backend/src/application/services/report_assembler.py
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from src.application.services.query_builder import WidgetQueryBuilder
@@ -38,10 +38,14 @@ class ReportAssembler:
         self._sla_initial_response_field_id = sla_initial_response_field_id
         self._sla_resolution_field_id = sla_resolution_field_id
 
-    async def collect(self, now: datetime) -> NewReport:
+    async def collect(
+        self,
+        now: datetime,
+        week_start_override: datetime | None = None,
+    ) -> NewReport:
         if now.tzinfo is None:
             now = now.replace(tzinfo=KST)
-        q = self._qb.build(now)
+        q = self._qb.build(now, week_start_override=week_start_override)
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 
         collectors = [

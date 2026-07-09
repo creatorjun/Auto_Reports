@@ -1,6 +1,7 @@
 # backend/src/infrastructure/job_runner.py
 import logging
 import uuid
+from datetime import datetime
 
 from src.domain.entities.job import JobRecord, JobStatus
 from src.domain.repositories.job_repository import JobRepository
@@ -18,12 +19,17 @@ class JobRunner:
     async def get_job_status(self, job_id: str) -> JobRecord | None:
         return await self._repo.find(job_id)
 
-    async def execute_in_background(self, job_id: str) -> None:
+    async def execute_in_background(
+        self,
+        job_id: str,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> None:
         await self._repo.save(JobRecord(job_id=job_id, status=JobStatus.RUNNING))
         try:
             async with AsyncSessionLocal() as session:
                 uc = self._container.generate_report_use_case(session)
-                report = await uc.execute()
+                report = await uc.execute(start_date=start_date, end_date=end_date)
             await self._repo.save(JobRecord(job_id=job_id, status=JobStatus.DONE, report_id=report.id))
             logger.info(f"[job:{job_id}] 완료 report_id={report.id}")
         except Exception as e:

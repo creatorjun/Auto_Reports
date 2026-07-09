@@ -40,6 +40,11 @@ class ReportDetailSchema(BaseModel):
     ai_analysis: Optional[AiAnalysisSchema] = None
 
 
+class TriggerRequest(BaseModel):
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
 class TriggerAcceptedSchema(BaseModel):
     job_id: str
     message: str

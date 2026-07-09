@@ -24,11 +24,19 @@ class GenerateReportUseCase:
         self._analyzer = analyzer
         self._repository = repository
 
-    async def execute(self, now: datetime | None = None) -> Report:
+    async def execute(
+        self,
+        now: datetime | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> Report:
         now = now or datetime.now(tz=KST)
         logger.info(f"보고서 생성 시작: {now}")
 
-        new_report = await self._assembler.collect(now)
+        new_report = await self._assembler.collect(
+            now=end_date or now,
+            week_start_override=start_date,
+        )
 
         analysis = None
         try:
