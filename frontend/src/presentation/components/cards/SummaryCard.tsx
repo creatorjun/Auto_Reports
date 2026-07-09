@@ -8,11 +8,11 @@ interface Props {
 }
 
 const colorMap = {
-  blue:   { dot: 'bg-blue-500',   val: 'text-blue-600'  },
-  red:    { dot: 'bg-red-500',    val: 'text-red-600'   },
-  green:  { dot: 'bg-green-500',  val: 'text-green-600' },
-  yellow: { dot: 'bg-amber-500',  val: 'text-amber-600' },
-  gray:   { dot: 'bg-gray-400',   val: 'text-gray-700'  }
+  blue:   { dot: 'bg-status-data',    val: 'text-blue-600'   },
+  red:    { dot: 'bg-status-pending', val: 'text-red-600'    },
+  green:  { dot: 'bg-status-impl',    val: 'text-green-600'  },
+  yellow: { dot: 'bg-status-review',  val: 'text-amber-600'  },
+  gray:   { dot: 'bg-status-todo',    val: 'text-gray-700'   },
 }
 
 export default function SummaryCard({ label, value, sub, color = 'blue', onClick }: Props) {
@@ -26,12 +26,12 @@ export default function SummaryCard({ label, value, sub, color = 'blue', onClick
     >
       <div className="flex items-center gap-2">
         <span className={`w-2 h-2 rounded-full ${c.dot} flex-shrink-0`} />
-        <p className="text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wider leading-none">
+        <p className="text-ui-xs 3xl:text-ui-sm font-semibold text-apple-light uppercase tracking-wider leading-none">
           {label}
         </p>
       </div>
-      <p className={`text-[32px] 3xl:text-[38px] font-semibold leading-none tracking-tight ${c.val}`}>{value}</p>
-      {sub && <p className="text-[11px] 3xl:text-[12px] text-apple-light">{sub}</p>}
+      <p className={`text-ui-xl 3xl:text-ui-2xl font-semibold leading-none tracking-tight ${c.val}`}>{value}</p>
+      {sub && <p className="text-ui-xs 3xl:text-ui-sm text-apple-light">{sub}</p>}
     </div>
   )
 }

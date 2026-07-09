@@ -15,6 +15,15 @@ export default {
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'sans-serif']
       },
+      fontSize: {
+        'ui-xs':   ['11px', { lineHeight: '1.4' }],
+        'ui-sm':   ['12px', { lineHeight: '1.5' }],
+        'ui-base': ['13px', { lineHeight: '1.6' }],
+        'ui-md':   ['14px', { lineHeight: '1.6' }],
+        'ui-lg':   ['16px', { lineHeight: '1.5' }],
+        'ui-xl':   ['32px', { lineHeight: '1' }],
+        'ui-2xl':  ['38px', { lineHeight: '1' }],
+      },
       colors: {
         brand: {
           50:  '#f0f4ff',
@@ -31,6 +40,15 @@ export default {
           mid:     '#6e6e73',
           light:   '#86868b',
           divider: '#d2d2d7'
+        },
+        status: {
+          todo:    '#9ca3af',
+          data:    '#3b82f6',
+          review:  '#f59e0b',
+          lab:     '#a855f7',
+          impl:    '#22c55e',
+          deploy:  '#06b6d4',
+          pending: '#ef4444',
         }
       },
       borderRadius: {

@@ -133,42 +133,12 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w1?.total ?? 0} color="gray" />
         <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w2?.total ?? 0} color="gray" />
-        <SummaryCard
-          label="생성"
-          value={w3Created}
-          color="blue"
-          onClick={() => setShowWeeklyCreated(true)}
-        />
-        <SummaryCard
-          label="완료"
-          value={w3Resolved}
-          color="green"
-          onClick={() => setShowWeeklyResolved(true)}
-        />
-        <SummaryCard
-          label="이슈 리뷰 중"
-          value={w.w4?.total ?? 0}
-          color="yellow"
-          onClick={() => setShowIssueReview(true)}
-        />
-        <SummaryCard
-          label="자료 요청 중"
-          value={w.w5?.total ?? 0}
-          color="yellow"
-          onClick={() => setShowDataRequest(true)}
-        />
-        <SummaryCard
-          label="결과 대기 중"
-          value={w.w6?.total ?? 0}
-          color="yellow"
-          onClick={() => setShowResultPending(true)}
-        />
-        <SummaryCard
-          label="미완료 이슈"
-          value={incompleteTotal}
-          color="red"
-          onClick={() => setShowIncomplete(true)}
-        />
+        <SummaryCard label="생성"        value={w3Created}        color="blue"   onClick={() => setShowWeeklyCreated(true)}  />
+        <SummaryCard label="완료"        value={w3Resolved}       color="green"  onClick={() => setShowWeeklyResolved(true)} />
+        <SummaryCard label="이슈 리뷰 중" value={w.w4?.total ?? 0} color="yellow" onClick={() => setShowIssueReview(true)}    />
+        <SummaryCard label="자료 요청 중" value={w.w5?.total ?? 0} color="yellow" onClick={() => setShowDataRequest(true)}    />
+        <SummaryCard label="결과 대기 중" value={w.w6?.total ?? 0} color="yellow" onClick={() => setShowResultPending(true)}  />
+        <SummaryCard label="미완료 이슈"  value={incompleteTotal}  color="red"    onClick={() => setShowIncomplete(true)}      />
       </div>
 
       {showWeeklyCreated  && <WeeklyCreatedModal  issues={weeklyCreated}       total={w3Created}        dateRange={dateRange} onClose={() => setShowWeeklyCreated(false)}  />}
@@ -180,18 +150,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
       {(hasW7 || hasW8) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
-          <SlaMonthlyLineChart
-            title="✅ 최초응답 SLA"
-            subtitle="최근 6개월 · 응답시간 위반 여부"
-            monthly={w7Monthly}
-            color="#3b82f6"
-          />
-          <SlaMonthlyLineChart
-            title="✅ 해결시간 SLA"
-            subtitle="최근 6개월 · 해결시간 위반 여부"
-            monthly={w8Monthly}
-            color="#22c55e"
-          />
+          <SlaMonthlyLineChart title="✅ 최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w7Monthly} color="#3b82f6" />
+          <SlaMonthlyLineChart title="✅ 해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w8Monthly} color="#22c55e" />
         </div>
       )}
 
@@ -205,7 +165,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       <ResolutionTimeChart details={recentIssues} />
 
       <div className="flex justify-end">
-        <p className="text-[11px] 3xl:text-[12px] text-apple-light tabular-nums">
+        <p className="text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums">
           {report.week_start} – {report.week_end}
           <span className="mx-1.5 text-apple-divider">·</span>
           생성: {report.report_date}
@@ -222,9 +182,9 @@ export default function DashboardPage() {
   const { data, isLoading, error } = id ? byIdQuery : latestQuery
 
   if (isLoading) return <LoadingSpinner text="보고서 로딩 중..." />
-  if (error)     return <div className="card text-[13px] text-red-500">데이터를 불러올 수 없습니다.</div>
+  if (error)     return <div className="card text-ui-base text-red-500">데이터를 불러올 수 없습니다.</div>
   if (!data)     return (
-    <div className="card text-[13px] text-apple-light text-center py-16">
+    <div className="card text-ui-base text-apple-light text-center py-16">
       생성된 보고서가 없습니다. <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 누르세요.
     </div>
   )
