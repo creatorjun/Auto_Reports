@@ -1,4 +1,6 @@
 // frontend/src/presentation/components/cards/SlaRateCard.tsx
+import { SLA_COLOR_MAP, SLA_TARGET_RATE, SLA_RING_RADIUS } from '@/shared/constants'
+
 interface SlaField {
   name: string
   met: number
@@ -14,22 +16,15 @@ interface SlaRateCardProps {
   slaFields?: SlaField[]
 }
 
-function getColorKey(rate: number): 'green' | 'yellow' | 'red' {
-  if (rate >= 80) return 'green'
+function getColorKey(rate: number): keyof typeof SLA_COLOR_MAP {
+  if (rate >= SLA_TARGET_RATE) return 'green'
   if (rate >= 50) return 'yellow'
   return 'red'
 }
 
-const colorMap = {
-  green:  { ring: '#22c55e', track: '#dcfce7', text: 'text-green-600',  badge: 'bg-green-50 text-green-700'  },
-  yellow: { ring: '#f59e0b', track: '#fef3c7', text: 'text-amber-600',  badge: 'bg-amber-50 text-amber-700'  },
-  red:    { ring: '#ef4444', track: '#fee2e2', text: 'text-red-500',    badge: 'bg-red-50 text-red-700'      },
-}
-
 export default function SlaRateCard({ label, rate, met, total, slaFields = [] }: SlaRateCardProps) {
-  const c = colorMap[getColorKey(rate)]
-  const r = 32
-  const circ = 2 * Math.PI * r
+  const c    = SLA_COLOR_MAP[getColorKey(rate)]
+  const circ = 2 * Math.PI * SLA_RING_RADIUS
   const dash = (rate / 100) * circ
 
   return (
@@ -44,9 +39,9 @@ export default function SlaRateCard({ label, rate, met, total, slaFields = [] }:
       <div className="flex items-center gap-4">
         <div className="relative flex-shrink-0 w-[72px] h-[72px]">
           <svg width="72" height="72" viewBox="0 0 72 72" className="-rotate-90">
-            <circle cx="36" cy="36" r={r} fill="none" stroke={c.track} strokeWidth="7" />
+            <circle cx="36" cy="36" r={SLA_RING_RADIUS} fill="none" stroke={c.track} strokeWidth="7" />
             <circle
-              cx="36" cy="36" r={r} fill="none"
+              cx="36" cy="36" r={SLA_RING_RADIUS} fill="none"
               stroke={c.ring} strokeWidth="7"
               strokeDasharray={`${dash} ${circ}`}
               strokeLinecap="round"
@@ -77,7 +72,7 @@ export default function SlaRateCard({ label, rate, met, total, slaFields = [] }:
       {slaFields.length > 0 && (
         <div className="border-t border-apple-divider pt-2 flex flex-col gap-1.5">
           {slaFields.map((f) => {
-            const fc = colorMap[getColorKey(f.rate)]
+            const fc = SLA_COLOR_MAP[getColorKey(f.rate)]
             return (
               <div key={f.name} className="flex items-center gap-2">
                 <span className="text-ui-xs text-apple-light flex-1 truncate" title={f.name}>{f.name}</span>

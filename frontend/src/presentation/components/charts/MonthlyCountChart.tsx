@@ -4,6 +4,12 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { CHART_COLORS } from '@/shared/ui'
+import {
+  CHART_HEIGHT, CHART_TICK_FONT_SIZE,
+  CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR,
+  CHART_STROKE_WIDTH, CHART_DOT_RADIUS, CHART_ACTIVE_DOT_RADIUS,
+  CHART_GRADIENT_STOP_START, CHART_GRADIENT_STOP_END,
+} from '@/shared/constants'
 
 export interface MonthlyCountEntry {
   month: string
@@ -46,7 +52,7 @@ export default function MonthlyCountChart({ title, subtitle, monthly, color }: P
           <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
           <span className="text-ui-xs text-apple-light">{subtitle}</span>
         </div>
-        <div className="flex items-center justify-center h-[360px]">
+        <div className="flex items-center justify-center" style={{ height: CHART_HEIGHT }}>
           <p className="text-ui-sm text-apple-light">데이터가 없습니다</p>
         </div>
       </div>
@@ -59,24 +65,24 @@ export default function MonthlyCountChart({ title, subtitle, monthly, color }: P
         <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
         <span className="text-ui-xs text-apple-light">{subtitle}</span>
       </div>
-      <ResponsiveContainer width="100%" height={360}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-              <stop offset="100%" stopColor={color} stopOpacity={0.03} />
+              <stop offset="0%" stopColor={color} stopOpacity={CHART_GRADIENT_STOP_START} />
+              <stop offset="100%" stopColor={color} stopOpacity={CHART_GRADIENT_STOP_END} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis
             dataKey="month"
-            tick={{ fontSize: 11, fill: CHART_COLORS.axisText }}
+            tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
             allowDecimals={false}
-            tick={{ fontSize: 11, fill: CHART_COLORS.axisText }}
+            tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }}
             axisLine={false}
             tickLine={false}
             width={36}
@@ -87,9 +93,9 @@ export default function MonthlyCountChart({ title, subtitle, monthly, color }: P
             verticalAlign="bottom"
             align="center"
             iconType="circle"
-            iconSize={7}
+            iconSize={CHART_LEGEND_ICON_SIZE}
             formatter={(value: string) => (
-              <span style={{ fontSize: 11, color: '#86868b' }}>{value}</span>
+              <span style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR }}>{value}</span>
             )}
           />
           <Area
@@ -97,12 +103,12 @@ export default function MonthlyCountChart({ title, subtitle, monthly, color }: P
             dataKey="count"
             name="건수"
             stroke={color}
-            strokeWidth={2.5}
+            strokeWidth={CHART_STROKE_WIDTH}
             fill={`url(#${gradientId})`}
             dot={({ cx, cy }: any) => (
-              <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={4} fill={color} stroke="none" />
+              <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={CHART_DOT_RADIUS} fill={color} stroke="none" />
             )}
-            activeDot={{ r: 6 }}
+            activeDot={{ r: CHART_ACTIVE_DOT_RADIUS }}
           />
         </AreaChart>
       </ResponsiveContainer>

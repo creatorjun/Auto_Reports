@@ -1,7 +1,6 @@
 // frontend/src/presentation/components/charts/SlaDonutChart.tsx
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-
-const COLORS = ['#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6']
+import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/shared/constants'
 
 interface ViolationEntry {
   stage: string
@@ -20,7 +19,7 @@ export default function SlaDonutChart({
 
   if (total === 0 || data.length === 0) {
     return (
-      <div className="card flex flex-col items-center justify-center" style={{ minHeight: 360 }}>
+      <div className="card flex flex-col items-center justify-center" style={{ minHeight: CHART_HEIGHT }}>
         <h3 className="text-sm font-semibold text-gray-700 mb-2">🎯 SLA 위반 분포</h3>
         <p className="text-sm text-gray-400">위반 없음</p>
       </div>
@@ -31,7 +30,7 @@ export default function SlaDonutChart({
     <div className="card">
       <h3 className="text-sm font-semibold text-gray-700 mb-4">🎯 SLA 위반 분포</h3>
       <div className="relative">
-        <ResponsiveContainer width="100%" height={360}>
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <PieChart>
             <Pie
               data={data}
@@ -40,13 +39,11 @@ export default function SlaDonutChart({
               innerRadius={80}
               outerRadius={130}
               dataKey="value"
-              label={({ percent }) =>
-                `${((percent ?? 0) * 100).toFixed(0)}%`
-              }
+              label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
               labelLine={false}
             >
               {data.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
               ))}
             </Pie>
             <Tooltip formatter={(v, name) => [`${v}건`, name]} />
@@ -55,9 +52,9 @@ export default function SlaDonutChart({
               verticalAlign="bottom"
               align="center"
               iconType="circle"
-              iconSize={7}
+              iconSize={CHART_LEGEND_ICON_SIZE}
               formatter={(value: string) => (
-                <span style={{ fontSize: 11, color: '#86868b' }}>{value}</span>
+                <span style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR }}>{value}</span>
               )}
             />
           </PieChart>

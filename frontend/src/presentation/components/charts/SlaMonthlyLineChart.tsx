@@ -4,6 +4,12 @@ import {
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
 import { CHART_COLORS } from '@/shared/ui'
+import {
+  SLA_TARGET_RATE, CHART_HEIGHT, CHART_TICK_FONT_SIZE,
+  CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR,
+  CHART_STROKE_WIDTH, CHART_DOT_RADIUS, CHART_ACTIVE_DOT_RADIUS,
+  CHART_GRADIENT_STOP_START, CHART_GRADIENT_STOP_END,
+} from '@/shared/constants'
 
 export interface MonthlyEntry {
   month: string
@@ -26,7 +32,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const p = payload[0]
   const meta: MonthlyEntry | undefined = p?.payload?.meta
   return (
-    <div className={`bg-white border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-ui-xs`}>
+    <div className="bg-white border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-ui-xs">
       <p className="font-semibold text-apple-dark mb-1">{label}</p>
       <div className="flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
@@ -60,7 +66,7 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
           <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
           <span className="text-ui-xs text-apple-light">{subtitle}</span>
         </div>
-        <div className="flex items-center justify-center h-[360px]">
+        <div className="flex items-center justify-center" style={{ height: CHART_HEIGHT }}>
           <p className="text-ui-sm text-apple-light">SLA 데이터가 없습니다</p>
         </div>
       </div>
@@ -73,44 +79,44 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
         <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
         <span className="text-ui-xs text-apple-light">{subtitle}</span>
       </div>
-      <ResponsiveContainer width="100%" height={360}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-              <stop offset="100%" stopColor={color} stopOpacity={0.03} />
+              <stop offset="0%" stopColor={color} stopOpacity={CHART_GRADIENT_STOP_START} />
+              <stop offset="100%" stopColor={color} stopOpacity={CHART_GRADIENT_STOP_END} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis
             dataKey="month"
-            tick={{ fontSize: 11, fill: CHART_COLORS.axisText }}
+            tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
             domain={[0, 100]}
             tickFormatter={(v) => `${v}%`}
-            tick={{ fontSize: 11, fill: CHART_COLORS.axisText }}
+            tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }}
             axisLine={false}
             tickLine={false}
             width={40}
           />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine
-            y={80}
+            y={SLA_TARGET_RATE}
             stroke={CHART_COLORS.slaTarget}
             strokeDasharray="4 4"
-            label={{ value: '목표 80%', position: 'insideTopRight', fontSize: 10, fill: CHART_COLORS.axisText }}
+            label={{ value: `목표 ${SLA_TARGET_RATE}%`, position: 'insideTopRight', fontSize: 10, fill: CHART_COLORS.axisText }}
           />
           <Legend
             layout="horizontal"
             verticalAlign="bottom"
             align="center"
             iconType="circle"
-            iconSize={7}
+            iconSize={CHART_LEGEND_ICON_SIZE}
             formatter={(value: string) => (
-              <span style={{ fontSize: 11, color: '#86868b' }}>{value}</span>
+              <span style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR }}>{value}</span>
             )}
           />
           <Area
@@ -118,14 +124,14 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
             dataKey="rate"
             name="달성률"
             stroke={color}
-            strokeWidth={2.5}
+            strokeWidth={CHART_STROKE_WIDTH}
             fill={`url(#${gradientId})`}
             dot={({ cx, cy, payload }: any) =>
               payload.rate !== null ? (
-                <circle key={`dot-${payload.month}`} cx={cx} cy={cy} r={4} fill={color} stroke="none" />
+                <circle key={`dot-${payload.month}`} cx={cx} cy={cy} r={CHART_DOT_RADIUS} fill={color} stroke="none" />
               ) : <g key={`dot-${payload.month}`} />
             }
-            activeDot={{ r: 6 }}
+            activeDot={{ r: CHART_ACTIVE_DOT_RADIUS }}
             connectNulls
           />
         </AreaChart>

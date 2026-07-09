@@ -2,9 +2,8 @@
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { useConfig } from '@/infrastructure/hooks/useConfig'
 import { STATUS_STYLE, STATUS_LEGEND, STAGE_TOTAL } from '@/shared/ui'
+import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC, DEFAULT_JIRA_BASE_URL } from '@/shared/constants'
 import type { RecentIssue } from '@/presentation/pages/DashboardPage'
-
-const PAGE_SIZE = 50
 
 const COLS = ['key', 'summary', 'status', 'reporter', 'tac', 'elapsed'] as const
 type ColKey = typeof COLS[number]
@@ -18,7 +17,6 @@ const DEFAULT_FRACS: Record<ColKey, number> = {
   tac:      0.10,
   elapsed:  0.10,
 }
-const MIN_FRAC = 0.05
 
 interface Props {
   details: RecentIssue[]
@@ -110,7 +108,7 @@ function sortIssues(items: RecentIssue[], key: ColKey, dir: SortDir): RecentIssu
 
 export default function ResolutionTimeChart({ details }: Props) {
   const { data: config } = useConfig()
-  const jiraBaseUrl = config?.jira_base_url ?? 'https://seculayer.atlassian.net'
+  const jiraBaseUrl = config?.jira_base_url ?? DEFAULT_JIRA_BASE_URL
   const [page, setPage]       = useState(1)
   const [fracs, setFracs]     = useState({ ...DEFAULT_FRACS })
   const [sortKey, setSortKey] = useState<ColKey | null>(null)
@@ -132,8 +130,8 @@ export default function ResolutionTimeChart({ details }: Props) {
 
   const resize = useCallback((leftCol: ColKey, rightCol: ColKey, df: number) => {
     setFracs((prev) => {
-      const newLeft  = Math.max(MIN_FRAC, prev[leftCol]  + df)
-      const newRight = Math.max(MIN_FRAC, prev[rightCol] - df)
+      const newLeft  = Math.max(TABLE_MIN_COL_FRAC, prev[leftCol]  + df)
+      const newRight = Math.max(TABLE_MIN_COL_FRAC, prev[rightCol] - df)
       if (newLeft + newRight !== prev[leftCol] + prev[rightCol]) return prev
       return { ...prev, [leftCol]: newLeft, [rightCol]: newRight }
     })
@@ -157,15 +155,15 @@ export default function ResolutionTimeChart({ details }: Props) {
     )
   }
 
-  const totalPages = Math.ceil(sortedDetails.length / PAGE_SIZE)
-  const pageItems  = sortedDetails.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.ceil(sortedDetails.length / TABLE_PAGE_SIZE)
+  const pageItems  = sortedDetails.slice((page - 1) * TABLE_PAGE_SIZE, page * TABLE_PAGE_SIZE)
 
   const headers: { key: ColKey; label: string; rightCol?: ColKey; alignRight?: boolean }[] = [
-    { key: 'key',      label: '이슈',           rightCol: 'summary'  },
-    { key: 'summary',  label: '제목',           rightCol: 'status'   },
-    { key: 'status',   label: '진행 상태',      rightCol: 'reporter' },
-    { key: 'reporter', label: '보고자',         rightCol: 'tac'      },
-    { key: 'tac',      label: '담당자',         rightCol: 'elapsed'  },
+    { key: 'key',      label: '이슈',          rightCol: 'summary'  },
+    { key: 'summary',  label: '제목',          rightCol: 'status'   },
+    { key: 'status',   label: '진행 상태',     rightCol: 'reporter' },
+    { key: 'reporter', label: '보고자',        rightCol: 'tac'      },
+    { key: 'tac',      label: '담당자',        rightCol: 'elapsed'  },
     { key: 'elapsed',  label: '생성일 (경과)', alignRight: true },
   ]
 
@@ -268,7 +266,7 @@ export default function ResolutionTimeChart({ details }: Props) {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-apple-divider">
           <span className="text-ui-sm text-apple-light">
-            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sortedDetails.length)} / {sortedDetails.length}건
+            {(page - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(page * TABLE_PAGE_SIZE, sortedDetails.length)} / {sortedDetails.length}건
           </span>
           <div className="flex gap-1">
             {Array.from({ length: totalPages }).map((_, i) => (

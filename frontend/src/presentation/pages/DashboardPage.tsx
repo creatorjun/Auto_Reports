@@ -19,6 +19,7 @@ import IssueReviewModal, { type ReviewIssue } from '@/presentation/components/ta
 import DataRequestModal, { type DataRequestIssue } from '@/presentation/components/tables/DataRequestModal'
 import ResultPendingModal, { type ResultPendingIssue } from '@/presentation/components/tables/ResultPendingModal'
 import IncompleteIssueModal, { type IncompleteIssue } from '@/presentation/components/tables/IncompleteIssueModal'
+import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/shared/constants'
 import type { ReportDetail } from '@/domain/Report'
 
 interface ViolationEntry {
@@ -141,12 +142,12 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w1?.total ?? 0} color="gray" />
         <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w2?.total ?? 0} color="gray" />
-        <SummaryCard label="생성"        value={w3Created}        color="blue"   onClick={() => setShowWeeklyCreated(true)}  />
-        <SummaryCard label="완료"        value={w3Resolved}       color="green"  onClick={() => setShowWeeklyResolved(true)} />
+        <SummaryCard label="생성"         value={w3Created}        color="blue"   onClick={() => setShowWeeklyCreated(true)}  />
+        <SummaryCard label="완료"         value={w3Resolved}       color="green"  onClick={() => setShowWeeklyResolved(true)} />
         <SummaryCard label="이슈 리뷰 중" value={w.w4?.total ?? 0} color="yellow" onClick={() => setShowIssueReview(true)}    />
         <SummaryCard label="자료 요청 중" value={w.w5?.total ?? 0} color="yellow" onClick={() => setShowDataRequest(true)}    />
         <SummaryCard label="결과 대기 중" value={w.w6?.total ?? 0} color="yellow" onClick={() => setShowResultPending(true)}  />
-        <SummaryCard label="미완료 이슈"  value={incompleteTotal}  color="red"    onClick={() => setShowIncomplete(true)}      />
+        <SummaryCard label="미완료 이슈"  value={incompleteTotal}  color="red"    onClick={() => setShowIncomplete(true)}     />
       </div>
 
       {showWeeklyCreated  && <WeeklyCreatedModal  issues={weeklyCreated}       total={w3Created}        dateRange={dateRange} onClose={() => setShowWeeklyCreated(false)}  />}
@@ -158,15 +159,15 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
       {(hasW13 || hasW14) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
-          <MonthlyCountChart title="📋 월별 등록 건수" subtitle="최근 6개월" monthly={w13Monthly} color="#3b82f6" />
-          <MonthlyCountChart title="✅ 월별 해결 건수" subtitle="최근 6개월" monthly={w14Monthly} color="#22c55e" />
+          <MonthlyCountChart title="📋 월별 등록 건수" subtitle="최근 6개월" monthly={w13Monthly} color={MONTHLY_COUNT_COLORS.created}  />
+          <MonthlyCountChart title="✅ 월별 해결 건수" subtitle="최근 6개월" monthly={w14Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
         </div>
       )}
 
       {(hasW7 || hasW8) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
-          <SlaMonthlyLineChart title="✅ 최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w7Monthly} color="#3b82f6" />
-          <SlaMonthlyLineChart title="✅ 해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w8Monthly} color="#22c55e" />
+          <SlaMonthlyLineChart title="✅ 최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w7Monthly} color={SLA_MONTHLY_COLORS.initial}    />
+          <SlaMonthlyLineChart title="✅ 해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w8Monthly} color={SLA_MONTHLY_COLORS.resolution} />
         </div>
       )}
 
