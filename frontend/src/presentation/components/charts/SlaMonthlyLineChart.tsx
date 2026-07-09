@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/charts/SlaMonthlyLineChart.tsx
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -49,6 +49,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }: Props) {
+  const gradientId = `sla-grad-${color.replace('#', '')}`
+
   const chartData = monthly.map((e) => ({
     month: e.month,
     rate: e.total > 0 ? e.rate : null,
@@ -78,7 +80,13 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
         <span className="text-[11px] text-apple-light">{subtitle}</span>
       </div>
       <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.25} />
+              <stop offset="100%" stopColor={color} stopOpacity={0.03} />
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
           <XAxis
             dataKey="month"
@@ -111,12 +119,13 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
               <span style={{ fontSize: 11, color: '#86868b' }}>{value}</span>
             )}
           />
-          <Line
+          <Area
             type="monotone"
             dataKey="rate"
             name="달성률"
             stroke={color}
             strokeWidth={2.5}
+            fill={`url(#${gradientId})`}
             dot={({ cx, cy, payload }: any) =>
               payload.rate !== null ? (
                 <circle key={`dot-${payload.month}`} cx={cx} cy={cy} r={4} fill={color} stroke="none" />
@@ -125,7 +134,7 @@ export default function SlaMonthlyLineChart({ title, subtitle, monthly, color }:
             activeDot={{ r: 6 }}
             connectNulls
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   )
