@@ -2,7 +2,23 @@
 import { NavLink } from 'react-router-dom'
 import TriggerButton from '../common/TriggerButton'
 
-const links = [
+const topLinks = [
+  {
+    to: '/storage',
+    label: '파일 보관함',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="4" width="14" height="10" rx="1.5" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M1 7h14" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="4" y="1.5" width="3" height="3" rx="0.75" fill="currentColor" opacity="0.6" />
+        <rect x="9" y="1.5" width="3" height="3" rx="0.75" fill="currentColor" opacity="0.6" />
+        <rect x="4" y="9.5" width="8" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
+      </svg>
+    )
+  }
+]
+
+const reportLinks = [
   {
     to: '/',
     label: '대시보드',
@@ -72,8 +88,30 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
         <CollapseIcon collapsed={collapsed} />
       </button>
 
+      <div className="flex flex-col gap-0.5">
+        {topLinks.map(({ to, icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            title={collapsed ? label : undefined}
+            className={({ isActive }) =>
+              `nav-link
+               ${ collapsed ? 'justify-center px-0' : '' }
+               ${ isActive ? 'nav-link-active' : '' }
+               3xl:text-sm 3xl:py-2.5`
+            }
+          >
+            <span className="flex-shrink-0">{icon}</span>
+            {!collapsed && <span>{label}</span>}
+          </NavLink>
+        ))}
+      </div>
+
+      <div className="my-3 border-t border-apple-divider/60" />
+
       <div className="flex flex-col gap-0.5 flex-1">
-        {links.map(({ to, icon, label }) => (
+        {reportLinks.map(({ to, icon, label }) => (
           <NavLink
             key={to}
             to={to}

@@ -7,6 +7,19 @@ import GenerateReportModal from '@/presentation/components/common/GenerateReport
 
 const tabs = [
   {
+    to: '/storage',
+    label: '파일 보관함',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="4" width="14" height="10" rx="1.5" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M1 7h14" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="4" y="1.5" width="3" height="3" rx="0.75" fill="currentColor" opacity="0.6" />
+        <rect x="9" y="1.5" width="3" height="3" rx="0.75" fill="currentColor" opacity="0.6" />
+        <rect x="4" y="9.5" width="8" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
+      </svg>
+    ),
+  },
+  {
     to: '/',
     label: '대시보드',
     icon: (
