@@ -29,14 +29,14 @@ export default function LoginPage() {
               <rect x="8" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.4" />
             </svg>
           </div>
-          <h1 className="text-[18px] font-bold text-apple-dark tracking-tight">TAC \ubcf4\uace0\uc11c</h1>
-          <p className="text-[12px] text-apple-light">\ub85c\uadf8\uc778\uc774 \ud544\uc694\ud569\ub2c8\ub2e4</p>
+          <h1 className="text-[18px] font-bold text-apple-dark tracking-tight">TAC 보고서</h1>
+          <p className="text-[12px] text-apple-light">로그인이 필요합니다</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
             type="text"
-            placeholder="\uc544\uc774\ub514"
+            placeholder="아이디"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
@@ -46,7 +46,7 @@ export default function LoginPage() {
           />
           <input
             type="password"
-            placeholder="\ube44\ubc00\ubc88\ud638"
+            placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
@@ -56,7 +56,7 @@ export default function LoginPage() {
           />
 
           {isError && (
-            <p className="text-[12px] text-red-500 text-center">\uc544\uc774\ub514 \ub610\ub294 \ube44\ubc00\ubc88\ud638\ub97c \ud655\uc778\ud558\uc138\uc694.</p>
+            <p className="text-[12px] text-red-500 text-center">아이디 또는 비밀번호를 확인하세요.</p>
           )}
 
           <button
@@ -66,7 +66,7 @@ export default function LoginPage() {
                        text-white text-[13px] font-medium transition-colors
                        disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {isPending ? '\ub85c\uadf8\uc778 \uc911...' : '\ub85c\uadf8\uc778'}
+            {isPending ? '로그인 중...' : '로그인'}
           </button>
         </form>
       </div>
