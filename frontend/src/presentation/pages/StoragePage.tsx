@@ -8,7 +8,7 @@ import {
   useDeleteFolder,
   useDeleteStorageFile,
   useStorageItems,
-  useUploadFile,
+  useUploadFiles,
 } from '@/infrastructure/hooks/useStorage'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import FilePreviewModal from '@/presentation/components/storage/FilePreviewModal'
@@ -106,11 +106,9 @@ function CopyLinkButton({ name, folder }: { name: string; folder: string }) {
     setTimeout(() => setCopied(false), 2000)
   }
   return (
-    <button
-      onClick={handleCopy}
-      className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors
-                 text-apple-light hover:text-brand-600 hover:bg-brand-50"
-      title="\ub9c1\ud06c \ubcf5\uc0ac">
+    <button onClick={handleCopy}
+      className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-apple-light hover:text-brand-600 hover:bg-brand-50"
+      title="링크 복사">
       {copied
         ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="#22c55e" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         : <LinkIcon />}
@@ -127,11 +125,9 @@ function CopyLinkButtonMobile({ name, folder }: { name: string; folder: string }
     setTimeout(() => setCopied(false), 2000)
   }
   return (
-    <button
-      onClick={handleCopy}
-      className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors
-                 text-apple-light hover:text-brand-600 hover:bg-brand-50"
-      title="\ub9c1\ud06c \ubcf5\uc0ac">
+    <button onClick={handleCopy}
+      className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors text-apple-light hover:text-brand-600 hover:bg-brand-50"
+      title="링크 복사">
       {copied
         ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="#22c55e" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         : <LinkIcon />}
@@ -275,9 +271,7 @@ function ItemRow({ item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDi
               <EyeIcon />
             </button>
           )}
-          {!item.is_dir && (
-            <CopyLinkButton name={item.name} folder={folder} />
-          )}
+          {!item.is_dir && <CopyLinkButton name={item.name} folder={folder} />}
           {!item.is_dir && (
             <a href={storageApi.download(item.name, folder)} download={item.name}
               className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"
@@ -332,9 +326,7 @@ function ItemRowMobile({ item, folder, onEnterDir, onPreview, onDeleteFile, onDe
             <EyeIcon />
           </button>
         )}
-        {!item.is_dir && (
-          <CopyLinkButtonMobile name={item.name} folder={folder} />
-        )}
+        {!item.is_dir && <CopyLinkButtonMobile name={item.name} folder={folder} />}
         {!item.is_dir && (
           <a href={storageApi.download(item.name, folder)} download={item.name}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors">
@@ -355,7 +347,7 @@ type ConfirmTarget = { name: string; isDir: boolean } | null
 export default function StoragePage() {
   const [folder, setFolder] = useState('')
   const { data, isLoading, isFetching } = useStorageItems(folder)
-  const { mutate: uploadFile, isPending: isUploading } = useUploadFile(folder)
+  const { upload, isUploading, uploadingCount } = useUploadFiles(folder)
   const { mutate: createFolder, isPending: isCreating } = useCreateFolder(folder)
   const { mutate: deleteFolder, isPending: isDeletingDir } = useDeleteFolder(folder)
   const { mutate: deleteFile, isPending: isDeletingFile } = useDeleteStorageFile(folder)
@@ -369,9 +361,9 @@ export default function StoragePage() {
   const breadcrumbs = folder ? folder.split('/') : []
 
   const handleFiles = useCallback((files: FileList | null) => {
-    if (!files) return
-    Array.from(files).forEach(file => uploadFile(file))
-  }, [uploadFile])
+    if (!files || files.length === 0) return
+    upload(files)
+  }, [upload])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -408,6 +400,10 @@ export default function StoragePage() {
   const isDeleting = isDeletingDir || isDeletingFile
 
   if (isLoading) return <LoadingSpinner />
+
+  const uploadLabel = isUploading
+    ? uploadingCount > 1 ? `${uploadingCount}개 업로드 중...` : '업로드 중...'
+    : '클릭하거나 파일을 드래그하세요'
 
   return (
     <div className="space-y-4 md:space-y-5 3xl:space-y-7">
@@ -480,9 +476,15 @@ export default function StoragePage() {
         onDragEnter={handleDragOver}
         onDragLeave={(e) => { e.preventDefault(); setIsDragging(false) }}
         onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => !isUploading && inputRef.current?.click()}
       >
-        <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => { handleFiles(e.target.files); e.target.value = '' }}
+        />
         <div className="flex flex-col items-center justify-center py-8 gap-3">
           {isUploading ? (
             <svg className="animate-spin w-7 h-7 text-brand-500" viewBox="0 0 24 24" fill="none">
@@ -495,9 +497,7 @@ export default function StoragePage() {
             </svg>
           )}
           <div className="text-center">
-            <p className="text-[13px] font-medium text-apple-dark">
-              {isUploading ? '업로드 중...' : '클릭하거나 파일을 드래그하세요'}
-            </p>
+            <p className="text-[13px] font-medium text-apple-dark">{uploadLabel}</p>
             <p className="text-[11px] text-apple-light mt-0.5">zip, tar, gz 등 모든 형식 업로드 가능</p>
           </div>
         </div>
