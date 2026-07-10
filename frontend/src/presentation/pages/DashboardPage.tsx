@@ -39,7 +39,7 @@ interface W10Data {
 interface ResolutionTypeEntry {
   avg_days: number
   avg_hours: number
-  count: int
+  count: number
 }
 
 function getData<T>(widget: { data: Record<string, unknown> | null } | undefined): T | null {
