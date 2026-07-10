@@ -1,4 +1,5 @@
 # backend/src/infrastructure/storage/local_storage.py
+import asyncio
 import mimetypes
 import os
 import shutil
@@ -13,6 +14,8 @@ class LocalStorageAdapter(StoragePort):
     def __init__(self, base_dir: str) -> None:
         self._base = os.path.realpath(base_dir)
         os.makedirs(self._base, exist_ok=True)
+        self._path_locks: dict[str, asyncio.Lock] = {}
+        self._meta_lock = asyncio.Lock()
 
     def _resolve(self, folder: str, name: str = "") -> str:
         target = os.path.realpath(os.path.join(self._base, folder.lstrip("/"), name))
@@ -23,6 +26,12 @@ class LocalStorageAdapter(StoragePort):
             if not basename:
                 raise ValueError("Invalid name")
         return target
+
+    async def _get_path_lock(self, dest: str) -> asyncio.Lock:
+        async with self._meta_lock:
+            if dest not in self._path_locks:
+                self._path_locks[dest] = asyncio.Lock()
+            return self._path_locks[dest]
 
     def list_entries(self, folder: str) -> list[StorageEntry]:
         dir_path = self._resolve(folder)
@@ -51,12 +60,14 @@ class LocalStorageAdapter(StoragePort):
             raise FileNotFoundError(f"Folder not found: {name}")
         shutil.rmtree(path)
 
-    def save_file(self, folder: str, filename: str, data: bytes) -> StorageEntry:
+    async def save_file(self, folder: str, filename: str, data: bytes) -> StorageEntry:
         dest = self._resolve(folder, filename)
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        with open(dest, "wb") as f:
-            f.write(data)
-        stat = os.stat(dest)
+        path_lock = await self._get_path_lock(dest)
+        async with path_lock:
+            with open(dest, "wb") as f:
+                f.write(data)
+            stat = os.stat(dest)
         return StorageEntry(
             name=os.path.basename(dest),
             size=stat.st_size,

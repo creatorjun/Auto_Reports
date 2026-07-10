@@ -49,7 +49,7 @@ class GenerateReportUseCase:
         report_with_analysis = dataclasses.replace(new_report, ai_analysis=analysis)
         saved = await self._repository.save(report_with_analysis)
 
-        self._cache.set(saved.id, saved)
-        self._cache.set_latest_id(saved.id)
+        await self._cache.async_set(saved.id, saved)
+        await self._cache.async_set_latest_id(saved.id)
         logger.info(f"보고서 저장 완료 및 캐시 갱신: ID={saved.id}")
         return saved

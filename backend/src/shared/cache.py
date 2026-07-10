@@ -1,4 +1,5 @@
 # backend/src/shared/cache.py
+import asyncio
 import time
 from collections import OrderedDict
 from typing import Any, Generic, Optional, TypeVar
@@ -16,6 +17,7 @@ class LruCache(Generic[K, V]):
         self._ttl = ttl_seconds
         self._store: OrderedDict[K, tuple[V, float]] = OrderedDict()
         self._last_purge: float = time.monotonic()
+        self._lock = asyncio.Lock()
 
     def get(self, key: K) -> Optional[V]:
         if key not in self._store:
@@ -36,6 +38,14 @@ class LruCache(Generic[K, V]):
         while len(self._store) > self._maxsize:
             self._store.popitem(last=False)
 
+    async def async_get(self, key: K) -> Optional[V]:
+        async with self._lock:
+            return self.get(key)
+
+    async def async_set(self, key: K, value: V) -> None:
+        async with self._lock:
+            self.set(key, value)
+
     def get_latest_id(self) -> Optional[K]:
         entry = self._store.get(_LATEST_KEY)  # type: ignore[arg-type]
         if entry is None:
@@ -52,11 +62,27 @@ class LruCache(Generic[K, V]):
             return
         self._store[_LATEST_KEY] = (key, time.monotonic() + self._ttl)  # type: ignore[assignment]
 
+    async def async_get_latest_id(self) -> Optional[K]:
+        async with self._lock:
+            return self.get_latest_id()
+
+    async def async_set_latest_id(self, key: Optional[K]) -> None:
+        async with self._lock:
+            self.set_latest_id(key)
+
     def delete(self, key: K) -> None:
         self._store.pop(key, None)
 
+    async def async_delete(self, key: K) -> None:
+        async with self._lock:
+            self.delete(key)
+
     def invalidate_all(self) -> None:
         self._store.clear()
+
+    async def async_invalidate_all(self) -> None:
+        async with self._lock:
+            self.invalidate_all()
 
     def _maybe_purge(self) -> None:
         now = time.monotonic()
