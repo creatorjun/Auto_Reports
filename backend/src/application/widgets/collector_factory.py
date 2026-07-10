@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable
 
-from src.application.services.query_builder import BuiltQuery, WidgetQueryBuilder
+from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.value_objects.widget_id import WidgetId
 
@@ -14,5 +14,5 @@ class CollectorEntry:
     collector: AbstractWidgetCollector
 
 
-BaseCollectorFactory = Callable[[BuiltQuery, datetime], list[CollectorEntry]]
-MonthlyCollectorFactory = Callable[[BuiltQuery, datetime], list[tuple[WidgetId, object]]]
+BaseCollectorFactory = Callable[[ResolvedQueries, datetime], list[CollectorEntry]]
+MonthlyCollectorFactory = Callable[[ResolvedQueries, datetime], list[tuple[WidgetId, object]]]

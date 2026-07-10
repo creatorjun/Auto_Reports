@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.ai_analyzer import AiAnalyzer
-from src.application.services.query_builder import BuiltQuery, WidgetQueryBuilder
+from src.application.services.query_builder import ResolvedQueries, WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
@@ -66,7 +66,7 @@ class Container:
     def jira_port(self) -> JiraPort:
         return self._jira
 
-    def _base_collector_factory(self, q: BuiltQuery, now: datetime) -> list[CollectorEntry]:
+    def _base_collector_factory(self, q: ResolvedQueries, now: datetime) -> list[CollectorEntry]:
         jira = self._jira
         return [
             CollectorEntry(WidgetId.YEARLY_CREATED,      SimpleCountCollector(jira, f"{now.year}년 누적 생성", q.w1_yearly_created())),
@@ -81,7 +81,7 @@ class Container:
             CollectorEntry(WidgetId.RECENT_ISSUES,       RecentCollector(jira, q)),
         ]
 
-    def _monthly_collector_factory(self, q: BuiltQuery, now: datetime) -> list[tuple[WidgetId, object]]:
+    def _monthly_collector_factory(self, q: ResolvedQueries, now: datetime) -> list[tuple[WidgetId, object]]:
         jira = self._jira
         return [
             (WidgetId.SLA_INITIAL_RESPONSE, MonthlyCollector(jira, q, now)),

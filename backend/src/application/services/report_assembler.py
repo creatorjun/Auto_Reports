@@ -4,8 +4,7 @@ import logging
 from datetime import datetime
 from typing import Callable
 
-from src.application.services.query_builder import BuiltQuery, WidgetQueryBuilder
-from src.application.widgets.base import AbstractWidgetCollector
+from src.application.services.query_builder import ResolvedQueries, WidgetQueryBuilder
 from src.application.widgets.collector_factory import CollectorEntry
 from src.domain.entities.report import NewReport
 from src.domain.entities.widget import WidgetResult
@@ -14,8 +13,8 @@ from src.shared.constants import KST
 
 logger = logging.getLogger(__name__)
 
-BaseCollectorFactory = Callable[[BuiltQuery, datetime], list[CollectorEntry]]
-MonthlyCollectorFactory = Callable[[BuiltQuery, datetime], list[tuple[WidgetId, "object"]]]
+BaseCollectorFactory = Callable[[ResolvedQueries, datetime], list[CollectorEntry]]
+MonthlyCollectorFactory = Callable[[ResolvedQueries, datetime], list[tuple[WidgetId, object]]]
 
 
 class ReportAssembler:
