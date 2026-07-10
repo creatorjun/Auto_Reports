@@ -20,7 +20,7 @@ class LocalStorageAdapter(StoragePort):
             raise ValueError("Invalid path")
         if name:
             basename = os.path.basename(target)
-            if not basename or basename.startswith("."):
+            if not basename:
                 raise ValueError("Invalid name")
         return target
 
