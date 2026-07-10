@@ -56,21 +56,18 @@ class ResolvedQueries:
     def w4_issue_review(self) -> str:
         return (
             f"{self._base()} AND status = \"이슈 리뷰 중\" "
-            f"AND created <= \"-{self._thr()}d\" "
             f"AND status NOT IN ({self._closed()})"
         )
 
     def w5_data_request(self) -> str:
         return (
             f"{self._base()} AND status = \"자료 요청 중\" "
-            f"AND created <= \"-{self._thr()}d\" "
             f"AND status NOT IN ({self._closed()})"
         )
 
     def w6_result_pending(self) -> str:
         return (
             f"{self._base()} AND status = \"결과 대기 중\" "
-            f"AND created <= \"-{self._thr()}d\" "
             f"AND status NOT IN ({self._closed()})"
         )
 
