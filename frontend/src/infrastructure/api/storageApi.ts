@@ -21,7 +21,7 @@ export const storageApi = {
     form.append('file', file)
     const res = await client.post<StorageItem>('/storage/upload', form, {
       params: { folder },
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
     })
     return res.data
   },
