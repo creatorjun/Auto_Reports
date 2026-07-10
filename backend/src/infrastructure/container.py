@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
@@ -16,7 +17,7 @@ from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.gemini_client import GeminiClient
 from src.infrastructure.external.jira_client import JiraClient
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
-from src.shared.cache import LruCache
+from src.shared.cache import ReportLruCache
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ class Container:
             sla_threshold_days=settings.sla_threshold_days,
             year_start=settings.year_start,
         )
-        self._report_cache: LruCache = LruCache(maxsize=50, ttl_seconds=600.0)
+        self._report_cache: ReportCachePort = ReportLruCache(maxsize=50, ttl_seconds=600.0)
 
     def jira_port(self) -> JiraPort:
         return self._jira

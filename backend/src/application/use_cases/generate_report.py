@@ -3,11 +3,11 @@ import dataclasses
 import logging
 from datetime import datetime
 
+from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.report_assembler import ReportAssembler
 from src.domain.entities.report import Report
 from src.domain.ports.report_analyzer_port import ReportAnalyzerPort
 from src.domain.repositories.report_repository import ReportRepository
-from src.shared.cache import LruCache
 from src.shared.constants import KST
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class GenerateReportUseCase:
         assembler: ReportAssembler,
         analyzer: ReportAnalyzerPort,
         repository: ReportRepository,
-        cache: LruCache,
+        cache: ReportCachePort,
     ):
         self._assembler = assembler
         self._analyzer = analyzer
@@ -49,7 +49,7 @@ class GenerateReportUseCase:
         report_with_analysis = dataclasses.replace(new_report, ai_analysis=analysis)
         saved = await self._repository.save(report_with_analysis)
 
-        await self._cache.async_set(saved.id, saved)
-        await self._cache.async_set_latest_id(saved.id)
+        await self._cache.set(saved.id, saved)
+        await self._cache.set_latest_id(saved.id)
         logger.info(f"보고서 저장 완료 및 캐시 갱신: ID={saved.id}")
         return saved
