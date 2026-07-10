@@ -1,5 +1,7 @@
 # backend/src/infrastructure/container.py
+import asyncio
 import logging
+from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
 
+_JIRA_FIELDS_COMMON = "summary,issuetype,status,created,resolutiondate"
+
 
 class Container:
     def __init__(self, settings: Settings):
@@ -33,7 +37,7 @@ class Container:
             sla_initial_response_field_id=settings.sla_initial_response_field_id,
             sla_resolution_field_id=settings.sla_resolution_field_id,
             jira_tac_assignee_field_id=settings.jira_tac_assignee_field_id,
-            jira_qa_assignee_field_id=settings.jira_qa_assignee_field_id,
+            jira_qa_assignee_field_id=settings.jira_tac_assignee_field_id,
         )
         self._ai: AiPort | None = GeminiClient(settings.gemini_api_key) if settings.ai_enabled else None
         self._query_config = QueryConfig(
@@ -45,6 +49,7 @@ class Container:
             year_start=settings.year_start,
         )
         self._report_cache: LruCache = LruCache(maxsize=50, ttl_seconds=600.0)
+        self._jira_query_cache: dict[str, tuple[list, float]] = {}
 
     async def aclose(self) -> None:
         await self._jira.aclose()

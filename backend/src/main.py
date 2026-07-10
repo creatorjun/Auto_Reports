@@ -13,6 +13,7 @@ from src.application.scheduler.report_scheduler import create_scheduler
 from src.infrastructure.config.settings import get_settings
 from src.infrastructure.container import Container
 from src.infrastructure.job_runner import JobRunner
+from src.infrastructure.persistence.database import close_db, init_db
 from src.infrastructure.persistence.job_repository_impl import InMemoryJobRepository
 
 logging.basicConfig(
@@ -41,9 +42,13 @@ def run_migrations() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings = get_settings()
+
+    init_db(settings.database_url)
+    logger.info("DB 엔진 초기화 ✅")
+
     run_migrations()
 
-    settings = get_settings()
     container = Container(settings)
     job_repository = InMemoryJobRepository()
     job_runner = JobRunner(container, job_repository)
@@ -63,6 +68,7 @@ async def lifespan(app: FastAPI):
 
     scheduler.shutdown()
     await container.aclose()
+    await close_db()
     logger.info("TAC Auto Reports 서비스 종료")
 
 
