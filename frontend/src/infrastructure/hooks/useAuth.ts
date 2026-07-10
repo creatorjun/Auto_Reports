@@ -1,5 +1,5 @@
 // frontend/src/infrastructure/hooks/useAuth.ts
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '@/infrastructure/api/authApi'
 import { useAuthStore } from '@/app/store/authStore'
@@ -9,12 +9,13 @@ export const useMe = () =>
     queryKey: ['auth', 'me'],
     queryFn: authApi.me,
     retry: false,
-    staleTime: 1000 * 60 * 5,
+    staleTime: Infinity,
   })
 
 export const useLogin = () => {
   const { setAuth, setLoginRequired } = useAuthStore()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ username, password }: { username: string; password: string }) =>
       authApi.login(username, password),
@@ -22,6 +23,7 @@ export const useLogin = () => {
       const me = await authApi.me()
       setLoginRequired(me.login_required)
       setAuth(data.access_token, me.username)
+      queryClient.setQueryData(['auth', 'me'], me)
       navigate('/')
     },
   })
@@ -30,10 +32,12 @@ export const useLogin = () => {
 export const useLogout = () => {
   const { clearAuth } = useAuthStore()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: authApi.logout,
     onSettled: () => {
       clearAuth()
+      queryClient.removeQueries({ queryKey: ['auth', 'me'] })
       navigate('/login')
     },
   })
