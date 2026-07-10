@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/storage/FilePreviewModal.tsx
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -38,7 +38,7 @@ function CloseIcon() {
 
 function LoadingSpinnerSmall() {
   return (
-    <div className="flex items-center justify-center h-40">
+    <div className="flex items-center justify-center h-full">
       <svg className="animate-spin w-8 h-8 text-brand-500" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" />
       </svg>
@@ -46,37 +46,156 @@ function LoadingSpinnerSmall() {
   )
 }
 
-function PdfPreview({ url, name, folder }: { url: string; name: string; folder: string }) {
-  const [failed, setFailed] = useState(false)
-  const objRef = useRef<HTMLObjectElement>(null)
+function PdfViewer({ url }: { url: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [totalPages, setTotalPages] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const pdfRef = useRef<any>(null)
+  const renderingRef = useRef(false)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const obj = objRef.current
-      if (obj && (obj.contentDocument === null || obj.contentDocument?.body?.childElementCount === 0)) {
-        setFailed(true)
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    const load = async () => {
+      try {
+        const pdfjsLib = await import('pdfjs-dist')
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.min.mjs',
+          import.meta.url,
+        ).href
+        const pdf = await pdfjsLib.getDocument({ url, cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist/cmaps/', cMapPacked: true }).promise
+        if (cancelled) return
+        pdfRef.current = pdf
+        setTotalPages(pdf.numPages)
+        setCurrentPage(1)
+        setLoading(false)
+      } catch {
+        if (!cancelled) setError('PDF를 불러올 수 없습니다.')
       }
-    }, 3000)
-    return () => clearTimeout(timer)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [url])
+
+  const renderPage = useCallback(async (pageNum: number) => {
+    if (!pdfRef.current || !canvasRef.current || renderingRef.current) return
+    renderingRef.current = true
+    try {
+      const page = await pdfRef.current.getPage(pageNum)
+      const container = containerRef.current
+      const containerWidth = container ? container.clientWidth - 32 : 800
+      const viewport = page.getViewport({ scale: 1 })
+      const scale = Math.min(containerWidth / viewport.width, 2)
+      const scaledViewport = page.getViewport({ scale })
+      const canvas = canvasRef.current
+      canvas.width = scaledViewport.width
+      canvas.height = scaledViewport.height
+      const ctx = canvas.getContext('2d')!
+      await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise
+    } finally {
+      renderingRef.current = false
+    }
   }, [])
 
-  if (failed) {
+  useEffect(() => {
+    if (!loading && !error) renderPage(currentPage)
+  }, [loading, error, currentPage, renderPage])
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 h-full">
+        <p className="text-[13px] text-apple-light">{error}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div ref={containerRef} className="flex flex-col w-full h-full overflow-hidden">
+      {loading && <LoadingSpinnerSmall />}
+      <div className="flex-1 overflow-auto flex justify-center bg-gray-100 p-4">
+        <canvas ref={canvasRef} className="shadow-md" />
+      </div>
+      {!loading && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 py-2 border-t border-apple-divider/60 bg-white flex-shrink-0">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage <= 1}
+            className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors"
+          >
+            ← 이전
+          </button>
+          <span className="text-[12px] text-apple-light">{currentPage} / {totalPages}</span>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage >= totalPages}
+            className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors"
+          >
+            다음 →
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PptxPreview({ name, folder }: { name: string; folder: string }) {
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    const p = new URLSearchParams({ name, ...(folder ? { folder } : {}) })
+    const token = localStorage.getItem('auth-storage')
+      ? JSON.parse(localStorage.getItem('auth-storage') ?? '{}')?.state?.accessToken
+      : null
+    if (token) p.set('_t', token)
+    const url = `/api/v1/storage/preview-converted?${p.toString()}`
+
+    fetch(url)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.blob()
+      })
+      .then(blob => {
+        setPdfUrl(URL.createObjectURL(blob))
+        setStatus('ready')
+      })
+      .catch(() => setStatus('error'))
+
+    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }
+  }, [name, folder])
+
+  if (status === 'loading') {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 h-full">
+        <svg className="animate-spin w-8 h-8 text-brand-500" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" />
+        </svg>
+        <p className="text-[13px] text-apple-light">PPTX → PDF 변환 중...</p>
+      </div>
+    )
+  }
+
+  if (status === 'error') {
     return (
       <div className="flex flex-col items-center justify-center gap-4 h-full px-6">
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="text-red-400">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="text-orange-400">
           <rect x="4" y="4" width="40" height="40" rx="8" fill="currentColor" opacity="0.1" />
-          <path d="M14 6h14l10 10v26H14V6z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-          <path d="M28 6v10h10" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-          <path d="M18 28h12M18 32h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M14 14h12a6 6 0 0 1 0 12H14V14Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M14 26v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
         <div className="text-center">
-          <p className="text-[14px] font-medium text-apple-dark">PDF 미리보기를 표시할 수 없습니다</p>
-          <p className="text-[12px] text-apple-light mt-1">브라우저 설정에서 PDF 라이븷플러그인을 확인하거나 다운로드 해 주세요.</p>
+          <p className="text-[14px] font-medium text-apple-dark">변환 실패</p>
+          <p className="text-[12px] text-apple-light mt-1">서버에서 PDF 변환에 실패했습니다.<br />다운로드 후 확인해 주세요.</p>
         </div>
         <a
           href={storageApi.download(name, folder)}
           download={name}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors"
+          className="px-4 py-2 rounded-xl text-[13px] font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors"
         >
           다운로드
         </a>
@@ -84,93 +203,7 @@ function PdfPreview({ url, name, folder }: { url: string; name: string; folder: 
     )
   }
 
-  return (
-    <object
-      ref={objRef}
-      data={url}
-      type="application/pdf"
-      className="w-full h-full"
-      onError={() => setFailed(true)}
-    >
-      <embed
-        src={url}
-        type="application/pdf"
-        className="w-full h-full"
-        onError={() => setFailed(true)}
-      />
-    </object>
-  )
-}
-
-function PptxPreview({ name, folder }: { name: string; folder: string }) {
-  const [useViewer, setUseViewer] = useState(true)
-  const [viewerLoaded, setViewerLoaded] = useState(false)
-  const downloadUrl = storageApi.download(name, folder)
-  const origin = typeof window !== 'undefined' ? window.location.origin : ''
-  const fileUrl = `${origin}${storageApi.preview(name, folder)}`
-  const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`
-
-  return (
-    <div className="flex flex-col w-full h-full">
-      {useViewer ? (
-        <>
-          {!viewerLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center z-10">
-              <LoadingSpinnerSmall />
-            </div>
-          )}
-          <iframe
-            src={googleViewerUrl}
-            className="w-full h-full"
-            style={{ border: 'none' }}
-            onLoad={() => setViewerLoaded(true)}
-            onError={() => setUseViewer(false)}
-            title={name}
-            sandbox="allow-scripts allow-same-origin allow-popups"
-          />
-          <div className="flex items-center justify-between px-4 py-2 border-t border-apple-divider/60 bg-apple-gray/40 flex-shrink-0">
-            <span className="text-[11px] text-apple-light">Google Docs Viewer 사용 중 &middot; 온라인 환경 필요</span>
-            <button
-              onClick={() => setUseViewer(false)}
-              className="text-[11px] text-brand-600 hover:underline"
-            >
-              로컴 미리보기 시도
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center gap-4 h-full px-6">
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="text-orange-400">
-            <rect x="4" y="4" width="40" height="40" rx="8" fill="currentColor" opacity="0.1" />
-            <path d="M14 14h12a6 6 0 0 1 0 12H14V14Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-            <path d="M14 26v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-          <div className="text-center">
-            <p className="text-[14px] font-medium text-apple-dark">PPTX 미리보기</p>
-            <p className="text-[12px] text-apple-light mt-1 leading-relaxed">
-              브라우저에서 직접 렌더링이 제한됩니다.<br />
-              다운로드 후 확인하세요.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setUseViewer(true); setViewerLoaded(false) }}
-              className="px-4 py-2 rounded-xl text-[13px] font-medium border border-apple-divider hover:bg-apple-gray text-apple-dark transition-colors"
-            >
-              븷어 시도
-            </button>
-            <a
-              href={downloadUrl}
-              download={name}
-              className="px-4 py-2 rounded-xl text-[13px] font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors"
-            >
-              다운로드
-            </a>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  return <PdfViewer url={pdfUrl!} />
 }
 
 function TextPreview({ url }: { url: string }) {
@@ -319,8 +352,8 @@ function ArchivePreview({ name, folder }: { name: string; folder: string }) {
       <div className="text-center">
         <p className="text-[15px] font-semibold text-apple-dark">{name}</p>
         <p className="text-[12px] text-apple-light mt-1 leading-relaxed">
-          압욹 파일은 브라우저에서 직접 열 수 없습니다.<br />
-          다운로드 후 압욹을 해제하세요.
+          압축 파일은 브라우저에서 직접 열 수 없습니다.<br />
+          다운로드 후 압축을 해제하세요.
         </p>
       </div>
       <a
@@ -369,7 +402,7 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
           </div>
         )
       case 'pdf':
-        return <PdfPreview url={url} name={name} folder={folder} />
+        return <PdfViewer url={url} />
       case 'text':
       case 'json':
         return <TextPreview url={url} />
@@ -404,7 +437,8 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
           <p className="text-[14px] font-semibold text-apple-dark truncate">{name}</p>
           <p className="text-[11px] text-apple-light capitalize">
             {type === 'unsupported' ? '미지원 형식'
-              : type === 'archive' ? '압욹 파일'
+              : type === 'archive' ? '압축 파일'
+              : type === 'pptx' ? 'PPTX (PDF 변환 미리보기)'
               : type.toUpperCase()}
           </p>
         </div>

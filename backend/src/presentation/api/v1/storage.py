@@ -1,4 +1,7 @@
 # backend/src/presentation/api/v1/storage.py
+import asyncio
+import os
+import tempfile
 import urllib.parse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
@@ -29,6 +32,27 @@ class FileExistsResponse(BaseModel):
 
 def _decode(value: str) -> str:
     return urllib.parse.unquote(value)
+
+
+async def _convert_to_pdf(src_path: str) -> bytes:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        proc = await asyncio.create_subprocess_exec(
+            "libreoffice", "--headless", "--norestore",
+            "--convert-to", "pdf",
+            "--outdir", tmpdir,
+            src_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
+        if proc.returncode != 0:
+            raise RuntimeError(f"LibreOffice conversion failed: {stderr.decode()}")
+        base = os.path.splitext(os.path.basename(src_path))[0]
+        pdf_path = os.path.join(tmpdir, base + ".pdf")
+        if not os.path.exists(pdf_path):
+            raise RuntimeError("Converted PDF not found")
+        with open(pdf_path, "rb") as f:
+            return f.read()
 
 
 @router.get("/items", response_model=list[StorageFileInfo])
@@ -112,7 +136,6 @@ async def preview_file(
         mime = uc.get_mime_type(folder, name)
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="File not found")
-
     safe_name = urllib.parse.quote(name, safe="")
     return FileResponse(
         path=path,
@@ -121,6 +144,37 @@ async def preview_file(
             "Content-Disposition": f"inline; filename*=UTF-8''{safe_name}",
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "no-cache",
+        },
+    )
+
+
+@router.get("/preview-converted")
+async def preview_converted(
+    folder: str = Query(default=""),
+    name: str = Query(...),
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    folder, name = _decode(folder), _decode(name)
+    ext = name.rsplit(".", 1)[-1].lower()
+    if ext not in ("pptx", "ppt", "odp"):
+        raise HTTPException(status_code=400, detail="Unsupported format for conversion")
+    try:
+        src_path = uc.get_file_path(folder, name)
+    except (FileNotFoundError, ValueError):
+        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        pdf_bytes = await _convert_to_pdf(src_path)
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Conversion timed out")
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": "inline",
+            "Cache-Control": "private, max-age=300",
+            "X-Content-Type-Options": "nosniff",
         },
     )
 
