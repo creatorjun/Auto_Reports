@@ -1,4 +1,5 @@
 # backend/src/presentation/api/v1/storage.py
+import mimetypes
 import os
 import shutil
 import urllib.parse
@@ -91,6 +92,19 @@ async def upload_file(file: UploadFile, folder: str = Query(default="")):
         size=stat.st_size,
         uploaded_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
         is_dir=False,
+    )
+
+
+@router.get("/preview")
+async def preview_file(folder: str = Query(default=""), name: str = Query(...)):
+    path = _resolve(urllib.parse.unquote(folder), urllib.parse.unquote(name))
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    mime, _ = mimetypes.guess_type(path)
+    return FileResponse(
+        path=path,
+        media_type=mime or "application/octet-stream",
+        headers={"Content-Disposition": "inline"},
     )
 
 

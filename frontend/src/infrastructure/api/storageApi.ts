@@ -35,6 +35,11 @@ export const storageApi = {
     return res.data
   },
 
+  preview: (name: string, folder = ''): string => {
+    const p = new URLSearchParams({ name, ...(folder ? { folder } : {}) })
+    return `/api/v1/storage/preview?${p.toString()}`
+  },
+
   download: (name: string, folder = ''): string => {
     const p = new URLSearchParams({ name, ...(folder ? { folder } : {}) })
     return `/api/v1/storage/download?${p.toString()}`
