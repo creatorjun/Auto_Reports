@@ -6,39 +6,42 @@ import { useAuthStore } from '@/app/store/authStore'
 
 export const useMe = () =>
   useQuery({
-    queryKey: ['auth', 'me'],
+    queryKey: ['me'],
     queryFn: authApi.me,
     retry: false,
-    staleTime: Infinity,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   })
 
 export const useLogin = () => {
-  const { setAuth, setLoginRequired } = useAuthStore()
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { setAuth, setLoginRequired } = useAuthStore()
   return useMutation({
-    mutationFn: ({ username, password }: { username: string; password: string }) =>
-      authApi.login(username, password),
-    onSuccess: async (data) => {
-      const me = await authApi.me()
-      setLoginRequired(me.login_required)
-      setAuth(data.access_token, me.username)
-      queryClient.setQueryData(['auth', 'me'], me)
-      navigate('/')
+    mutationFn: authApi.login,
+    onSuccess: (data) => {
+      setAuth(data.access_token, data.username ?? '')
+      setLoginRequired(true)
+      queryClient.invalidateQueries({ queryKey: ['me'] })
     },
   })
 }
 
 export const useLogout = () => {
+  const queryClient = useQueryClient()
   const { clearAuth } = useAuthStore()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: authApi.logout,
-    onSettled: () => {
+    onSuccess: () => {
       clearAuth()
-      queryClient.removeQueries({ queryKey: ['auth', 'me'] })
-      navigate('/login')
+      queryClient.clear()
+      navigate('/login', { replace: true })
+    },
+    onError: () => {
+      clearAuth()
+      queryClient.clear()
+      navigate('/login', { replace: true })
     },
   })
 }
