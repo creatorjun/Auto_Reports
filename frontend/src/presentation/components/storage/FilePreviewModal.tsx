@@ -6,6 +6,8 @@ import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github.css'
 import { storageApi } from '@/infrastructure/api/storageApi'
 
+const PDFJS_CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168'
+
 type PreviewType =
   | 'image' | 'video' | 'pdf'
   | 'text' | 'markdown' | 'csv' | 'json'
@@ -64,17 +66,18 @@ function PdfViewer({ url }: { url: string }) {
     const load = async () => {
       try {
         const pdfjsLib = await import('pdfjs-dist')
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.min.mjs',
-          import.meta.url,
-        ).href
-        const pdf = await pdfjsLib.getDocument({ url, cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist/cmaps/', cMapPacked: true }).promise
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/build/pdf.worker.min.mjs`
+        const pdf = await pdfjsLib.getDocument({
+          url,
+          cMapUrl: `${PDFJS_CDN}/cmaps/`,
+          cMapPacked: true,
+        }).promise
         if (cancelled) return
         pdfRef.current = pdf
         setTotalPages(pdf.numPages)
         setCurrentPage(1)
         setLoading(false)
-      } catch {
+      } catch (e) {
         if (!cancelled) setError('PDF를 불러올 수 없습니다.')
       }
     }
@@ -93,9 +96,13 @@ function PdfViewer({ url }: { url: string }) {
       const scale = Math.min(containerWidth / viewport.width, 2)
       const scaledViewport = page.getViewport({ scale })
       const canvas = canvasRef.current
-      canvas.width = scaledViewport.width
-      canvas.height = scaledViewport.height
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = scaledViewport.width * dpr
+      canvas.height = scaledViewport.height * dpr
+      canvas.style.width = `${scaledViewport.width}px`
+      canvas.style.height = `${scaledViewport.height}px`
       const ctx = canvas.getContext('2d')!
+      ctx.scale(dpr, dpr)
       await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise
     } finally {
       renderingRef.current = false
