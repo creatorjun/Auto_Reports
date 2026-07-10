@@ -74,6 +74,8 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
   const { loginRequired, username } = useAuthStore()
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
 
+  const logoutLabel = username ? `${username} Logout` : 'Logout'
+
   return (
     <aside
       className={[
@@ -123,7 +125,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
             <button
               onClick={() => logout()}
               disabled={isLoggingOut}
-              title="\ub85c\uadf8\uc544\uc6c3"
+              title={logoutLabel}
               className="flex items-center justify-center w-8 h-8 rounded-xl
                          text-apple-light hover:text-red-500 hover:bg-red-50
                          transition-colors disabled:opacity-40"
@@ -140,7 +142,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                          transition-colors disabled:opacity-40"
             >
               <span className="flex-shrink-0"><LogoutIcon /></span>
-              <span className="truncate">\ub85c\uadf8\uc544\uc6c3{username ? ` (${username})` : ''}</span>
+              <span className="truncate">{logoutLabel}</span>
             </button>
           )
         )}
