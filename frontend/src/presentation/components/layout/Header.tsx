@@ -9,38 +9,74 @@ export default function Header() {
   const { currentReport } = useReportStore()
 
   return (
-    <header className="bg-white h-14 3xl:h-16 flex items-center justify-between px-4 flex-shrink-0">
-      <div className="w-[28rem] 3xl:w-[32rem] flex items-center gap-3">
-        {currentReport && (
-          <>
-            <RefreshButton />
-            <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums">
-              {currentReport.week_start} – {currentReport.week_end}
-              <span className="mx-1.5 text-apple-divider">·</span>
-              생성: {currentReport.report_date}
-            </p>
-          </>
-        )}
-      </div>
-
-      <div className="flex flex-col items-center justify-center gap-0.5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 3xl:w-8 3xl:h-8 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <rect x="1" y="1" width="5" height="5" rx="1.2" fill="white" />
-              <rect x="8" y="1" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
-              <rect x="1" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
-              <rect x="8" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.4" />
-            </svg>
+    <header className="bg-white flex-shrink-0 border-b border-apple-divider/60">
+      <div className="md:hidden flex flex-col">
+        <div className="flex items-center justify-center px-4 pt-3 pb-1">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-brand-600 flex items-center justify-center flex-shrink-0">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                <rect x="1" y="1" width="5" height="5" rx="1.2" fill="white" />
+                <rect x="8" y="1" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
+                <rect x="1" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
+                <rect x="8" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.4" />
+              </svg>
+            </div>
+            <span className="text-[17px] font-bold text-apple-dark tracking-tight">TAC 보고서</span>
           </div>
-          <span className="text-[20px] 3xl:text-[24px] font-bold text-apple-dark tracking-tight">TAC 보고서</span>
         </div>
         {triggerMessage && (
-          <span className="text-[11px] 3xl:text-[12px] text-green-700">{triggerMessage}</span>
+          <p className="text-center text-[11px] text-green-700 pb-0.5">{triggerMessage}</p>
         )}
+        <div className="flex items-center gap-2 px-4 pb-2.5 pt-1">
+          {currentReport && (
+            <>
+              <RefreshButton />
+              <p className="text-[11px] text-apple-light tabular-nums truncate">
+                {currentReport.week_start} – {currentReport.week_end}
+                <span className="mx-1 text-apple-divider">·</span>
+                생성: {currentReport.report_date}
+              </p>
+            </>
+          )}
+          <div className="ml-auto">
+            <SearchWidget />
+          </div>
+        </div>
       </div>
 
-      <SearchWidget />
+      <div className="hidden md:flex h-14 3xl:h-16 items-center justify-between px-4">
+        <div className="w-[28rem] 3xl:w-[32rem] flex items-center gap-3">
+          {currentReport && (
+            <>
+              <RefreshButton />
+              <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums">
+                {currentReport.week_start} – {currentReport.week_end}
+                <span className="mx-1.5 text-apple-divider">·</span>
+                생성: {currentReport.report_date}
+              </p>
+            </>
+          )}
+        </div>
+
+        <div className="flex flex-col items-center justify-center gap-0.5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 3xl:w-8 3xl:h-8 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <rect x="1" y="1" width="5" height="5" rx="1.2" fill="white" />
+                <rect x="8" y="1" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
+                <rect x="1" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
+                <rect x="8" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.4" />
+              </svg>
+            </div>
+            <span className="text-[20px] 3xl:text-[24px] font-bold text-apple-dark tracking-tight">TAC 보고서</span>
+          </div>
+          {triggerMessage && (
+            <span className="text-[11px] 3xl:text-[12px] text-green-700">{triggerMessage}</span>
+          )}
+        </div>
+
+        <SearchWidget />
+      </div>
     </header>
   )
 }
