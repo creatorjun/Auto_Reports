@@ -7,7 +7,7 @@ import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import SummaryCard from '@/presentation/components/cards/SummaryCard'
 import AiSummaryCard from '@/presentation/components/cards/AiSummaryCard'
 import SlaDonutChart, { type ViolationEntry } from '@/presentation/components/charts/SlaDonutChart'
-import ReasonPieChart from '@/presentation/components/charts/ReasonPieChart'
+import ReasonPieChart, { type SlaDelayIssue } from '@/presentation/components/charts/ReasonPieChart'
 import TypeBarChart from '@/presentation/components/charts/TypeBarChart'
 import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTimeChart'
 import TrendLineChart from '@/presentation/components/charts/TrendLineChart'
@@ -20,6 +20,7 @@ import DataRequestModal, { type DataRequestIssue } from '@/presentation/componen
 import ResultPendingModal, { type ResultPendingIssue } from '@/presentation/components/tables/ResultPendingModal'
 import IncompleteIssueModal, { type IncompleteIssue } from '@/presentation/components/tables/IncompleteIssueModal'
 import SlaViolationModal, { type SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
+import SlaDelayModal from '@/presentation/components/tables/SlaDelayModal'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/shared/constants'
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
@@ -30,10 +31,15 @@ interface W9Data {
   violation_distribution?: ViolationEntry[]
 }
 
+interface W10Data {
+  by_status?: Record<string, number>
+  by_status_details?: Record<string, SlaDelayIssue[]>
+}
+
 interface ResolutionTypeEntry {
   avg_days: number
   avg_hours: number
-  count: number
+  count: int
 }
 
 function getData<T>(widget: { data: Record<string, unknown> | null } | undefined): T | null {
@@ -49,6 +55,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const [showResultPending,   setShowResultPending]   = useState(false)
   const [showIncomplete,      setShowIncomplete]      = useState(false)
   const [slaViolationEntry,   setSlaViolationEntry]   = useState<ViolationEntry | null>(null)
+  const [slaDelayEntry,       setSlaDelayEntry]       = useState<{ status: string; issues: SlaDelayIssue[] } | null>(null)
 
   useEffect(() => {
     setCurrentReport(report)
@@ -89,9 +96,12 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     return { w9Total: w.w9?.total ?? 0, w9Distribution: w9Data?.violation_distribution ?? [] }
   }, [w.w9])
 
-  const w10ByStatus = useMemo(() => {
-    const w10Data = getData<{ by_status: Record<string, number> }>(w.w10)
-    return w10Data?.by_status ?? {}
+  const { w10ByStatus, w10ByStatusDetails } = useMemo(() => {
+    const w10Data = getData<W10Data>(w.w10)
+    return {
+      w10ByStatus:        w10Data?.by_status         ?? {},
+      w10ByStatusDetails: w10Data?.by_status_details ?? {},
+    }
   }, [w.w10])
 
   const w11ByType = useMemo(() => {
@@ -146,6 +156,14 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           onClose={() => setSlaViolationEntry(null)}
         />
       )}
+      {slaDelayEntry && (
+        <SlaDelayModal
+          status={slaDelayEntry.status}
+          issues={slaDelayEntry.issues}
+          total={slaDelayEntry.issues.length}
+          onClose={() => setSlaDelayEntry(null)}
+        />
+      )}
 
       {(hasW13 || hasW14) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
@@ -165,7 +183,11 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           distribution={w9Distribution}
           onSliceClick={(entry) => setSlaViolationEntry(entry)}
         />
-        <ReasonPieChart byStatus={w10ByStatus} />
+        <ReasonPieChart
+          byStatus={w10ByStatus}
+          byStatusDetails={w10ByStatusDetails}
+          onSliceClick={(status, issues) => setSlaDelayEntry({ status, issues })}
+        />
         <TrendLineChart created={w3Created} resolved={w3Resolved} />
         <TypeBarChart byType={w11ByType} />
       </div>

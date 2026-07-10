@@ -4,21 +4,14 @@ import logging
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
-from src.domain.entities.widget_data import SlaDelayWidgetData
+from src.domain.entities.widget_data import SlaDelayIssueDetail, SlaDelayWidgetData
 from src.domain.ports.jira_port import JiraPort
-from src.shared.constants import JIRA_MAX_RESULTS_LARGE
+from src.shared.constants import JIRA_MAX_RESULTS_LARGE, SUMMARY_TRUNCATE_LEN
 
 logger = logging.getLogger(__name__)
 
 
 class SlaDelayCollector(AbstractWidgetCollector):
-    """
-    w10: SLA 지연 사유 (by_status 분류)
-
-    w9와 동일하게 Jira SLA 필드의 breached 플래그를 기준으로 하여
-    위반 이슈만 추출하고 status별로 그룹핵합니다.
-    """
-
     def __init__(
         self,
         jira: JiraPort,
@@ -42,14 +35,27 @@ class SlaDelayCollector(AbstractWidgetCollector):
         )
 
         by_status: dict[str, int] = {}
+        by_status_details: dict[str, list[SlaDelayIssueDetail]] = {}
+
         for issue in issues:
             fields = issue.get("fields") or {}
             initial_breached = self._is_sla_breached(fields.get(self._initial_fid))
             resolution_breached = self._is_sla_breached(fields.get(self._resolution_fid))
             if not (initial_breached or resolution_breached):
                 continue
+
             status = (fields.get("status") or {}).get("name", "알 수 없음")
             by_status[status] = by_status.get(status, 0) + 1
+
+            created_raw = fields.get("created") or ""
+            detail = SlaDelayIssueDetail(
+                key=issue.get("key", ""),
+                summary=(fields.get("summary") or "")[:SUMMARY_TRUNCATE_LEN],
+                type=(fields.get("issuetype") or {}).get("name", "기타"),
+                status=status,
+                created=created_raw[:16].replace("T", " "),
+            )
+            by_status_details.setdefault(status, []).append(detail)
 
         total = sum(by_status.values())
         logger.info(f"[w10-SLA지연사유] {total}건")
@@ -57,7 +63,10 @@ class SlaDelayCollector(AbstractWidgetCollector):
             name="SLA 지연 사유",
             total=total,
             jql=jql,
-            data=SlaDelayWidgetData(by_status=by_status),
+            data=SlaDelayWidgetData(
+                by_status=by_status,
+                by_status_details=by_status_details,
+            ),
         )
 
     @staticmethod

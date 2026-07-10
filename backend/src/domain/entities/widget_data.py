@@ -46,8 +46,18 @@ class SlaDistributionEntry:
 
 
 @dataclass
+class SlaDelayIssueDetail:
+    key: str
+    summary: str
+    type: str
+    status: str
+    created: str
+
+
+@dataclass
 class SlaDelayWidgetData:
     by_status: dict[str, int] = field(default_factory=dict)
+    by_status_details: dict[str, list[SlaDelayIssueDetail]] = field(default_factory=dict)
     distribution: list[SlaDistributionEntry] = field(default_factory=list)
     issue_details: list[SlaViolatedIssueDetail] = field(default_factory=list)
 

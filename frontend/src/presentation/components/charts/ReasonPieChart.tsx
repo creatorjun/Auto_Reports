@@ -5,6 +5,14 @@ import type { TooltipProps } from 'recharts'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/shared/constants'
 
+export interface SlaDelayIssue {
+  key: string
+  summary: string
+  type: string
+  status: string
+  created: string
+}
+
 const REASON_COLORS = [...PIE_COLORS, '#10b981', '#f97316'] as const
 
 const RADIAN = Math.PI / 180
@@ -38,12 +46,24 @@ function CustomTooltip({ active, payload }: TooltipProps<ValueType, NameType>) {
   )
 }
 
-function ReasonPieChart({ byStatus }: { byStatus: Record<string, number> }) {
+interface Props {
+  byStatus: Record<string, number>
+  byStatusDetails?: Record<string, SlaDelayIssue[]>
+  onSliceClick?: (status: string, issues: SlaDelayIssue[]) => void
+}
+
+function ReasonPieChart({ byStatus, byStatusDetails, onSliceClick }: Props) {
   const data = Object.entries(byStatus)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
 
   if (!data.length) return null
+
+  const handleClick = (chartData: { name: string }) => {
+    if (!onSliceClick) return
+    const issues = byStatusDetails?.[chartData.name] ?? []
+    onSliceClick(chartData.name, issues)
+  }
 
   return (
     <div className="card flex flex-col">
@@ -58,6 +78,8 @@ function ReasonPieChart({ byStatus }: { byStatus: Record<string, number> }) {
             dataKey="value"
             labelLine={false}
             label={CustomLabel}
+            onClick={onSliceClick ? handleClick : undefined}
+            style={onSliceClick ? { cursor: 'pointer' } : undefined}
           >
             {data.map((_, i) => (
               <Cell key={i} fill={REASON_COLORS[i % REASON_COLORS.length]} />
@@ -71,13 +93,23 @@ function ReasonPieChart({ byStatus }: { byStatus: Record<string, number> }) {
             iconType="circle"
             iconSize={CHART_LEGEND_ICON_SIZE}
             formatter={(value: string) => (
-              <span style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR }}>
+              <span
+                style={{
+                  fontSize: CHART_LEGEND_ICON_SIZE + 4,
+                  color: CHART_LEGEND_COLOR,
+                  cursor: onSliceClick ? 'pointer' : 'default',
+                }}
+                onClick={() => handleClick({ name: value })}
+              >
                 {value.length > 10 ? value.slice(0, 10) + '…' : value}
               </span>
             )}
           />
         </PieChart>
       </ResponsiveContainer>
+      {onSliceClick && (
+        <p className="text-center text-[11px] text-apple-light mt-1">영역을 클릭하면 해당 상태의 이슈를 확인할 수 있습니다</p>
+      )}
     </div>
   )
 }
