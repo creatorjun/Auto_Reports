@@ -14,6 +14,9 @@ class JobRunnerPort(ABC):
     def current_job_id(self) -> str | None: ...
 
     @abstractmethod
+    async def save_pending(self, job_id: str) -> None: ...
+
+    @abstractmethod
     async def execute_in_background(
         self,
         job_id: str,

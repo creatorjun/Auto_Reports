@@ -27,6 +27,9 @@ class JobRunner(JobRunnerPort):
     def current_job_id(self) -> str | None:
         return self._running_job_id
 
+    async def save_pending(self, job_id: str) -> None:
+        await self._repo.save(JobRecord(job_id=job_id, status=JobStatus.PENDING))
+
     async def get_job_status(self, job_id: str) -> JobRecord | None:
         return await self._repo.find(job_id)
 
