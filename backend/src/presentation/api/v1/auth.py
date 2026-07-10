@@ -1,16 +1,12 @@
 # backend/src/presentation/api/v1/auth.py
-from datetime import datetime, timedelta, timezone
-
 from fastapi import APIRouter, Cookie, HTTPException, Response
-from jose import JWTError, jwt
 from pydantic import BaseModel
 
 from src.infrastructure.config.settings import get_settings
+from src.infrastructure.security.jwt_service import REFRESH_COOKIE_NAME, get_jwt_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-ACCESS_TOKEN_TYPE = "access"
-REFRESH_TOKEN_TYPE = "refresh"
 REFRESH_COOKIE = "refresh_token"
 
 
@@ -27,13 +23,6 @@ class TokenResponse(BaseModel):
 class MeResponse(BaseModel):
     username: str
     login_required: bool
-
-
-def _create_token(subject: str, token_type: str, expire_delta: timedelta) -> str:
-    settings = get_settings()
-    expire = datetime.now(timezone.utc) + expire_delta
-    payload = {"sub": subject, "type": token_type, "exp": expire}
-    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
@@ -55,23 +44,12 @@ async def login(body: LoginRequest, response: Response):
     if not settings.login:
         raise HTTPException(status_code=404, detail="Auth not enabled")
 
-    username_ok = body.username == settings.admin_username
-    password_ok = body.password == settings.admin_password
-    if not (username_ok and password_ok):
+    if body.username != settings.admin_username or body.password != settings.admin_password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    access_token = _create_token(
-        body.username,
-        ACCESS_TOKEN_TYPE,
-        timedelta(minutes=settings.jwt_access_expire_minutes),
-    )
-    refresh_token = _create_token(
-        body.username,
-        REFRESH_TOKEN_TYPE,
-        timedelta(days=settings.jwt_refresh_expire_days),
-    )
-    _set_refresh_cookie(response, refresh_token)
-    return TokenResponse(access_token=access_token)
+    svc = get_jwt_service()
+    _set_refresh_cookie(response, svc.create_refresh_token(body.username))
+    return TokenResponse(access_token=svc.create_access_token(body.username))
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -79,30 +57,17 @@ async def refresh(response: Response, refresh_token: str = Cookie(default=None, 
     settings = get_settings()
     if not settings.login:
         raise HTTPException(status_code=404, detail="Auth not enabled")
-
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
 
+    svc = get_jwt_service()
     try:
-        payload = jwt.decode(refresh_token, settings.jwt_secret, algorithms=["HS256"])
-        if payload.get("type") != REFRESH_TOKEN_TYPE:
-            raise ValueError
-        username: str = payload["sub"]
-    except (JWTError, ValueError, KeyError):
+        username = svc.decode_refresh_token(refresh_token)
+    except ValueError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    new_access = _create_token(
-        username,
-        ACCESS_TOKEN_TYPE,
-        timedelta(minutes=settings.jwt_access_expire_minutes),
-    )
-    new_refresh = _create_token(
-        username,
-        REFRESH_TOKEN_TYPE,
-        timedelta(days=settings.jwt_refresh_expire_days),
-    )
-    _set_refresh_cookie(response, new_refresh)
-    return TokenResponse(access_token=new_access)
+    _set_refresh_cookie(response, svc.create_refresh_token(username))
+    return TokenResponse(access_token=svc.create_access_token(username))
 
 
 @router.post("/logout")
@@ -114,17 +79,15 @@ async def logout(response: Response):
 @router.get("/me", response_model=MeResponse)
 async def me(refresh_token: str = Cookie(default=None, alias=REFRESH_COOKIE)):
     settings = get_settings()
-
     if not settings.login:
         return MeResponse(username="guest", login_required=False)
-
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
+    svc = get_jwt_service()
     try:
-        payload = jwt.decode(refresh_token, settings.jwt_secret, algorithms=["HS256"])
-        if payload.get("type") != REFRESH_TOKEN_TYPE:
-            raise ValueError
-        return MeResponse(username=payload["sub"], login_required=True)
-    except (JWTError, ValueError, KeyError):
+        username = svc.decode_refresh_token(refresh_token)
+    except ValueError:
         raise HTTPException(status_code=401, detail="Token expired or invalid")
+
+    return MeResponse(username=username, login_required=True)

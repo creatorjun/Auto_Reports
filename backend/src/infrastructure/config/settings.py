@@ -1,6 +1,5 @@
 # backend/src/infrastructure/config/settings.py
 import datetime
-import secrets
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings
@@ -38,7 +37,7 @@ class Settings(BaseSettings):
     login: bool = False
     admin_username: str = "admin"
     admin_password: str = ""
-    jwt_secret: str = secrets.token_hex(32)
+    jwt_secret: str = "please-set-JWT_SECRET-in-env"
     jwt_access_expire_minutes: int = 30
     jwt_refresh_expire_days: int = 7
 

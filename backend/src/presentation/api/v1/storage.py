@@ -1,15 +1,12 @@
 # backend/src/presentation/api/v1/storage.py
-import mimetypes
-import os
-import shutil
 import urllib.parse
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-STORAGE_DIR = os.environ.get("STORAGE_DIR", "/app/storage")
+from src.application.use_cases.storage_use_case import StorageUseCase
+from src.presentation.api.v1.deps import get_storage_use_case
 
 router = APIRouter(prefix="/storage", tags=["storage"])
 
@@ -26,103 +23,101 @@ class FolderCreateRequest(BaseModel):
     folder: str = ""
 
 
-def _resolve(folder: str, name: str = "") -> str:
-    base = os.path.realpath(STORAGE_DIR)
-    target = os.path.realpath(os.path.join(base, folder.lstrip("/"), name))
-    if not target.startswith(base + os.sep) and target != base:
-        raise HTTPException(status_code=400, detail="Invalid path")
-    if name:
-        basename = os.path.basename(target)
-        if not basename or basename.startswith("."):
-            raise HTTPException(status_code=400, detail="Invalid name")
-    return target
-
-
-def _ensure_storage() -> None:
-    os.makedirs(STORAGE_DIR, exist_ok=True)
+def _decode(value: str) -> str:
+    return urllib.parse.unquote(value)
 
 
 @router.get("/items", response_model=list[StorageFileInfo])
-async def list_items(folder: str = Query(default="")):
-    _ensure_storage()
-    dir_path = _resolve(folder)
-    if not os.path.isdir(dir_path):
+async def list_items(
+    folder: str = Query(default=""),
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    try:
+        entries = uc.list_entries(folder)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Folder not found")
-    result: list[StorageFileInfo] = []
-    for entry in sorted(os.scandir(dir_path), key=lambda e: (e.is_file(), e.name.lower())):
-        stat = entry.stat()
-        result.append(StorageFileInfo(
-            name=entry.name,
-            size=stat.st_size if entry.is_file() else 0,
-            uploaded_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
-            is_dir=entry.is_dir(),
-        ))
-    return result
+    return [StorageFileInfo(**e.__dict__) for e in entries]
 
 
 @router.post("/folders", status_code=201)
-async def create_folder(body: FolderCreateRequest):
-    _ensure_storage()
-    path = _resolve(body.folder, body.name)
-    if os.path.exists(path):
+async def create_folder(
+    body: FolderCreateRequest,
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    try:
+        uc.create_folder(body.folder, body.name)
+    except FileExistsError:
         raise HTTPException(status_code=409, detail="Already exists")
-    os.makedirs(path)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid path")
     return {"name": body.name}
 
 
 @router.delete("/folders")
-async def delete_folder(folder: str = Query(default=""), name: str = Query(...)):
-    path = _resolve(folder, name)
-    if not os.path.isdir(path):
+async def delete_folder(
+    folder: str = Query(default=""),
+    name: str = Query(...),
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    try:
+        uc.delete_folder(folder, name)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Folder not found")
-    shutil.rmtree(path)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid path")
 
 
 @router.post("/upload", response_model=StorageFileInfo, status_code=201)
-async def upload_file(file: UploadFile, folder: str = Query(default="")):
-    _ensure_storage()
-    dest = _resolve(folder, file.filename or "upload")
-    os.makedirs(os.path.dirname(dest), exist_ok=True)
-    contents = await file.read()
-    with open(dest, "wb") as f:
-        f.write(contents)
-    stat = os.stat(dest)
-    return StorageFileInfo(
-        name=os.path.basename(dest),
-        size=stat.st_size,
-        uploaded_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
-        is_dir=False,
-    )
+async def upload_file(
+    file: UploadFile,
+    folder: str = Query(default=""),
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    data = await file.read()
+    try:
+        entry = uc.upload_file(folder, file.filename or "upload", data)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid path")
+    return StorageFileInfo(**entry.__dict__)
 
 
 @router.get("/preview")
-async def preview_file(folder: str = Query(default=""), name: str = Query(...)):
-    path = _resolve(urllib.parse.unquote(folder), urllib.parse.unquote(name))
-    if not os.path.isfile(path):
+async def preview_file(
+    folder: str = Query(default=""),
+    name: str = Query(...),
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    folder, name = _decode(folder), _decode(name)
+    try:
+        path = uc.get_file_path(folder, name)
+        mime = uc.get_mime_type(folder, name)
+    except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="File not found")
-    mime, _ = mimetypes.guess_type(path)
-    return FileResponse(
-        path=path,
-        media_type=mime or "application/octet-stream",
-        headers={"Content-Disposition": "inline"},
-    )
+    return FileResponse(path=path, media_type=mime, headers={"Content-Disposition": "inline"})
 
 
 @router.get("/download")
-async def download_file(folder: str = Query(default=""), name: str = Query(...)):
-    path = _resolve(urllib.parse.unquote(folder), urllib.parse.unquote(name))
-    if not os.path.isfile(path):
+async def download_file(
+    folder: str = Query(default=""),
+    name: str = Query(...),
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    folder, name = _decode(folder), _decode(name)
+    try:
+        path = uc.get_file_path(folder, name)
+    except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(
-        path=path,
-        filename=os.path.basename(path),
-        media_type="application/octet-stream",
-    )
+    return FileResponse(path=path, filename=name, media_type="application/octet-stream")
 
 
 @router.delete("/files")
-async def delete_file(folder: str = Query(default=""), name: str = Query(...)):
-    path = _resolve(urllib.parse.unquote(folder), urllib.parse.unquote(name))
-    if not os.path.isfile(path):
+async def delete_file(
+    folder: str = Query(default=""),
+    name: str = Query(...),
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    folder, name = _decode(folder), _decode(name)
+    try:
+        uc.delete_file(folder, name)
+    except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="File not found")
-    os.remove(path)
