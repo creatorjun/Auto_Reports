@@ -1,86 +1,165 @@
-# 위젯 정의
+# 위젯 명세 v1.0
 
-> **Version 1.0** | 2026-07-09
-
-위젯은 w1~w12까지 총 12개로 구성됩니다. 각 위젯은 독립적인 Collector 클래스가 담당하며 `asyncio.gather`로 병렬 수집됩니다.
-
-## 위젯 목록
-
-| ID | 이름 | Collector | UI 위치 |
-|---|---|---|---|
-| w1 | 올해 생성 총계 | `SimpleCountCollector` | SummaryCard |
-| w2 | 올해 해결 총계 | `SimpleCountCollector` | SummaryCard |
-| w3 | 이번 주 생성 / 해결 | `CreatedVsResolvedCollector` | SummaryCard × 2 + 모달 |
-| w4 | 이슈 리뷰 중 | `SimpleWithDetailsCollector` | SummaryCard + 모달 |
-| w5 | 자료 요청 중 | `SimpleWithDetailsCollector` | SummaryCard + 모달 |
-| w6 | 결과 대기 중 | `SimpleWithDetailsCollector` | SummaryCard + 모달 |
-| w7 | 월별 생성 건수 | `MonthlyCollector` | 막대 그래프 |
-| w8 | 월별 해결 건수 | `MonthlyCollector` | 막대 그래프 |
-| w9 | SLA 준수 vs 위반 | `SlaMetVsViolatedCollector` | 원형 차트 |
-| w10 | SLA 초과 이슈 | `SimpleWithDetailsCollector` | SummaryCard |
-| w11 | 평균 해결 시간 (유형별) | `ResolutionCollector` | 테이블 |
-| w12 | 최근 이슈 현황 | `RecentCollector` | 단계별 그래프 테이블 |
+대시보드는 **14개 위젯(w1~w14)** 으로 구성됩니다. 각 위젯은 독립적인 Collector 클래스로 구현되며, `widget_key`, `total`, `data(JSONB)` 형태로 PostgreSQL 에 저장됩니다.
 
 ---
 
-## 위젯별 상세
+## 카운트 위젯 (w1~w6)
 
-### w3 — 이번 주 생성 / 해결
+`count_collector.py` 에서 처리합니다.
 
-- **생성 이슈**: `created >= "-7d"` 조건, fields: `summary, issuetype, status, created`
-- **해결 이슈**: `resolved >= "-7d"` 조건, fields: `summary, issuetype, updated`
-- 해결 일시는 `updated` 필드를 사용합니다 (`resolutiondate`가 null인 경우 대비)
-- 모달에서 행 전체 클릭 시 Jira 이슈 URL을 새 탭으로 엽니다
+| 위젯 | 라벨 | 설명 | Jira JQL 조건 |
+|------|------|------|---------------|
+| w1 | 올해 생성 | 당해연도 1월 1일 이후 생성된 전체 이슈 수 | `created >= "YYYY-01-01"` |
+| w2 | 올해 해결 | 당해연도 1월 1일 이후 해결된 전체 이슈 수 | `resolutiondate >= "YYYY-01-01"` |
+| w3 | 주간 생성/완료 | 집계 기간(start~end) 내 생성 및 해결된 이슈 수 + 상세 목록 | `created >= start AND created <= end` |
+| w4 | 이슈 리뷰 중 | 현재 '이슈 리뷰 중' 상태인 이슈 수 + 상세 목록 | `status = "이슈 리뷰 중"` |
+| w5 | 자료 요청 중 | 현재 '자료 요청 중' 상태인 이슈 수 + 상세 목록 | `status = "자료 요청 중"` |
+| w6 | 결과 대기 중 | 현재 '결과 대기 중' 상태인 이슈 수 + 상세 목록 | `status = "결과 대기 중"` |
 
-### w4 — 이슈 리뷰 중
+### w3 data 구조
+```json
+{
+  "created": 8,
+  "resolved": 4,
+  "created_details": [
+    { "key": "TAC-101", "summary": "...", "type": "버그", "priority": "높음",
+      "status": "진행 중", "created": "2026-07-01", "reporter": "홍길동",
+      "tac_team": "TAC팀" }
+  ],
+  "resolved_details": [ ... ]
+}
+```
 
-- `status = "이슈 리뷰 중"` AND `created <= "-{sla_threshold}d"` AND `updated >= "-7d"`
-- SLA 임계일 초과 후 리뷰 대기 상태인 이슈 목록
-- `elapsed_days` (경과일) 기준 내림차순 정렬
-
-### w5 — 자료 요청 중
-
-- `status = "자료 요청 중"` AND `created <= "-{sla_threshold}d"` AND `updated >= "-7d"`
-
-### w6 — 결과 대기 중
-
-- `status = "결과 대기 중"` AND `created <= "-{sla_threshold}d"` AND `updated >= "-7d"`
-
-### w9 — SLA 준수 vs 위반
-
-- Jira SLA 커스텀 필드(`sd-servicelevelagreement` 타입)를 자동 탐지
-- `completedCycles[].breached` 또는 `ongoingCycle.breached` 값으로 위반 여부 판단
-- 최초 응답 SLA / 해결 시간 SLA 두 항목을 각각 집계
-
-### w12 — 최근 이슈 현황 (단계별 그래프)
-
-- `status NOT IN (closed_statuses)` ORDER BY `issuekey DESC` 상위 50건
-- 이슈 상태를 0~6 단계 인덱스로 매핑:
-
-| 단계 | 상태 | 색상 |
-|---|---|---|
-| 0 | 할 일 / 재오픈 | 회색 |
-| 1 | 자료 요청 중 | 파랑 |
-| 2 | 이슈 리뷰 중 | 주황 |
-| 3 | 연구소 대기 중 / 검토 중 | 보라 |
-| 4 | 구현 중 | 초록 |
-| 5 | 배포 파일 검토 중 | 청록 |
-| 6 | 결과 대기 중 | 빨강 |
-
-- `StageBar`: 7칸 중 `i <= stageIndex`까지 amber-400으로 채움
-- 행 전체 클릭 시 Jira 이슈 URL 새 탭 오픈
+### w4~w6 data 구조
+```json
+{
+  "issue_details": [
+    { "key": "TAC-88", "summary": "...", "type": "문의",
+      "status": "이슈 리뷰 중", "created": "2026-06-25",
+      "reporter": "김철수", "tac_team": "TAC팀" }
+  ]
+}
+```
 
 ---
 
-## 모달 컴포넌트 클릭 동작
+## SLA 월별 추이 (w7~w8)
 
-모든 모달의 이슈 행은 `<tr onClick>` / 모바일 `<div onClick>` 방식으로 클릭 시 새 탭 오픈합니다.
-`<a>` 태그 대신 `window.open(url, '_blank', 'noreferrer')` 를 사용합니다.
+`monthly_collector.py` 에서 처리합니다. 최근 6개월의 SLA 준수율을 월별로 집계합니다.
 
-| 모달 파일 | 트리거 위젯 |
-|---|---|
-| `WeeklyCreatedModal.tsx` | w3 생성 |
-| `WeeklyResolvedModal.tsx` | w3 해결 |
-| `IssueReviewModal.tsx` | w4 |
-| `DataRequestModal.tsx` | w5 |
-| `ResultPendingModal.tsx` | w6 |
+| 위젯 | 라벨 | SLA 기준 |
+|------|------|----------|
+| w7 | 최초응답 SLA | 최초 응답 시간 위반 여부 |
+| w8 | 해결시간 SLA | 최종 해결 시간 위반 여부 |
+
+### data 구조
+```json
+{
+  "monthly": [
+    { "month": "2026-02", "total": 18, "violated": 3, "rate": 83.3 },
+    { "month": "2026-03", "total": 22, "violated": 1, "rate": 95.5 }
+  ]
+}
+```
+
+---
+
+## SLA 위반 현황 (w9)
+
+`count_collector.py` 에서 처리합니다. SLA 위반 이슈를 최초응답/해결시간 단계별로 집계합니다.
+
+### data 구조
+```json
+{
+  "initial_response_violations": 2,
+  "resolution_violations": 1,
+  "violation_distribution": [
+    { "stage": "최초응답 위반", "count": 2,
+      "issue_details": [ { "key": "TAC-55", "summary": "...", ... } ] },
+    { "stage": "해결시간 위반", "count": 1, "issue_details": [ ... ] }
+  ]
+}
+```
+
+---
+
+## SLA 지연 사유 (w10)
+
+`sla_delay_collector.py` 에서 처리합니다. SLA 지연 중인 이슈를 현재 상태별로 분류합니다.
+
+### data 구조
+```json
+{
+  "by_status": { "이슈 리뷰 중": 3, "자료 요청 중": 5 },
+  "by_status_details": {
+    "이슈 리뷰 중": [
+      { "key": "TAC-77", "summary": "...", "days_overdue": 3 }
+    ]
+  }
+}
+```
+
+---
+
+## 유형별 해결시간 (w11)
+
+`resolution_collector.py` 에서 처리합니다. 이슈 유형별 평균 해결시간을 계산합니다.
+
+### data 구조
+```json
+{
+  "by_type": {
+    "버그": { "count": 10, "avg_days": 2.3, "avg_hours": 55.2 },
+    "문의": { "count": 25, "avg_days": 0.8, "avg_hours": 19.1 }
+  }
+}
+```
+
+---
+
+## 미완료 이슈 (w12)
+
+`recent_collector.py` 에서 처리합니다. 현재 열려 있는 모든 미완료 이슈 목록입니다.
+
+### data 구조
+```json
+{
+  "issue_details": [
+    { "key": "TAC-123", "summary": "...", "type": "버그",
+      "status": "진행 중", "created": "2026-07-01",
+      "elapsed_days": 9, "reporter": "이영희", "tac_team": "TAC팀" }
+  ]
+}
+```
+
+---
+
+## 월별 등록/해결 건수 (w13~w14)
+
+`monthly_count_collector.py` 에서 처리합니다. 최근 6개월의 월별 등록 및 해결 건수입니다.
+
+| 위젯 | 라벨 |
+|------|------|
+| w13 | 월별 등록 건수 |
+| w14 | 월별 해결 건수 |
+
+### data 구조
+```json
+{
+  "monthly": [
+    { "month": "2026-02", "count": 18 },
+    { "month": "2026-03", "count": 22 }
+  ]
+}
+```
+
+---
+
+## 위젯 확장 가이드
+
+1. `backend/src/application/widgets/` 에 `BaseWidgetCollector` 를 상속하는 새 Collector 클래스 생성
+2. `backend/src/domain/entities/widget_data.py` 에 데이터 타입 추가
+3. `job_runner.py` 의 위젯 수집 파이프라인에 등록
+4. `frontend/src/presentation/components/charts/` 에 차트 컴포넌트 추가
+5. `DashboardPage.tsx` 에 렌더링 로직 추가

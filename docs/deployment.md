@@ -1,120 +1,146 @@
-# 배포 가이드
-
-> **Version 1.0** | 2026-07-09
+# 배포 가이드 v1.0
 
 ## 사전 요구사항
 
-- Docker 24.x 이상
-- Docker Compose v2.x 이상
-- Jira Cloud 접근 권한 및 API 토큰
+- Docker Engine 24+
+- Docker Compose v2.20+
+- Jira Cloud 계정 및 API 토큰
 - (선택) Google Gemini API 키
+- (선택) SSL 도메인
 
 ---
 
-## 빠른 시작
+## 1. 기본 배포 (HTTP)
 
 ```bash
-# 1. 저장소 클론
 git clone https://github.com/creatorjun/Auto_Reports.git
 cd Auto_Reports
-
-# 2. 환경 설정
 cp .env.example .env
-vim .env   # 필수 항목 입력
+# .env 편집 후
+docker compose up -d
+```
 
-# 3. 빌드 및 실행
-docker compose up -d --build
+브라우저에서 `http://<서버IP>` 로 접속합니다.
 
-# 4. 수동 리포트 수집 (최초 데이터 적재)
-curl -X POST http://localhost/api/trigger
+포트를 변경하려면 `.env` 에서 `APP_PORT=8080` 처럼 수정합니다.
+
+---
+
+## 2. 도메인 + SSL 배포 (HTTPS)
+
+`docker-compose.yml` 하단의 주석 블록을 참고합니다.  
+nginx-proxy + acme-companion 을 사용하여 Let's Encrypt 인증서를 자동 발급합니다.
+
+### 절차
+
+1. DNS A 레코드를 서버 IP 로 등록하고 전파 확인
+2. `.env` 에 도메인/이메일 설정
+   ```env
+   DOMAIN=reports.example.com
+   SSL_EMAIL=admin@example.com
+   APP_PORT=80
+   ```
+3. `docker-compose.yml` 에서 주석 해제
+   - `nginx-proxy` 서비스 블록
+   - `acme-companion` 서비스 블록
+   - `frontend`, `backend` 의 환경변수 주석 블록
+   - `volumes` 추가 항목 (certs, vhost, html, acme)
+4. 기존 컨테이너 중지 후 재시작
+   ```bash
+   docker compose down
+   docker compose up -d
+   ```
+
+---
+
+## 3. 업데이트
+
+```bash
+git pull origin main
+docker compose down
+docker compose build
+docker compose up -d
+```
+
+> DB 마이그레이션이 필요한 경우 백엔드 컨테이너 기동 시 자동 적용됩니다.
+
+---
+
+## 4. 수동 Alembic 마이그레이션
+
+```bash
+docker compose exec backend alembic upgrade head
 ```
 
 ---
 
-## 환경 변수 설명
+## 5. 데이터 백업
 
-| 변수 | 필수 | 기본값 | 설명 |
-|---|---|---|---|
-| `JIRA_BASE_URL` | ✅ | — | Jira 인스턴스 URL (예: `https://xxx.atlassian.net`) |
-| `JIRA_EMAIL` | ✅ | — | Jira 로그인 이메일 |
-| `JIRA_API_TOKEN` | ✅ | — | Jira API 토큰 |
-| `AI_ENABLED` | — | `true` | Gemini AI 요약 활성화 여부 |
-| `GEMINI_API_KEY` | — | — | Gemini API 키 (`AI_ENABLED=true`일 때 필요) |
-| `DB_USER` | — | `postgres` | PostgreSQL 유저 |
-| `DB_PASSWORD` | — | `postgres` | PostgreSQL 비밀번호 |
-| `DB_HOST` | — | `db` | PostgreSQL 호스트 (컨테이너명) |
-| `DB_NAME` | — | `auto_reports` | DB 이름 |
-| `SCHEDULE_CRON` | — | `0 23 * * 5` | 자동 수집 크론 표현식 (기본: 매주 금요일 23시) |
-| `TZ` | — | `Asia/Seoul` | 타임존 |
-| `CORS_ORIGINS` | — | — | 허용할 CORS 오리진 (JSON 배열 문자열) |
-| `APP_PORT` | — | `80` | 외부 노출 포트 |
-| `DOMAIN` | — | — | SSL 적용 시 도메인 |
-| `SSL_EMAIL` | — | — | Let's Encrypt 이메일 |
-| `CONFLUENCE_SPACE_KEY` | — | — | Confluence 연동 스페이스 키 (선택) |
-| `CONFLUENCE_PARENT_PAGE_ID` | — | — | Confluence 상위 페이지 ID (선택) |
+PostgreSQL 데이터는 Docker Named Volume `db_data` 에 저장됩니다.
+
+```bash
+docker compose exec db pg_dump -U postgres auto_reports > backup_$(date +%F).sql
+```
+
+스토리지 파일은 `storage_data` 볼륨에 저장됩니다.
+
+```bash
+docker run --rm \
+  -v auto_reports_storage_data:/data \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/storage_$(date +%F).tar.gz -C /data .
+```
 
 ---
 
-## 컨테이너 구성
+## 6. 로그 확인
+
+```bash
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f db
+```
+
+---
+
+## 7. 컨테이너 구성
 
 | 컨테이너 | 이미지 | 역할 |
-|---|---|---|
-| `tac_db` | `postgres:16-alpine` | 데이터 영속성 (리포트 저장) |
-| `tac_backend` | `./backend` (자체 빌드) | FastAPI 서버, APScheduler, Jira 수집 |
-| `tac_frontend` | `./frontend` (자체 빌드) | React SPA + Nginx |
+|----------|--------|------|
+| `tac_db` | postgres:16-alpine | PostgreSQL 데이터베이스 |
+| `tac_backend` | 빌드 (./backend) | FastAPI 앱 (port 8000) |
+| `tac_frontend` | 빌드 (./frontend) | Nginx + React SPA (port 80) |
 
-의존 순서: `tac_db` → `tac_backend` → `tac_frontend`
-
-### 볼륨
-
-| 볼륨 | 용도 |
-|---|---|
-| `db_data` | PostgreSQL 데이터 영속화 |
-| `reports_data` | 생성된 리포트 파일 저장 |
+백엔드는 DB 헬스체크 통과 후 기동되며, 프론트엔드는 백엔드 기동 후 시작됩니다.
 
 ---
 
-## 자주 쓰는 명령어
+## 8. 자동 보고서 생성 스케줄
 
-```bash
-# 로그 확인
-docker compose logs -f backend
+기본값은 **매주 금요일 23:00 (Asia/Seoul)** 입니다.
 
-# 백엔드만 재시작
-docker compose restart backend
+`.env` 에서 cron 표현식으로 변경 가능합니다.
 
-# 전체 종료 및 볼륨 삭제 (데이터 초기화 시)
-docker compose down -v
-
-# 수동 리포트 수집
-curl -X POST http://localhost/api/trigger
-
-# 최신 리포트 확인
-curl http://localhost/api/reports/latest | python3 -m json.tool
+```env
+SCHEDULE_CRON=0 9 * * 1   # 매주 월요일 오전 9시
 ```
 
----
-
-## SSL / HTTPS 적용 (선택)
-
-`docker-compose.yml` 하단의 주석 블록을 해제하면 `nginx-proxy` + `acme-companion`으로
-Let's Encrypt 인증서를 자동 발급·갱신합니다.
-
-1. DNS A 레코드를 서버 IP로 등록
-2. `.env`에 `DOMAIN`, `SSL_EMAIL` 입력
-3. `docker-compose.yml` 주석 해제 후 재배포
-
-```bash
-docker compose down
-docker compose up -d --build
-```
+자동 생성 시 집계 기간은 직전 월요일~일요일(7일)로 자동 계산됩니다.
 
 ---
 
-## 스케줄러 기본 동작
+## 9. 문제 해결
 
-`SCHEDULE_CRON=0 23 * * 5` (기본값) 기준:
+### 백엔드가 DB 연결에 실패하는 경우
+- `.env` 의 `DB_HOST` 가 `db` (컨테이너명) 인지 확인
+- `docker compose ps` 로 db 컨테이너 헬스체크 상태 확인
 
-- **매주 금요일 23:00 KST**에 자동으로 Jira 데이터를 수집하고 DB에 저장합니다.
-- 크론 표현식은 표준 5자리 cron 형식을 따릅니다 (`분 시 일 월 요일`).
-- 즉시 수집이 필요하면 `POST /api/trigger`를 호출합니다.
+### Jira 데이터가 수집되지 않는 경우
+- `JIRA_BASE_URL` 에서 trailing slash 제거 확인
+- Jira API Token 의 권한(프로젝트 읽기) 확인
+- `docker compose logs backend` 에서 HTTP 오류 코드 확인
+
+### AI 요약이 생성되지 않는 경우
+- `AI_ENABLED=true` 및 `GEMINI_API_KEY` 설정 확인
+- Gemini API 할당량 초과 여부 확인
+- `AI_ENABLED=false` 로 비활성화 후 정상 동작 확인
