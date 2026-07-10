@@ -51,9 +51,8 @@ async def lifespan(app: FastAPI):
 
     container = Container(settings)
 
-    async with AsyncSessionLocal() as session:
-        job_repository = SqlJobRepository(session)
-        job_runner = JobRunner(container, job_repository)
+    job_repository = SqlJobRepository(AsyncSessionLocal)
+    job_runner = JobRunner(container, job_repository)
 
     app.state.container = container
     app.state.job_runner = job_runner
