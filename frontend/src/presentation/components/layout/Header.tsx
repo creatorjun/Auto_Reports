@@ -13,12 +13,12 @@ export default function Header() {
       <div className="w-[28rem] 3xl:w-[32rem] flex items-center gap-3">
         {currentReport && (
           <>
+            <RefreshButton />
             <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums">
               {currentReport.week_start} – {currentReport.week_end}
               <span className="mx-1.5 text-apple-divider">·</span>
               생성: {currentReport.report_date}
             </p>
-            <RefreshButton />
           </>
         )}
       </div>
