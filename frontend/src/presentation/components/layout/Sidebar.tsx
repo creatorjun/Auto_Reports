@@ -56,6 +56,15 @@ function CollapseIcon({ collapsed }: { collapsed: boolean }) {
   )
 }
 
+function LogoutIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M5 2H2.5A.5.5 0 0 0 2 2.5v9a.5.5 0 0 0 .5.5H5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M9.5 9.5L12 7l-2.5-2.5M12 7H5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 interface Props {
   collapsed: boolean
   setCollapsed: (v: boolean) => void
@@ -67,14 +76,12 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
 
   return (
     <aside
-      className={`
-        ${ collapsed ? 'w-14 3xl:w-16' : 'w-56 xl:w-60 2xl:w-64 3xl:w-72' }
-        bg-white border-r border-apple-divider/80
-        flex flex-col
-        py-5 3xl:py-7
-        px-2 3xl:px-3
-        transition-all duration-250 ease-in-out flex-shrink-0
-      `}
+      className={[
+        collapsed ? 'w-14 3xl:w-16' : 'w-56 xl:w-60 2xl:w-64 3xl:w-72',
+        'bg-white border-r border-apple-divider/80',
+        'flex flex-col py-5 3xl:py-7 px-2 3xl:px-3',
+        'transition-all duration-250 ease-in-out flex-shrink-0',
+      ].join(' ')}
     >
       <button
         onClick={() => setCollapsed(!collapsed)}
@@ -95,10 +102,11 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
             end={to === '/'}
             title={collapsed ? label : undefined}
             className={({ isActive }) =>
-              `nav-link
-               ${ collapsed ? 'justify-center px-0' : '' }
-               ${ isActive ? 'nav-link-active' : '' }
-               3xl:text-sm 3xl:py-2.5`
+              ['nav-link',
+               collapsed ? 'justify-center px-0' : '',
+               isActive ? 'nav-link-active' : '',
+               '3xl:text-sm 3xl:py-2.5',
+              ].join(' ')
             }
           >
             <span className="flex-shrink-0">{icon}</span>
@@ -107,25 +115,34 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
         ))}
       </div>
 
-      <div className={`mt-auto pt-4 border-t border-apple-divider/60 flex flex-col gap-2 ${ collapsed ? 'items-center' : '' }`}>
+      <div className={['mt-auto pt-4 border-t border-apple-divider/60 flex flex-col gap-2', collapsed ? 'items-center' : ''].join(' ')}>
         <TriggerButton collapsed={collapsed} />
 
         {loginRequired && (
-          <button
-            onClick={() => logout()}
-            disabled={isLoggingOut}
-            title={collapsed ? '\ub85c\uadf8\uc544\uc6c3' : undefined}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium
-                        text-apple-light hover:text-red-500 hover:bg-red-50
-                        transition-colors disabled:opacity-40 w-full
-                        ${ collapsed ? 'justify-center px-0' : '' }`}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="flex-shrink-0">
-              <path d="M5 2H2.5A.5.5 0 0 0 2 2.5v9a.5.5 0 0 0 .5.5H5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              <path d="M9.5 9.5L12 7l-2.5-2.5M12 7H5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {!collapsed && <span>\ub85c\uadf8\uc544\uc6c3{username ? ` (${username})` : ''}</span>}
-          </button>
+          collapsed ? (
+            <button
+              onClick={() => logout()}
+              disabled={isLoggingOut}
+              title="\ub85c\uadf8\uc544\uc6c3"
+              className="flex items-center justify-center w-8 h-8 rounded-xl
+                         text-apple-light hover:text-red-500 hover:bg-red-50
+                         transition-colors disabled:opacity-40"
+            >
+              <LogoutIcon />
+            </button>
+          ) : (
+            <button
+              onClick={() => logout()}
+              disabled={isLoggingOut}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-xl
+                         text-[12px] font-medium
+                         text-apple-light hover:text-red-500 hover:bg-red-50
+                         transition-colors disabled:opacity-40"
+            >
+              <span className="flex-shrink-0"><LogoutIcon /></span>
+              <span className="truncate">\ub85c\uadf8\uc544\uc6c3{username ? ` (${username})` : ''}</span>
+            </button>
+          )
         )}
       </div>
     </aside>
