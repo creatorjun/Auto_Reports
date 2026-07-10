@@ -2,6 +2,8 @@
 import axios from 'axios'
 import { useAuthStore } from '@/app/store/authStore'
 
+const SKIP_REFRESH_URLS = ['/auth/refresh', '/auth/login', '/auth/me']
+
 const client = axios.create({
   baseURL: '/api/v1',
   timeout: 30000,
@@ -23,8 +25,11 @@ client.interceptors.response.use(
   async (err) => {
     const original = err.config
     const status = err.response?.status
+    const url: string = original?.url ?? ''
 
-    if (status === 401 && !original._retry && original.url !== '/auth/refresh' && original.url !== '/auth/login') {
+    const shouldSkip = SKIP_REFRESH_URLS.some((u) => url.includes(u))
+
+    if (status === 401 && !original._retry && !shouldSkip) {
       original._retry = true
 
       if (isRefreshing) {
@@ -55,7 +60,6 @@ client.interceptors.response.use(
       }
     }
 
-    console.error('API Error:', err.response?.data || err.message)
     return Promise.reject(err)
   }
 )

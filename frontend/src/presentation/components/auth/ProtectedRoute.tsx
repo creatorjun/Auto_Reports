@@ -14,8 +14,10 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }, [data, setLoginRequired])
 
   if (isLoading) return <LoadingSpinner />
-  if (isError) return <Navigate to="/login" replace />
-  if (data?.login_required && !accessToken) return <Navigate to="/login" replace />
+
+  if (isError || data === undefined) return <Navigate to="/login" replace />
+
+  if (data.login_required && !accessToken) return <Navigate to="/login" replace />
 
   return <>{children}</>
 }
