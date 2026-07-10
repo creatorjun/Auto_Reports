@@ -3,14 +3,11 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Cookie, HTTPException, Response
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from src.infrastructure.config.settings import get_settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ACCESS_TOKEN_TYPE = "access"
 REFRESH_TOKEN_TYPE = "refresh"
@@ -117,6 +114,7 @@ async def logout(response: Response):
 @router.get("/me", response_model=MeResponse)
 async def me(refresh_token: str = Cookie(default=None, alias=REFRESH_COOKIE)):
     settings = get_settings()
+
     if not settings.login:
         return MeResponse(username="guest", login_required=False)
 
