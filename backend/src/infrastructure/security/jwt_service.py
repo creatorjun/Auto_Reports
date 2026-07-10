@@ -1,5 +1,6 @@
 # backend/src/infrastructure/security/jwt_service.py
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 
 from jose import JWTError, jwt
 
@@ -42,11 +43,6 @@ class JwtService:
             raise ValueError("Invalid or expired token") from e
 
 
-_jwt_service: JwtService | None = None
-
-
+@lru_cache
 def get_jwt_service() -> JwtService:
-    global _jwt_service
-    if _jwt_service is None:
-        _jwt_service = JwtService()
-    return _jwt_service
+    return JwtService()

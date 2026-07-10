@@ -1,10 +1,10 @@
 # backend/src/presentation/api/v1/deps.py
-from fastapi import Depends, HTTPException, Security
+from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.infrastructure.config.settings import get_settings
 from src.infrastructure.security.jwt_service import get_jwt_service
-from src.infrastructure.storage.local_storage import LocalStorageAdapter
+from src.infrastructure.storage.local_storage import get_local_storage_adapter
 from src.application.use_cases.storage_use_case import StorageUseCase
 
 _bearer = HTTPBearer(auto_error=False)
@@ -25,4 +25,4 @@ async def require_auth(
 
 
 def get_storage_use_case() -> StorageUseCase:
-    return StorageUseCase(LocalStorageAdapter())
+    return StorageUseCase(get_local_storage_adapter())

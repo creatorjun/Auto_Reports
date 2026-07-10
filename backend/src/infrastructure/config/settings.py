@@ -26,13 +26,13 @@ class Settings(BaseSettings):
     jira_tac_assignee_field_id: str = "customfield_10859"
     jira_qa_assignee_field_id: str = "customfield_12222"
     cors_origins: list[str] = ["*"]
-    issue_types: list[str] = ["\uc778\uc2dc\ub358\ud2b8", "\uac1c\uc120", "CVE", "\uc11c\ube44\uc2a4 \uc694\uccad"]
+    issue_types: list[str] = ["인시던트", "개선", "CVE", "서비스 요청"]
     active_statuses: list[str] = [
-        "\ud560 \uc77c", "\uc774\uc288 \ub9ac\ubdf0 \uc911", "\uc5f0\uad6c\uc18c \ub300\uae30 \uc911", "\uc5f0\uad6c\uc18c \uac80\ud1a0 \uc911",
-        "\uad6c\ud604 \uc911", "\ubc30\ud3ec \ud30c\uc77c \uac80\ud1a0 \uc911", "\uc790\ub8cc \uc694\uccad \uc911", "\uacb0\uacfc \ub300\uae30 \uc911",
-        "\ubcf4\ub958 \uc911", "\uc601\uc5c5\ubcf8\ubd80 \uac80\ud1a0\uc911"
+        "할 일", "이슈 리뷰 중", "연구소 대기 중", "연구소 검토 중",
+        "구현 중", "배포 파일 검토 중", "자료 요청 중", "결과 대기 중",
+        "보류 중", "영업본부 검토중"
     ]
-    closed_statuses: list[str] = ["Closed", "\ubc18\ub824\ub428", "\uc911\ubcf5 \uc774\uc288", "\ucde8\uc18c\ub428"]
+    closed_statuses: list[str] = ["Closed", "반려됨", "중복 이슈", "취소됨"]
 
     login: bool = False
     admin_username: str = "admin"
@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "please-set-JWT_SECRET-in-env"
     jwt_access_expire_minutes: int = 30
     jwt_refresh_expire_days: int = 7
+    storage_dir: str = "/app/storage"
 
     @property
     def year_start(self) -> int:
@@ -49,16 +50,12 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         return f"postgresql+asyncpg://{self.db_user}:{self.db_password}@{self.db_host}/{self.db_name}"
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        populate_by_name = True
-        fields = {
-            "login": {"env": "LOGIN"},
-            "admin_username": {"env": "Admin"},
-            "admin_password": {"env": "Admin_PASSWORD"},
-            "jwt_secret": {"env": "JWT_SECRET"},
-        }
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "populate_by_name": True,
+        "env_prefix": "",
+    }
 
 
 @lru_cache

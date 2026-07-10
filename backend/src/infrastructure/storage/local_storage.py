@@ -3,16 +3,15 @@ import mimetypes
 import os
 import shutil
 from datetime import datetime, timezone
+from functools import lru_cache
 
 from src.domain.ports.storage_port import StorageEntry, StoragePort
 from src.infrastructure.config.settings import get_settings
 
 
 class LocalStorageAdapter(StoragePort):
-    def __init__(self) -> None:
-        self._base = os.path.realpath(
-            os.environ.get("STORAGE_DIR", get_settings().__dict__.get("storage_dir", "/app/storage"))
-        )
+    def __init__(self, base_dir: str) -> None:
+        self._base = os.path.realpath(base_dir)
         os.makedirs(self._base, exist_ok=True)
 
     def _resolve(self, folder: str, name: str = "") -> str:
@@ -70,8 +69,7 @@ class LocalStorageAdapter(StoragePort):
 
     def file_exists(self, folder: str, name: str) -> bool:
         try:
-            path = self._resolve(folder, name)
-            return os.path.isfile(path)
+            return os.path.isfile(self._resolve(folder, name))
         except ValueError:
             return False
 
@@ -85,3 +83,8 @@ class LocalStorageAdapter(StoragePort):
         path = self._resolve(folder, name)
         mime, _ = mimetypes.guess_type(path)
         return mime or "application/octet-stream"
+
+
+@lru_cache
+def get_local_storage_adapter() -> LocalStorageAdapter:
+    return LocalStorageAdapter(get_settings().storage_dir)
