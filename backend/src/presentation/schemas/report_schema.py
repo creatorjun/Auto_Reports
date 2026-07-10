@@ -1,10 +1,10 @@
 # backend/src/presentation/schemas/report_schema.py
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel
 
-from src.domain.entities.job import JobStatus
+JobStatusLiteral = Literal["pending", "running", "done", "error"]
 
 
 class AiAnalysisSchema(BaseModel):
@@ -52,6 +52,6 @@ class TriggerAcceptedSchema(BaseModel):
 
 class JobStatusSchema(BaseModel):
     job_id: str
-    status: JobStatus
+    status: JobStatusLiteral
     report_id: Optional[int] = None
     error: Optional[str] = None

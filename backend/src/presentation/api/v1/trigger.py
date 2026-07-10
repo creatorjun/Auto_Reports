@@ -75,7 +75,7 @@ async def get_job_status(
         raise HTTPException(status_code=404, detail="존재하지 않는 job_id입니다.")
     return JobStatusSchema(
         job_id=record.job_id,
-        status=record.status,
+        status=record.status.value,
         report_id=record.report_id,
         error=record.error,
     )
