@@ -6,9 +6,6 @@ import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github.css'
 import { storageApi } from '@/infrastructure/api/storageApi'
 
-const PDFJS_VERSION = '4.4.168'
-const PDFJS_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}`
-
 type PreviewType =
   | 'image' | 'video' | 'pdf'
   | 'text' | 'markdown' | 'csv' | 'json'
@@ -54,7 +51,16 @@ let _pdfjsLib: any = null
 async function getPdfjsLib() {
   if (_pdfjsLib) return _pdfjsLib
   const lib = await import('pdfjs-dist')
-  lib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/build/pdf.worker.min.mjs`
+  const version: string = (lib as any).version ?? lib.GlobalWorkerOptions.workerSrc ?? ''
+  if (version) {
+    lib.GlobalWorkerOptions.workerSrc =
+      `https://cdn.jsdelivr.net/npm/pdfjs-dist@${version}/build/pdf.worker.min.mjs`
+  } else {
+    lib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url,
+    ).href
+  }
   _pdfjsLib = lib
   return lib
 }
@@ -78,9 +84,13 @@ function PdfViewer({ url }: { url: string }) {
     const load = async () => {
       try {
         const pdfjsLib = await getPdfjsLib()
+        const version: string = (pdfjsLib as any).version ?? ''
+        const cMapUrl = version
+          ? `https://cdn.jsdelivr.net/npm/pdfjs-dist@${version}/cmaps/`
+          : 'https://cdn.jsdelivr.net/npm/pdfjs-dist/cmaps/'
         const loadingTask = pdfjsLib.getDocument({
           url,
-          cMapUrl: `${PDFJS_CDN}/cmaps/`,
+          cMapUrl,
           cMapPacked: true,
           withCredentials: false,
         })
@@ -91,28 +101,21 @@ function PdfViewer({ url }: { url: string }) {
         setCurrentPage(1)
         setLoading(false)
       } catch (e: any) {
-        if (!cancelled) {
-          const msg = e?.message ?? String(e)
-          setError(`PDF 로드 실패: ${msg}`)
-        }
+        if (!cancelled) setError(`PDF 로드 실패: ${e?.message ?? String(e)}`)
       }
     }
     load()
     return () => {
       cancelled = true
-      if (renderTaskRef.current) {
-        renderTaskRef.current.cancel()
-        renderTaskRef.current = null
-      }
+      renderTaskRef.current?.cancel()
+      renderTaskRef.current = null
     }
   }, [url])
 
   const renderPage = useCallback(async (pageNum: number) => {
     if (!pdfRef.current || !canvasRef.current) return
-    if (renderTaskRef.current) {
-      renderTaskRef.current.cancel()
-      renderTaskRef.current = null
-    }
+    renderTaskRef.current?.cancel()
+    renderTaskRef.current = null
     try {
       const page = await pdfRef.current.getPage(pageNum)
       const container = containerRef.current
@@ -159,19 +162,13 @@ function PdfViewer({ url }: { url: string }) {
       </div>
       {!loading && totalPages > 1 && (
         <div className="flex items-center justify-center gap-4 py-2 border-t border-apple-divider/60 bg-white flex-shrink-0">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage <= 1}
-            className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors"
-          >
+          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1}
+            className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors">
             ← 이전
           </button>
           <span className="text-[12px] text-apple-light">{currentPage} / {totalPages}</span>
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage >= totalPages}
-            className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors"
-          >
+          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}
+            className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors">
             다음 →
           </button>
         </div>
@@ -245,9 +242,7 @@ function TextPreview({ url }: { url: string }) {
   if (content === null) return <LoadingSpinnerSmall />
   return (
     <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
-      <pre className="text-[12px] leading-relaxed text-white/90 whitespace-pre-wrap break-all font-mono p-8 w-full max-w-4xl">
-        {content}
-      </pre>
+      <pre className="text-[12px] leading-relaxed text-white/90 whitespace-pre-wrap break-all font-mono p-8 w-full max-w-4xl">{content}</pre>
     </div>
   )
 }
@@ -289,16 +284,8 @@ function CsvPreview({ url }: { url: string }) {
     <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
       <div className="p-6 w-full max-w-6xl">
         <table className="text-[12px] border-collapse w-full bg-white rounded-xl overflow-hidden shadow-2xl">
-          <thead>
-            <tr>{rows[0]?.map((h, i) => <th key={i} className="border border-apple-divider px-3 py-1.5 bg-apple-gray text-apple-dark font-semibold text-left whitespace-nowrap">{h}</th>)}</tr>
-          </thead>
-          <tbody>
-            {rows.slice(1).map((row, i) => (
-              <tr key={i} className="even:bg-apple-gray/40">
-                {row.map((cell, j) => <td key={j} className="border border-apple-divider/60 px-3 py-1 text-apple-dark whitespace-nowrap">{cell}</td>)}
-              </tr>
-            ))}
-          </tbody>
+          <thead><tr>{rows[0]?.map((h,i)=><th key={i} className="border border-apple-divider px-3 py-1.5 bg-apple-gray text-apple-dark font-semibold text-left whitespace-nowrap">{h}</th>)}</tr></thead>
+          <tbody>{rows.slice(1).map((row,i)=><tr key={i} className="even:bg-apple-gray/40">{row.map((cell,j)=><td key={j} className="border border-apple-divider/60 px-3 py-1 text-apple-dark whitespace-nowrap">{cell}</td>)}</tr>)}</tbody>
         </table>
       </div>
     </div>
@@ -316,11 +303,7 @@ function XlsxPreview({ url }: { url: string }) {
       setHtml(XLSX.utils.sheet_to_html(ws, { header: '', footer: '' }))
     }).catch(() => setError(true))
   }, [url])
-  if (error) return (
-    <div className="flex items-center justify-center h-full bg-black/60">
-      <p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p>
-    </div>
-  )
+  if (error) return <div className="flex items-center justify-center h-full bg-black/60"><p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p></div>
   if (html === null) return <LoadingSpinnerSmall />
   return (
     <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
@@ -343,11 +326,7 @@ function DocxPreview({ url }: { url: string }) {
       setHtml(result.value)
     }).catch(() => setError(true))
   }, [url])
-  if (error) return (
-    <div className="flex items-center justify-center h-full bg-black/60">
-      <p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p>
-    </div>
-  )
+  if (error) return <div className="flex items-center justify-center h-full bg-black/60"><p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p></div>
   if (html === null) return <LoadingSpinnerSmall />
   return (
     <div className="overflow-auto h-full bg-black/60">
@@ -372,7 +351,7 @@ function ArchivePreview({ name, folder }: { name: string; folder: string }) {
 }
 
 interface Props {
-  name: str
+  name: string
   folder: string
   onClose: () => void
 }
