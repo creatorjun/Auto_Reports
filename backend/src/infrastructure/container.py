@@ -1,6 +1,5 @@
 # backend/src/infrastructure/container.py
 import logging
-from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +35,7 @@ class Container:
             sla_initial_response_field_id=settings.sla_initial_response_field_id,
             sla_resolution_field_id=settings.sla_resolution_field_id,
             jira_tac_assignee_field_id=settings.jira_tac_assignee_field_id,
-            jira_qa_assignee_field_id=settings.jira_tac_assignee_field_id,
+            jira_qa_assignee_field_id=settings.jira_qa_assignee_field_id,
         )
         self._ai: AiPort | None = GeminiClient(settings.gemini_api_key) if settings.ai_enabled else None
         self._query_config = QueryConfig(
@@ -49,9 +48,12 @@ class Container:
         )
         self._report_cache: LruCache = LruCache(maxsize=50, ttl_seconds=600.0)
 
+    def jira_port(self) -> JiraPort:
+        return self._jira
+
     async def aclose(self) -> None:
         await self._jira.aclose()
-        logger.info("JiraClient 커넥션 풀 종료")
+        logger.info("JiraClient 컨넥션 풀 종료")
 
     def generate_report_use_case(self, session: AsyncSession) -> GenerateReportUseCase:
         repo = ReportRepositoryImpl(session)
