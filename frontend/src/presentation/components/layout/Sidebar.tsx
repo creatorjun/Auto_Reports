@@ -74,8 +74,6 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
   const { loginRequired, username } = useAuthStore()
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
 
-  const logoutLabel = username ? `${username} Logout` : 'Logout'
-
   return (
     <aside
       className={[
@@ -117,34 +115,38 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
         ))}
       </div>
 
-      <div className={['mt-auto pt-4 border-t border-apple-divider/60 flex flex-col gap-2', collapsed ? 'items-center' : ''].join(' ')}>
+      <div className={['mt-auto pt-4 border-t border-apple-divider/60 flex flex-col', collapsed ? 'items-center' : ''].join(' ')}>
         <TriggerButton collapsed={collapsed} />
 
         {loginRequired && (
-          collapsed ? (
-            <button
-              onClick={() => logout()}
-              disabled={isLoggingOut}
-              title={logoutLabel}
-              className="flex items-center justify-center w-8 h-8 rounded-xl
-                         text-apple-light hover:text-red-500 hover:bg-red-50
-                         transition-colors disabled:opacity-40"
-            >
-              <LogoutIcon />
-            </button>
-          ) : (
-            <button
-              onClick={() => logout()}
-              disabled={isLoggingOut}
-              className="flex items-center gap-2 w-full px-3 py-2 rounded-xl
-                         text-[12px] font-medium
-                         text-apple-light hover:text-red-500 hover:bg-red-50
-                         transition-colors disabled:opacity-40"
-            >
-              <span className="flex-shrink-0"><LogoutIcon /></span>
-              <span className="truncate">{logoutLabel}</span>
-            </button>
-          )
+          <>
+            <div className="w-full border-t border-apple-divider/50 my-2" />
+
+            {collapsed ? (
+              <button
+                onClick={() => logout()}
+                disabled={isLoggingOut}
+                title={username ? `${username} · LOGOUT` : 'LOGOUT'}
+                className="flex items-center justify-center w-8 h-8 rounded-xl
+                           text-apple-light hover:text-red-500 hover:bg-red-50
+                           transition-colors disabled:opacity-40"
+              >
+                <LogoutIcon />
+              </button>
+            ) : (
+              <button
+                onClick={() => logout()}
+                disabled={isLoggingOut}
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-xl
+                           text-[12px] font-medium tracking-wide
+                           text-apple-light hover:text-red-500 hover:bg-red-50
+                           transition-colors disabled:opacity-40"
+              >
+                <span className="flex-shrink-0"><LogoutIcon /></span>
+                <span className="truncate">LOGOUT</span>
+              </button>
+            )}
+          </>
         )}
       </div>
     </aside>
