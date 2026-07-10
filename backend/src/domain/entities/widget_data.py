@@ -88,11 +88,21 @@ class ResolutionTypeWidgetData:
 
 
 @dataclass
+class SlaViolationIssueDetail:
+    key: str
+    summary: str
+    type: str
+    status: str
+    created: str
+
+
+@dataclass
 class SlaMetVsViolatedEntry:
     stage: str
     field_id: str
     count: int
     rate: float
+    issue_details: list[SlaViolationIssueDetail] = field(default_factory=list)
 
 
 @dataclass
