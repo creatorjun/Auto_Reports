@@ -1,7 +1,4 @@
 # backend/src/presentation/api/v1/storage.py
-import asyncio
-import os
-import tempfile
 import urllib.parse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
@@ -49,27 +46,6 @@ def _verify_preview_token(token: str | None) -> None:
         get_jwt_service().decode_access_token(token)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-
-async def _convert_to_pdf(src_path: str) -> bytes:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        proc = await asyncio.create_subprocess_exec(
-            "libreoffice", "--headless", "--norestore",
-            "--convert-to", "pdf",
-            "--outdir", tmpdir,
-            src_path,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
-        if proc.returncode != 0:
-            raise RuntimeError(f"LibreOffice conversion failed: {stderr.decode()}")
-        base = os.path.splitext(os.path.basename(src_path))[0]
-        pdf_path = os.path.join(tmpdir, base + ".pdf")
-        if not os.path.exists(pdf_path):
-            raise RuntimeError("Converted PDF not found")
-        with open(pdf_path, "rb") as f:
-            return f.read()
 
 
 @router.get("/items", response_model=list[StorageFileInfo])
@@ -185,16 +161,13 @@ async def preview_converted(
 ):
     _verify_preview_token(_t)
     folder, name = _decode(folder), _decode(name)
-    ext = name.rsplit(".", 1)[-1].lower()
-    if ext not in ("pptx", "ppt", "odp"):
+    if not uc.is_convertible(name):
         raise HTTPException(status_code=400, detail="Unsupported format for conversion")
     try:
-        src_path = uc.get_file_path(folder, name)
-    except (FileNotFoundError, ValueError):
+        pdf_bytes = await uc.convert_to_pdf(folder, name)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="File not found")
-    try:
-        pdf_bytes = await _convert_to_pdf(src_path)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         raise HTTPException(status_code=504, detail="Conversion timed out")
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -237,7 +210,8 @@ async def delete_file(
     name: str = Query(...),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
-    folder, name = _decode(folder), _decode(name)
+    folder, name = _decode(folder)
+    name = _decode(name)
     try:
         uc.delete_file(folder, name)
     except (FileNotFoundError, ValueError):
