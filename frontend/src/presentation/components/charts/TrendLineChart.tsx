@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/charts/TrendLineChart.tsx
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 interface Props {
   created: number
@@ -12,16 +12,11 @@ export default function TrendLineChart({ created, resolved, onBarClick }: Props)
     { name: '이번 주', '생성': created, '해결': resolved },
   ]
 
-  const handleClick = (payload: { activeDataKey?: string }) => {
-    const key = payload?.activeDataKey
-    if (key === '생성' || key === '해결') onBarClick?.(key)
-  }
-
   return (
     <div className="card">
       <h3 className="text-sm font-semibold text-gray-700 mb-4">⚖️ 생성 vs 해결</h3>
       <ResponsiveContainer width="100%" height={360}>
-        <BarChart data={data} onClick={onBarClick ? handleClick : undefined}>
+        <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis dataKey="name" tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} />
@@ -43,12 +38,20 @@ export default function TrendLineChart({ created, resolved, onBarClick }: Props)
               </span>
             )}
           />
-          <Bar dataKey="생성" fill="#3b82f6" radius={[6, 6, 0, 0]} style={onBarClick ? { cursor: 'pointer' } : undefined}>
-            {data.map((_, i) => <Cell key={i} />)}
-          </Bar>
-          <Bar dataKey="해결" fill="#22c55e" radius={[6, 6, 0, 0]} style={onBarClick ? { cursor: 'pointer' } : undefined}>
-            {data.map((_, i) => <Cell key={i} />)}
-          </Bar>
+          <Bar
+            dataKey="생성"
+            fill="#3b82f6"
+            radius={[6, 6, 0, 0]}
+            style={onBarClick ? { cursor: 'pointer' } : undefined}
+            onClick={() => onBarClick?.('생성')}
+          />
+          <Bar
+            dataKey="해결"
+            fill="#22c55e"
+            radius={[6, 6, 0, 0]}
+            style={onBarClick ? { cursor: 'pointer' } : undefined}
+            onClick={() => onBarClick?.('해결')}
+          />
         </BarChart>
       </ResponsiveContainer>
       {onBarClick && (
