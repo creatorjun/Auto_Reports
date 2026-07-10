@@ -32,5 +32,17 @@ class GetReportUseCase:
             await self._cache.async_set_latest_id(report.id)
         return report
 
+    async def get_all(self, limit: int = 20, offset: int = 0) -> list[Report]:
+        return await self._repository.find_all(limit=limit, offset=offset)
+
     async def list_all(self) -> list[Report]:
         return await self._repository.find_all()
+
+    async def delete(self, report_id: int) -> bool:
+        deleted = await self._repository.delete(report_id)
+        if deleted:
+            await self._cache.async_delete(report_id)
+            latest_id = await self._cache.async_get_latest_id()
+            if latest_id == report_id:
+                await self._cache.async_set_latest_id(None)
+        return deleted

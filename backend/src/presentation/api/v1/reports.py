@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from src.application.mappers.report_mapper import ReportMapper
 from src.application.use_cases.get_report import GetReportUseCase
-from src.presentation.api.deps import get_get_use_case
+from src.presentation.api.v1.deps import get_get_use_case
 from src.presentation.schemas.report_schema import ReportDetailSchema, ReportSummarySchema
 
 router = APIRouter(prefix="/reports", tags=["reports"])
