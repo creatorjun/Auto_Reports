@@ -28,7 +28,7 @@ class FolderCreateRequest(BaseModel):
 def _resolve(folder: str, name: str = "") -> str:
     base = os.path.realpath(STORAGE_DIR)
     target = os.path.realpath(os.path.join(base, folder.lstrip("/"), name))
-    if not target.startswith(base):
+    if not target.startswith(base + os.sep) and target != base:
         raise HTTPException(status_code=400, detail="Invalid path")
     if name:
         basename = os.path.basename(target)
@@ -41,7 +41,7 @@ def _ensure_storage() -> None:
     os.makedirs(STORAGE_DIR, exist_ok=True)
 
 
-@router.get("/", response_model=list[StorageFileInfo])
+@router.get("/items", response_model=list[StorageFileInfo])
 async def list_items(folder: str = Query(default="")):
     _ensure_storage()
     dir_path = _resolve(folder)
@@ -70,14 +70,14 @@ async def create_folder(body: FolderCreateRequest):
 
 
 @router.delete("/folders")
-async def delete_folder(folder: str = Query(...), name: str = Query(...)):
+async def delete_folder(folder: str = Query(default=""), name: str = Query(...)):
     path = _resolve(folder, name)
     if not os.path.isdir(path):
         raise HTTPException(status_code=404, detail="Folder not found")
     shutil.rmtree(path)
 
 
-@router.post("/", response_model=StorageFileInfo, status_code=201)
+@router.post("/upload", response_model=StorageFileInfo, status_code=201)
 async def upload_file(file: UploadFile, folder: str = Query(default="")):
     _ensure_storage()
     dest = _resolve(folder, file.filename or "upload")
@@ -96,23 +96,19 @@ async def upload_file(file: UploadFile, folder: str = Query(default="")):
 
 @router.get("/download")
 async def download_file(folder: str = Query(default=""), name: str = Query(...)):
-    decoded_name = urllib.parse.unquote(name)
-    decoded_folder = urllib.parse.unquote(folder)
-    path = _resolve(decoded_folder, decoded_name)
+    path = _resolve(urllib.parse.unquote(folder), urllib.parse.unquote(name))
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(
         path=path,
-        filename=decoded_name,
+        filename=os.path.basename(path),
         media_type="application/octet-stream",
     )
 
 
-@router.delete("/file")
+@router.delete("/files")
 async def delete_file(folder: str = Query(default=""), name: str = Query(...)):
-    decoded_name = urllib.parse.unquote(name)
-    decoded_folder = urllib.parse.unquote(folder)
-    path = _resolve(decoded_folder, decoded_name)
+    path = _resolve(urllib.parse.unquote(folder), urllib.parse.unquote(name))
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="File not found")
     os.remove(path)

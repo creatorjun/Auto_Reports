@@ -16,7 +16,7 @@ storageClient.interceptors.response.use(
 
 export const storageApi = {
   list: async (folder = ''): Promise<StorageItem[]> => {
-    const res = await storageClient.get<StorageItem[]>('/storage/', { params: { folder } })
+    const res = await storageClient.get<StorageItem[]>('/storage/items', { params: { folder } })
     return res.data
   },
 
@@ -31,7 +31,7 @@ export const storageApi = {
   upload: async (file: File, folder = ''): Promise<StorageItem> => {
     const form = new FormData()
     form.append('file', file)
-    const res = await storageClient.post<StorageItem>('/storage/', form, { params: { folder } })
+    const res = await storageClient.post<StorageItem>('/storage/upload', form, { params: { folder } })
     return res.data
   },
 
@@ -41,6 +41,6 @@ export const storageApi = {
   },
 
   deleteFile: async (name: string, folder = ''): Promise<void> => {
-    await storageClient.delete('/storage/file', { params: { name, folder } })
+    await storageClient.delete('/storage/files', { params: { name, folder } })
   },
 }
