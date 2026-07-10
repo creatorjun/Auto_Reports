@@ -12,8 +12,6 @@ from src.shared.constants import KST
 
 logger = logging.getLogger(__name__)
 
-_LATEST_KEY = "__latest__"
-
 
 class GenerateReportUseCase:
     def __init__(
@@ -52,6 +50,6 @@ class GenerateReportUseCase:
         saved = await self._repository.save(report_with_analysis)
 
         self._cache.set(saved.id, saved)
-        self._cache.set(_LATEST_KEY, saved)
+        self._cache.set_latest_id(saved.id)
         logger.info(f"보고서 저장 완료 및 캐시 갱신: ID={saved.id}")
         return saved

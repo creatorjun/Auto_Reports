@@ -1,4 +1,5 @@
 # backend/src/infrastructure/external/jira_client.py
+import asyncio
 import logging
 from typing import Any
 
@@ -162,29 +163,12 @@ class JiraClient(JiraPort):
         return result
 
     async def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
-        results: list[dict[str, Any]] = []
-
         jira_url = f"{self._base_url}/rest/api/3/search/jql"
         jira_payload: dict[str, Any] = {
             "jql": f'text ~ "{query}" ORDER BY updated DESC',
             "maxResults": limit,
             "fields": ["summary", "status", "issuetype", "priority", "assignee"],
         }
-        try:
-            resp = await self._client.post(jira_url, json=jira_payload)
-            resp.raise_for_status()
-            for issue in resp.json().get("issues", []):
-                fields = issue.get("fields", {})
-                results.append({
-                    "type": "jira",
-                    "key": issue.get("key", ""),
-                    "title": fields.get("summary", ""),
-                    "status": (fields.get("status") or {}).get("name", ""),
-                    "issue_type": (fields.get("issuetype") or {}).get("name", ""),
-                    "url": f"{self._base_url}/browse/{issue.get('key', '')}",
-                })
-        except httpx.HTTPError as e:
-            logger.error(f"Jira 검색 실패: {e}")
 
         confluence_url = f"{self._base_url}/wiki/rest/api/content/search"
         confluence_params = {
@@ -192,21 +176,50 @@ class JiraClient(JiraPort):
             "limit": limit,
             "expand": "space",
         }
-        try:
-            resp = await self._client.get(confluence_url, params=confluence_params)
-            resp.raise_for_status()
-            for page in resp.json().get("results", []):
-                space_key = (page.get("space") or {}).get("key", "")
-                results.append({
-                    "type": "confluence",
-                    "key": page.get("id", ""),
-                    "title": page.get("title", ""),
-                    "status": (page.get("space") or {}).get("name", ""),
-                    "issue_type": page.get("type", "page"),
-                    "url": f"{self._base_url}/wiki/spaces/{space_key}/pages/{page.get('id', '')}",
-                })
-        except httpx.HTTPError as e:
-            logger.warning(f"Confluence 검색 실패 (옵션): {e}")
+
+        jira_task = self._client.post(jira_url, json=jira_payload)
+        confluence_task = self._client.get(confluence_url, params=confluence_params)
+        jira_resp, confluence_resp = await asyncio.gather(
+            jira_task, confluence_task, return_exceptions=True
+        )
+
+        results: list[dict[str, Any]] = []
+
+        if isinstance(jira_resp, httpx.Response):
+            try:
+                jira_resp.raise_for_status()
+                for issue in jira_resp.json().get("issues", []):
+                    fields = issue.get("fields", {})
+                    results.append({
+                        "type": "jira",
+                        "key": issue.get("key", ""),
+                        "title": fields.get("summary", ""),
+                        "status": (fields.get("status") or {}).get("name", ""),
+                        "issue_type": (fields.get("issuetype") or {}).get("name", ""),
+                        "url": f"{self._base_url}/browse/{issue.get('key', '')}",
+                    })
+            except httpx.HTTPError as e:
+                logger.error(f"Jira 검색 실패: {e}")
+        else:
+            logger.error(f"Jira 검색 실패: {jira_resp}")
+
+        if isinstance(confluence_resp, httpx.Response):
+            try:
+                confluence_resp.raise_for_status()
+                for page in confluence_resp.json().get("results", []):
+                    space_key = (page.get("space") or {}).get("key", "")
+                    results.append({
+                        "type": "confluence",
+                        "key": page.get("id", ""),
+                        "title": page.get("title", ""),
+                        "status": (page.get("space") or {}).get("name", ""),
+                        "issue_type": page.get("type", "page"),
+                        "url": f"{self._base_url}/wiki/spaces/{space_key}/pages/{page.get('id', '')}",
+                    })
+            except httpx.HTTPError as e:
+                logger.warning(f"Confluence 검색 실패 (옵션): {e}")
+        else:
+            logger.warning(f"Confluence 검색 실패 (옵션): {confluence_resp}")
 
         results.sort(key=lambda x: x["type"])
         return results[:limit]
