@@ -34,6 +34,22 @@ function getShareUrl(name: string, folder: string): string {
   return `${window.location.origin}/storage/preview?${p.toString()}`
 }
 
+async function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  const ok = document.execCommand('copy')
+  document.body.removeChild(textarea)
+  if (!ok) throw new Error('execCommand copy failed')
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -102,9 +118,13 @@ function CopyLinkButton({ name, folder }: { name: string; folder: string }) {
   const [copied, setCopied] = useState(false)
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    await navigator.clipboard.writeText(getShareUrl(name, folder))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await copyToClipboard(getShareUrl(name, folder))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      alert('링크 복사에 실패했습니다.\n' + getShareUrl(name, folder))
+    }
   }
   return (
     <button onClick={handleCopy}
@@ -121,9 +141,13 @@ function CopyLinkButtonMobile({ name, folder }: { name: string; folder: string }
   const [copied, setCopied] = useState(false)
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    await navigator.clipboard.writeText(getShareUrl(name, folder))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await copyToClipboard(getShareUrl(name, folder))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      alert('링크 복사에 실패했습니다.\n' + getShareUrl(name, folder))
+    }
   }
   return (
     <button onClick={handleCopy}
@@ -163,7 +187,7 @@ function DeleteConfirmModal({ target, isDir, onConfirm, onCancel, isPending }: {
         </p>
         <div className="flex gap-2">
           <button onClick={onCancel} disabled={isPending}
-            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50">취소</button>
+            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50">진소하기</button>
           <button onClick={onConfirm} disabled={isPending}
             className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
             {isPending && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" /></svg>}
@@ -198,7 +222,6 @@ function OverwriteConfirmModal({ duplicates, onConfirm, onCancel }: {
             <p className="text-[12px] text-apple-light mt-0.5">{dupNames.length}개 파일이 이미 존재합니다</p>
           </div>
         </div>
-
         <div className="mb-4 max-h-32 overflow-y-auto">
           {dupNames.map(name => (
             <div key={name} className="flex items-center gap-2 py-1">
@@ -215,11 +238,9 @@ function OverwriteConfirmModal({ duplicates, onConfirm, onCancel }: {
             </div>
           ))}
         </div>
-
         <p className="text-[12px] text-apple-light mb-5">
           기존 파일을 덮어쓰고 모두 업로드하거나, 신규 파일만 업로드할 수 있습니다.
         </p>
-
         <div className="flex gap-2">
           <button onClick={onCancel}
             className="flex-1 px-3 py-2 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">취소</button>
