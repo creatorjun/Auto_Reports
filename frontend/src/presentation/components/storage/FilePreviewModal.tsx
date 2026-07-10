@@ -1,5 +1,9 @@
 // frontend/src/presentation/components/storage/FilePreviewModal.tsx
 import { useEffect, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeHighlight from 'rehype-highlight'
+import 'highlight.js/styles/github.css'
 import { storageApi } from '@/infrastructure/api/storageApi'
 
 type PreviewType =
@@ -55,21 +59,22 @@ function TextPreview({ url }: { url: string }) {
 }
 
 function MarkdownPreview({ url }: { url: string }) {
-  const [html, setHtml] = useState<string | null>(null)
+  const [content, setContent] = useState<string | null>(null)
   useEffect(() => {
-    fetch(url)
-      .then(r => r.text())
-      .then(async (text) => {
-        const { marked } = await import('marked')
-        setHtml(marked.parse(text) as string)
-      })
+    fetch(url).then(r => r.text()).then(setContent)
   }, [url])
-  if (html === null) return <LoadingSpinnerSmall />
+  if (content === null) return <LoadingSpinnerSmall />
   return (
-    <div
-      className="prose prose-sm max-w-none p-8 overflow-auto h-full text-apple-dark"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <div className="overflow-auto h-full">
+      <div className="max-w-4xl mx-auto px-8 py-8 markdown-body">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    </div>
   )
 }
 
