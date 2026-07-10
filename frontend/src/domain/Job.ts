@@ -6,7 +6,7 @@ export interface TriggerAccepted {
 
 export interface JobStatus {
   job_id: string
-  status: 'running' | 'done' | 'error'
+  status: 'pending' | 'running' | 'done' | 'error'
   report_id: number | null
   error: string | null
 }

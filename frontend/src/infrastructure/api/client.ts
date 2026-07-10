@@ -54,7 +54,7 @@ client.interceptors.response.use(
         refreshQueue = []
         useAuthStore.getState().clearAuth()
         window.location.href = '/login'
-        return Promise.reject(err)
+        return new Promise(() => {})
       } finally {
         isRefreshing = false
       }
