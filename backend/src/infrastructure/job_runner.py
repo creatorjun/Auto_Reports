@@ -39,7 +39,7 @@ class JobRunner(JobRunnerPort):
         async with self._lock:
             if self._running_job_id is not None:
                 logger.warning(
-                    f"[job:{job_id}] 이미 실행 중인 job이 있어 건너뜁니다. "
+                    f"[job:{job_id}] 이미 실행 중인 job이 있어 건너맕니다. "
                     f"running={self._running_job_id}"
                 )
                 await self._repo.save(

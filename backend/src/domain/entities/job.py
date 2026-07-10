@@ -5,6 +5,7 @@ from typing import Optional
 
 
 class JobStatus(StrEnum):
+    PENDING = "pending"
     RUNNING = "running"
     DONE    = "done"
     ERROR   = "error"

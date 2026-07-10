@@ -6,9 +6,9 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from src.application.ports.job_runner_port import JobRunnerPort
+from src.domain.entities.job import JobRecord, JobStatus
 from src.presentation.api.deps import get_job_runner
 from src.presentation.schemas.report_schema import (
-    JobStatus,
     JobStatusSchema,
     TriggerAcceptedSchema,
     TriggerRequest,
@@ -46,6 +46,9 @@ async def trigger_report(
         )
 
     job_id = str(uuid.uuid4())
+
+    await job_runner.save_pending(job_id)
+
     ip = get_client_ip(request)
     _audit.audit(
         "REPORT_TRIGGER | ip=%s | job_id=%s | start=%s | end=%s",
