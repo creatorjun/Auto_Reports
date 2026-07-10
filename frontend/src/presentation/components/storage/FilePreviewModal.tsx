@@ -41,8 +41,8 @@ function CloseIcon() {
 
 function LoadingSpinnerSmall() {
   return (
-    <div className="flex items-center justify-center h-full">
-      <svg className="animate-spin w-8 h-8 text-brand-500" viewBox="0 0 24 24" fill="none">
+    <div className="flex items-center justify-center h-full bg-black/60">
+      <svg className="animate-spin w-8 h-8 text-white" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" />
       </svg>
     </div>
@@ -135,9 +135,7 @@ function PdfViewer({ url }: { url: string }) {
       await task.promise
       renderTaskRef.current = null
     } catch (e: any) {
-      if (e?.name !== 'RenderingCancelledException') {
-        console.error('PDF render error:', e)
-      }
+      if (e?.name !== 'RenderingCancelledException') console.error('PDF render error:', e)
     }
   }, [])
 
@@ -147,8 +145,8 @@ function PdfViewer({ url }: { url: string }) {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 h-full px-6">
-        <p className="text-[13px] text-apple-light text-center">{error}</p>
+      <div className="flex flex-col items-center justify-center gap-3 h-full bg-black/60 px-6">
+        <p className="text-[13px] text-white/70 text-center">{error}</p>
       </div>
     )
   }
@@ -156,8 +154,8 @@ function PdfViewer({ url }: { url: string }) {
   return (
     <div ref={containerRef} className="flex flex-col w-full h-full overflow-hidden">
       {loading && <LoadingSpinnerSmall />}
-      <div className="flex-1 overflow-auto flex justify-center bg-gray-100 p-4">
-        <canvas ref={canvasRef} className="shadow-md" style={{ display: loading ? 'none' : 'block' }} />
+      <div className="flex-1 overflow-auto flex justify-center bg-black/60 p-6">
+        <canvas ref={canvasRef} className="shadow-2xl rounded" style={{ display: loading ? 'none' : 'block' }} />
       </div>
       {!loading && totalPages > 1 && (
         <div className="flex items-center justify-center gap-4 py-2 border-t border-apple-divider/60 bg-white flex-shrink-0">
@@ -197,15 +195,8 @@ function PptxPreview({ name, folder }: { name: string; folder: string }) {
     let objUrl: string | null = null
 
     fetch(url)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.blob()
-      })
-      .then(blob => {
-        objUrl = URL.createObjectURL(blob)
-        setPdfUrl(objUrl)
-        setStatus('ready')
-      })
+      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.blob() })
+      .then(blob => { objUrl = URL.createObjectURL(blob); setPdfUrl(objUrl); setStatus('ready') })
       .catch((e) => { setErrMsg(e?.message ?? ''); setStatus('error') })
 
     return () => { if (objUrl) URL.revokeObjectURL(objUrl) }
@@ -213,24 +204,24 @@ function PptxPreview({ name, folder }: { name: string; folder: string }) {
 
   if (status === 'loading') {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 h-full">
-        <svg className="animate-spin w-8 h-8 text-brand-500" viewBox="0 0 24 24" fill="none">
+      <div className="flex flex-col items-center justify-center gap-3 h-full bg-black/60">
+        <svg className="animate-spin w-8 h-8 text-white" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" />
         </svg>
-        <p className="text-[13px] text-apple-light">PPTX → PDF 변환 중...</p>
+        <p className="text-[13px] text-white/70">PPTX → PDF 변환 중...</p>
       </div>
     )
   }
 
   if (status === 'error') {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 h-full px-6">
+      <div className="flex flex-col items-center justify-center gap-4 h-full bg-black/60 px-6">
         <div className="text-center">
-          <p className="text-[14px] font-medium text-apple-dark">변환 실패</p>
-          <p className="text-[12px] text-apple-light mt-1">{errMsg || '서버에서 PDF 변환에 실패했습니다.'}</p>
+          <p className="text-[14px] font-medium text-white">변환 실패</p>
+          <p className="text-[12px] text-white/60 mt-1">{errMsg || '서버에서 PDF 변환에 실패했습니다.'}</p>
         </div>
         <a href={storageApi.download(name, folder)} download={name}
-          className="px-4 py-2 rounded-xl text-[13px] font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors">
+          className="px-4 py-2 rounded-xl text-[13px] font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
           다운로드
         </a>
       </div>
@@ -253,8 +244,10 @@ function TextPreview({ url }: { url: string }) {
   }, [url])
   if (content === null) return <LoadingSpinnerSmall />
   return (
-    <div className="flex justify-center w-full h-full overflow-auto">
-      <pre className="text-[12px] leading-relaxed text-apple-dark whitespace-pre-wrap break-all font-mono p-8 w-full max-w-4xl">{content}</pre>
+    <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
+      <pre className="text-[12px] leading-relaxed text-white/90 whitespace-pre-wrap break-all font-mono p-8 w-full max-w-4xl">
+        {content}
+      </pre>
     </div>
   )
 }
@@ -272,8 +265,8 @@ function MarkdownPreview({ url }: { url: string }) {
   }, [url])
   if (content === null) return <LoadingSpinnerSmall />
   return (
-    <div className="overflow-auto h-full">
-      <div className="max-w-3xl mx-auto px-8 py-8 markdown-body">
+    <div className="overflow-auto h-full bg-black/60">
+      <div className="max-w-3xl mx-auto my-6 px-8 py-8 bg-white rounded-xl shadow-2xl markdown-body">
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{content}</ReactMarkdown>
       </div>
     </div>
@@ -293,11 +286,19 @@ function CsvPreview({ url }: { url: string }) {
   }, [url])
   if (rows === null) return <LoadingSpinnerSmall />
   return (
-    <div className="flex justify-center w-full h-full overflow-auto">
+    <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
       <div className="p-6 w-full max-w-6xl">
-        <table className="text-[12px] border-collapse w-full">
-          <thead><tr>{rows[0]?.map((h,i) => <th key={i} className="border border-apple-divider px-3 py-1.5 bg-apple-gray text-apple-dark font-semibold text-left whitespace-nowrap">{h}</th>)}</tr></thead>
-          <tbody>{rows.slice(1).map((row,i) => <tr key={i} className="even:bg-apple-gray/40">{row.map((cell,j) => <td key={j} className="border border-apple-divider/60 px-3 py-1 text-apple-dark whitespace-nowrap">{cell}</td>)}</tr>)}</tbody>
+        <table className="text-[12px] border-collapse w-full bg-white rounded-xl overflow-hidden shadow-2xl">
+          <thead>
+            <tr>{rows[0]?.map((h, i) => <th key={i} className="border border-apple-divider px-3 py-1.5 bg-apple-gray text-apple-dark font-semibold text-left whitespace-nowrap">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.slice(1).map((row, i) => (
+              <tr key={i} className="even:bg-apple-gray/40">
+                {row.map((cell, j) => <td key={j} className="border border-apple-divider/60 px-3 py-1 text-apple-dark whitespace-nowrap">{cell}</td>)}
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
     </div>
@@ -315,11 +316,19 @@ function XlsxPreview({ url }: { url: string }) {
       setHtml(XLSX.utils.sheet_to_html(ws, { header: '', footer: '' }))
     }).catch(() => setError(true))
   }, [url])
-  if (error) return <p className="text-center text-[13px] text-apple-light py-10">파일을 읽을 수 없습니다.</p>
+  if (error) return (
+    <div className="flex items-center justify-center h-full bg-black/60">
+      <p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p>
+    </div>
+  )
   if (html === null) return <LoadingSpinnerSmall />
   return (
-    <div className="flex justify-center w-full h-full overflow-auto">
-      <div className="p-6 w-full max-w-6xl xlsx-preview" dangerouslySetInnerHTML={{ __html: html }} />
+    <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
+      <div className="p-6 w-full max-w-6xl">
+        <div className="bg-white rounded-xl shadow-2xl overflow-auto">
+          <div className="p-4 xlsx-preview" dangerouslySetInnerHTML={{ __html: html }} />
+        </div>
+      </div>
     </div>
   )
 }
@@ -334,24 +343,28 @@ function DocxPreview({ url }: { url: string }) {
       setHtml(result.value)
     }).catch(() => setError(true))
   }, [url])
-  if (error) return <p className="text-center text-[13px] text-apple-light py-10">파일을 읽을 수 없습니다.</p>
+  if (error) return (
+    <div className="flex items-center justify-center h-full bg-black/60">
+      <p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p>
+    </div>
+  )
   if (html === null) return <LoadingSpinnerSmall />
   return (
-    <div className="overflow-auto h-full">
-      <div className="prose prose-sm max-w-3xl mx-auto px-8 py-8 text-apple-dark" dangerouslySetInnerHTML={{ __html: html }} />
+    <div className="overflow-auto h-full bg-black/60">
+      <div className="max-w-3xl mx-auto my-6 px-8 py-8 bg-white rounded-xl shadow-2xl prose prose-sm text-apple-dark" dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   )
 }
 
 function ArchivePreview({ name, folder }: { name: string; folder: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 h-full px-6">
+    <div className="flex flex-col items-center justify-center gap-4 h-full bg-black/60 px-6">
       <div className="text-center">
-        <p className="text-[15px] font-semibold text-apple-dark">{name}</p>
-        <p className="text-[12px] text-apple-light mt-1 leading-relaxed">압축 파일은 브라우저에서 직접 열 수 없습니다.<br />다운로드 후 압축을 해제하세요.</p>
+        <p className="text-[15px] font-semibold text-white">{name}</p>
+        <p className="text-[12px] text-white/60 mt-1 leading-relaxed">압축 파일은 브라우저에서 직접 열 수 없습니다.<br />다운로드 후 압축을 해제하세요.</p>
       </div>
       <a href={storageApi.download(name, folder)} download={name}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors">
+        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
         다운로드
       </a>
     </div>
@@ -359,7 +372,7 @@ function ArchivePreview({ name, folder }: { name: string; folder: string }) {
 }
 
 interface Props {
-  name: string
+  name: str
   folder: string
   onClose: () => void
 }
@@ -382,13 +395,13 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
     switch (type) {
       case 'image':
         return (
-          <div className="flex items-center justify-center w-full h-full p-6 bg-black/5">
-            <img src={url} alt={name} className="max-w-full max-h-full object-contain" style={{ width: 'auto', height: 'auto' }} />
+          <div className="flex items-center justify-center w-full h-full bg-black/60">
+            <img src={url} alt={name} className="max-w-full max-h-full object-contain shadow-2xl" style={{ width: 'auto', height: 'auto' }} />
           </div>
         )
       case 'video':
         return (
-          <div className="flex items-center justify-center w-full h-full bg-black">
+          <div className="flex items-center justify-center w-full h-full bg-black/80">
             <video src={url} controls autoPlay className="max-w-full max-h-full" style={{ width: 'auto', height: 'auto' }} />
           </div>
         )
@@ -403,10 +416,10 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
       case 'archive': return <ArchivePreview name={name} folder={folder} />
       default:
         return (
-          <div className="flex flex-col items-center justify-center gap-3 h-full">
-            <p className="text-[13px] text-apple-light">미리보기를 지원하지 않는 형식입니다.</p>
+          <div className="flex flex-col items-center justify-center gap-3 h-full bg-black/60">
+            <p className="text-[13px] text-white/60">미리보기를 지원하지 않는 형식입니다.</p>
             <a href={storageApi.download(name, folder)} download={name}
-              className="px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
+              className="px-4 py-2 rounded-xl text-[13px] font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
               다운로드
             </a>
           </div>
