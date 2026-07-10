@@ -12,6 +12,7 @@ from src.domain.entities.widget_data import (
     SimpleIssueWidgetData,
     SlaMetVsViolatedEntry,
     SlaMetVsViolatedWidgetData,
+    SlaViolationIssueDetail,
 )
 from src.domain.ports.jira_port import JiraPort
 from src.shared.constants import (
@@ -100,17 +101,6 @@ class BreakdownCollector(AbstractWidgetCollector):
 
 
 class SlaMetVsViolatedCollector(AbstractWidgetCollector):
-    """
-    w9: SLA 준수 vs 위반
-
-    위반 유형을 세 가지로 정확히 분리합니다:
-      1) 최초 응답 SLA만 위반
-      2) 해결 시간 SLA만 위반
-      3) 둘 다 위반 (복합)
-
-    total == sum(distribution counts) 를 항상 보장합니다.
-    """
-
     def __init__(
         self,
         jira: JiraPort,
@@ -133,22 +123,37 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
             jql, max_results=JIRA_MAX_RESULTS_LARGE, fields=fields_str
         )
 
-        only_initial = 0
-        only_resolution = 0
-        both = 0
+        only_initial_issues: list[SlaViolationIssueDetail] = []
+        only_resolution_issues: list[SlaViolationIssueDetail] = []
+        both_issues: list[SlaViolationIssueDetail] = []
 
         for issue in issues:
             fields = issue.get("fields") or {}
             initial_breached = self._is_sla_breached(fields.get(self._initial_fid))
             resolution_breached = self._is_sla_breached(fields.get(self._resolution_fid))
 
-            if initial_breached and resolution_breached:
-                both += 1
-            elif initial_breached:
-                only_initial += 1
-            elif resolution_breached:
-                only_resolution += 1
+            if not (initial_breached or resolution_breached):
+                continue
 
+            created_raw = fields.get("created") or ""
+            detail = SlaViolationIssueDetail(
+                key=issue.get("key", ""),
+                summary=(fields.get("summary") or "")[:SUMMARY_TRUNCATE_LEN],
+                type=(fields.get("issuetype") or {}).get("name", "기타"),
+                status=(fields.get("status") or {}).get("name", "기타"),
+                created=created_raw[:16].replace("T", " "),
+            )
+
+            if initial_breached and resolution_breached:
+                both_issues.append(detail)
+            elif initial_breached:
+                only_initial_issues.append(detail)
+            else:
+                only_resolution_issues.append(detail)
+
+        only_initial = len(only_initial_issues)
+        only_resolution = len(only_resolution_issues)
+        both = len(both_issues)
         total_violations = only_initial + only_resolution + both
 
         violation_distribution: list[SlaMetVsViolatedEntry] = []
@@ -160,6 +165,7 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
                         field_id=self._initial_fid,
                         count=only_initial,
                         rate=round(only_initial / total_violations * 100, 1),
+                        issue_details=only_initial_issues,
                     )
                 )
             if only_resolution > 0:
@@ -169,6 +175,7 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
                         field_id=self._resolution_fid,
                         count=only_resolution,
                         rate=round(only_resolution / total_violations * 100, 1),
+                        issue_details=only_resolution_issues,
                     )
                 )
             if both > 0:
@@ -178,12 +185,13 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
                         field_id="both",
                         count=both,
                         rate=round(both / total_violations * 100, 1),
+                        issue_details=both_issues,
                     )
                 )
 
         logger.info(
             f"[w9] 위반 {total_violations}건 "
-            f"(최초응답만 {only_initial}건 / 해결시ac04만 {only_resolution}건 / 둘다 {both}건)"
+            f"(최초응답만 {only_initial}건 / 해결시간만 {only_resolution}건 / 둘다 {both}건)"
         )
         return WidgetResult(
             name="SLA 준수 vs 위반",
