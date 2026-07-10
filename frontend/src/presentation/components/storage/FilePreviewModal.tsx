@@ -10,7 +10,7 @@ type PreviewType =
   | 'image' | 'video' | 'pdf'
   | 'text' | 'markdown' | 'csv' | 'json'
   | 'xlsx' | 'docx' | 'pptx'
-  | 'unsupported'
+  | 'archive' | 'unsupported'
 
 function detectType(name: string): PreviewType {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
@@ -24,6 +24,7 @@ function detectType(name: string): PreviewType {
   if (['xlsx','xls'].includes(ext)) return 'xlsx'
   if (['docx','doc'].includes(ext)) return 'docx'
   if (['pptx','ppt'].includes(ext)) return 'pptx'
+  if (['zip','tar','gz','tgz','bz2','xz','7z','rar','zst'].includes(ext)) return 'archive'
   return 'unsupported'
 }
 
@@ -52,9 +53,11 @@ function TextPreview({ url }: { url: string }) {
   }, [url])
   if (content === null) return <LoadingSpinnerSmall />
   return (
-    <pre className="text-[12px] leading-relaxed text-apple-dark whitespace-pre-wrap break-all font-mono p-6 overflow-auto h-full">
-      {content}
-    </pre>
+    <div className="flex justify-center w-full h-full overflow-auto">
+      <pre className="text-[12px] leading-relaxed text-apple-dark whitespace-pre-wrap break-all font-mono p-8 w-full max-w-4xl">
+        {content}
+      </pre>
+    </div>
   )
 }
 
@@ -66,7 +69,7 @@ function MarkdownPreview({ url }: { url: string }) {
   if (content === null) return <LoadingSpinnerSmall />
   return (
     <div className="overflow-auto h-full">
-      <div className="max-w-4xl mx-auto px-8 py-8 markdown-body">
+      <div className="max-w-3xl mx-auto px-8 py-8 markdown-body">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeHighlight]}
@@ -90,25 +93,27 @@ function CsvPreview({ url }: { url: string }) {
   }, [url])
   if (rows === null) return <LoadingSpinnerSmall />
   return (
-    <div className="overflow-auto h-full p-4">
-      <table className="text-[12px] border-collapse w-full">
-        <thead>
-          <tr>
-            {rows[0]?.map((h, i) => (
-              <th key={i} className="border border-apple-divider px-3 py-1.5 bg-apple-gray text-apple-dark font-semibold text-left whitespace-nowrap">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.slice(1).map((row, i) => (
-            <tr key={i} className="even:bg-apple-gray/40">
-              {row.map((cell, j) => (
-                <td key={j} className="border border-apple-divider/60 px-3 py-1 text-apple-dark whitespace-nowrap">{cell}</td>
+    <div className="flex justify-center w-full h-full overflow-auto">
+      <div className="p-6 w-full max-w-6xl">
+        <table className="text-[12px] border-collapse w-full">
+          <thead>
+            <tr>
+              {rows[0]?.map((h, i) => (
+                <th key={i} className="border border-apple-divider px-3 py-1.5 bg-apple-gray text-apple-dark font-semibold text-left whitespace-nowrap">{h}</th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.slice(1).map((row, i) => (
+              <tr key={i} className="even:bg-apple-gray/40">
+                {row.map((cell, j) => (
+                  <td key={j} className="border border-apple-divider/60 px-3 py-1 text-apple-dark whitespace-nowrap">{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -130,10 +135,12 @@ function XlsxPreview({ url }: { url: string }) {
   if (error) return <p className="text-center text-[13px] text-apple-light py-10">파일을 읽을 수 없습니다.</p>
   if (html === null) return <LoadingSpinnerSmall />
   return (
-    <div
-      className="overflow-auto h-full p-4 xlsx-preview"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <div className="flex justify-center w-full h-full overflow-auto">
+      <div
+        className="p-6 w-full max-w-6xl xlsx-preview"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
   )
 }
 
@@ -153,10 +160,43 @@ function DocxPreview({ url }: { url: string }) {
   if (error) return <p className="text-center text-[13px] text-apple-light py-10">파일을 읽을 수 없습니다.</p>
   if (html === null) return <LoadingSpinnerSmall />
   return (
-    <div
-      className="prose prose-sm max-w-none p-8 overflow-auto h-full text-apple-dark"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <div className="overflow-auto h-full">
+      <div
+        className="prose prose-sm max-w-3xl mx-auto px-8 py-8 text-apple-dark"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
+  )
+}
+
+function ArchivePreview({ name, folder }: { name: string; folder: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 h-full px-6">
+      <svg width="52" height="52" viewBox="0 0 52 52" fill="none" className="text-amber-500">
+        <rect x="4" y="4" width="44" height="44" rx="10" fill="currentColor" opacity="0.1" />
+        <path d="M20 10h12v6h-12zM20 16h12v6h-12zM20 22h12v6h-12z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M14 10h6v32H14a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2zM38 10h-6v32h6a2 2 0 0 0 2-2V12a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <circle cx="26" cy="30" r="3" stroke="currentColor" strokeWidth="2" />
+      </svg>
+      <div className="text-center">
+        <p className="text-[15px] font-semibold text-apple-dark">{name}</p>
+        <p className="text-[12px] text-apple-light mt-1 leading-relaxed">
+          압축 파일은 브라우저에서 직접 열 수 없습니다.<br />
+          다운로드 후 압축을 해제하세요.
+        </p>
+      </div>
+      <a
+        href={storageApi.download(name, folder)}
+        download={name}
+        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 2v7M4 6.5l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M2 10.5v1a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+        다운로드
+      </a>
+    </div>
   )
 }
 
@@ -253,6 +293,8 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
         return <DocxPreview url={url} />
       case 'pptx':
         return <PptxPreview name={name} folder={folder} />
+      case 'archive':
+        return <ArchivePreview name={name} folder={folder} />
       default:
         return (
           <div className="flex flex-col items-center justify-center gap-3 h-full">
@@ -274,22 +316,24 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
       <div className="flex items-center justify-between px-5 py-3 border-b border-apple-divider/60 flex-shrink-0 bg-white">
         <div className="flex flex-col min-w-0 pr-4">
           <p className="text-[14px] font-semibold text-apple-dark truncate">{name}</p>
-          <p className="text-[11px] text-apple-light capitalize">{type === 'unsupported' ? '미지원 형식' : type.toUpperCase()}</p>
+          <p className="text-[11px] text-apple-light capitalize">
+            {type === 'unsupported' ? '미지원 형식'
+              : type === 'archive' ? '압축 파일'
+              : type.toUpperCase()}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {type !== 'unsupported' && type !== 'pptx' && (
-            <a
-              href={storageApi.download(name, folder)}
-              download={name}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors"
-            >
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M7 2v7M4 6.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M2 10.5v1a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-              다운로드
-            </a>
-          )}
+          <a
+            href={storageApi.download(name, folder)}
+            download={name}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <path d="M7 2v7M4 6.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2 10.5v1a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            다운로드
+          </a>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-xl flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors"

@@ -313,9 +313,16 @@ export default function StoragePage() {
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     setIsDragging(false)
     handleFiles(e.dataTransfer.files)
   }, [handleFiles])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }, [])
 
   const handleEnterDir = (name: string) => {
     setFolder(joinPath(folder, name))
@@ -407,12 +414,19 @@ export default function StoragePage() {
         className={`card border-2 border-dashed transition-colors duration-200 cursor-pointer ${
           isDragging ? 'border-brand-400 bg-brand-50/40' : 'border-apple-divider hover:border-brand-300'
         }`}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-        onDragLeave={() => setIsDragging(false)}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragOver}
+        onDragLeave={(e) => { e.preventDefault(); setIsDragging(false) }}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
       >
-        <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
         <div className="flex flex-col items-center justify-center py-8 gap-3">
           {isUploading ? (
             <svg className="animate-spin w-7 h-7 text-brand-500" viewBox="0 0 24 24" fill="none">
@@ -428,7 +442,7 @@ export default function StoragePage() {
             <p className="text-[13px] font-medium text-apple-dark">
               {isUploading ? '업로드 중...' : '클릭하거나 파일을 드래그하세요'}
             </p>
-            <p className="text-[11px] text-apple-light mt-0.5">크기 및 확장자 제한 없음</p>
+            <p className="text-[11px] text-apple-light mt-0.5">zip, tar, gz 등 모든 형식 업로드 가능</p>
           </div>
         </div>
       </div>
