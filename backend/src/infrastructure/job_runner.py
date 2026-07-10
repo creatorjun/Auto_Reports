@@ -3,6 +3,7 @@ import logging
 import uuid
 from datetime import datetime
 
+from src.application.ports.job_runner_port import JobRunnerPort
 from src.domain.entities.job import JobRecord, JobStatus
 from src.domain.repositories.job_repository import JobRepository
 from src.infrastructure.container import Container
@@ -11,7 +12,7 @@ from src.infrastructure.persistence.database import AsyncSessionLocal
 logger = logging.getLogger(__name__)
 
 
-class JobRunner:
+class JobRunner(JobRunnerPort):
     def __init__(self, container: Container, job_repository: JobRepository):
         self._container = container
         self._repo = job_repository

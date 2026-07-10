@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
-from src.infrastructure.job_runner import JobRunner
+from src.application.ports.job_runner_port import JobRunnerPort
 from src.presentation.api.deps import get_job_runner
 from src.presentation.schemas.report_schema import (
     JobStatus,
@@ -23,7 +23,7 @@ KST = ZoneInfo("Asia/Seoul")
 async def trigger_report(
     body: TriggerRequest = TriggerRequest(),
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    job_runner: JobRunner = Depends(get_job_runner),
+    job_runner: JobRunnerPort = Depends(get_job_runner),
 ):
     start_dt: datetime | None = None
     end_dt: datetime | None = None
@@ -48,7 +48,7 @@ async def trigger_report(
 @router.get("/{job_id}/status", response_model=JobStatusSchema)
 async def get_job_status(
     job_id: str,
-    job_runner: JobRunner = Depends(get_job_runner),
+    job_runner: JobRunnerPort = Depends(get_job_runner),
 ):
     record = await job_runner.get_job_status(job_id)
     if record is None:
