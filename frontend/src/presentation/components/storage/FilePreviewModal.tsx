@@ -6,7 +6,8 @@ import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github.css'
 import { storageApi } from '@/infrastructure/api/storageApi'
 
-const PDFJS_CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168'
+const PDFJS_VERSION = '4.4.168'
+const PDFJS_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}`
 
 type PreviewType =
   | 'image' | 'video' | 'pdf'
@@ -48,6 +49,16 @@ function LoadingSpinnerSmall() {
   )
 }
 
+let _pdfjsLib: any = null
+
+async function getPdfjsLib() {
+  if (_pdfjsLib) return _pdfjsLib
+  const lib = await import('pdfjs-dist')
+  lib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/build/pdf.worker.min.mjs`
+  _pdfjsLib = lib
+  return lib
+}
+
 function PdfViewer({ url }: { url: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -56,38 +67,52 @@ function PdfViewer({ url }: { url: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const pdfRef = useRef<any>(null)
-  const renderingRef = useRef(false)
+  const renderTaskRef = useRef<any>(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
+    pdfRef.current = null
 
     const load = async () => {
       try {
-        const pdfjsLib = await import('pdfjs-dist')
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/build/pdf.worker.min.mjs`
-        const pdf = await pdfjsLib.getDocument({
+        const pdfjsLib = await getPdfjsLib()
+        const loadingTask = pdfjsLib.getDocument({
           url,
           cMapUrl: `${PDFJS_CDN}/cmaps/`,
           cMapPacked: true,
-        }).promise
-        if (cancelled) return
+          withCredentials: false,
+        })
+        const pdf = await loadingTask.promise
+        if (cancelled) { pdf.destroy(); return }
         pdfRef.current = pdf
         setTotalPages(pdf.numPages)
         setCurrentPage(1)
         setLoading(false)
-      } catch (e) {
-        if (!cancelled) setError('PDF를 불러올 수 없습니다.')
+      } catch (e: any) {
+        if (!cancelled) {
+          const msg = e?.message ?? String(e)
+          setError(`PDF 로드 실패: ${msg}`)
+        }
       }
     }
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel()
+        renderTaskRef.current = null
+      }
+    }
   }, [url])
 
   const renderPage = useCallback(async (pageNum: number) => {
-    if (!pdfRef.current || !canvasRef.current || renderingRef.current) return
-    renderingRef.current = true
+    if (!pdfRef.current || !canvasRef.current) return
+    if (renderTaskRef.current) {
+      renderTaskRef.current.cancel()
+      renderTaskRef.current = null
+    }
     try {
       const page = await pdfRef.current.getPage(pageNum)
       const container = containerRef.current
@@ -96,16 +121,23 @@ function PdfViewer({ url }: { url: string }) {
       const scale = Math.min(containerWidth / viewport.width, 2)
       const scaledViewport = page.getViewport({ scale })
       const canvas = canvasRef.current
+      if (!canvas) return
       const dpr = window.devicePixelRatio || 1
       canvas.width = scaledViewport.width * dpr
       canvas.height = scaledViewport.height * dpr
       canvas.style.width = `${scaledViewport.width}px`
       canvas.style.height = `${scaledViewport.height}px`
-      const ctx = canvas.getContext('2d')!
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
       ctx.scale(dpr, dpr)
-      await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise
-    } finally {
-      renderingRef.current = false
+      const task = page.render({ canvasContext: ctx, viewport: scaledViewport })
+      renderTaskRef.current = task
+      await task.promise
+      renderTaskRef.current = null
+    } catch (e: any) {
+      if (e?.name !== 'RenderingCancelledException') {
+        console.error('PDF render error:', e)
+      }
     }
   }, [])
 
@@ -115,8 +147,8 @@ function PdfViewer({ url }: { url: string }) {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 h-full">
-        <p className="text-[13px] text-apple-light">{error}</p>
+      <div className="flex flex-col items-center justify-center gap-3 h-full px-6">
+        <p className="text-[13px] text-apple-light text-center">{error}</p>
       </div>
     )
   }
@@ -125,7 +157,7 @@ function PdfViewer({ url }: { url: string }) {
     <div ref={containerRef} className="flex flex-col w-full h-full overflow-hidden">
       {loading && <LoadingSpinnerSmall />}
       <div className="flex-1 overflow-auto flex justify-center bg-gray-100 p-4">
-        <canvas ref={canvasRef} className="shadow-md" />
+        <canvas ref={canvasRef} className="shadow-md" style={{ display: loading ? 'none' : 'block' }} />
       </div>
       {!loading && totalPages > 1 && (
         <div className="flex items-center justify-center gap-4 py-2 border-t border-apple-divider/60 bg-white flex-shrink-0">
@@ -153,6 +185,7 @@ function PdfViewer({ url }: { url: string }) {
 function PptxPreview({ name, folder }: { name: string; folder: string }) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [errMsg, setErrMsg] = useState('')
 
   useEffect(() => {
     const p = new URLSearchParams({ name, ...(folder ? { folder } : {}) })
@@ -161,6 +194,7 @@ function PptxPreview({ name, folder }: { name: string; folder: string }) {
       : null
     if (token) p.set('_t', token)
     const url = `/api/v1/storage/preview-converted?${p.toString()}`
+    let objUrl: string | null = null
 
     fetch(url)
       .then(res => {
@@ -168,12 +202,13 @@ function PptxPreview({ name, folder }: { name: string; folder: string }) {
         return res.blob()
       })
       .then(blob => {
-        setPdfUrl(URL.createObjectURL(blob))
+        objUrl = URL.createObjectURL(blob)
+        setPdfUrl(objUrl)
         setStatus('ready')
       })
-      .catch(() => setStatus('error'))
+      .catch((e) => { setErrMsg(e?.message ?? ''); setStatus('error') })
 
-    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }
+    return () => { if (objUrl) URL.revokeObjectURL(objUrl) }
   }, [name, folder])
 
   if (status === 'loading') {
@@ -190,20 +225,12 @@ function PptxPreview({ name, folder }: { name: string; folder: string }) {
   if (status === 'error') {
     return (
       <div className="flex flex-col items-center justify-center gap-4 h-full px-6">
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="text-orange-400">
-          <rect x="4" y="4" width="40" height="40" rx="8" fill="currentColor" opacity="0.1" />
-          <path d="M14 14h12a6 6 0 0 1 0 12H14V14Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-          <path d="M14 26v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
         <div className="text-center">
           <p className="text-[14px] font-medium text-apple-dark">변환 실패</p>
-          <p className="text-[12px] text-apple-light mt-1">서버에서 PDF 변환에 실패했습니다.<br />다운로드 후 확인해 주세요.</p>
+          <p className="text-[12px] text-apple-light mt-1">{errMsg || '서버에서 PDF 변환에 실패했습니다.'}</p>
         </div>
-        <a
-          href={storageApi.download(name, folder)}
-          download={name}
-          className="px-4 py-2 rounded-xl text-[13px] font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors"
-        >
+        <a href={storageApi.download(name, folder)} download={name}
+          className="px-4 py-2 rounded-xl text-[13px] font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors">
           다운로드
         </a>
       </div>
@@ -216,22 +243,18 @@ function PptxPreview({ name, folder }: { name: string; folder: string }) {
 function TextPreview({ url }: { url: string }) {
   const [content, setContent] = useState<string | null>(null)
   useEffect(() => {
-    fetch(url)
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
-        let text = ''
-        try { text = tryDecode('utf-8') }
-        catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
-        setContent(text)
-      })
+    fetch(url).then(r => r.arrayBuffer()).then(buf => {
+      const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
+      let text = ''
+      try { text = tryDecode('utf-8') }
+      catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
+      setContent(text)
+    })
   }, [url])
   if (content === null) return <LoadingSpinnerSmall />
   return (
     <div className="flex justify-center w-full h-full overflow-auto">
-      <pre className="text-[12px] leading-relaxed text-apple-dark whitespace-pre-wrap break-all font-mono p-8 w-full max-w-4xl">
-        {content}
-      </pre>
+      <pre className="text-[12px] leading-relaxed text-apple-dark whitespace-pre-wrap break-all font-mono p-8 w-full max-w-4xl">{content}</pre>
     </div>
   )
 }
@@ -239,23 +262,19 @@ function TextPreview({ url }: { url: string }) {
 function MarkdownPreview({ url }: { url: string }) {
   const [content, setContent] = useState<string | null>(null)
   useEffect(() => {
-    fetch(url)
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
-        let text = ''
-        try { text = tryDecode('utf-8') }
-        catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
-        setContent(text)
-      })
+    fetch(url).then(r => r.arrayBuffer()).then(buf => {
+      const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
+      let text = ''
+      try { text = tryDecode('utf-8') }
+      catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
+      setContent(text)
+    })
   }, [url])
   if (content === null) return <LoadingSpinnerSmall />
   return (
     <div className="overflow-auto h-full">
       <div className="max-w-3xl mx-auto px-8 py-8 markdown-body">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-          {content}
-        </ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{content}</ReactMarkdown>
       </div>
     </div>
   )
@@ -264,38 +283,21 @@ function MarkdownPreview({ url }: { url: string }) {
 function CsvPreview({ url }: { url: string }) {
   const [rows, setRows] = useState<string[][] | null>(null)
   useEffect(() => {
-    fetch(url)
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
-        let text = ''
-        try { text = tryDecode('utf-8') }
-        catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
-        const lines = text.trim().split('\n')
-        setRows(lines.map(l => l.split(',')))
-      })
+    fetch(url).then(r => r.arrayBuffer()).then(buf => {
+      const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
+      let text = ''
+      try { text = tryDecode('utf-8') }
+      catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
+      setRows(text.trim().split('\n').map(l => l.split(',')))
+    })
   }, [url])
   if (rows === null) return <LoadingSpinnerSmall />
   return (
     <div className="flex justify-center w-full h-full overflow-auto">
       <div className="p-6 w-full max-w-6xl">
         <table className="text-[12px] border-collapse w-full">
-          <thead>
-            <tr>
-              {rows[0]?.map((h, i) => (
-                <th key={i} className="border border-apple-divider px-3 py-1.5 bg-apple-gray text-apple-dark font-semibold text-left whitespace-nowrap">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.slice(1).map((row, i) => (
-              <tr key={i} className="even:bg-apple-gray/40">
-                {row.map((cell, j) => (
-                  <td key={j} className="border border-apple-divider/60 px-3 py-1 text-apple-dark whitespace-nowrap">{cell}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
+          <thead><tr>{rows[0]?.map((h,i) => <th key={i} className="border border-apple-divider px-3 py-1.5 bg-apple-gray text-apple-dark font-semibold text-left whitespace-nowrap">{h}</th>)}</tr></thead>
+          <tbody>{rows.slice(1).map((row,i) => <tr key={i} className="even:bg-apple-gray/40">{row.map((cell,j) => <td key={j} className="border border-apple-divider/60 px-3 py-1 text-apple-dark whitespace-nowrap">{cell}</td>)}</tr>)}</tbody>
         </table>
       </div>
     </div>
@@ -306,15 +308,12 @@ function XlsxPreview({ url }: { url: string }) {
   const [html, setHtml] = useState<string | null>(null)
   const [error, setError] = useState(false)
   useEffect(() => {
-    fetch(url)
-      .then(r => r.arrayBuffer())
-      .then(async (buf) => {
-        const XLSX = await import('xlsx')
-        const wb = XLSX.read(buf, { type: 'array', codepage: 949 })
-        const ws = wb.Sheets[wb.SheetNames[0]]
-        setHtml(XLSX.utils.sheet_to_html(ws, { header: '', footer: '' }))
-      })
-      .catch(() => setError(true))
+    fetch(url).then(r => r.arrayBuffer()).then(async buf => {
+      const XLSX = await import('xlsx')
+      const wb = XLSX.read(buf, { type: 'array', codepage: 949 })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      setHtml(XLSX.utils.sheet_to_html(ws, { header: '', footer: '' }))
+    }).catch(() => setError(true))
   }, [url])
   if (error) return <p className="text-center text-[13px] text-apple-light py-10">파일을 읽을 수 없습니다.</p>
   if (html === null) return <LoadingSpinnerSmall />
@@ -329,14 +328,11 @@ function DocxPreview({ url }: { url: string }) {
   const [html, setHtml] = useState<string | null>(null)
   const [error, setError] = useState(false)
   useEffect(() => {
-    fetch(url)
-      .then(r => r.arrayBuffer())
-      .then(async (buf) => {
-        const mammoth = await import('mammoth')
-        const result = await mammoth.convertToHtml({ arrayBuffer: buf })
-        setHtml(result.value)
-      })
-      .catch(() => setError(true))
+    fetch(url).then(r => r.arrayBuffer()).then(async buf => {
+      const mammoth = await import('mammoth')
+      const result = await mammoth.convertToHtml({ arrayBuffer: buf })
+      setHtml(result.value)
+    }).catch(() => setError(true))
   }, [url])
   if (error) return <p className="text-center text-[13px] text-apple-light py-10">파일을 읽을 수 없습니다.</p>
   if (html === null) return <LoadingSpinnerSmall />
@@ -350,24 +346,12 @@ function DocxPreview({ url }: { url: string }) {
 function ArchivePreview({ name, folder }: { name: string; folder: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 h-full px-6">
-      <svg width="52" height="52" viewBox="0 0 52 52" fill="none" className="text-amber-500">
-        <rect x="4" y="4" width="44" height="44" rx="10" fill="currentColor" opacity="0.1" />
-        <path d="M20 10h12v6h-12zM20 16h12v6h-12zM20 22h12v6h-12z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        <path d="M14 10h6v32H14a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2zM38 10h-6v32h6a2 2 0 0 0 2-2V12a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-        <circle cx="26" cy="30" r="3" stroke="currentColor" strokeWidth="2" />
-      </svg>
       <div className="text-center">
         <p className="text-[15px] font-semibold text-apple-dark">{name}</p>
-        <p className="text-[12px] text-apple-light mt-1 leading-relaxed">
-          압축 파일은 브라우저에서 직접 열 수 없습니다.<br />
-          다운로드 후 압축을 해제하세요.
-        </p>
+        <p className="text-[12px] text-apple-light mt-1 leading-relaxed">압축 파일은 브라우저에서 직접 열 수 없습니다.<br />다운로드 후 압축을 해제하세요.</p>
       </div>
-      <a
-        href={storageApi.download(name, folder)}
-        download={name}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors"
-      >
+      <a href={storageApi.download(name, folder)} download={name}
+        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors">
         다운로드
       </a>
     </div>
@@ -408,28 +392,21 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
             <video src={url} controls autoPlay className="max-w-full max-h-full" style={{ width: 'auto', height: 'auto' }} />
           </div>
         )
-      case 'pdf':
-        return <PdfViewer url={url} />
+      case 'pdf': return <PdfViewer url={url} />
       case 'text':
-      case 'json':
-        return <TextPreview url={url} />
-      case 'markdown':
-        return <MarkdownPreview url={url} />
-      case 'csv':
-        return <CsvPreview url={url} />
-      case 'xlsx':
-        return <XlsxPreview url={url} />
-      case 'docx':
-        return <DocxPreview url={url} />
-      case 'pptx':
-        return <PptxPreview name={name} folder={folder} />
-      case 'archive':
-        return <ArchivePreview name={name} folder={folder} />
+      case 'json': return <TextPreview url={url} />
+      case 'markdown': return <MarkdownPreview url={url} />
+      case 'csv': return <CsvPreview url={url} />
+      case 'xlsx': return <XlsxPreview url={url} />
+      case 'docx': return <DocxPreview url={url} />
+      case 'pptx': return <PptxPreview name={name} folder={folder} />
+      case 'archive': return <ArchivePreview name={name} folder={folder} />
       default:
         return (
           <div className="flex flex-col items-center justify-center gap-3 h-full">
             <p className="text-[13px] text-apple-light">미리보기를 지원하지 않는 형식입니다.</p>
-            <a href={storageApi.download(name, folder)} download={name} className="px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
+            <a href={storageApi.download(name, folder)} download={name}
+              className="px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
               다운로드
             </a>
           </div>
@@ -450,21 +427,16 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <a
-            href={storageApi.download(name, folder)}
-            download={name}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors"
-          >
+          <a href={storageApi.download(name, folder)} download={name}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <path d="M7 2v7M4 6.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M2 10.5v1a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
             </svg>
             다운로드
           </a>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors"
-          >
+          <button onClick={onClose}
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors">
             <CloseIcon />
           </button>
         </div>
