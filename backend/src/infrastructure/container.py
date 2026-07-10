@@ -1,5 +1,4 @@
 # backend/src/infrastructure/container.py
-import asyncio
 import logging
 from functools import lru_cache
 from zoneinfo import ZoneInfo
@@ -49,7 +48,6 @@ class Container:
             year_start=settings.year_start,
         )
         self._report_cache: LruCache = LruCache(maxsize=50, ttl_seconds=600.0)
-        self._jira_query_cache: dict[str, tuple[list, float]] = {}
 
     async def aclose(self) -> None:
         await self._jira.aclose()

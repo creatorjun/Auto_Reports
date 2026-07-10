@@ -13,8 +13,8 @@ from src.application.scheduler.report_scheduler import create_scheduler
 from src.infrastructure.config.settings import get_settings
 from src.infrastructure.container import Container
 from src.infrastructure.job_runner import JobRunner
-from src.infrastructure.persistence.database import close_db, init_db
-from src.infrastructure.persistence.job_repository_impl import InMemoryJobRepository
+from src.infrastructure.persistence.database import AsyncSessionLocal, close_db, init_db
+from src.infrastructure.persistence.job_repository_impl import SqlJobRepository
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,8 +50,10 @@ async def lifespan(app: FastAPI):
     run_migrations()
 
     container = Container(settings)
-    job_repository = InMemoryJobRepository()
-    job_runner = JobRunner(container, job_repository)
+
+    async with AsyncSessionLocal() as session:
+        job_repository = SqlJobRepository(session)
+        job_runner = JobRunner(container, job_repository)
 
     app.state.container = container
     app.state.job_runner = job_runner
