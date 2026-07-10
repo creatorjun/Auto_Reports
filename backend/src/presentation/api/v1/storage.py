@@ -23,6 +23,10 @@ class FolderCreateRequest(BaseModel):
     folder: str = ""
 
 
+class FileExistsResponse(BaseModel):
+    exists: bool
+
+
 def _decode(value: str) -> str:
     return urllib.parse.unquote(value)
 
@@ -37,6 +41,17 @@ async def list_items(
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Folder not found")
     return [StorageFileInfo(**e.__dict__) for e in entries]
+
+
+@router.get("/check", response_model=FileExistsResponse)
+async def check_file_exists(
+    folder: str = Query(default=""),
+    name: str = Query(...),
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    folder, name = _decode(folder), _decode(name)
+    exists = uc.file_exists(folder, name)
+    return FileExistsResponse(exists=exists)
 
 
 @router.post("/folders", status_code=201)
@@ -71,11 +86,15 @@ async def delete_folder(
 async def upload_file(
     file: UploadFile,
     folder: str = Query(default=""),
+    overwrite: bool = Query(default=False),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
     data = await file.read()
+    filename = file.filename or "upload"
     try:
-        entry = uc.upload_file(folder, file.filename or "upload", data)
+        entry = uc.upload_file(folder, filename, data, overwrite=overwrite)
+    except FileExistsError:
+        raise HTTPException(status_code=409, detail="File already exists")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid path")
     return StorageFileInfo(**entry.__dict__)

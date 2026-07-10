@@ -15,9 +15,14 @@ class StorageUseCase:
     def delete_folder(self, folder: str, name: str) -> None:
         self._storage.delete_folder(folder, name)
 
-    def upload_file(self, folder: str, filename: str, data: bytes) -> StorageEntry:
+    def upload_file(self, folder: str, filename: str, data: bytes, overwrite: bool = False) -> StorageEntry:
         safe_name = filename.strip() or "upload"
+        if not overwrite and self._storage.file_exists(folder, safe_name):
+            raise FileExistsError(f"File already exists: {safe_name}")
         return self._storage.save_file(folder, safe_name, data)
+
+    def file_exists(self, folder: str, name: str) -> bool:
+        return self._storage.file_exists(folder, name)
 
     def get_file_path(self, folder: str, name: str) -> str:
         if not self._storage.file_exists(folder, name):

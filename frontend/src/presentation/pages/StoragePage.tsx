@@ -9,6 +9,7 @@ import {
   useDeleteStorageFile,
   useStorageItems,
   useUploadFiles,
+  type DuplicateFile,
 } from '@/infrastructure/hooks/useStorage'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import FilePreviewModal from '@/presentation/components/storage/FilePreviewModal'
@@ -136,11 +137,7 @@ function CopyLinkButtonMobile({ name, folder }: { name: string; folder: string }
 }
 
 function DeleteConfirmModal({ target, isDir, onConfirm, onCancel, isPending }: {
-  target: string
-  isDir: boolean
-  onConfirm: () => void
-  onCancel: () => void
-  isPending: boolean
+  target: string; isDir: boolean; onConfirm: () => void; onCancel: () => void; isPending: boolean
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -166,17 +163,75 @@ function DeleteConfirmModal({ target, isDir, onConfirm, onCancel, isPending }: {
         </p>
         <div className="flex gap-2">
           <button onClick={onCancel} disabled={isPending}
-            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50">
-            취소
-          </button>
+            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50">취소</button>
           <button onClick={onConfirm} disabled={isPending}
             className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
-            {isPending && (
-              <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" />
-              </svg>
-            )}
+            {isPending && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" /></svg>}
             삭제
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function OverwriteConfirmModal({ duplicates, onConfirm, onCancel }: {
+  duplicates: DuplicateFile[]
+  onConfirm: (overwriteAll: boolean) => void
+  onCancel: () => void
+}) {
+  const dupNames = duplicates.filter(d => d.exists).map(d => d.file.name)
+  const newFiles = duplicates.filter(d => !d.exists).map(d => d.file.name)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-[340px] md:w-[420px] mx-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M9 3.75v5.5M9 11.75v.5" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M7.273 2.5h3.454c.28 0 .537.15.674.393l4.925 8.625A.75.75 0 0 1 15.652 12.5H2.348a.75.75 0 0 1-.674-1.082l4.925-8.625A.75.75 0 0 1 7.273 2.5Z" stroke="#f59e0b" strokeWidth="1.4" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-[14px] font-semibold text-apple-dark">중복 파일 감지</p>
+            <p className="text-[12px] text-apple-light mt-0.5">{dupNames.length}개 파일이 이미 존재합니다</p>
+          </div>
+        </div>
+
+        <div className="mb-4 max-h-32 overflow-y-auto">
+          {dupNames.map(name => (
+            <div key={name} className="flex items-center gap-2 py-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+              <span className="text-[12px] text-apple-dark truncate">{name}</span>
+              <span className="text-[11px] text-amber-500 flex-shrink-0">덮어쓰기</span>
+            </div>
+          ))}
+          {newFiles.map(name => (
+            <div key={name} className="flex items-center gap-2 py-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+              <span className="text-[12px] text-apple-dark truncate">{name}</span>
+              <span className="text-[11px] text-green-500 flex-shrink-0">신규</span>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-[12px] text-apple-light mb-5">
+          기존 파일을 덮어쓰고 모두 업로드하거나, 신규 파일만 업로드할 수 있습니다.
+        </p>
+
+        <div className="flex gap-2">
+          <button onClick={onCancel}
+            className="flex-1 px-3 py-2 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">취소</button>
+          {newFiles.length > 0 && (
+            <button onClick={() => onConfirm(false)}
+              className="flex-1 px-3 py-2 rounded-xl text-[12px] font-medium bg-brand-50 hover:bg-brand-100 text-brand-700 transition-colors">
+              신규만 업로드
+            </button>
+          )}
+          <button onClick={() => onConfirm(true)}
+            className="flex-1 px-3 py-2 rounded-xl text-[12px] font-medium bg-amber-500 hover:bg-amber-600 text-white transition-colors">
+            모두 덮어쓰기
           </button>
         </div>
       </div>
@@ -225,12 +280,9 @@ function CreateFolderRowMobile({ onConfirm, onCancel }: { onConfirm: (name: stri
 }
 
 function ItemRow({ item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDir }: {
-  item: StorageItem
-  folder: string
-  onEnterDir: (name: string) => void
-  onPreview: (name: string) => void
-  onDeleteFile: (name: string) => void
-  onDeleteDir: (name: string) => void
+  item: StorageItem; folder: string
+  onEnterDir: (name: string) => void; onPreview: (name: string) => void
+  onDeleteFile: (name: string) => void; onDeleteDir: (name: string) => void
 }) {
   const formattedDate = format(new Date(item.uploaded_at), 'MM/dd HH:mm', { locale: ko })
   const canPreview = !item.is_dir && isPreviewable(item.name)
@@ -242,48 +294,22 @@ function ItemRow({ item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDi
             {item.is_dir ? <FolderIcon /> : <FileIcon />}
           </span>
           {item.is_dir ? (
-            <button onClick={() => onEnterDir(item.name)}
-              className="text-[13px] 3xl:text-[14px] font-medium text-brand-600 hover:text-brand-700 hover:underline transition-colors text-left break-all">
-              {item.name}
-            </button>
+            <button onClick={() => onEnterDir(item.name)} className="text-[13px] 3xl:text-[14px] font-medium text-brand-600 hover:text-brand-700 hover:underline transition-colors text-left break-all">{item.name}</button>
           ) : canPreview ? (
-            <button onClick={() => onPreview(item.name)}
-              className="text-[13px] 3xl:text-[14px] text-apple-dark hover:text-brand-600 hover:underline transition-colors text-left break-all">
-              {item.name}
-            </button>
+            <button onClick={() => onPreview(item.name)} className="text-[13px] 3xl:text-[14px] text-apple-dark hover:text-brand-600 hover:underline transition-colors text-left break-all">{item.name}</button>
           ) : (
             <span className="text-[13px] 3xl:text-[14px] text-apple-dark break-all">{item.name}</span>
           )}
         </div>
       </td>
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums whitespace-nowrap">
-        {item.is_dir ? '—' : formatBytes(item.size)}
-      </td>
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums whitespace-nowrap">
-        {formattedDate}
-      </td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums whitespace-nowrap">{item.is_dir ? '—' : formatBytes(item.size)}</td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums whitespace-nowrap">{formattedDate}</td>
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
         <div className="flex items-center justify-end gap-1.5">
-          {canPreview && (
-            <button onClick={() => onPreview(item.name)}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"
-              title="미리보기">
-              <EyeIcon />
-            </button>
-          )}
+          {canPreview && <button onClick={() => onPreview(item.name)} className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors" title="미리보기"><EyeIcon /></button>}
           {!item.is_dir && <CopyLinkButton name={item.name} folder={folder} />}
-          {!item.is_dir && (
-            <a href={storageApi.download(item.name, folder)} download={item.name}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"
-              title="다운로드">
-              <DownloadIcon />
-            </a>
-          )}
-          <button onClick={() => item.is_dir ? onDeleteDir(item.name) : onDeleteFile(item.name)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors"
-            title="삭제">
-            <TrashIcon />
-          </button>
+          {!item.is_dir && <a href={storageApi.download(item.name, folder)} download={item.name} className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors" title="다운로드"><DownloadIcon /></a>}
+          <button onClick={() => item.is_dir ? onDeleteDir(item.name) : onDeleteFile(item.name)} className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors" title="삭제"><TrashIcon /></button>
         </div>
       </td>
     </tr>
@@ -291,52 +317,33 @@ function ItemRow({ item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDi
 }
 
 function ItemRowMobile({ item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDir }: {
-  item: StorageItem
-  folder: string
-  onEnterDir: (name: string) => void
-  onPreview: (name: string) => void
-  onDeleteFile: (name: string) => void
-  onDeleteDir: (name: string) => void
+  item: StorageItem; folder: string
+  onEnterDir: (name: string) => void; onPreview: (name: string) => void
+  onDeleteFile: (name: string) => void; onDeleteDir: (name: string) => void
 }) {
   const formattedDate = format(new Date(item.uploaded_at), 'MM/dd HH:mm', { locale: ko })
   const canPreview = !item.is_dir && isPreviewable(item.name)
   return (
     <div className="flex items-center justify-between px-4 py-4 hover:bg-apple-gray/60 transition-colors">
       <div className="flex items-center gap-2 flex-1 min-w-0 pr-3">
-        <span className={`flex-shrink-0 ${item.is_dir ? 'text-brand-500' : 'text-apple-light'}`}>
-          {item.is_dir ? <FolderIcon /> : <FileIcon />}
-        </span>
+        <span className={`flex-shrink-0 ${item.is_dir ? 'text-brand-500' : 'text-apple-light'}`}>{item.is_dir ? <FolderIcon /> : <FileIcon />}</span>
         {item.is_dir ? (
           <button onClick={() => onEnterDir(item.name)} className="flex flex-col gap-0.5 min-w-0 text-left">
             <span className="text-[13px] font-medium text-brand-600 truncate">{item.name}</span>
             <span className="text-[11px] text-apple-light">{formattedDate}</span>
           </button>
         ) : (
-          <button onClick={() => canPreview ? onPreview(item.name) : undefined}
-            className={`flex flex-col gap-0.5 min-w-0 text-left ${canPreview ? 'cursor-pointer' : 'cursor-default'}`}>
+          <button onClick={() => canPreview ? onPreview(item.name) : undefined} className={`flex flex-col gap-0.5 min-w-0 text-left ${canPreview ? 'cursor-pointer' : 'cursor-default'}`}>
             <span className={`text-[13px] font-medium truncate ${canPreview ? 'text-apple-dark hover:text-brand-600' : 'text-apple-dark'}`}>{item.name}</span>
             <span className="text-[11px] text-apple-light">{formatBytes(item.size)} · {formattedDate}</span>
           </button>
         )}
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
-        {canPreview && (
-          <button onClick={() => onPreview(item.name)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors">
-            <EyeIcon />
-          </button>
-        )}
+        {canPreview && <button onClick={() => onPreview(item.name)} className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"><EyeIcon /></button>}
         {!item.is_dir && <CopyLinkButtonMobile name={item.name} folder={folder} />}
-        {!item.is_dir && (
-          <a href={storageApi.download(item.name, folder)} download={item.name}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors">
-            <DownloadIcon />
-          </a>
-        )}
-        <button onClick={() => item.is_dir ? onDeleteDir(item.name) : onDeleteFile(item.name)}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors">
-          <TrashIcon />
-        </button>
+        {!item.is_dir && <a href={storageApi.download(item.name, folder)} download={item.name} className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"><DownloadIcon /></a>}
+        <button onClick={() => item.is_dir ? onDeleteDir(item.name) : onDeleteFile(item.name)} className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors"><TrashIcon /></button>
       </div>
     </div>
   )
@@ -347,7 +354,7 @@ type ConfirmTarget = { name: string; isDir: boolean } | null
 export default function StoragePage() {
   const [folder, setFolder] = useState('')
   const { data, isLoading, isFetching } = useStorageItems(folder)
-  const { upload, isUploading, uploadingCount } = useUploadFiles(folder)
+  const { upload, checkDuplicates, isUploading, uploadingCount } = useUploadFiles(folder)
   const { mutate: createFolder, isPending: isCreating } = useCreateFolder(folder)
   const { mutate: deleteFolder, isPending: isDeletingDir } = useDeleteFolder(folder)
   const { mutate: deleteFile, isPending: isDeletingFile } = useDeleteStorageFile(folder)
@@ -356,25 +363,40 @@ export default function StoragePage() {
   const [previewTarget, setPreviewTarget] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [showNewFolder, setShowNewFolder] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState<DuplicateFile[] | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const breadcrumbs = folder ? folder.split('/') : []
 
-  const handleFiles = useCallback((files: FileList | null) => {
+  const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return
-    upload(files)
-  }, [upload])
+    const list = Array.from(files)
+    const checked = await checkDuplicates(list)
+    const hasDuplicates = checked.some(d => d.exists)
+    if (hasDuplicates) {
+      setPendingFiles(checked)
+    } else {
+      await upload(list, false)
+    }
+  }, [checkDuplicates, upload])
+
+  const handleOverwriteConfirm = useCallback(async (overwriteAll: boolean) => {
+    if (!pendingFiles) return
+    const toUpload = overwriteAll
+      ? pendingFiles.map(d => d.file)
+      : pendingFiles.filter(d => !d.exists).map(d => d.file)
+    setPendingFiles(null)
+    await upload(toUpload, overwriteAll)
+  }, [pendingFiles, upload])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     setIsDragging(false)
     handleFiles(e.dataTransfer.files)
   }, [handleFiles])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     setIsDragging(true)
   }, [])
 
@@ -409,18 +431,19 @@ export default function StoragePage() {
     <div className="space-y-4 md:space-y-5 3xl:space-y-7">
       {confirmTarget && (
         <DeleteConfirmModal
-          target={confirmTarget.name}
-          isDir={confirmTarget.isDir}
-          onConfirm={handleConfirmDelete}
-          onCancel={() => setConfirmTarget(null)}
+          target={confirmTarget.name} isDir={confirmTarget.isDir}
+          onConfirm={handleConfirmDelete} onCancel={() => setConfirmTarget(null)}
           isPending={isDeleting}
         />
       )}
       {previewTarget && (
-        <FilePreviewModal
-          name={previewTarget}
-          folder={folder}
-          onClose={() => setPreviewTarget(null)}
+        <FilePreviewModal name={previewTarget} folder={folder} onClose={() => setPreviewTarget(null)} />
+      )}
+      {pendingFiles && (
+        <OverwriteConfirmModal
+          duplicates={pendingFiles}
+          onConfirm={handleOverwriteConfirm}
+          onCancel={() => setPendingFiles(null)}
         />
       )}
 
@@ -434,9 +457,7 @@ export default function StoragePage() {
 
       <div className="flex items-center gap-1 flex-wrap">
         <button onClick={() => navigateTo(-1)}
-          className={`text-[13px] transition-colors ${
-            folder ? 'text-brand-600 hover:text-brand-700' : 'text-apple-dark font-medium cursor-default'
-          }`}>
+          className={`text-[13px] transition-colors ${folder ? 'text-brand-600 hover:text-brand-700' : 'text-apple-dark font-medium cursor-default'}`}>
           보관함
         </button>
         {breadcrumbs.map((seg, i) => (
@@ -445,20 +466,14 @@ export default function StoragePage() {
               <path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <button onClick={() => navigateTo(i)}
-              className={`text-[13px] transition-colors ${
-                i === breadcrumbs.length - 1
-                  ? 'text-apple-dark font-medium cursor-default'
-                  : 'text-brand-600 hover:text-brand-700'
-              }`}>
+              className={`text-[13px] transition-colors ${i === breadcrumbs.length - 1 ? 'text-apple-dark font-medium cursor-default' : 'text-brand-600 hover:text-brand-700'}`}>
               {seg}
             </button>
           </div>
         ))}
         <div className="ml-auto">
           <button onClick={() => setShowNewFolder(true)} disabled={showNewFolder || isCreating}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium
-                       bg-apple-gray hover:bg-apple-divider/40 text-apple-dark
-                       transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
               <path d="M0.75 3.75A.75.75 0 0 1 1.5 3h3.086a.75.75 0 0 1 .53.22l.664.664a.75.75 0 0 0 .53.22H11.5a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-.75.75h-10a.75.75 0 0 1-.75-.75V3.75Z" stroke="currentColor" strokeWidth="1.1" fill="currentColor" opacity="0.15" />
               <path d="M6.5 5.5v3M5 7h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
@@ -472,19 +487,13 @@ export default function StoragePage() {
         className={`card border-2 border-dashed transition-colors duration-200 cursor-pointer ${
           isDragging ? 'border-brand-400 bg-brand-50/40' : 'border-apple-divider hover:border-brand-300'
         }`}
-        onDragOver={handleDragOver}
-        onDragEnter={handleDragOver}
+        onDragOver={handleDragOver} onDragEnter={handleDragOver}
         onDragLeave={(e) => { e.preventDefault(); setIsDragging(false) }}
         onDrop={handleDrop}
         onClick={() => !isUploading && inputRef.current?.click()}
       >
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => { handleFiles(e.target.files); e.target.value = '' }}
-        />
+        <input ref={inputRef} type="file" multiple className="hidden"
+          onChange={(e) => { handleFiles(e.target.files); e.target.value = '' }} />
         <div className="flex flex-col items-center justify-center py-8 gap-3">
           {isUploading ? (
             <svg className="animate-spin w-7 h-7 text-brand-500" viewBox="0 0 24 24" fill="none">
@@ -521,12 +530,8 @@ export default function StoragePage() {
                 />
               )}
               {(data ?? []).map((item) => (
-                <ItemRow
-                  key={item.name}
-                  item={item}
-                  folder={folder}
-                  onEnterDir={handleEnterDir}
-                  onPreview={setPreviewTarget}
+                <ItemRow key={item.name} item={item} folder={folder}
+                  onEnterDir={handleEnterDir} onPreview={setPreviewTarget}
                   onDeleteFile={(name) => setConfirmTarget({ name, isDir: false })}
                   onDeleteDir={(name) => setConfirmTarget({ name, isDir: true })}
                 />
@@ -542,12 +547,8 @@ export default function StoragePage() {
             />
           )}
           {(data ?? []).map((item) => (
-            <ItemRowMobile
-              key={item.name}
-              item={item}
-              folder={folder}
-              onEnterDir={handleEnterDir}
-              onPreview={setPreviewTarget}
+            <ItemRowMobile key={item.name} item={item} folder={folder}
+              onEnterDir={handleEnterDir} onPreview={setPreviewTarget}
               onDeleteFile={(name) => setConfirmTarget({ name, isDir: false })}
               onDeleteDir={(name) => setConfirmTarget({ name, isDir: true })}
             />

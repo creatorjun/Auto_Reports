@@ -8,7 +8,8 @@ export const useStorageItems = (folder: string) =>
   useQuery<StorageItem[]>({
     queryKey: ['storage', folder],
     queryFn: () => storageApi.list(folder),
-    staleTime: 1000 * 30,
+    staleTime: 0,
+    refetchOnMount: true,
   })
 
 export const useCreateFolder = (folder: string) => {
@@ -34,27 +35,42 @@ export const useDeleteFolder = (folder: string) => {
 export const useUploadFile = (folder: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (file: File) => storageApi.upload(file, folder),
+    mutationFn: ({ file, overwrite }: { file: File; overwrite: boolean }) =>
+      storageApi.upload(file, folder, overwrite),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['storage', folder] })
     },
   })
 }
 
+export interface DuplicateFile {
+  file: File
+  exists: boolean
+}
+
 export const useUploadFiles = (folder: string) => {
   const queryClient = useQueryClient()
   const [uploadingCount, setUploadingCount] = useState(0)
 
-  const upload = useCallback(async (files: FileList | File[]) => {
-    const list = Array.from(files)
-    if (!list.length) return
-    setUploadingCount(list.length)
-    await Promise.allSettled(list.map(file => storageApi.upload(file, folder)))
+  const checkDuplicates = useCallback(async (files: File[]): Promise<DuplicateFile[]> => {
+    const results = await Promise.all(
+      files.map(async (file) => ({
+        file,
+        exists: await storageApi.checkExists(file.name, folder),
+      }))
+    )
+    return results
+  }, [folder])
+
+  const upload = useCallback(async (files: File[], overwrite = false) => {
+    if (!files.length) return
+    setUploadingCount(files.length)
+    await Promise.allSettled(files.map(file => storageApi.upload(file, folder, overwrite)))
     setUploadingCount(0)
     queryClient.invalidateQueries({ queryKey: ['storage', folder] })
   }, [folder, queryClient])
 
-  return { upload, isUploading: uploadingCount > 0, uploadingCount }
+  return { upload, checkDuplicates, isUploading: uploadingCount > 0, uploadingCount }
 }
 
 export const useDeleteStorageFile = (folder: string) => {

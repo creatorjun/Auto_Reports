@@ -8,6 +8,11 @@ export const storageApi = {
     return res.data
   },
 
+  checkExists: async (name: string, folder = ''): Promise<boolean> => {
+    const res = await client.get<{ exists: boolean }>('/storage/check', { params: { name, folder } })
+    return res.data.exists
+  },
+
   createFolder: async (name: string, folder = ''): Promise<void> => {
     await client.post('/storage/folders', { name, folder })
   },
@@ -16,11 +21,11 @@ export const storageApi = {
     await client.delete('/storage/folders', { params: { name, folder } })
   },
 
-  upload: async (file: File, folder = ''): Promise<StorageItem> => {
+  upload: async (file: File, folder = '', overwrite = false): Promise<StorageItem> => {
     const form = new FormData()
     form.append('file', file)
     const res = await client.post<StorageItem>('/storage/upload', form, {
-      params: { folder },
+      params: { folder, overwrite },
       headers: { 'Content-Type': undefined },
     })
     return res.data
