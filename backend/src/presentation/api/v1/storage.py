@@ -9,6 +9,8 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from src.application.use_cases.storage_use_case import StorageUseCase
+from src.infrastructure.config.settings import get_settings
+from src.infrastructure.security.jwt_service import get_jwt_service
 from src.presentation.api.v1.deps import get_storage_use_case
 
 router = APIRouter(prefix="/storage", tags=["storage"])
@@ -32,6 +34,18 @@ class FileExistsResponse(BaseModel):
 
 def _decode(value: str) -> str:
     return urllib.parse.unquote(value)
+
+
+def _verify_preview_token(token: str | None) -> None:
+    settings = get_settings()
+    if not settings.login:
+        return
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        get_jwt_service().decode_access_token(token)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
 async def _convert_to_pdf(src_path: str) -> bytes:
@@ -128,8 +142,10 @@ async def upload_file(
 async def preview_file(
     folder: str = Query(default=""),
     name: str = Query(...),
+    _t: str | None = Query(default=None),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
+    _verify_preview_token(_t)
     folder, name = _decode(folder), _decode(name)
     try:
         path = uc.get_file_path(folder, name)
@@ -152,8 +168,10 @@ async def preview_file(
 async def preview_converted(
     folder: str = Query(default=""),
     name: str = Query(...),
+    _t: str | None = Query(default=None),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
+    _verify_preview_token(_t)
     folder, name = _decode(folder), _decode(name)
     ext = name.rsplit(".", 1)[-1].lower()
     if ext not in ("pptx", "ppt", "odp"):
