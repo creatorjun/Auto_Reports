@@ -128,6 +128,11 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     return (slaViolationEntry.issue_details ?? []) as SlaViolationIssue[]
   }, [slaViolationEntry])
 
+  const handleTrendBarClick = (key: '생성' | '해결') => {
+    if (key === '생성') setShowWeeklyCreated(true)
+    else setShowWeeklyResolved(true)
+  }
+
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
@@ -188,7 +193,11 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           byStatusDetails={w10ByStatusDetails}
           onSliceClick={(status, issues) => setSlaDelayEntry({ status, issues })}
         />
-        <TrendLineChart created={w3Created} resolved={w3Resolved} />
+        <TrendLineChart
+          created={w3Created}
+          resolved={w3Resolved}
+          onBarClick={handleTrendBarClick}
+        />
         <TypeBarChart byType={w11ByType} />
       </div>
       <ResolutionTimeChart details={recentIssues} />
