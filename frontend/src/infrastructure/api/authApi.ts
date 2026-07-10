@@ -11,8 +11,13 @@ export interface MeResponse {
   login_required: boolean
 }
 
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
 export const authApi = {
-  login: async (username: string, password: string): Promise<TokenResponse> => {
+  login: async ({ username, password }: LoginRequest): Promise<TokenResponse> => {
     const res = await client.post<TokenResponse>('/auth/login', { username, password })
     return res.data
   },

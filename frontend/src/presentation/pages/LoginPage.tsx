@@ -1,85 +1,72 @@
 // frontend/src/presentation/pages/LoginPage.tsx
 import { useState } from 'react'
+import { Navigate } from 'react-router-dom'
 import { useLogin } from '@/infrastructure/hooks/useAuth'
+import { useAuthStore } from '@/app/store/authStore'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const { mutate: login, isPending, error } = useLogin()
+  const { mutate: login, isPending, isError } = useLogin()
+  const { accessToken } = useAuthStore()
+
+  if (accessToken) return <Navigate to="/" replace />
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!username.trim() || !password) return
-    login({ username: username.trim(), password })
+    login({ username, password })
   }
 
-  const isError = !!error
-
   return (
-    <div className="min-h-screen bg-apple-bg flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-brand-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L2 7v10l10 5 10-5V7L12 2Z" stroke="white" strokeWidth="1.6" strokeLinejoin="round" />
-              <path d="M12 22V12M2 7l10 5 10-5" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <div className="min-h-screen flex items-center justify-center bg-apple-bg">
+      <div className="bg-white rounded-2xl shadow-sm border border-apple-divider/60 p-8 w-full max-w-sm">
+        <div className="flex flex-col items-center gap-2 mb-8">
+          <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="1" width="5" height="5" rx="1.2" fill="white" />
+              <rect x="8" y="1" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
+              <rect x="1" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
+              <rect x="8" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.4" />
             </svg>
           </div>
-          <h1 className="text-[22px] font-semibold text-apple-dark tracking-tight">TAC Auto Reports</h1>
-          <p className="text-[13px] text-apple-light mt-1">로그인이 필요합니다</p>
+          <h1 className="text-[18px] font-bold text-apple-dark tracking-tight">TAC \ubcf4\uace0\uc11c</h1>
+          <p className="text-[12px] text-apple-light">\ub85c\uadf8\uc778\uc774 \ud544\uc694\ud569\ub2c8\ub2e4</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="card space-y-4">
-          <div className="space-y-1">
-            <label className="text-[12px] font-medium text-apple-light">아이디</label>
-            <input
-              type="text"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="admin"
-              className={`w-full px-3.5 py-2.5 rounded-xl text-[14px] border transition-colors
-                bg-white text-apple-dark placeholder:text-apple-light/50
-                focus:outline-none focus:ring-2 focus:ring-brand-400/50
-                ${isError ? 'border-red-300' : 'border-apple-divider'}`}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[12px] font-medium text-apple-light">비밀번호</label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className={`w-full px-3.5 py-2.5 rounded-xl text-[14px] border transition-colors
-                bg-white text-apple-dark placeholder:text-apple-light/50
-                focus:outline-none focus:ring-2 focus:ring-brand-400/50
-                ${isError ? 'border-red-300' : 'border-apple-divider'}`}
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <input
+            type="text"
+            placeholder="\uc544\uc774\ub514"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            className="w-full px-4 py-2.5 rounded-xl border border-apple-divider text-[13px]
+                       focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400
+                       placeholder:text-apple-light/60 text-apple-dark"
+          />
+          <input
+            type="password"
+            placeholder="\ube44\ubc00\ubc88\ud638"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            className="w-full px-4 py-2.5 rounded-xl border border-apple-divider text-[13px]
+                       focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400
+                       placeholder:text-apple-light/60 text-apple-dark"
+          />
 
           {isError && (
-            <p className="text-[12px] text-red-500">
-              아이디 또는 비밀번호가 올바르지 않습니다.
-            </p>
+            <p className="text-[12px] text-red-500 text-center">\uc544\uc774\ub514 \ub610\ub294 \ube44\ubc00\ubc88\ud638\ub97c \ud655\uc778\ud558\uc138\uc694.</p>
           )}
 
           <button
             type="submit"
-            disabled={isPending || !username.trim() || !password}
-            className="w-full py-2.5 rounded-xl text-[14px] font-semibold
-                       bg-brand-600 hover:bg-brand-700 text-white
-                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-                       flex items-center justify-center gap-2"
+            disabled={isPending || !username || !password}
+            className="mt-1 w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700
+                       text-white text-[13px] font-medium transition-colors
+                       disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {isPending && (
-              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" />
-              </svg>
-            )}
-            {isPending ? '로그인 중...' : '로그인'}
+            {isPending ? '\ub85c\uadf8\uc778 \uc911...' : '\ub85c\uadf8\uc778'}
           </button>
         </form>
       </div>

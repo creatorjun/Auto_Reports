@@ -1,7 +1,7 @@
 // frontend/src/infrastructure/hooks/useAuth.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { authApi } from '@/infrastructure/api/authApi'
+import { authApi, type LoginRequest } from '@/infrastructure/api/authApi'
 import { useAuthStore } from '@/app/store/authStore'
 
 export const useMe = () =>
@@ -17,10 +17,10 @@ export const useMe = () =>
 export const useLogin = () => {
   const queryClient = useQueryClient()
   const { setAuth, setLoginRequired } = useAuthStore()
-  return useMutation({
+  return useMutation<ReturnType<typeof authApi.login> extends Promise<infer T> ? T : never, Error, LoginRequest>({
     mutationFn: authApi.login,
-    onSuccess: (data) => {
-      setAuth(data.access_token, data.username ?? '')
+    onSuccess: (data, variables) => {
+      setAuth(data.access_token, variables.username)
       setLoginRequired(true)
       queryClient.invalidateQueries({ queryKey: ['me'] })
     },
