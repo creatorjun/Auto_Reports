@@ -92,7 +92,7 @@ async def upload_file(
     data = await file.read()
     filename = file.filename or "upload"
     try:
-        entry = uc.upload_file(folder, filename, data, overwrite=overwrite)
+        entry = await uc.upload_file(folder, filename, data, overwrite=overwrite)
     except FileExistsError:
         raise HTTPException(status_code=409, detail="File already exists")
     except ValueError:
