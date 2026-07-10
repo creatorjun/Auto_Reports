@@ -6,7 +6,7 @@ import { useReportStore } from '@/app/store/reportStore'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import SummaryCard from '@/presentation/components/cards/SummaryCard'
 import AiSummaryCard from '@/presentation/components/cards/AiSummaryCard'
-import SlaDonutChart from '@/presentation/components/charts/SlaDonutChart'
+import SlaDonutChart, { type ViolationEntry } from '@/presentation/components/charts/SlaDonutChart'
 import ReasonPieChart from '@/presentation/components/charts/ReasonPieChart'
 import TypeBarChart from '@/presentation/components/charts/TypeBarChart'
 import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTimeChart'
@@ -19,15 +19,10 @@ import IssueReviewModal, { type ReviewIssue } from '@/presentation/components/ta
 import DataRequestModal, { type DataRequestIssue } from '@/presentation/components/tables/DataRequestModal'
 import ResultPendingModal, { type ResultPendingIssue } from '@/presentation/components/tables/ResultPendingModal'
 import IncompleteIssueModal, { type IncompleteIssue } from '@/presentation/components/tables/IncompleteIssueModal'
+import SlaViolationModal, { type SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/shared/constants'
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
-
-interface ViolationEntry {
-  stage: string
-  count: number
-  rate: number
-}
 
 interface W9Data {
   initial_response_violations?: number
@@ -53,6 +48,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const [showDataRequest,     setShowDataRequest]     = useState(false)
   const [showResultPending,   setShowResultPending]   = useState(false)
   const [showIncomplete,      setShowIncomplete]      = useState(false)
+  const [slaViolationEntry,   setSlaViolationEntry]   = useState<ViolationEntry | null>(null)
 
   useEffect(() => {
     setCurrentReport(report)
@@ -117,6 +113,11 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     return { reviewIssues: w4Data?.issue_details ?? [], dataRequestIssues: w5Data?.issue_details ?? [], resultPendingIssues: w6Data?.issue_details ?? [] }
   }, [w.w4, w.w5, w.w6])
 
+  const slaModalIssues: SlaViolationIssue[] = useMemo(() => {
+    if (!slaViolationEntry) return []
+    return (slaViolationEntry.issue_details ?? []) as SlaViolationIssue[]
+  }, [slaViolationEntry])
+
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
@@ -137,6 +138,14 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       {showDataRequest    && <DataRequestModal    issues={dataRequestIssues}   total={w.w5?.total ?? 0} onClose={() => setShowDataRequest(false)}    />}
       {showResultPending  && <ResultPendingModal  issues={resultPendingIssues} total={w.w6?.total ?? 0} onClose={() => setShowResultPending(false)}  />}
       {showIncomplete     && <IncompleteIssueModal issues={incompleteIssues}   total={incompleteTotal}  onClose={() => setShowIncomplete(false)}     />}
+      {slaViolationEntry  && (
+        <SlaViolationModal
+          stage={slaViolationEntry.stage}
+          issues={slaModalIssues}
+          total={slaViolationEntry.count}
+          onClose={() => setSlaViolationEntry(null)}
+        />
+      )}
 
       {(hasW13 || hasW14) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
@@ -151,7 +160,11 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
-        <SlaDonutChart total={w9Total} distribution={w9Distribution} />
+        <SlaDonutChart
+          total={w9Total}
+          distribution={w9Distribution}
+          onSliceClick={(entry) => setSlaViolationEntry(entry)}
+        />
         <ReasonPieChart byStatus={w10ByStatus} />
         <TrendLineChart created={w3Created} resolved={w3Resolved} />
         <TypeBarChart byType={w11ByType} />
