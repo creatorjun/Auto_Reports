@@ -48,7 +48,7 @@ function TextPreview({ url }: { url: string }) {
   }, [url])
   if (content === null) return <LoadingSpinnerSmall />
   return (
-    <pre className="text-[12px] leading-relaxed text-apple-dark whitespace-pre-wrap break-all font-mono p-4 overflow-auto max-h-[65vh]">
+    <pre className="text-[12px] leading-relaxed text-apple-dark whitespace-pre-wrap break-all font-mono p-6 overflow-auto h-full">
       {content}
     </pre>
   )
@@ -67,7 +67,7 @@ function MarkdownPreview({ url }: { url: string }) {
   if (html === null) return <LoadingSpinnerSmall />
   return (
     <div
-      className="prose prose-sm max-w-none p-5 overflow-auto max-h-[65vh] text-apple-dark"
+      className="prose prose-sm max-w-none p-8 overflow-auto h-full text-apple-dark"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )
@@ -85,7 +85,7 @@ function CsvPreview({ url }: { url: string }) {
   }, [url])
   if (rows === null) return <LoadingSpinnerSmall />
   return (
-    <div className="overflow-auto max-h-[65vh] p-2">
+    <div className="overflow-auto h-full p-4">
       <table className="text-[12px] border-collapse w-full">
         <thead>
           <tr>
@@ -126,7 +126,7 @@ function XlsxPreview({ url }: { url: string }) {
   if (html === null) return <LoadingSpinnerSmall />
   return (
     <div
-      className="overflow-auto max-h-[65vh] p-3 xlsx-preview"
+      className="overflow-auto h-full p-4 xlsx-preview"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )
@@ -149,7 +149,7 @@ function DocxPreview({ url }: { url: string }) {
   if (html === null) return <LoadingSpinnerSmall />
   return (
     <div
-      className="prose prose-sm max-w-none p-5 overflow-auto max-h-[65vh] text-apple-dark"
+      className="prose prose-sm max-w-none p-8 overflow-auto h-full text-apple-dark"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )
@@ -157,7 +157,7 @@ function DocxPreview({ url }: { url: string }) {
 
 function PptxPreview({ name, folder }: { name: string; folder: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-12 px-6">
+    <div className="flex flex-col items-center justify-center gap-4 h-full px-6">
       <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="text-orange-400">
         <rect x="4" y="4" width="40" height="40" rx="8" fill="currentColor" opacity="0.1" />
         <path d="M14 14h12a6 6 0 0 1 0 12H14V14Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
@@ -192,23 +192,38 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
   const url = storageApi.preview(name, folder)
 
   useEffect(() => {
+    document.body.style.overflow = 'hidden'
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', handler)
+    }
   }, [onClose])
 
   const renderContent = () => {
     switch (type) {
       case 'image':
         return (
-          <div className="flex items-center justify-center p-4 max-h-[70vh] overflow-auto">
-            <img src={url} alt={name} className="max-w-full max-h-[65vh] object-contain rounded-lg" />
+          <div className="flex items-center justify-center w-full h-full p-6 bg-black/5">
+            <img
+              src={url}
+              alt={name}
+              className="max-w-full max-h-full object-contain"
+              style={{ width: 'auto', height: 'auto' }}
+            />
           </div>
         )
       case 'video':
         return (
-          <div className="flex items-center justify-center p-4">
-            <video src={url} controls className="max-w-full max-h-[65vh] rounded-lg" />
+          <div className="flex items-center justify-center w-full h-full bg-black">
+            <video
+              src={url}
+              controls
+              autoPlay
+              className="max-w-full max-h-full"
+              style={{ width: 'auto', height: 'auto' }}
+            />
           </div>
         )
       case 'pdf':
@@ -216,8 +231,8 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
           <iframe
             src={url}
             title={name}
-            className="w-full rounded-b-2xl"
-            style={{ height: '70vh', border: 'none' }}
+            className="w-full h-full"
+            style={{ border: 'none' }}
           />
         )
       case 'text':
@@ -235,7 +250,7 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
         return <PptxPreview name={name} folder={folder} />
       default:
         return (
-          <div className="flex flex-col items-center gap-3 py-12">
+          <div className="flex flex-col items-center justify-center gap-3 h-full">
             <p className="text-[13px] text-apple-light">미리보기를 지원하지 않는 형식입니다.</p>
             <a
               href={storageApi.download(name, folder)}
@@ -250,39 +265,36 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-auto flex flex-col overflow-hidden max-h-[90vh]">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-apple-divider/60 flex-shrink-0">
-          <div className="flex flex-col min-w-0 pr-4">
-            <p className="text-[14px] font-semibold text-apple-dark truncate">{name}</p>
-            <p className="text-[11px] text-apple-light capitalize">{type === 'unsupported' ? '미지원 형식' : type.toUpperCase()}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {type !== 'unsupported' && type !== 'pptx' && (
-              <a
-                href={storageApi.download(name, folder)}
-                download={name}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors"
-              >
-                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                  <path d="M7 2v7M4 6.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M2 10.5v1a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
-                다운로드
-              </a>
-            )}
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors"
+    <div className="fixed inset-0 z-50 flex flex-col bg-white">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-apple-divider/60 flex-shrink-0 bg-white">
+        <div className="flex flex-col min-w-0 pr-4">
+          <p className="text-[14px] font-semibold text-apple-dark truncate">{name}</p>
+          <p className="text-[11px] text-apple-light capitalize">{type === 'unsupported' ? '미지원 형식' : type.toUpperCase()}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {type !== 'unsupported' && type !== 'pptx' && (
+            <a
+              href={storageApi.download(name, folder)}
+              download={name}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors"
             >
-              <CloseIcon />
-            </button>
-          </div>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M7 2v7M4 6.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M2 10.5v1a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+              다운로드
+            </a>
+          )}
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors"
+          >
+            <CloseIcon />
+          </button>
         </div>
-        <div className="overflow-auto flex-1">
-          {renderContent()}
-        </div>
+      </div>
+      <div className="flex-1 overflow-hidden">
+        {renderContent()}
       </div>
     </div>
   )
