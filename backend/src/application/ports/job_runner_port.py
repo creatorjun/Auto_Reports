@@ -6,6 +6,13 @@ from src.domain.entities.job import JobRecord
 
 
 class JobRunnerPort(ABC):
+    @property
+    @abstractmethod
+    def is_running(self) -> bool: ...
+
+    @abstractmethod
+    def current_job_id(self) -> str | None: ...
+
     @abstractmethod
     async def execute_in_background(
         self,

@@ -25,6 +25,12 @@ async def trigger_report(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     job_runner: JobRunnerPort = Depends(get_job_runner),
 ):
+    if job_runner.is_running:
+        raise HTTPException(
+            status_code=409,
+            detail=f"이미 실행 중인 보고서 생성 작업이 있습니다. (job_id={job_runner.current_job_id()})",
+        )
+
     start_dt: datetime | None = None
     end_dt: datetime | None = None
 
