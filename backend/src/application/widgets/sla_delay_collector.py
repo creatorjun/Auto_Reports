@@ -10,37 +10,26 @@ from src.shared.constants import JIRA_MAX_RESULTS_LARGE, SUMMARY_TRUNCATE_LEN
 
 logger = logging.getLogger(__name__)
 
+_SLA_INITIAL_KEY    = "_sla_initial"
+_SLA_RESOLUTION_KEY = "_sla_resolution"
+
 
 class SlaDelayCollector(AbstractWidgetCollector):
-    def __init__(
-        self,
-        jira: JiraPort,
-        q: ResolvedQueries,
-        sla_initial_response_field_id: str,
-        sla_resolution_field_id: str,
-    ):
+    def __init__(self, jira: JiraPort, q: ResolvedQueries):
         self._jira = jira
         self._q = q
-        self._initial_fid = sla_initial_response_field_id
-        self._resolution_fid = sla_resolution_field_id
 
     async def collect(self) -> WidgetResult[SlaDelayWidgetData]:
-        fields_str = (
-            f"summary,issuetype,status,created,"
-            f"{self._initial_fid},{self._resolution_fid}"
-        )
         jql = self._q.w9_sla()
-        issues = await self._jira.get_issues(
-            jql, max_results=JIRA_MAX_RESULTS_LARGE, fields=fields_str
-        )
+        issues = await self._jira.get_issues_with_sla(jql, max_results=JIRA_MAX_RESULTS_LARGE)
 
         by_status: dict[str, int] = {}
         by_status_details: dict[str, list[SlaDelayIssueDetail]] = {}
 
         for issue in issues:
             fields = issue.get("fields") or {}
-            initial_breached = self._is_sla_breached(fields.get(self._initial_fid))
-            resolution_breached = self._is_sla_breached(fields.get(self._resolution_fid))
+            initial_breached    = self._is_sla_breached(fields.get(_SLA_INITIAL_KEY))
+            resolution_breached = self._is_sla_breached(fields.get(_SLA_RESOLUTION_KEY))
             if not (initial_breached or resolution_breached):
                 continue
 

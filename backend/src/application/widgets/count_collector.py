@@ -23,6 +23,9 @@ from src.shared.constants import (
 
 logger = logging.getLogger(__name__)
 
+_SLA_INITIAL_KEY    = "_sla_initial"
+_SLA_RESOLUTION_KEY = "_sla_resolution"
+
 
 class SimpleCountCollector(AbstractWidgetCollector):
     def __init__(self, jira: JiraPort, name: str, jql: str):
@@ -101,27 +104,13 @@ class BreakdownCollector(AbstractWidgetCollector):
 
 
 class SlaMetVsViolatedCollector(AbstractWidgetCollector):
-    def __init__(
-        self,
-        jira: JiraPort,
-        q: ResolvedQueries,
-        sla_initial_response_field_id: str,
-        sla_resolution_field_id: str,
-    ):
+    def __init__(self, jira: JiraPort, q: ResolvedQueries):
         self._jira = jira
         self._q = q
-        self._initial_fid = sla_initial_response_field_id
-        self._resolution_fid = sla_resolution_field_id
 
     async def collect(self) -> WidgetResult[SlaMetVsViolatedWidgetData]:
-        fields_str = (
-            f"summary,issuetype,status,created,resolutiondate,"
-            f"{self._initial_fid},{self._resolution_fid}"
-        )
         jql = self._q.w9_sla()
-        issues = await self._jira.get_issues(
-            jql, max_results=JIRA_MAX_RESULTS_LARGE, fields=fields_str
-        )
+        issues = await self._jira.get_issues_with_sla(jql, max_results=JIRA_MAX_RESULTS_LARGE)
 
         only_initial_issues: list[SlaViolationIssueDetail] = []
         only_resolution_issues: list[SlaViolationIssueDetail] = []
@@ -129,8 +118,8 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
 
         for issue in issues:
             fields = issue.get("fields") or {}
-            initial_breached = self._is_sla_breached(fields.get(self._initial_fid))
-            resolution_breached = self._is_sla_breached(fields.get(self._resolution_fid))
+            initial_breached    = self._is_sla_breached(fields.get(_SLA_INITIAL_KEY))
+            resolution_breached = self._is_sla_breached(fields.get(_SLA_RESOLUTION_KEY))
 
             if not (initial_breached or resolution_breached):
                 continue
@@ -151,9 +140,9 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
             else:
                 only_resolution_issues.append(detail)
 
-        only_initial = len(only_initial_issues)
+        only_initial    = len(only_initial_issues)
         only_resolution = len(only_resolution_issues)
-        both = len(both_issues)
+        both            = len(both_issues)
         total_violations = only_initial + only_resolution + both
 
         violation_distribution: list[SlaMetVsViolatedEntry] = []
@@ -162,7 +151,7 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
                 violation_distribution.append(
                     SlaMetVsViolatedEntry(
                         stage="최초 응답 SLA",
-                        field_id=self._initial_fid,
+                        field_id=_SLA_INITIAL_KEY,
                         count=only_initial,
                         rate=round(only_initial / total_violations * 100, 1),
                         issue_details=only_initial_issues,
@@ -172,7 +161,7 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
                 violation_distribution.append(
                     SlaMetVsViolatedEntry(
                         stage="해결 시간 SLA",
-                        field_id=self._resolution_fid,
+                        field_id=_SLA_RESOLUTION_KEY,
                         count=only_resolution,
                         rate=round(only_resolution / total_violations * 100, 1),
                         issue_details=only_resolution_issues,

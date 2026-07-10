@@ -13,9 +13,23 @@ SLA_SCHEMA_TYPE = "sd-servicelevelagreement"
 _JIRA_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0)
 _JIRA_LIMITS  = httpx.Limits(max_connections=30, max_keepalive_connections=15)
 
+_SLA_INITIAL_KEY    = "_sla_initial"
+_SLA_RESOLUTION_KEY = "_sla_resolution"
+_TAC_ASSIGNEE_KEY   = "_tac_assignee"
+_QA_ASSIGNEE_KEY    = "_qa_assignee"
+
 
 class JiraClient(JiraPort):
-    def __init__(self, base_url: str, email: str, api_token: str):
+    def __init__(
+        self,
+        base_url: str,
+        email: str,
+        api_token: str,
+        sla_initial_response_field_id: str = "",
+        sla_resolution_field_id: str = "",
+        jira_tac_assignee_field_id: str = "",
+        jira_qa_assignee_field_id: str = "",
+    ):
         self._base_url = base_url.rstrip("/")
         self._client = httpx.AsyncClient(
             auth=(email, api_token),
@@ -27,6 +41,10 @@ class JiraClient(JiraPort):
             limits=_JIRA_LIMITS,
         )
         self._sla_field_ids_cache: dict[str, str] | None = None
+        self._sla_initial_fid    = sla_initial_response_field_id
+        self._sla_resolution_fid = sla_resolution_field_id
+        self._tac_assignee_fid   = jira_tac_assignee_field_id
+        self._qa_assignee_fid    = jira_qa_assignee_field_id
 
     async def get_issue_count(self, jql: str) -> int:
         url = f"{self._base_url}/rest/api/3/search/approximate-count"
@@ -35,7 +53,7 @@ class JiraClient(JiraPort):
             resp.raise_for_status()
             return resp.json().get("count", 0)
         except httpx.HTTPError as e:
-            logger.error(f"JQL 카운트 실패: {jql[:80]}... → {e}")
+            logger.error(f"JQL 카운트 실패: {jql[:80]}... -> {e}")
             if isinstance(e, httpx.HTTPStatusError):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return 0
@@ -59,10 +77,42 @@ class JiraClient(JiraPort):
             resp.raise_for_status()
             return resp.json().get("issues", [])
         except httpx.HTTPError as e:
-            logger.error(f"JQL 검색 실패: {jql[:80]}... → {e}")
+            logger.error(f"JQL 검색 실패: {jql[:80]}... -> {e}")
             if isinstance(e, httpx.HTTPStatusError):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return []
+
+    async def get_issues_with_sla(
+        self,
+        jql: str,
+        max_results: int = 500,
+        extra_fields: str = "",
+    ) -> list[dict[str, Any]]:
+        base = "summary,issuetype,status,created,resolutiondate"
+        sla_part = ",".join(filter(None, [self._sla_initial_fid, self._sla_resolution_fid]))
+        fields_str = ",".join(filter(None, [base, sla_part, extra_fields]))
+        issues = await self.get_issues(jql, max_results=max_results, fields=fields_str)
+        for issue in issues:
+            f = issue.get("fields") or {}
+            f[_SLA_INITIAL_KEY]    = f.get(self._sla_initial_fid)
+            f[_SLA_RESOLUTION_KEY] = f.get(self._sla_resolution_fid)
+        return issues
+
+    async def get_issues_with_assignees(
+        self,
+        jql: str,
+        max_results: int = 200,
+        extra_fields: str = "",
+    ) -> list[dict[str, Any]]:
+        base = "summary,issuetype,status,created,reporter,assignee"
+        assignee_part = ",".join(filter(None, [self._tac_assignee_fid, self._qa_assignee_fid]))
+        fields_str = ",".join(filter(None, [base, assignee_part, extra_fields]))
+        issues = await self.get_issues(jql, max_results=max_results, fields=fields_str)
+        for issue in issues:
+            f = issue.get("fields") or {}
+            f[_TAC_ASSIGNEE_KEY] = f.get(self._tac_assignee_fid)
+            f[_QA_ASSIGNEE_KEY]  = f.get(self._qa_assignee_fid)
+        return issues
 
     async def get_sla_field_ids(self) -> dict[str, str]:
         if self._sla_field_ids_cache is not None:

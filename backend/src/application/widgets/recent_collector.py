@@ -15,6 +15,9 @@ from src.shared.constants import (
 
 logger = logging.getLogger(__name__)
 
+_TAC_ASSIGNEE_KEY = "_tac_assignee"
+_QA_ASSIGNEE_KEY  = "_qa_assignee"
+
 
 def _user_name(value: object) -> str:
     if isinstance(value, list):
@@ -39,27 +42,14 @@ def _pick_user(fields: dict, *field_keys: str) -> str:
 class RecentCollector(AbstractWidgetCollector):
     """w12: 최근 활성 이슈 목록."""
 
-    def __init__(
-        self,
-        jira: JiraPort,
-        q: ResolvedQueries,
-        tac_assignee_field_id: str,
-        qa_assignee_field_id: str,
-    ):
+    def __init__(self, jira: JiraPort, q: ResolvedQueries):
         self._jira = jira
         self._q = q
-        self._tac_field = tac_assignee_field_id
-        self._qa_field = qa_assignee_field_id
 
     async def collect(self) -> WidgetResult[RecentIssueWidgetData]:
         jql = self._q.w12_recent()
-        issues = await self._jira.get_issues(
-            jql,
-            max_results=JIRA_RECENT_PAGE_SIZE * 2,
-            fields=(
-                f"summary,issuetype,status,created,reporter,assignee,"
-                f"{self._tac_field},{self._qa_field}"
-            ),
+        issues = await self._jira.get_issues_with_assignees(
+            jql, max_results=JIRA_RECENT_PAGE_SIZE * 2
         )
         now_ts = datetime.now()
         issue_details = []
@@ -71,7 +61,7 @@ class RecentCollector(AbstractWidgetCollector):
                 (now_ts - datetime.fromisoformat(created[:19])).days if created else 0
             )
             reporter = _pick_user(fields, "reporter")
-            tac_team = _pick_user(fields, self._tac_field, self._qa_field, "assignee")
+            tac_team = _pick_user(fields, _TAC_ASSIGNEE_KEY, _QA_ASSIGNEE_KEY, "assignee")
             issue_details.append(
                 RecentIssueDetail(
                     key=issue.get("key", ""),

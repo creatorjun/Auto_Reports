@@ -10,7 +10,7 @@ from src.application.services.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
-from src.config.settings import Settings
+from src.infrastructure.config.settings import Settings
 from src.domain.ports.ai_port import AiPort
 from src.domain.ports.jira_port import JiraPort
 from src.infrastructure.external.gemini_client import GeminiClient
@@ -27,9 +27,13 @@ class Container:
     def __init__(self, settings: Settings):
         self._settings = settings
         self._jira: JiraPort = JiraClient(
-            settings.jira_base_url,
-            settings.jira_email,
-            settings.jira_api_token,
+            base_url=settings.jira_base_url,
+            email=settings.jira_email,
+            api_token=settings.jira_api_token,
+            sla_initial_response_field_id=settings.sla_initial_response_field_id,
+            sla_resolution_field_id=settings.sla_resolution_field_id,
+            jira_tac_assignee_field_id=settings.jira_tac_assignee_field_id,
+            jira_qa_assignee_field_id=settings.jira_qa_assignee_field_id,
         )
         self._ai: AiPort | None = GeminiClient(settings.gemini_api_key) if settings.ai_enabled else None
         self._query_config = QueryConfig(
@@ -55,10 +59,6 @@ class Container:
             jira=self._jira,
             query_builder=query_builder,
             sla_threshold_days=self._settings.sla_threshold_days,
-            sla_initial_response_field_id=self._settings.sla_initial_response_field_id,
-            sla_resolution_field_id=self._settings.sla_resolution_field_id,
-            jira_tac_assignee_field_id=self._settings.jira_tac_assignee_field_id,
-            jira_qa_assignee_field_id=self._settings.jira_qa_assignee_field_id,
         )
         analyzer = AiAnalyzer(
             ai=self._ai,

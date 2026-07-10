@@ -13,25 +13,19 @@ from src.shared.constants import JIRA_MAX_RESULTS_LARGE
 
 logger = logging.getLogger(__name__)
 
+_SLA_INITIAL_KEY    = "_sla_initial"
+_SLA_RESOLUTION_KEY = "_sla_resolution"
+
 
 class MonthlyCollector(AbstractWidgetCollector):
     """w7(최초응답 SLA) 및 w8(해결시간 SLA) 월별 데이터 수집."""
 
     MONTHS_BACK = 6
 
-    def __init__(
-        self,
-        jira: JiraPort,
-        q: ResolvedQueries,
-        now: datetime,
-        sla_initial_response_field_id: str,
-        sla_resolution_field_id: str,
-    ):
+    def __init__(self, jira: JiraPort, q: ResolvedQueries, now: datetime):
         self._jira = jira
         self._q = q
         self._now = now
-        self._initial_fid = sla_initial_response_field_id
-        self._resolution_fid = sla_resolution_field_id
 
     async def collect(self) -> Tuple[WidgetResult, WidgetResult]:  # type: ignore[override]
         year, month = self._now.year, self._now.month
@@ -43,11 +37,11 @@ class MonthlyCollector(AbstractWidgetCollector):
                 month = 12
                 year -= 1
 
-        fields_str = f"summary,created,resolutiondate,{self._initial_fid},{self._resolution_fid}"
-
         async def _fetch_month(y: int, m: int) -> tuple[int, int, list]:
             jql = self._q.w7_w8_monthly_candidates(y, m)
-            issues = await self._jira.get_issues(jql, max_results=JIRA_MAX_RESULTS_LARGE, fields=fields_str)
+            issues = await self._jira.get_issues_with_sla(
+                jql, max_results=JIRA_MAX_RESULTS_LARGE, extra_fields="resolutiondate"
+            )
             return y, m, issues
 
         month_results = await asyncio.gather(*[_fetch_month(y, m) for y, m in months])
@@ -56,14 +50,14 @@ class MonthlyCollector(AbstractWidgetCollector):
         w8_entries: list[MonthlyEntry] = []
 
         for y, m, issues in month_results:
-            total = len(issues)
+            total     = len(issues)
             init_viol = sum(
                 1 for i in issues
-                if self._breached((i.get("fields") or {}).get(self._initial_fid))
+                if self._breached((i.get("fields") or {}).get(_SLA_INITIAL_KEY))
             )
             res_viol = sum(
                 1 for i in issues
-                if self._breached((i.get("fields") or {}).get(self._resolution_fid))
+                if self._breached((i.get("fields") or {}).get(_SLA_RESOLUTION_KEY))
             )
             init_met  = total - init_viol
             res_met   = total - res_viol

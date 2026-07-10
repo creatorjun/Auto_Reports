@@ -29,18 +29,10 @@ class ReportAssembler:
         jira: JiraPort,
         query_builder: WidgetQueryBuilder,
         sla_threshold_days: int,
-        sla_initial_response_field_id: str,
-        sla_resolution_field_id: str,
-        jira_tac_assignee_field_id: str,
-        jira_qa_assignee_field_id: str,
     ):
         self._jira = jira
         self._qb = query_builder
         self._sla_threshold_days = sla_threshold_days
-        self._sla_initial_response_field_id = sla_initial_response_field_id
-        self._sla_resolution_field_id = sla_resolution_field_id
-        self._jira_tac_assignee_field_id = jira_tac_assignee_field_id
-        self._jira_qa_assignee_field_id = jira_qa_assignee_field_id
 
     async def collect(
         self,
@@ -59,42 +51,17 @@ class ReportAssembler:
             (WidgetId.ISSUE_REVIEW,        SimpleWithDetailsCollector(self._jira, "이슈 리뷰 중", q.w4_issue_review())),
             (WidgetId.DATA_REQUEST,        SimpleWithDetailsCollector(self._jira, "자료 요청 중", q.w5_data_request())),
             (WidgetId.RESULT_PENDING,      SimpleWithDetailsCollector(self._jira, "결과 대기 중", q.w6_result_pending())),
-            (
-                WidgetId.SLA_MET_VS_VIOLATED,
-                SlaMetVsViolatedCollector(
-                    self._jira, q,
-                    self._sla_initial_response_field_id,
-                    self._sla_resolution_field_id,
-                ),
-            ),
-            (
-                WidgetId.SLA_DELAY_REASON,
-                SlaDelayCollector(
-                    self._jira, q,
-                    self._sla_initial_response_field_id,
-                    self._sla_resolution_field_id,
-                ),
-            ),
+            (WidgetId.SLA_MET_VS_VIOLATED, SlaMetVsViolatedCollector(self._jira, q)),
+            (WidgetId.SLA_DELAY_REASON,    SlaDelayCollector(self._jira, q)),
             (WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(self._jira, q)),
-            (
-                WidgetId.RECENT_ISSUES,
-                RecentCollector(
-                    self._jira, q,
-                    self._jira_tac_assignee_field_id,
-                    self._jira_qa_assignee_field_id,
-                ),
-            ),
+            (WidgetId.RECENT_ISSUES,       RecentCollector(self._jira, q)),
         ]
 
-        monthly_collector = MonthlyCollector(
-            self._jira, q, now,
-            self._sla_initial_response_field_id,
-            self._sla_resolution_field_id,
-        )
+        monthly_collector       = MonthlyCollector(self._jira, q, now)
         monthly_count_collector = MonthlyCountCollector(self._jira, q, now)
 
-        base_task    = asyncio.gather(*[c.collect() for _, c in collectors])
-        monthly_task = monthly_collector.collect()
+        base_task          = asyncio.gather(*[c.collect() for _, c in collectors])
+        monthly_task       = monthly_collector.collect()
         monthly_count_task = monthly_count_collector.collect()
 
         base_results, (w7_result, w8_result), (w13_result, w14_result) = await asyncio.gather(
