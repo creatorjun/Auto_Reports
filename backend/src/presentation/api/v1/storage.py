@@ -210,7 +210,7 @@ async def delete_file(
     name: str = Query(...),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
-    folder, name = _decode(folder)
+    folder = _decode(folder)
     name = _decode(name)
     try:
         uc.delete_file(folder, name)

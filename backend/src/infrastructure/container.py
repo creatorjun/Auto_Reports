@@ -31,7 +31,7 @@ from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.gemini_client import GeminiClient
 from src.infrastructure.external.jira_client import JiraClient
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
-from src.shared.cache import ReportLruCache
+from src.infrastructure.report_cache import ReportLruCache
 
 logger = logging.getLogger(__name__)
 
