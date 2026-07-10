@@ -4,19 +4,26 @@ import logging
 import uuid
 from datetime import datetime
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
 from src.application.ports.job_runner_port import JobRunnerPort
 from src.domain.entities.job import JobRecord, JobStatus
 from src.domain.repositories.job_repository import JobRepository
 from src.infrastructure.container import Container
-from src.infrastructure.persistence.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
 
 class JobRunner(JobRunnerPort):
-    def __init__(self, container: Container, job_repository: JobRepository):
+    def __init__(
+        self,
+        container: Container,
+        job_repository: JobRepository,
+        session_factory: async_sessionmaker[AsyncSession],
+    ):
         self._container = container
         self._repo = job_repository
+        self._session_factory = session_factory
         self._lock = asyncio.Lock()
         self._running_job_id: str | None = None
 
@@ -57,7 +64,7 @@ class JobRunner(JobRunnerPort):
 
         await self._repo.save(JobRecord(job_id=job_id, status=JobStatus.RUNNING))
         try:
-            async with AsyncSessionLocal() as session:
+            async with self._session_factory() as session:
                 uc = self._container.generate_report_use_case(session)
                 report = await uc.execute(start_date=start_date, end_date=end_date)
             await self._repo.save(

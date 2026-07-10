@@ -55,8 +55,15 @@ async def lifespan(app: FastAPI):
 
     container = Container(settings)
 
+    if AsyncSessionLocal is None:
+        raise RuntimeError("DB가 초기화되지 않았습니다.")
+
     job_repository = SqlJobRepository(AsyncSessionLocal)
-    job_runner = JobRunner(container, job_repository)
+    job_runner = JobRunner(
+        container=container,
+        job_repository=job_repository,
+        session_factory=AsyncSessionLocal,
+    )
 
     app.state.container = container
     app.state.job_runner = job_runner
@@ -77,8 +84,6 @@ async def lifespan(app: FastAPI):
     logger.info("TAC Auto Reports 서비스 종료")
 
 
-settings = get_settings()
-
 app = FastAPI(
     title="TAC Auto Reports API",
     version="1.0.0",
@@ -87,7 +92,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=get_settings().cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
