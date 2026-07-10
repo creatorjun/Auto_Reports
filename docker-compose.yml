@@ -29,6 +29,7 @@ services:
       TZ: Asia/Seoul
     volumes:
       - reports_data:/app/reports
+      - storage_data:/app/storage
       - /etc/localtime:/etc/localtime:ro
     depends_on:
       db:
@@ -66,6 +67,7 @@ services:
 volumes:
   db_data:
   reports_data:
+  storage_data:
 
 # DNS 등록 후 SSL 적용시 다음 블록 주석 해제 후 사용:
 #
