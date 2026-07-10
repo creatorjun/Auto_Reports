@@ -10,9 +10,9 @@ from src.application.services.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
-from src.infrastructure.config.settings import Settings
 from src.domain.ports.ai_port import AiPort
 from src.domain.ports.jira_port import JiraPort
+from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.gemini_client import GeminiClient
 from src.infrastructure.external.jira_client import JiraClient
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
@@ -43,8 +43,6 @@ class Container:
             closed_statuses=settings.closed_statuses,
             sla_threshold_days=settings.sla_threshold_days,
             year_start=settings.year_start,
-            jira_tac_assignee_field_id=settings.jira_tac_assignee_field_id,
-            jira_qa_assignee_field_id=settings.jira_qa_assignee_field_id,
         )
         self._report_cache: LruCache = LruCache(maxsize=50, ttl_seconds=600.0)
 

@@ -10,5 +10,3 @@ class QueryConfig:
     closed_statuses: list[str]
     sla_threshold_days: int
     year_start: int
-    jira_tac_assignee_field_id: str
-    jira_qa_assignee_field_id: str

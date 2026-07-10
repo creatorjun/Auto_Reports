@@ -3,9 +3,6 @@ from zoneinfo import ZoneInfo
 
 KST = ZoneInfo("Asia/Seoul")
 
-JIRA_FIELD_TAC_ASSIGNEE = "customfield_10859"
-JIRA_FIELD_QA_ASSIGNEE  = "customfield_12222"
-
 JIRA_MAX_RESULTS_DEFAULT  = 200
 JIRA_MAX_RESULTS_LARGE    = 500
 JIRA_RECENT_PAGE_SIZE     = 50
