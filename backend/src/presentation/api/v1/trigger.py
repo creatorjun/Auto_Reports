@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
+from src.application.mappers.job_mapper import JobMapper
 from src.application.ports.job_runner_port import JobRunnerPort
 from src.domain.entities.job import JobRecord, JobStatus
 from src.presentation.api.deps import get_job_runner
@@ -73,9 +74,4 @@ async def get_job_status(
     record = await job_runner.get_job_status(job_id)
     if record is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 job_id입니다.")
-    return JobStatusSchema(
-        job_id=record.job_id,
-        status=record.status.value,
-        report_id=record.report_id,
-        error=record.error,
-    )
+    return JobMapper.to_schema(record)

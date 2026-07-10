@@ -4,8 +4,6 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel
 
-JobStatusLiteral = Literal["pending", "running", "done", "error"]
-
 
 class AiAnalysisSchema(BaseModel):
     summary: str
@@ -52,6 +50,6 @@ class TriggerAcceptedSchema(BaseModel):
 
 class JobStatusSchema(BaseModel):
     job_id: str
-    status: JobStatusLiteral
+    status: Literal["pending", "running", "done", "error"]
     report_id: Optional[int] = None
     error: Optional[str] = None
