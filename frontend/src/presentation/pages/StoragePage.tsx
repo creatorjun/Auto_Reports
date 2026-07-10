@@ -1,17 +1,44 @@
 // frontend/src/presentation/pages/StoragePage.tsx
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { storageApi } from '@/infrastructure/api/storageApi'
-import { useDeleteStorageFile, useStorageFiles, useUploadFile } from '@/infrastructure/hooks/useStorage'
+import {
+  useCreateFolder,
+  useDeleteFolder,
+  useDeleteStorageFile,
+  useStorageItems,
+  useUploadFile,
+} from '@/infrastructure/hooks/useStorage'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
-import type { StorageFile } from '@/domain/Storage'
+import type { StorageItem } from '@/domain/Storage'
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
+}
+
+function joinPath(...parts: string[]): string {
+  return parts.filter(Boolean).join('/')
+}
+
+function FolderIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M1.5 4.5A1 1 0 0 1 2.5 3.5h3.086a1 1 0 0 1 .707.293L7.207 4.707A1 1 0 0 0 7.914 5H13.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4.5Z" fill="currentColor" opacity="0.2" stroke="currentColor" strokeWidth="1.1" />
+    </svg>
+  )
+}
+
+function FileIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M3 1.5h5.5L11 4v8.5a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-11A.5.5 0 0 1 3 1.5Z" stroke="currentColor" strokeWidth="1.1" fill="currentColor" opacity="0.1" />
+      <path d="M8.5 1.5V4H11" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
 }
 
 function TrashIcon() {
@@ -32,8 +59,9 @@ function DownloadIcon() {
   )
 }
 
-function DeleteConfirmModal({ filename, onConfirm, onCancel, isPending }: {
-  filename: string
+function DeleteConfirmModal({ target, isDir, onConfirm, onCancel, isPending }: {
+  target: string
+  isDir: boolean
   onConfirm: () => void
   onCancel: () => void
   isPending: boolean
@@ -50,26 +78,23 @@ function DeleteConfirmModal({ filename, onConfirm, onCancel, isPending }: {
             </svg>
           </div>
           <div>
-            <p className="text-[14px] font-semibold text-apple-dark">파일 삭제</p>
-            <p className="text-[12px] text-apple-light mt-0.5 break-all max-w-[260px]">{filename}</p>
+            <p className="text-[14px] font-semibold text-apple-dark">{isDir ? '폴더 삭제' : '파일 삭제'}</p>
+            <p className="text-[12px] text-apple-light mt-0.5 break-all max-w-[260px]">{target}</p>
           </div>
         </div>
         <p className="text-[13px] text-apple-dark/80 mb-5 leading-relaxed">
-          이 파일을 삭제하면 복구할 수 없습니다.<br />정말 삭제하시겠습니까?
+          {isDir
+            ? <>폴더 내의 모든 파일이 함께 삭제됩니다.<br />정말 삭제하시겠습니까?</>
+            : <>이 파일을 삭제하면 복구할 수 없습니다.<br />정말 삭제하시겠습니까?</>
+          }
         </p>
         <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            disabled={isPending}
-            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50"
-          >
+          <button onClick={onCancel} disabled={isPending}
+            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50">
             취소
           </button>
-          <button
-            onClick={onConfirm}
-            disabled={isPending}
-            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
-          >
+          <button onClick={onConfirm} disabled={isPending}
+            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
             {isPending && (
               <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" />
@@ -83,25 +108,127 @@ function DeleteConfirmModal({ filename, onConfirm, onCancel, isPending }: {
   )
 }
 
-function FileRow({ file, onDelete }: { file: StorageFile; onDelete: (name: string) => void }) {
-  const formattedDate = format(new Date(file.uploaded_at), 'MM/dd HH:mm', { locale: ko })
+function CreateFolderRow({ onConfirm, onCancel }: { onConfirm: (name: string) => void; onCancel: () => void }) {
+  const [value, setValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  const handleSubmit = () => {
+    const trimmed = value.trim()
+    if (!trimmed) return
+    onConfirm(trimmed)
+  }
+
+  return (
+    <tr className="bg-brand-50/30">
+      <td className="px-6 py-3 3xl:px-8" colSpan={4}>
+        <div className="flex items-center gap-2">
+          <span className="text-brand-500"><FolderIcon /></span>
+          <input
+            ref={inputRef}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSubmit()
+              if (e.key === 'Escape') onCancel()
+            }}
+            placeholder="폴더 이름"
+            className="flex-1 text-[13px] bg-transparent border-b border-brand-400 focus:outline-none text-apple-dark placeholder:text-apple-light/60 pb-0.5"
+          />
+          <button onClick={handleSubmit}
+            className="text-[12px] font-medium text-brand-600 hover:text-brand-700 transition-colors px-2 py-1">
+            만들기
+          </button>
+          <button onClick={onCancel}
+            className="text-[12px] text-apple-light hover:text-apple-dark transition-colors px-2 py-1">
+            취소
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+function CreateFolderRowMobile({ onConfirm, onCancel }: { onConfirm: (name: string) => void; onCancel: () => void }) {
+  const [value, setValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  const handleSubmit = () => {
+    const trimmed = value.trim()
+    if (!trimmed) return
+    onConfirm(trimmed)
+  }
+
+  return (
+    <div className="flex items-center gap-2 px-4 py-3 bg-brand-50/30 border-b border-apple-divider/40">
+      <span className="text-brand-500"><FolderIcon /></span>
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleSubmit()
+          if (e.key === 'Escape') onCancel()
+        }}
+        placeholder="폴더 이름"
+        className="flex-1 text-[13px] bg-transparent border-b border-brand-400 focus:outline-none text-apple-dark placeholder:text-apple-light/60 pb-0.5"
+      />
+      <button onClick={handleSubmit} className="text-[12px] font-medium text-brand-600 px-2 py-1">만들기</button>
+      <button onClick={onCancel} className="text-[12px] text-apple-light px-2 py-1">취소</button>
+    </div>
+  )
+}
+
+function ItemRow({ item, folder, onEnterDir, onDeleteFile, onDeleteDir }: {
+  item: StorageItem
+  folder: string
+  onEnterDir: (name: string) => void
+  onDeleteFile: (name: string) => void
+  onDeleteDir: (name: string) => void
+}) {
+  const formattedDate = format(new Date(item.uploaded_at), 'MM/dd HH:mm', { locale: ko })
   return (
     <tr className="hover:bg-apple-gray/60 transition-colors duration-150">
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-dark break-all max-w-xs">{file.name}</td>
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums whitespace-nowrap">{formatBytes(file.size)}</td>
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums whitespace-nowrap">{formattedDate}</td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
+        <div className="flex items-center gap-2">
+          <span className={item.is_dir ? 'text-brand-500' : 'text-apple-light'}>
+            {item.is_dir ? <FolderIcon /> : <FileIcon />}
+          </span>
+          {item.is_dir ? (
+            <button
+              onClick={() => onEnterDir(item.name)}
+              className="text-[13px] 3xl:text-[14px] font-medium text-brand-600 hover:text-brand-700 hover:underline transition-colors text-left break-all"
+            >
+              {item.name}
+            </button>
+          ) : (
+            <span className="text-[13px] 3xl:text-[14px] text-apple-dark break-all">{item.name}</span>
+          )}
+        </div>
+      </td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums whitespace-nowrap">
+        {item.is_dir ? '—' : formatBytes(item.size)}
+      </td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums whitespace-nowrap">
+        {formattedDate}
+      </td>
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
         <div className="flex items-center justify-end gap-2">
-          <a
-            href={storageApi.download(file.name)}
-            download={file.name}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"
-            title="다운로드"
-          >
-            <DownloadIcon />
-          </a>
+          {!item.is_dir && (
+            <a
+              href={storageApi.download(item.name, folder)}
+              download={item.name}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"
+              title="다운로드"
+            >
+              <DownloadIcon />
+            </a>
+          )}
           <button
-            onClick={() => onDelete(file.name)}
+            onClick={() => item.is_dir ? onDeleteDir(item.name) : onDeleteFile(item.name)}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors"
             title="삭제"
           >
@@ -113,24 +240,44 @@ function FileRow({ file, onDelete }: { file: StorageFile; onDelete: (name: strin
   )
 }
 
-function MobileFileRow({ file, onDelete }: { file: StorageFile; onDelete: (name: string) => void }) {
-  const formattedDate = format(new Date(file.uploaded_at), 'MM/dd HH:mm', { locale: ko })
+function ItemRowMobile({ item, folder, onEnterDir, onDeleteFile, onDeleteDir }: {
+  item: StorageItem
+  folder: string
+  onEnterDir: (name: string) => void
+  onDeleteFile: (name: string) => void
+  onDeleteDir: (name: string) => void
+}) {
+  const formattedDate = format(new Date(item.uploaded_at), 'MM/dd HH:mm', { locale: ko })
   return (
     <div className="flex items-center justify-between px-4 py-4 hover:bg-apple-gray/60 transition-colors">
-      <div className="flex flex-col gap-1 flex-1 min-w-0 pr-3">
-        <span className="text-[13px] font-medium text-apple-dark truncate">{file.name}</span>
-        <span className="text-[11px] text-apple-light">{formatBytes(file.size)} · {formattedDate}</span>
+      <div className="flex items-center gap-2 flex-1 min-w-0 pr-3">
+        <span className={`flex-shrink-0 ${item.is_dir ? 'text-brand-500' : 'text-apple-light'}`}>
+          {item.is_dir ? <FolderIcon /> : <FileIcon />}
+        </span>
+        {item.is_dir ? (
+          <button onClick={() => onEnterDir(item.name)} className="flex flex-col gap-0.5 min-w-0 text-left">
+            <span className="text-[13px] font-medium text-brand-600 truncate">{item.name}</span>
+            <span className="text-[11px] text-apple-light">{formattedDate}</span>
+          </button>
+        ) : (
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-[13px] font-medium text-apple-dark truncate">{item.name}</span>
+            <span className="text-[11px] text-apple-light">{formatBytes(item.size)} · {formattedDate}</span>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
-        <a
-          href={storageApi.download(file.name)}
-          download={file.name}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"
-        >
-          <DownloadIcon />
-        </a>
+        {!item.is_dir && (
+          <a
+            href={storageApi.download(item.name, folder)}
+            download={item.name}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"
+          >
+            <DownloadIcon />
+          </a>
+        )}
         <button
-          onClick={() => onDelete(file.name)}
+          onClick={() => item.is_dir ? onDeleteDir(item.name) : onDeleteFile(item.name)}
           className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors"
         >
           <TrashIcon />
@@ -140,13 +287,22 @@ function MobileFileRow({ file, onDelete }: { file: StorageFile; onDelete: (name:
   )
 }
 
+type ConfirmTarget = { name: string; isDir: boolean } | null
+
 export default function StoragePage() {
-  const { data, isLoading, isFetching } = useStorageFiles()
-  const { mutate: uploadFile, isPending: isUploading } = useUploadFile()
-  const { mutate: deleteFile, isPending: isDeleting } = useDeleteStorageFile()
-  const [confirmName, setConfirmName] = useState<string | null>(null)
+  const [folder, setFolder] = useState('')
+  const { data, isLoading, isFetching } = useStorageItems(folder)
+  const { mutate: uploadFile, isPending: isUploading } = useUploadFile(folder)
+  const { mutate: createFolder, isPending: isCreating } = useCreateFolder(folder)
+  const { mutate: deleteFolder, isPending: isDeletingDir } = useDeleteFolder(folder)
+  const { mutate: deleteFile, isPending: isDeletingFile } = useDeleteStorageFile(folder)
+
+  const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [showNewFolder, setShowNewFolder] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const breadcrumbs = folder ? folder.split('/') : []
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files) return
@@ -159,20 +315,45 @@ export default function StoragePage() {
     handleFiles(e.dataTransfer.files)
   }, [handleFiles])
 
-  const handleDelete = () => {
-    if (!confirmName) return
-    deleteFile(confirmName, { onSuccess: () => setConfirmName(null) })
+  const handleEnterDir = (name: string) => {
+    setFolder(joinPath(folder, name))
+    setShowNewFolder(false)
   }
+
+  const navigateTo = (index: number) => {
+    if (index < 0) {
+      setFolder('')
+    } else {
+      setFolder(breadcrumbs.slice(0, index + 1).join('/'))
+    }
+    setShowNewFolder(false)
+  }
+
+  const handleConfirmDelete = () => {
+    if (!confirmTarget) return
+    if (confirmTarget.isDir) {
+      deleteFolder(confirmTarget.name, { onSuccess: () => setConfirmTarget(null) })
+    } else {
+      deleteFile(confirmTarget.name, { onSuccess: () => setConfirmTarget(null) })
+    }
+  }
+
+  const handleCreateFolder = (name: string) => {
+    createFolder(name, { onSuccess: () => setShowNewFolder(false) })
+  }
+
+  const isDeleting = isDeletingDir || isDeletingFile
 
   if (isLoading) return <LoadingSpinner />
 
   return (
     <div className="space-y-4 md:space-y-5 3xl:space-y-7">
-      {confirmName && (
+      {confirmTarget && (
         <DeleteConfirmModal
-          filename={confirmName}
-          onConfirm={handleDelete}
-          onCancel={() => setConfirmName(null)}
+          target={confirmTarget.name}
+          isDir={confirmTarget.isDir}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmTarget(null)}
           isPending={isDeleting}
         />
       )}
@@ -187,6 +368,49 @@ export default function StoragePage() {
         )}
       </div>
 
+      <div className="flex items-center gap-1 flex-wrap">
+        <button
+          onClick={() => navigateTo(-1)}
+          className={`text-[13px] transition-colors ${
+            folder ? 'text-brand-600 hover:text-brand-700' : 'text-apple-dark font-medium cursor-default'
+          }`}
+        >
+          보관함
+        </button>
+        {breadcrumbs.map((seg, i) => (
+          <div key={i} className="flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-apple-divider">
+              <path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <button
+              onClick={() => navigateTo(i)}
+              className={`text-[13px] transition-colors ${
+                i === breadcrumbs.length - 1
+                  ? 'text-apple-dark font-medium cursor-default'
+                  : 'text-brand-600 hover:text-brand-700'
+              }`}
+            >
+              {seg}
+            </button>
+          </div>
+        ))}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setShowNewFolder(true)}
+            disabled={showNewFolder || isCreating}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium
+                       bg-apple-gray hover:bg-apple-divider/40 text-apple-dark
+                       transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M0.75 3.75A.75.75 0 0 1 1.5 3h3.086a.75.75 0 0 1 .53.22l.664.664a.75.75 0 0 0 .53.22H11.5a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-.75.75h-10a.75.75 0 0 1-.75-.75V3.75Z" stroke="currentColor" strokeWidth="1.1" fill="currentColor" opacity="0.15" />
+              <path d="M6.5 5.5v3M5 7h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            새 폴더
+          </button>
+        </div>
+      </div>
+
       <div
         className={`card border-2 border-dashed transition-colors duration-200 cursor-pointer ${
           isDragging ? 'border-brand-400 bg-brand-50/40' : 'border-apple-divider hover:border-brand-300'
@@ -196,13 +420,7 @@ export default function StoragePage() {
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
       >
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
-        />
+        <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
         <div className="flex flex-col items-center justify-center py-8 gap-3">
           {isUploading ? (
             <svg className="animate-spin w-7 h-7 text-brand-500" viewBox="0 0 24 24" fill="none">
@@ -228,27 +446,53 @@ export default function StoragePage() {
           <table className="w-full">
             <thead className="border-b border-apple-divider/60">
               <tr>
-                {['파일명', '크기', '업로드 일시', ''].map((h, i) => (
+                {['이름', '크기', '수정일시', ''].map((h, i) => (
                   <th key={i} className="text-left px-6 py-3.5 3xl:px-8 3xl:py-4 text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-apple-divider/40">
-              {(data ?? []).map((f) => (
-                <FileRow key={f.name} file={f} onDelete={setConfirmName} />
+              {showNewFolder && (
+                <CreateFolderRow
+                  onConfirm={handleCreateFolder}
+                  onCancel={() => setShowNewFolder(false)}
+                />
+              )}
+              {(data ?? []).map((item) => (
+                <ItemRow
+                  key={item.name}
+                  item={item}
+                  folder={folder}
+                  onEnterDir={handleEnterDir}
+                  onDeleteFile={(name) => setConfirmTarget({ name, isDir: false })}
+                  onDeleteDir={(name) => setConfirmTarget({ name, isDir: true })}
+                />
               ))}
             </tbody>
           </table>
         </div>
 
         <div className="md:hidden divide-y divide-apple-divider/40">
-          {(data ?? []).map((f) => (
-            <MobileFileRow key={f.name} file={f} onDelete={setConfirmName} />
+          {showNewFolder && (
+            <CreateFolderRowMobile
+              onConfirm={handleCreateFolder}
+              onCancel={() => setShowNewFolder(false)}
+            />
+          )}
+          {(data ?? []).map((item) => (
+            <ItemRowMobile
+              key={item.name}
+              item={item}
+              folder={folder}
+              onEnterDir={handleEnterDir}
+              onDeleteFile={(name) => setConfirmTarget({ name, isDir: false })}
+              onDeleteDir={(name) => setConfirmTarget({ name, isDir: true })}
+            />
           ))}
         </div>
 
-        {!data?.length && (
-          <p className="text-center text-[13px] text-apple-light py-16">업로드된 파일이 없습니다.</p>
+        {!data?.length && !showNewFolder && (
+          <p className="text-center text-[13px] text-apple-light py-16">이 폴더는 비어 있습니다.</p>
         )}
       </div>
     </div>

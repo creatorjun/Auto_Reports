@@ -1,31 +1,51 @@
 // frontend/src/infrastructure/hooks/useStorage.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { storageApi } from '@/infrastructure/api/storageApi'
-import type { StorageFile } from '@/domain/Storage'
+import type { StorageItem } from '@/domain/Storage'
 
-export const useStorageFiles = () =>
-  useQuery<StorageFile[]>({
-    queryKey: ['storage'],
-    queryFn: storageApi.list,
+export const useStorageItems = (folder: string) =>
+  useQuery<StorageItem[]>({
+    queryKey: ['storage', folder],
+    queryFn: () => storageApi.list(folder),
     staleTime: 1000 * 30,
   })
 
-export const useUploadFile = () => {
+export const useCreateFolder = (folder: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (file: File) => storageApi.upload(file),
+    mutationFn: (name: string) => storageApi.createFolder(name, folder),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['storage'] })
+      queryClient.invalidateQueries({ queryKey: ['storage', folder] })
     },
   })
 }
 
-export const useDeleteStorageFile = () => {
+export const useDeleteFolder = (folder: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (filename: string) => storageApi.delete(filename),
+    mutationFn: (name: string) => storageApi.deleteFolder(name, folder),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['storage'] })
+      queryClient.invalidateQueries({ queryKey: ['storage', folder] })
+    },
+  })
+}
+
+export const useUploadFile = (folder: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => storageApi.upload(file, folder),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['storage', folder] })
+    },
+  })
+}
+
+export const useDeleteStorageFile = (folder: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => storageApi.deleteFile(name, folder),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['storage', folder] })
     },
   })
 }
