@@ -4,23 +4,27 @@ from functools import lru_cache
 
 from jose import JWTError, jwt
 
-from src.infrastructure.config.settings import get_settings
+from src.infrastructure.config.settings import Settings, get_settings
 
 ACCESS_TOKEN_TYPE = "access"
 REFRESH_TOKEN_TYPE = "refresh"
 
 
 class JwtService:
-    def __init__(self) -> None:
-        self._settings = get_settings()
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
 
     def create_access_token(self, subject: str) -> str:
-        return self._create(subject, ACCESS_TOKEN_TYPE,
-                            timedelta(minutes=self._settings.jwt_access_expire_minutes))
+        return self._create(
+            subject, ACCESS_TOKEN_TYPE,
+            timedelta(minutes=self._settings.jwt_access_expire_minutes),
+        )
 
     def create_refresh_token(self, subject: str) -> str:
-        return self._create(subject, REFRESH_TOKEN_TYPE,
-                            timedelta(days=self._settings.jwt_refresh_expire_days))
+        return self._create(
+            subject, REFRESH_TOKEN_TYPE,
+            timedelta(days=self._settings.jwt_refresh_expire_days),
+        )
 
     def decode_access_token(self, token: str) -> str:
         return self._decode(token, ACCESS_TOKEN_TYPE)
@@ -45,4 +49,4 @@ class JwtService:
 
 @lru_cache
 def get_jwt_service() -> JwtService:
-    return JwtService()
+    return JwtService(get_settings())

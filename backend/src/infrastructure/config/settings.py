@@ -2,7 +2,8 @@
 import datetime
 from functools import lru_cache
 
-from pydantic_settings import BaseSettings
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -34,10 +35,10 @@ class Settings(BaseSettings):
     ]
     closed_statuses: list[str] = ["Closed", "반려됨", "중복 이슈", "취소됨"]
 
-    login: bool = False
-    admin_username: str = "admin"
-    admin_password: str = ""
-    jwt_secret: str = "please-set-JWT_SECRET-in-env"
+    login: bool = Field(default=False, alias="LOGIN", validation_alias="LOGIN")
+    admin_username: str = Field(default="admin", alias="Admin", validation_alias="Admin")
+    admin_password: str = Field(default="", alias="Admin_PASSWORD", validation_alias="Admin_PASSWORD")
+    jwt_secret: str = Field(default="please-set-JWT_SECRET-in-env", alias="JWT_SECRET", validation_alias="JWT_SECRET")
     jwt_access_expire_minutes: int = 30
     jwt_refresh_expire_days: int = 7
     storage_dir: str = "/app/storage"
@@ -50,12 +51,12 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         return f"postgresql+asyncpg://{self.db_user}:{self.db_password}@{self.db_host}/{self.db_name}"
 
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "populate_by_name": True,
-        "env_prefix": "",
-    }
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        populate_by_name=True,
+        extra="ignore",
+    )
 
 
 @lru_cache
