@@ -1,11 +1,13 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { NavLink } from 'react-router-dom'
 import TriggerButton from '../common/TriggerButton'
+import { useAuthStore } from '@/app/store/authStore'
+import { useLogout } from '@/infrastructure/hooks/useAuth'
 
 const reportLinks = [
   {
     to: '/',
-    label: '대시보드',
+    label: '\ub300\uc2dc\ubcf4\ub4dc',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.9" />
@@ -17,7 +19,7 @@ const reportLinks = [
   },
   {
     to: '/history',
-    label: '보고서 히스토리',
+    label: '\ubcf4\uace0\uc11c \ud788\uc2a4\ud1a0\ub9ac',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="2" y="2" width="12" height="2" rx="1" fill="currentColor" />
@@ -29,7 +31,7 @@ const reportLinks = [
   },
   {
     to: '/storage',
-    label: '파일 보관함',
+    label: '\ud30c\uc77c \ubcf4\uad00\ud568',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="1" y="4" width="14" height="10" rx="1.5" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.2" />
@@ -60,13 +62,13 @@ interface Props {
 }
 
 export default function Sidebar({ collapsed, setCollapsed }: Props) {
+  const { loginRequired, username } = useAuthStore()
+  const { mutate: logout, isPending: isLoggingOut } = useLogout()
+
   return (
     <aside
       className={`
-        ${ collapsed
-          ? 'w-14 3xl:w-16'
-          : 'w-56 xl:w-60 2xl:w-64 3xl:w-72'
-        }
+        ${ collapsed ? 'w-14 3xl:w-16' : 'w-56 xl:w-60 2xl:w-64 3xl:w-72' }
         bg-white border-r border-apple-divider/80
         flex flex-col
         py-5 3xl:py-7
@@ -80,7 +82,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                    rounded-xl text-apple-light
                    hover:bg-apple-gray hover:text-apple-dark
                    transition-all duration-200 mb-2 self-end"
-        title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+        title={collapsed ? '\uc0ac\uc774\ub4dc\ubc14 \ud3bc\uce58\uae30' : '\uc0ac\uc774\ub4dc\ubc14 \uc811\uae30'}
       >
         <CollapseIcon collapsed={collapsed} />
       </button>
@@ -105,8 +107,26 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
         ))}
       </div>
 
-      <div className={`mt-auto pt-4 border-t border-apple-divider/60 ${ collapsed ? 'flex justify-center' : '' }`}>
+      <div className={`mt-auto pt-4 border-t border-apple-divider/60 flex flex-col gap-2 ${ collapsed ? 'items-center' : '' }`}>
         <TriggerButton collapsed={collapsed} />
+
+        {loginRequired && (
+          <button
+            onClick={() => logout()}
+            disabled={isLoggingOut}
+            title={collapsed ? '\ub85c\uadf8\uc544\uc6c3' : undefined}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium
+                        text-apple-light hover:text-red-500 hover:bg-red-50
+                        transition-colors disabled:opacity-40 w-full
+                        ${ collapsed ? 'justify-center px-0' : '' }`}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="flex-shrink-0">
+              <path d="M5 2H2.5A.5.5 0 0 0 2 2.5v9a.5.5 0 0 0 .5.5H5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <path d="M9.5 9.5L12 7l-2.5-2.5M12 7H5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {!collapsed && <span>\ub85c\uadf8\uc544\uc6c3{username ? ` (${username})` : ''}</span>}
+          </button>
+        )}
       </div>
     </aside>
   )
