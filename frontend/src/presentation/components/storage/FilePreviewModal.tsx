@@ -241,8 +241,8 @@ function TextPreview({ url }: { url: string }) {
   }, [url])
   if (content === null) return <LoadingSpinnerSmall />
   return (
-    <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
-      <pre className="text-[12px] leading-relaxed text-white/90 whitespace-pre-wrap break-all font-mono p-8 w-full max-w-4xl">{content}</pre>
+    <div className="w-full h-full overflow-auto bg-black/60">
+      <pre className="text-[12px] leading-relaxed text-white/90 whitespace-pre-wrap break-all font-mono p-8 min-h-full">{content}</pre>
     </div>
   )
 }
@@ -292,25 +292,82 @@ function CsvPreview({ url }: { url: string }) {
   )
 }
 
+const XLSX_TABLE_STYLE = `
+  .xlsx-preview table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .xlsx-preview td, .xlsx-preview th {
+    border: 1px solid #d1d5db;
+    padding: 4px 8px;
+    white-space: nowrap;
+    vertical-align: middle;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .xlsx-preview tr:first-child td,
+  .xlsx-preview tr:first-child th {
+    background: #f3f4f6;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .xlsx-preview tr:nth-child(even) td {
+    background: #f9fafb;
+  }
+  .xlsx-preview tr:hover td {
+    background: #eff6ff;
+  }
+`
+
 function XlsxPreview({ url }: { url: string }) {
-  const [html, setHtml] = useState<string | null>(null)
+  const [sheets, setSheets] = useState<{ name: string; html: string }[]>([])
+  const [activeSheet, setActiveSheet] = useState(0)
   const [error, setError] = useState(false)
+
   useEffect(() => {
     fetch(url).then(r => r.arrayBuffer()).then(async buf => {
       const XLSX = await import('xlsx')
-      const wb = XLSX.read(buf, { type: 'array', codepage: 949 })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      setHtml(XLSX.utils.sheet_to_html(ws, { header: '', footer: '' }))
+      const wb = XLSX.read(buf, { type: 'array', codepage: 949, cellStyles: true })
+      const result = wb.SheetNames.map(sheetName => ({
+        name: sheetName,
+        html: XLSX.utils.sheet_to_html(wb.Sheets[sheetName], { header: '', footer: '' }),
+      }))
+      setSheets(result)
+      setActiveSheet(0)
     }).catch(() => setError(true))
   }, [url])
-  if (error) return <div className="flex items-center justify-center h-full bg-black/60"><p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p></div>
-  if (html === null) return <LoadingSpinnerSmall />
+
+  if (error) return (
+    <div className="flex items-center justify-center h-full bg-black/60">
+      <p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p>
+    </div>
+  )
+  if (sheets.length === 0) return <LoadingSpinnerSmall />
+
   return (
-    <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
-      <div className="p-6 w-full max-w-6xl">
-        <div className="bg-white rounded-xl shadow-2xl overflow-auto">
-          <div className="p-4 xlsx-preview" dangerouslySetInnerHTML={{ __html: html }} />
+    <div className="flex flex-col w-full h-full bg-black/60">
+      <style>{XLSX_TABLE_STYLE}</style>
+      {sheets.length > 1 && (
+        <div className="flex gap-1 px-4 pt-3 pb-0 flex-shrink-0 overflow-x-auto">
+          {sheets.map((s, i) => (
+            <button key={i} onClick={() => setActiveSheet(i)}
+              className={`px-3 py-1.5 rounded-t-lg text-[12px] font-medium transition-colors whitespace-nowrap ${
+                i === activeSheet
+                  ? 'bg-white text-apple-dark shadow'
+                  : 'bg-white/20 text-white/70 hover:bg-white/30'
+              }`}>
+              {s.name}
+            </button>
+          ))}
         </div>
+      )}
+      <div className="flex-1 overflow-auto bg-white rounded-xl shadow-2xl m-4 mt-0">
+        <div className="p-2 xlsx-preview" dangerouslySetInnerHTML={{ __html: sheets[activeSheet]?.html ?? '' }} />
       </div>
     </div>
   )
