@@ -3,7 +3,7 @@ from fastapi import APIRouter, Cookie, HTTPException, Response
 from pydantic import BaseModel
 
 from src.infrastructure.config.settings import get_settings
-from src.infrastructure.security.jwt_service import REFRESH_COOKIE_NAME, get_jwt_service
+from src.infrastructure.security.jwt_service import get_jwt_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
