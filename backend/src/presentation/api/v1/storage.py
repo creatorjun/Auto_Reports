@@ -2,7 +2,7 @@
 import urllib.parse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from src.application.use_cases.storage_use_case import StorageUseCase
@@ -112,7 +112,17 @@ async def preview_file(
         mime = uc.get_mime_type(folder, name)
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(path=path, media_type=mime, headers={"Content-Disposition": "inline"})
+
+    safe_name = urllib.parse.quote(name, safe="")
+    return FileResponse(
+        path=path,
+        media_type=mime,
+        headers={
+            "Content-Disposition": f"inline; filename*=UTF-8''{safe_name}",
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
 @router.get("/download")
@@ -126,7 +136,14 @@ async def download_file(
         path = uc.get_file_path(folder, name)
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(path=path, filename=name, media_type="application/octet-stream")
+    safe_name = urllib.parse.quote(name, safe="")
+    return FileResponse(
+        path=path,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{safe_name}",
+        },
+    )
 
 
 @router.delete("/files")
