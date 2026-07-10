@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.application.scheduler.report_scheduler import create_scheduler
-from src.config.settings import get_settings
+from src.infrastructure.config.settings import get_settings
 from src.infrastructure.container import Container
 from src.infrastructure.job_runner import JobRunner
 from src.infrastructure.persistence.job_repository_impl import InMemoryJobRepository
@@ -51,7 +51,11 @@ async def lifespan(app: FastAPI):
     app.state.container = container
     app.state.job_runner = job_runner
 
-    scheduler = create_scheduler(settings, job_runner.run_scheduled_job)
+    scheduler = create_scheduler(
+        schedule_cron=settings.schedule_cron,
+        tz=settings.tz,
+        generate_fn=job_runner.run_scheduled_job,
+    )
     scheduler.start()
     logger.info("TAC Auto Reports 서비스 시작 ✅")
 
