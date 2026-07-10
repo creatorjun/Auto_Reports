@@ -82,6 +82,37 @@ function sortIssues(items: RecentIssue[], key: ColKey, dir: SortDir): RecentIssu
   })
 }
 
+function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: string }) {
+  const style = getStatusStyle(issue.status)
+  const jiraUrl = `${jiraBase}/browse/${issue.key}`
+  const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
+  return (
+    <div
+      onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
+      className="flex flex-col gap-2 px-4 py-3 border-b border-apple-divider/60 last:border-0 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-mono text-[11px] text-blue-500 flex-shrink-0">{issue.key}</span>
+        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${style.bg} ${style.text}`}>{issue.status}</span>
+      </div>
+      <p className="text-[13px] text-apple-dark leading-snug line-clamp-2">{issue.summary}</p>
+      <div className="flex items-center justify-between gap-2">
+        <StageBar stageIndex={issue.stage_index} />
+        <div className="flex items-center gap-2 text-[11px] text-apple-light">
+          <span>{issue.reporter}</span>
+          <span className="text-apple-divider">·</span>
+          <span>{issue.tac_team}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-1 text-[11px] text-apple-light">
+        <span className="tabular-nums">{createdDate}</span>
+        <span className="text-apple-divider">·</span>
+        <span className="tabular-nums font-medium text-amber-600">{issue.elapsed_days}일 경과</span>
+      </div>
+    </div>
+  )
+}
+
 export default function ResolutionTimeChart({ details }: Props) {
   const { jiraBase } = useJira()
   const [page,    setPage]    = useState(1)
@@ -139,12 +170,14 @@ export default function ResolutionTimeChart({ details }: Props) {
   ]
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-ui-md font-semibold text-apple-primary">
-          📌 최근 이슈 현황{' '}<span className="text-apple-light font-normal">(최신 {details.length}건)</span>
-        </h3>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 justify-end">
+    <div className="card p-0 overflow-hidden">
+      <div className="px-4 pt-4 pb-3 md:px-5 md:pt-5">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h3 className="text-ui-md font-semibold text-apple-primary whitespace-nowrap">
+            📌 최근 이슈 현황{' '}<span className="text-apple-light font-normal text-ui-sm">(최신 {details.length}건)</span>
+          </h3>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
           {STATUS_LEGEND.map((l) => (
             <span key={l.label} className="flex items-center gap-1 text-ui-sm text-apple-light">
               <span className={`inline-block w-2 h-2 rounded-full ${l.color}`} />{l.label}
@@ -152,7 +185,14 @@ export default function ResolutionTimeChart({ details }: Props) {
           ))}
         </div>
       </div>
-      <div className="overflow-x-auto">
+
+      <div className="md:hidden divide-y divide-apple-divider/40">
+        {pageItems.map((issue) => (
+          <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase} />
+        ))}
+      </div>
+
+      <div className="hidden md:block overflow-x-auto px-4 md:px-5">
         <table ref={tableRef} className="w-full text-ui-base border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>{COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * 100).toFixed(2)}%` }} />)}</colgroup>
           <thead>
@@ -195,8 +235,9 @@ export default function ResolutionTimeChart({ details }: Props) {
           </tbody>
         </table>
       </div>
+
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-apple-divider">
+        <div className="flex items-center justify-between px-4 md:px-5 py-3 mt-0 border-t border-apple-divider">
           <span className="text-ui-sm text-apple-light">{(page - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(page * TABLE_PAGE_SIZE, sortedDetails.length)} / {sortedDetails.length}건</span>
           <div className="flex gap-1">
             {Array.from({ length: totalPages }).map((_, i) => (
