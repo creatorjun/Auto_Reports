@@ -11,6 +11,7 @@ from src.domain.entities.widget_data import (
     SlaMetVsViolatedWidgetData,
 )
 from src.domain.ports.ai_port import AiPort
+from src.domain.ports.report_analyzer_port import ReportAnalyzerPort
 from src.domain.value_objects.ai_analysis import AiAnalysis
 from src.domain.value_objects.widget_id import WidgetId
 from src.shared.constants import AI_OVERDUE_DETAIL_LIMIT, SUMMARY_TRUNCATE_SHORT_LEN
@@ -52,14 +53,14 @@ sentiment 판단 기준:
 """
 
 
-class AiAnalyzer:
-    def __init__(self, ai: AiPort, enabled: bool = True):
+class AiAnalyzer(ReportAnalyzerPort):
+    def __init__(self, ai: AiPort | None, enabled: bool = True):
         self._ai = ai
         self._enabled = enabled
 
     async def analyze(self, report: NewReport) -> Optional[AiAnalysis]:
-        if not self._enabled:
-            logger.info("AI 분석 비활성화 (AI_ENABLED=false)")
+        if not self._enabled or self._ai is None:
+            logger.info("AI 분석 비활성화 (AI_ENABLED=false 또는 ai=None)")
             return None
 
         widgets = report.widgets

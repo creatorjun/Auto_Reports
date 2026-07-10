@@ -2,11 +2,10 @@
 import dataclasses
 import logging
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
-from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.report_assembler import ReportAssembler
 from src.domain.entities.report import Report
+from src.domain.ports.report_analyzer_port import ReportAnalyzerPort
 from src.domain.repositories.report_repository import ReportRepository
 from src.shared.cache import LruCache
 from src.shared.constants import KST
@@ -20,7 +19,7 @@ class GenerateReportUseCase:
     def __init__(
         self,
         assembler: ReportAssembler,
-        analyzer: AiAnalyzer,
+        analyzer: ReportAnalyzerPort,
         repository: ReportRepository,
         cache: LruCache,
     ):
@@ -54,5 +53,5 @@ class GenerateReportUseCase:
 
         self._cache.set(saved.id, saved)
         self._cache.set(_LATEST_KEY, saved)
-        logger.info(f"보고서 저장 완료 및 쳨시 갱신: ID={saved.id}")
+        logger.info(f"보고서 저장 완료 및 캐시 갱신: ID={saved.id}")
         return saved
