@@ -28,6 +28,11 @@ function isPreviewable(name: string): boolean {
   return PREVIEWABLE_EXTS.has(ext)
 }
 
+function getShareUrl(name: string, folder: string): string {
+  const p = new URLSearchParams({ name, ...(folder ? { folder } : {}) })
+  return `${window.location.origin}/storage/preview?${p.toString()}`
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -65,6 +70,15 @@ function EyeIcon() {
   )
 }
 
+function LinkIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M5.5 8.5a3.5 3.5 0 0 0 4.95 0l1.5-1.5a3.5 3.5 0 0 0-4.95-4.95l-.88.88" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M8.5 5.5a3.5 3.5 0 0 0-4.95 0L2.05 7a3.5 3.5 0 0 0 4.95 4.95l.88-.88" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function TrashIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -80,6 +94,48 @@ function DownloadIcon() {
       <path d="M7 2v7M4 6.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M2 10.5v1a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
     </svg>
+  )
+}
+
+function CopyLinkButton({ name, folder }: { name: string; folder: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    await navigator.clipboard.writeText(getShareUrl(name, folder))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors
+                 text-apple-light hover:text-brand-600 hover:bg-brand-50"
+      title="\ub9c1\ud06c \ubcf5\uc0ac">
+      {copied
+        ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="#22c55e" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        : <LinkIcon />}
+    </button>
+  )
+}
+
+function CopyLinkButtonMobile({ name, folder }: { name: string; folder: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    await navigator.clipboard.writeText(getShareUrl(name, folder))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors
+                 text-apple-light hover:text-brand-600 hover:bg-brand-50"
+      title="\ub9c1\ud06c \ubcf5\uc0ac">
+      {copied
+        ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="#22c55e" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        : <LinkIcon />}
+    </button>
   )
 }
 
@@ -211,13 +267,16 @@ function ItemRow({ item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDi
         {formattedDate}
       </td>
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1.5">
           {canPreview && (
             <button onClick={() => onPreview(item.name)}
               className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"
               title="미리보기">
               <EyeIcon />
             </button>
+          )}
+          {!item.is_dir && (
+            <CopyLinkButton name={item.name} folder={folder} />
           )}
           {!item.is_dir && (
             <a href={storageApi.download(item.name, folder)} download={item.name}
@@ -272,6 +331,9 @@ function ItemRowMobile({ item, folder, onEnterDir, onPreview, onDeleteFile, onDe
             className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors">
             <EyeIcon />
           </button>
+        )}
+        {!item.is_dir && (
+          <CopyLinkButtonMobile name={item.name} folder={folder} />
         )}
         {!item.is_dir && (
           <a href={storageApi.download(item.name, folder)} download={item.name}
@@ -420,13 +482,7 @@ export default function StoragePage() {
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
       >
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
-        />
+        <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
         <div className="flex flex-col items-center justify-center py-8 gap-3">
           {isUploading ? (
             <svg className="animate-spin w-7 h-7 text-brand-500" viewBox="0 0 24 24" fill="none">
