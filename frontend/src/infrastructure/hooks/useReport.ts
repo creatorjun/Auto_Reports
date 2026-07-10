@@ -1,4 +1,5 @@
 // frontend/src/infrastructure/hooks/useReport.ts
+import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { reportApi } from '@/infrastructure/api/reportApi'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
@@ -50,22 +51,23 @@ const POLL_TIMEOUT_MS  = 180000
 
 export const useRefreshReport = (callbacks?: RefreshCallbacks) => {
   const queryClient = useQueryClient()
-  let timerRef: ReturnType<typeof setInterval> | null = null
-  let elapsed = 0
+  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null)
+  const elapsedRef  = useRef<number>(0)
 
   const stopPolling = () => {
-    if (timerRef !== null) {
-      clearInterval(timerRef)
-      timerRef = null
+    if (timerRef.current !== null) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
     }
-    elapsed = 0
+    elapsedRef.current = 0
   }
 
   const startPolling = (jobId: string) => {
-    elapsed = 0
-    timerRef = setInterval(async () => {
-      elapsed += POLL_INTERVAL_MS
-      if (elapsed >= POLL_TIMEOUT_MS) {
+    stopPolling()
+    elapsedRef.current = 0
+    timerRef.current = setInterval(async () => {
+      elapsedRef.current += POLL_INTERVAL_MS
+      if (elapsedRef.current >= POLL_TIMEOUT_MS) {
         stopPolling()
         callbacks?.onTimeout()
         return
@@ -74,7 +76,7 @@ export const useRefreshReport = (callbacks?: RefreshCallbacks) => {
         const status = await reportApi.getJobStatus(jobId)
         if (status.status === 'done') {
           stopPolling()
-          queryClient.invalidateQueries({ queryKey: ['reports'] })
+          await queryClient.invalidateQueries({ queryKey: ['reports'] })
           callbacks?.onComplete(status.report_id)
         } else if (status.status === 'error') {
           stopPolling()
@@ -90,5 +92,9 @@ export const useRefreshReport = (callbacks?: RefreshCallbacks) => {
   return useMutation({
     mutationFn: (params: TriggerParams) => reportApi.trigger(params),
     onSuccess: (data) => startPolling(data.job_id),
+    onError: () => {
+      stopPolling()
+      callbacks?.onError('보고서 갱신 요청에 실패했습니다.')
+    },
   })
 }
