@@ -15,6 +15,7 @@ from src.infrastructure.container import Container
 from src.infrastructure.job_runner import JobRunner
 from src.infrastructure.persistence.database import AsyncSessionLocal, close_db, init_db
 from src.infrastructure.persistence.job_repository_impl import SqlJobRepository
+from src.shared.audit_logger import get_audit_logger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +49,9 @@ async def lifespan(app: FastAPI):
     logger.info("DB 엔진 초기화 ✅")
 
     run_migrations()
+
+    get_audit_logger()
+    logger.info("Audit 로거 초기화 ✅")
 
     container = Container(settings)
 

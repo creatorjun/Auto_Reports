@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from src.application.ports.job_runner_port import JobRunnerPort
 from src.presentation.api.deps import get_job_runner
@@ -13,14 +13,18 @@ from src.presentation.schemas.report_schema import (
     TriggerAcceptedSchema,
     TriggerRequest,
 )
+from src.shared.audit_helper import get_client_ip
+from src.shared.audit_logger import get_audit_logger
 
 router = APIRouter(prefix="/trigger", tags=["trigger"])
 
 KST = ZoneInfo("Asia/Seoul")
+_audit = get_audit_logger()
 
 
 @router.post("/", response_model=TriggerAcceptedSchema, status_code=202)
 async def trigger_report(
+    request: Request,
     body: TriggerRequest = TriggerRequest(),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     job_runner: JobRunnerPort = Depends(get_job_runner),
@@ -42,6 +46,13 @@ async def trigger_report(
         )
 
     job_id = str(uuid.uuid4())
+    ip = get_client_ip(request)
+    _audit.audit(
+        "REPORT_TRIGGER | ip=%s | job_id=%s | start=%s | end=%s",
+        ip, job_id,
+        body.start_date or "auto",
+        body.end_date or "auto",
+    )
     background_tasks.add_task(
         job_runner.execute_in_background, job_id, start_dt, end_dt
     )

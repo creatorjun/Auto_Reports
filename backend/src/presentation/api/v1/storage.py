@@ -4,7 +4,7 @@ import os
 import tempfile
 import urllib.parse
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
@@ -12,8 +12,11 @@ from src.application.use_cases.storage_use_case import StorageUseCase
 from src.infrastructure.config.settings import get_settings
 from src.infrastructure.security.jwt_service import get_jwt_service
 from src.presentation.api.v1.deps import get_storage_use_case
+from src.shared.audit_helper import get_client_ip
+from src.shared.audit_logger import get_audit_logger
 
 router = APIRouter(prefix="/storage", tags=["storage"])
+_audit = get_audit_logger()
 
 
 class StorageFileInfo(BaseModel):
@@ -94,6 +97,7 @@ async def check_file_exists(
 
 @router.post("/folders", status_code=201)
 async def create_folder(
+    request: Request,
     body: FolderCreateRequest,
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
@@ -103,11 +107,14 @@ async def create_folder(
         raise HTTPException(status_code=409, detail="Already exists")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid path")
+    ip = get_client_ip(request)
+    _audit.audit("FOLDER_CREATE | ip=%s | path=%s/%s", ip, body.folder, body.name)
     return {"name": body.name}
 
 
 @router.delete("/folders")
 async def delete_folder(
+    request: Request,
     folder: str = Query(default=""),
     name: str = Query(...),
     uc: StorageUseCase = Depends(get_storage_use_case),
@@ -118,10 +125,13 @@ async def delete_folder(
         raise HTTPException(status_code=404, detail="Folder not found")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid path")
+    ip = get_client_ip(request)
+    _audit.audit("FOLDER_DELETE | ip=%s | path=%s/%s", ip, folder, name)
 
 
 @router.post("/upload", response_model=StorageFileInfo, status_code=201)
 async def upload_file(
+    request: Request,
     file: UploadFile,
     folder: str = Query(default=""),
     overwrite: bool = Query(default=False),
@@ -135,6 +145,8 @@ async def upload_file(
         raise HTTPException(status_code=409, detail="File already exists")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid path")
+    ip = get_client_ip(request)
+    _audit.audit("FILE_UPLOAD | ip=%s | path=%s/%s | size=%d | overwrite=%s", ip, folder, filename, len(data), overwrite)
     return StorageFileInfo(**entry.__dict__)
 
 
@@ -220,6 +232,7 @@ async def download_file(
 
 @router.delete("/files")
 async def delete_file(
+    request: Request,
     folder: str = Query(default=""),
     name: str = Query(...),
     uc: StorageUseCase = Depends(get_storage_use_case),
@@ -229,3 +242,5 @@ async def delete_file(
         uc.delete_file(folder, name)
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="File not found")
+    ip = get_client_ip(request)
+    _audit.audit("FILE_DELETE | ip=%s | path=%s/%s", ip, folder, name)
