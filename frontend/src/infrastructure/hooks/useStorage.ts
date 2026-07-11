@@ -48,9 +48,15 @@ export interface DuplicateFile {
   exists: boolean
 }
 
+export interface FileProgress {
+  name: string
+  percent: number
+  done: boolean
+}
+
 export const useUploadFiles = (folder: string) => {
   const queryClient = useQueryClient()
-  const [uploadingCount, setUploadingCount] = useState(0)
+  const [progressList, setProgressList] = useState<FileProgress[]>([])
 
   const checkDuplicates = useCallback(async (files: File[]): Promise<DuplicateFile[]> => {
     const results = await Promise.all(
@@ -64,13 +70,31 @@ export const useUploadFiles = (folder: string) => {
 
   const upload = useCallback(async (files: File[], overwrite = false) => {
     if (!files.length) return
-    setUploadingCount(files.length)
-    await Promise.allSettled(files.map(file => storageApi.upload(file, folder, overwrite)))
-    setUploadingCount(0)
+    setProgressList(files.map(f => ({ name: f.name, percent: 0, done: false })))
+    await Promise.allSettled(
+      files.map((file, idx) =>
+        storageApi.upload(file, folder, overwrite, (percent) => {
+          setProgressList(prev =>
+            prev.map((p, i) => i === idx ? { ...p, percent } : p)
+          )
+        }).then(() => {
+          setProgressList(prev =>
+            prev.map((p, i) => i === idx ? { ...p, percent: 100, done: true } : p)
+          )
+        })
+      )
+    )
     queryClient.invalidateQueries({ queryKey: ['storage', folder] })
+    setTimeout(() => setProgressList([]), 1200)
   }, [folder, queryClient])
 
-  return { upload, checkDuplicates, isUploading: uploadingCount > 0, uploadingCount }
+  const isUploading = progressList.length > 0 && progressList.some(p => !p.done)
+  const uploadingCount = progressList.filter(p => !p.done).length
+  const totalPercent = progressList.length > 0
+    ? Math.round(progressList.reduce((sum, p) => sum + p.percent, 0) / progressList.length)
+    : 0
+
+  return { upload, checkDuplicates, isUploading, uploadingCount, progressList, totalPercent }
 }
 
 export const useDeleteStorageFile = (folder: string) => {

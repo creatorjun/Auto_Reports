@@ -10,6 +10,7 @@ import {
   useStorageItems,
   useUploadFiles,
   type DuplicateFile,
+  type FileProgress,
 } from '@/infrastructure/hooks/useStorage'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import FilePreviewModal from '@/presentation/components/storage/FilePreviewModal'
@@ -187,7 +188,7 @@ function DeleteConfirmModal({ target, isDir, onConfirm, onCancel, isPending }: {
         </p>
         <div className="flex gap-2">
           <button onClick={onCancel} disabled={isPending}
-            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50">진소하기</button>
+            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50">취소하기</button>
           <button onClick={onConfirm} disabled={isPending}
             className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
             {isPending && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" /></svg>}
@@ -256,6 +257,46 @@ function OverwriteConfirmModal({ duplicates, onConfirm, onCancel }: {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function UploadProgressBar({ progressList, totalPercent }: { progressList: FileProgress[]; totalPercent: number }) {
+  if (progressList.length === 0) return null
+  return (
+    <div className="rounded-xl border border-apple-divider/60 bg-white p-3 space-y-2 shadow-sm">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[12px] font-medium text-apple-dark">
+          {progressList.every(p => p.done) ? '업로드 완료 ✓' : `업로드 중... ${totalPercent}%`}
+        </span>
+        <span className="text-[11px] text-apple-light">{progressList.filter(p => p.done).length} / {progressList.length}개</span>
+      </div>
+      <div className="w-full h-1.5 bg-apple-gray rounded-full overflow-hidden">
+        <div
+          className="h-full bg-brand-500 rounded-full transition-all duration-300"
+          style={{ width: `${totalPercent}%` }}
+        />
+      </div>
+      {progressList.length > 1 && (
+        <div className="space-y-1.5 max-h-32 overflow-y-auto pt-1">
+          {progressList.map((p) => (
+            <div key={p.name}>
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-[11px] text-apple-light truncate max-w-[75%]">{p.name}</span>
+                <span className="text-[11px] text-apple-light flex-shrink-0">
+                  {p.done ? <span className="text-green-500">완료</span> : `${p.percent}%`}
+                </span>
+              </div>
+              <div className="w-full h-1 bg-apple-gray rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${p.done ? 'bg-green-400' : 'bg-brand-400'}`}
+                  style={{ width: `${p.percent}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -375,7 +416,7 @@ type ConfirmTarget = { name: string; isDir: boolean } | null
 export default function StoragePage() {
   const [folder, setFolder] = useState('')
   const { data, isLoading, isFetching } = useStorageItems(folder)
-  const { upload, checkDuplicates, isUploading, uploadingCount } = useUploadFiles(folder)
+  const { upload, checkDuplicates, isUploading, uploadingCount, progressList, totalPercent } = useUploadFiles(folder)
   const { mutate: createFolder, isPending: isCreating } = useCreateFolder(folder)
   const { mutate: deleteFolder, isPending: isDeletingDir } = useDeleteFolder(folder)
   const { mutate: deleteFile, isPending: isDeletingFile } = useDeleteStorageFile(folder)
@@ -532,6 +573,8 @@ export default function StoragePage() {
           </div>
         </div>
       </div>
+
+      <UploadProgressBar progressList={progressList} totalPercent={totalPercent} />
 
       <div className={`card overflow-hidden p-0 transition-opacity duration-200 ${isFetching ? 'opacity-70' : 'opacity-100'}`}>
         <div className="hidden md:block">

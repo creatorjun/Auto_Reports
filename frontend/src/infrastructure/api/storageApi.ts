@@ -21,12 +21,22 @@ export const storageApi = {
     await client.delete('/storage/folders', { params: { name, folder } })
   },
 
-  upload: async (file: File, folder = '', overwrite = false): Promise<StorageItem> => {
+  upload: async (
+    file: File,
+    folder = '',
+    overwrite = false,
+    onProgress?: (percent: number) => void,
+  ): Promise<StorageItem> => {
     const form = new FormData()
     form.append('file', file)
     const res = await client.post<StorageItem>('/storage/upload', form, {
       params: { folder, overwrite },
       headers: { 'Content-Type': undefined },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) {
+          onProgress(Math.round((e.loaded / e.total) * 100))
+        }
+      },
     })
     return res.data
   },
