@@ -13,6 +13,7 @@ from src.domain.ports.storage_port import StorageEntry, StoragePort
 from src.infrastructure.config.settings import get_settings
 
 CHUNK_SIZE = 1024 * 1024  # 1MB
+_TEMP_PREFIX = ".chunked_"
 
 
 class LocalStorageAdapter(StoragePort):
@@ -31,6 +32,10 @@ class LocalStorageAdapter(StoragePort):
             if not basename:
                 raise ValueError("Invalid name")
         return target
+
+    def _temp_dir(self, upload_id: str) -> str:
+        safe_id = upload_id.replace("/", "").replace("..", "")
+        return os.path.join(self._base, f"{_TEMP_PREFIX}{safe_id}")
 
     async def _get_path_lock(self, dest: str) -> asyncio.Lock:
         async with self._meta_lock:
@@ -55,7 +60,8 @@ class LocalStorageAdapter(StoragePort):
 
     def get_total_size(self) -> int:
         total = 0
-        for dirpath, _, filenames in os.walk(self._base):
+        for dirpath, dirnames, filenames in os.walk(self._base):
+            dirnames[:] = [d for d in dirnames if not d.startswith(_TEMP_PREFIX)]
             for filename in filenames:
                 try:
                     total += os.path.getsize(os.path.join(dirpath, filename))
@@ -105,6 +111,54 @@ class LocalStorageAdapter(StoragePort):
             uploaded_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
             is_dir=False,
         )
+
+    def init_chunked_upload(self, upload_id: str, folder: str, filename: str) -> None:
+        temp_dir = self._temp_dir(upload_id)
+        if os.path.exists(temp_dir):
+            raise FileExistsError(f"Upload already initialized: {upload_id}")
+        os.makedirs(temp_dir)
+        meta_path = os.path.join(temp_dir, "_meta")
+        with open(meta_path, "w") as f:
+            f.write(f"{folder}\n{filename}")
+
+    async def save_chunk(self, upload_id: str, chunk_index: int, data: bytes) -> None:
+        temp_dir = self._temp_dir(upload_id)
+        if not os.path.isdir(temp_dir):
+            raise FileNotFoundError(f"Upload not initialized: {upload_id}")
+        chunk_path = os.path.join(temp_dir, f"{chunk_index:08d}")
+        async with aiofiles.open(chunk_path, "wb") as f:
+            await f.write(data)
+
+    def complete_chunked_upload(self, upload_id: str, total_chunks: int) -> StorageEntry:
+        temp_dir = self._temp_dir(upload_id)
+        if not os.path.isdir(temp_dir):
+            raise FileNotFoundError(f"Upload not initialized: {upload_id}")
+        meta_path = os.path.join(temp_dir, "_meta")
+        with open(meta_path) as f:
+            lines = f.read().splitlines()
+        folder, filename = lines[0], lines[1]
+        dest = self._resolve(folder, filename)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "wb") as out:
+            for i in range(total_chunks):
+                chunk_path = os.path.join(temp_dir, f"{i:08d}")
+                if not os.path.isfile(chunk_path):
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                    raise ValueError(f"Missing chunk {i}")
+                with open(chunk_path, "rb") as cf:
+                    shutil.copyfileobj(cf, out)
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        stat = os.stat(dest)
+        return StorageEntry(
+            name=os.path.basename(dest),
+            size=stat.st_size,
+            uploaded_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            is_dir=False,
+        )
+
+    def abort_chunked_upload(self, upload_id: str) -> None:
+        temp_dir = self._temp_dir(upload_id)
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
     def resolve_path(self, folder: str, name: str) -> str:
         return self._resolve(folder, name)

@@ -10,6 +10,7 @@ from src.domain.ports.storage_port import StorageEntry, StoragePort
 CONVERTIBLE_EXTENSIONS = {".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt", ".hwp", ".hwpx"}
 
 STORAGE_LIMIT_BYTES = 2 * 1024 ** 4  # 2TB
+MAX_CHUNK_SIZE = 32 * 1024 * 1024    # 32MB per chunk
 
 
 class StorageUseCase:
@@ -58,6 +59,38 @@ class StorageUseCase:
             if file_size > quota["available"]:
                 raise ValueError(f"QUOTA_EXCEEDED:{quota['available']}:{file_size}")
         return await self._adapter.save_file_streaming(folder, filename, upload)
+
+    def init_chunked_upload(
+        self,
+        upload_id: str,
+        folder: str,
+        filename: str,
+        total_size: int | None = None,
+        overwrite: bool = False,
+    ) -> None:
+        if not overwrite and self._adapter.file_exists(folder, filename):
+            raise FileExistsError(filename)
+        if total_size is not None:
+            quota = self.get_quota()
+            if total_size > quota["available"]:
+                raise ValueError(f"QUOTA_EXCEEDED:{quota['available']}:{total_size}")
+        self._adapter.init_chunked_upload(upload_id, folder, filename)
+
+    async def upload_chunk(
+        self,
+        upload_id: str,
+        chunk_index: int,
+        data: bytes,
+    ) -> None:
+        if len(data) > MAX_CHUNK_SIZE:
+            raise ValueError(f"Chunk too large: {len(data)} > {MAX_CHUNK_SIZE}")
+        await self._adapter.save_chunk(upload_id, chunk_index, data)
+
+    def complete_chunked_upload(self, upload_id: str, total_chunks: int) -> StorageEntry:
+        return self._adapter.complete_chunked_upload(upload_id, total_chunks)
+
+    def abort_chunked_upload(self, upload_id: str) -> None:
+        self._adapter.abort_chunked_upload(upload_id)
 
     def get_file_path(self, folder: str, name: str) -> str:
         path = self._adapter.resolve_path(folder, name)

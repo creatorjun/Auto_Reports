@@ -1,5 +1,6 @@
 # backend/src/presentation/api/v1/storage.py
 import urllib.parse
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
@@ -40,6 +41,26 @@ class QuotaResponse(BaseModel):
     limit: int
     available: int
     percent: float
+
+
+class ChunkInitRequest(BaseModel):
+    folder: str = ""
+    filename: str
+    total_size: int | None = None
+    overwrite: bool = False
+
+
+class ChunkInitResponse(BaseModel):
+    upload_id: str
+
+
+class ChunkCompleteRequest(BaseModel):
+    upload_id: str
+    total_chunks: int
+
+
+class ChunkAbortRequest(BaseModel):
+    upload_id: str
 
 
 def _decode(value: str) -> str:
@@ -156,6 +177,85 @@ async def upload_file(
     ip = get_client_ip(request)
     _audit.audit("FILE_UPLOAD | ip=%s | path=%s/%s | size=%d | overwrite=%s", ip, folder, filename, entry.size, overwrite)
     return StorageFileInfo(**entry.__dict__)
+
+
+@router.post("/upload/init", response_model=ChunkInitResponse, status_code=201)
+async def chunked_upload_init(
+    request: Request,
+    body: ChunkInitRequest,
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    upload_id = str(uuid.uuid4())
+    try:
+        uc.init_chunked_upload(
+            upload_id,
+            body.folder,
+            body.filename,
+            total_size=body.total_size,
+            overwrite=body.overwrite,
+        )
+    except FileExistsError:
+        raise HTTPException(status_code=409, detail="File already exists")
+    except ValueError as e:
+        msg = str(e)
+        if msg.startswith("QUOTA_EXCEEDED:"):
+            _, available, needed = msg.split(":")
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "code": "QUOTA_EXCEEDED",
+                    "available": int(available),
+                    "needed": int(needed),
+                },
+            )
+        raise HTTPException(status_code=400, detail="Invalid request")
+    ip = get_client_ip(request)
+    _audit.audit("CHUNKED_INIT | ip=%s | upload_id=%s | file=%s/%s", ip, upload_id, body.folder, body.filename)
+    return ChunkInitResponse(upload_id=upload_id)
+
+
+@router.post("/upload/chunk", status_code=204)
+async def chunked_upload_chunk(
+    upload_id: str = Query(...),
+    chunk_index: int = Query(...),
+    file: UploadFile = ...,
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    data = await file.read()
+    try:
+        await uc.upload_chunk(upload_id, chunk_index, data)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Upload session not found")
+    except ValueError as e:
+        raise HTTPException(status_code=413, detail=str(e))
+
+
+@router.post("/upload/complete", response_model=StorageFileInfo)
+async def chunked_upload_complete(
+    request: Request,
+    body: ChunkCompleteRequest,
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    try:
+        entry = uc.complete_chunked_upload(body.upload_id, body.total_chunks)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Upload session not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    ip = get_client_ip(request)
+    _audit.audit("CHUNKED_COMPLETE | ip=%s | upload_id=%s | size=%d", ip, body.upload_id, entry.size)
+    return StorageFileInfo(**entry.__dict__)
+
+
+@router.delete("/upload/abort", status_code=204)
+async def chunked_upload_abort(
+    request: Request,
+    upload_id: str = Query(...),
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    uc.abort_chunked_upload(upload_id)
+    ip = get_client_ip(request)
+    _audit.audit("CHUNKED_ABORT | ip=%s | upload_id=%s", ip, upload_id)
 
 
 @preview_router.get("/preview")
