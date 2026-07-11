@@ -58,11 +58,11 @@ docker compose up -d
 ```
 
 ```bash
-git pull; docker compose down; docker compose build --no-cache; docker compose up -d
+git pull && docker compose down && docker compose build --no-cache && docker compose up -d
 ```
 
 ```bash
-docker compose up -d --build; docker logs tac_backend
+docker compose up -d --build && docker logs tac_backend
 ```
 
 브라우저에서 `http://localhost` (기본 포트 80) 로 접속합니다.
