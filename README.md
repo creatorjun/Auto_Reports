@@ -58,11 +58,7 @@ docker compose up -d
 ```
 
 ```bash
-git pull
-docker compose down -v --remove-orphans
-docker system prune -a --volumes -f
-docker compose build --no-cache
-docker compose up -d
+git pull; docker compose down; docker compose build --no-cache; docker compose up -d
 ```
 
 ```bash
