@@ -13,6 +13,7 @@ from src.shared.audit_helper import get_client_ip
 from src.shared.audit_logger import get_audit_logger
 
 router = APIRouter(prefix="/storage", tags=["storage"])
+preview_router = APIRouter(prefix="/storage", tags=["storage"])
 _audit = get_audit_logger()
 
 CHUNK_SIZE = 1024 * 1024  # 1MB
@@ -157,7 +158,7 @@ async def upload_file(
     return StorageFileInfo(**entry.__dict__)
 
 
-@router.get("/preview")
+@preview_router.get("/preview")
 async def preview_file(
     folder: str = Query(default=""),
     name: str = Query(...),
@@ -183,7 +184,7 @@ async def preview_file(
     )
 
 
-@router.get("/preview-converted")
+@preview_router.get("/preview-converted")
 async def preview_converted(
     folder: str = Query(default=""),
     name: str = Query(...),
