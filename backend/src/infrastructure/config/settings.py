@@ -29,11 +29,16 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
     issue_types: list[str] = ["인시던트", "개선", "CVE", "서비스 요청"]
     active_statuses: list[str] = [
-        "할 일", "이슈 리뷰 중", "연구소 대기 중", "연구소 검토 중",
+        "할 일", "이슈 리뷷 중", "연구소 대기 중", "연구소 검토 중",
         "구현 중", "배포 파일 검토 중", "자료 요청 중", "결과 대기 중",
         "보류 중", "영업본부 검토중"
     ]
     closed_statuses: list[str] = ["Closed", "반려됨", "중복 이슈", "취소됨"]
+
+    report_retention_weeks: int = Field(
+        default=52,
+        description="보고서 DB 보존 기간(주). 0이면 자동 삭제 비활성화.",
+    )
 
     login: bool = Field(default=False, alias="LOGIN", validation_alias="LOGIN")
     admin_username: str = Field(default="admin", alias="ADMIN", validation_alias="ADMIN")

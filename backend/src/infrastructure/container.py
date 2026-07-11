@@ -116,6 +116,7 @@ class Container:
             analyzer=analyzer,
             repository=repo,
             cache=self._report_cache,
+            retention_weeks=self._settings.report_retention_weeks,
         )
 
     def get_report_use_case(self, session: AsyncSession) -> GetReportUseCase:

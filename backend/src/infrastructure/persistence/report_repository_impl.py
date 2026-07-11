@@ -1,10 +1,10 @@
 # backend/src/infrastructure/persistence/report_repository_impl.py
 import dataclasses
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, desc, select
+from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.report import NewReport, Report
@@ -69,6 +69,24 @@ class ReportRepositoryImpl(ReportRepository):
         )
         await self._session.commit()
         return result.rowcount > 0
+
+    async def delete_before(self, cutoff: date) -> list[int]:
+        select_stmt = select(ReportORM.id).where(ReportORM.week_start < cutoff)
+        id_result = await self._session.execute(select_stmt)
+        expired_ids: list[int] = list(id_result.scalars().all())
+
+        if not expired_ids:
+            return []
+
+        await self._session.execute(
+            delete(ReportORM).where(ReportORM.id.in_(expired_ids))
+        )
+        await self._session.commit()
+        return expired_ids
+
+    async def count_all(self) -> int:
+        result = await self._session.execute(select(func.count()).select_from(ReportORM))
+        return result.scalar_one()
 
     @staticmethod
     def _to_kst(dt: datetime) -> datetime:

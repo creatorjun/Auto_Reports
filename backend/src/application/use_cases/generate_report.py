@@ -1,7 +1,7 @@
 # backend/src/application/use_cases/generate_report.py
 import dataclasses
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.report_assembler import ReportAssembler
@@ -12,6 +12,8 @@ from src.shared.constants import KST
 
 logger = logging.getLogger(__name__)
 
+_RETENTION_DISABLED = 0
+
 
 class GenerateReportUseCase:
     def __init__(
@@ -20,11 +22,13 @@ class GenerateReportUseCase:
         analyzer: ReportAnalyzerPort,
         repository: ReportRepository,
         cache: ReportCachePort,
+        retention_weeks: int = 52,
     ):
         self._assembler = assembler
         self._analyzer = analyzer
         self._repository = repository
         self._cache = cache
+        self._retention_weeks = retention_weeks
 
     async def execute(
         self,
@@ -52,4 +56,36 @@ class GenerateReportUseCase:
         await self._cache.set(saved.id, saved)
         await self._cache.set_latest_id(saved.id)
         logger.info(f"보고서 저장 완료 및 캐시 갱신: ID={saved.id}")
+
+        await self._purge_expired(now)
+
         return saved
+
+    async def _purge_expired(self, now: datetime) -> None:
+        if self._retention_weeks == _RETENTION_DISABLED:
+            return
+
+        cutoff = (now - timedelta(weeks=self._retention_weeks)).date()
+        logger.info(f"[도탄 정리] week_start < {cutoff} 인 보고서 삭제 시작 (retention={self._retention_weeks}주)")
+
+        try:
+            deleted_ids = await self._repository.delete_before(cutoff)
+        except Exception as exc:
+            logger.error(f"[도탄 정리] DB 삭제 실패: {exc}")
+            return
+
+        if not deleted_ids:
+            logger.info("[도탄 정리] 삭제 대상 없음")
+            return
+
+        for rid in deleted_ids:
+            try:
+                await self._cache.delete(rid)
+            except Exception:
+                pass
+
+        latest_id = await self._cache.get_latest_id()
+        if latest_id in deleted_ids:
+            await self._cache.set_latest_id(None)
+
+        logger.info(f"[도탄 정리] {len(deleted_ids)}건 삭제 완료: {deleted_ids}")
