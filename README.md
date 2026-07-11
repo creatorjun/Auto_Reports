@@ -57,6 +57,13 @@ DB_NAME=auto_reports
 docker compose up -d
 ```
 
+```bash
+docker compose down -v --remove-orphans
+docker system prune -a --volumes -f
+docker compose build --no-cache
+docker compose up -d
+```
+
 브라우저에서 `http://localhost` (기본 포트 80) 로 접속합니다.
 
 > DB 마이그레이션은 백엔드 컨테이너 기동 시 `alembic upgrade head` 가 자동 실행됩니다.
