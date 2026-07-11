@@ -1,7 +1,6 @@
 # backend/src/main.py
 import logging
 import sys
-import threading
 
 from contextlib import asynccontextmanager
 from alembic import command
@@ -25,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _run_migrations_in_thread() -> None:
+def run_migrations() -> None:
     try:
         logger.info("DB 마이그레이션 실행 중...")
         alembic_cfg = AlembicConfig("alembic.ini")
@@ -33,12 +32,7 @@ def _run_migrations_in_thread() -> None:
         logger.info("DB 마이그레이션 완료 ✅")
     except Exception as e:
         logger.error(f"마이그레이션 실패: {e}")
-
-
-def run_migrations() -> None:
-    t = threading.Thread(target=_run_migrations_in_thread, daemon=False)
-    t.start()
-    t.join()
+        raise
 
 
 @asynccontextmanager

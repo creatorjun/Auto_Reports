@@ -1,10 +1,9 @@
 # backend/alembic/env.py
-import asyncio
 import os
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import engine_from_config, pool
 
 from src.infrastructure.persistence.models import Base
 
@@ -15,7 +14,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 DB_URL = (
-    f"postgresql+asyncpg://{os.environ['DB_USER']}:{os.environ['DB_PASSWORD']}"
+    f"postgresql+psycopg2://{os.environ['DB_USER']}:{os.environ['DB_PASSWORD']}"
     f"@{os.environ.get('DB_HOST', 'db')}/{os.environ['DB_NAME']}"
 )
 
@@ -29,25 +28,21 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def _do_migrations(sync_conn) -> None:
-    context.configure(
-        connection=sync_conn,
-        target_metadata=target_metadata,
-    )
-    context.run_migrations()
-
-
-async def run_async_migrations() -> None:
-    engine = create_async_engine(DB_URL, connect_args={"ssl": "disable"})
-
-    async with engine.begin() as conn:
-        await conn.run_sync(_do_migrations)
-
-    await engine.dispose()
-
-
 def run_migrations_online() -> None:
-    asyncio.run(run_async_migrations())
+    cfg = config.get_section(config.config_ini_section, {})
+    cfg["sqlalchemy.url"] = DB_URL
+    connectable = engine_from_config(
+        cfg,
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+        )
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 if context.is_offline_mode():
