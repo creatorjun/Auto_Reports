@@ -35,3 +35,6 @@ class StoragePort(ABC):
 
     @abstractmethod
     def get_mime_type(self, folder: str, name: str) -> str: ...
+
+    @abstractmethod
+    def get_total_size(self) -> int: ...

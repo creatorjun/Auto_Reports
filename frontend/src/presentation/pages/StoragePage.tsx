@@ -8,7 +8,9 @@ import {
   useDeleteFolder,
   useDeleteStorageFile,
   useStorageItems,
+  useStorageQuota,
   useUploadFiles,
+  QuotaExceededError,
   type DuplicateFile,
   type FileProgress,
 } from '@/infrastructure/hooks/useStorage'
@@ -161,6 +163,30 @@ function CopyLinkButtonMobile({ name, folder }: { name: string; folder: string }
   )
 }
 
+function QuotaBar({ used, limit, available, percent }: { used: number; limit: number; available: number; percent: number }) {
+  const isWarning = percent >= 80
+  const isCritical = percent >= 95
+  const barColor = isCritical ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-brand-500'
+  const textColor = isCritical ? 'text-red-600' : isWarning ? 'text-amber-600' : 'text-apple-light'
+  return (
+    <div className="rounded-xl border border-apple-divider/60 bg-white px-4 py-3 shadow-sm">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[12px] font-medium text-apple-dark">저장소 사용량</span>
+        <span className={`text-[12px] font-medium ${textColor}`}>
+          {formatBytes(used)} / {formatBytes(limit)} ({percent.toFixed(1)}%)
+        </span>
+      </div>
+      <div className="w-full h-1.5 bg-apple-gray rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+          style={{ width: `${Math.min(percent, 100)}%` }}
+        />
+      </div>
+      <p className="text-[11px] text-apple-light mt-1">남은 용량 {formatBytes(available)}</p>
+    </div>
+  )
+}
+
 function DeleteConfirmModal({ target, isDir, onConfirm, onCancel, isPending }: {
   target: string; isDir: boolean; onConfirm: () => void; onCancel: () => void; isPending: boolean
 }) {
@@ -195,6 +221,51 @@ function DeleteConfirmModal({ target, isDir, onConfirm, onCancel, isPending }: {
             삭제
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function QuotaExceededModal({ available, needed, onClose }: {
+  available: number; needed: number; onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-[340px] md:w-[400px] mx-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 4v6M10 13v.5" stroke="#ef4444" strokeWidth="1.8" strokeLinecap="round" />
+              <circle cx="10" cy="10" r="8" stroke="#ef4444" strokeWidth="1.4" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-[14px] font-semibold text-apple-dark">저장 용량 부족</p>
+            <p className="text-[12px] text-apple-light mt-0.5">업로드를 진행할 수 없습니다</p>
+          </div>
+        </div>
+        <div className="rounded-xl bg-red-50 p-3 mb-5 space-y-1">
+          <div className="flex justify-between text-[12px]">
+            <span className="text-apple-light">필요 용량</span>
+            <span className="font-medium text-red-600">{formatBytes(needed)}</span>
+          </div>
+          <div className="flex justify-between text-[12px]">
+            <span className="text-apple-light">남은 용량</span>
+            <span className="font-medium text-apple-dark">{formatBytes(available)}</span>
+          </div>
+          <div className="flex justify-between text-[12px]">
+            <span className="text-apple-light">부족 용량</span>
+            <span className="font-medium text-red-600">{formatBytes(needed - available)}</span>
+          </div>
+        </div>
+        <p className="text-[12px] text-apple-light mb-5 leading-relaxed">
+          저장소 용량이 부족합니다. 불필요한 파일을 삭제하여 공간을 확보한 후 다시 시도하세요.
+        </p>
+        <button onClick={onClose}
+          className="w-full px-4 py-2.5 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
+          확인
+        </button>
       </div>
     </div>
   )
@@ -416,6 +487,7 @@ type ConfirmTarget = { name: string; isDir: boolean } | null
 export default function StoragePage() {
   const [folder, setFolder] = useState('')
   const { data, isLoading, isFetching } = useStorageItems(folder)
+  const { data: quota } = useStorageQuota()
   const { upload, checkDuplicates, isUploading, uploadingCount, progressList, totalPercent } = useUploadFiles(folder)
   const { mutate: createFolder, isPending: isCreating } = useCreateFolder(folder)
   const { mutate: deleteFolder, isPending: isDeletingDir } = useDeleteFolder(folder)
@@ -426,6 +498,7 @@ export default function StoragePage() {
   const [isDragging, setIsDragging] = useState(false)
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<DuplicateFile[] | null>(null)
+  const [quotaError, setQuotaError] = useState<{ available: number; needed: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const breadcrumbs = folder ? folder.split('/') : []
@@ -438,7 +511,13 @@ export default function StoragePage() {
     if (hasDuplicates) {
       setPendingFiles(checked)
     } else {
-      await upload(list, false)
+      try {
+        await upload(list, false)
+      } catch (e) {
+        if (e instanceof QuotaExceededError) {
+          setQuotaError({ available: e.available, needed: e.needed })
+        }
+      }
     }
   }, [checkDuplicates, upload])
 
@@ -448,7 +527,13 @@ export default function StoragePage() {
       ? pendingFiles.map(d => d.file)
       : pendingFiles.filter(d => !d.exists).map(d => d.file)
     setPendingFiles(null)
-    await upload(toUpload, overwriteAll)
+    try {
+      await upload(toUpload, overwriteAll)
+    } catch (e) {
+      if (e instanceof QuotaExceededError) {
+        setQuotaError({ available: e.available, needed: e.needed })
+      }
+    }
   }, [pendingFiles, upload])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -508,6 +593,13 @@ export default function StoragePage() {
           onCancel={() => setPendingFiles(null)}
         />
       )}
+      {quotaError && (
+        <QuotaExceededModal
+          available={quotaError.available}
+          needed={quotaError.needed}
+          onClose={() => setQuotaError(null)}
+        />
+      )}
 
       <div className="flex items-end justify-between">
         <div>
@@ -516,6 +608,15 @@ export default function StoragePage() {
         </div>
         {isFetching && !isLoading && <span className="text-[11px] text-apple-light">업데이트 중...</span>}
       </div>
+
+      {quota && (
+        <QuotaBar
+          used={quota.used}
+          limit={quota.limit}
+          available={quota.available}
+          percent={quota.percent}
+        />
+      )}
 
       <div className="flex items-center gap-1 flex-wrap">
         <button onClick={() => navigateTo(-1)}
@@ -569,7 +670,9 @@ export default function StoragePage() {
           )}
           <div className="text-center">
             <p className="text-[13px] font-medium text-apple-dark">{uploadLabel}</p>
-            <p className="text-[11px] text-apple-light mt-0.5">zip, tar, gz 등 모든 형식 업로드 가능</p>
+            <p className="text-[11px] text-apple-light mt-0.5">
+              {quota ? `남은 용량 ${formatBytes(quota.available)}` : 'zip, tar, gz 등 모든 형식 업로드 가능'}
+            </p>
           </div>
         </div>
       </div>

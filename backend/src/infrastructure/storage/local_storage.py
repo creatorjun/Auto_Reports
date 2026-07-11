@@ -53,6 +53,16 @@ class LocalStorageAdapter(StoragePort):
             ))
         return result
 
+    def get_total_size(self) -> int:
+        total = 0
+        for dirpath, _, filenames in os.walk(self._base):
+            for filename in filenames:
+                try:
+                    total += os.path.getsize(os.path.join(dirpath, filename))
+                except OSError:
+                    pass
+        return total
+
     def create_folder(self, folder: str, name: str) -> None:
         path = self._resolve(folder, name)
         if os.path.exists(path):

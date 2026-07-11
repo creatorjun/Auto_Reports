@@ -9,6 +9,8 @@ from src.domain.ports.storage_port import StorageEntry, StoragePort
 
 CONVERTIBLE_EXTENSIONS = {".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt", ".hwp", ".hwpx"}
 
+STORAGE_LIMIT_BYTES = 2 * 1024 ** 4  # 2TB
+
 
 class StorageUseCase:
     def __init__(self, adapter: StoragePort):
@@ -26,14 +28,35 @@ class StorageUseCase:
     def delete_folder(self, folder: str, name: str) -> None:
         self._adapter.delete_folder(folder, name)
 
+    def get_quota(self) -> dict:
+        used = self._adapter.get_total_size()
+        limit = STORAGE_LIMIT_BYTES
+        return {
+            "used": used,
+            "limit": limit,
+            "available": max(0, limit - used),
+            "percent": round(used / limit * 100, 2),
+        }
+
     async def upload_file(self, folder: str, filename: str, data: bytes, overwrite: bool = False) -> StorageEntry:
         if not overwrite and self._adapter.file_exists(folder, filename):
             raise FileExistsError(filename)
         return await self._adapter.save_file(folder, filename, data)
 
-    async def upload_file_streaming(self, folder: str, filename: str, upload: UploadFile, overwrite: bool = False) -> StorageEntry:
+    async def upload_file_streaming(
+        self,
+        folder: str,
+        filename: str,
+        upload: UploadFile,
+        overwrite: bool = False,
+        file_size: int | None = None,
+    ) -> StorageEntry:
         if not overwrite and self._adapter.file_exists(folder, filename):
             raise FileExistsError(filename)
+        if file_size is not None:
+            quota = self.get_quota()
+            if file_size > quota["available"]:
+                raise ValueError(f"QUOTA_EXCEEDED:{quota['available']}:{file_size}")
         return await self._adapter.save_file_streaming(folder, filename, upload)
 
     def get_file_path(self, folder: str, name: str) -> str:

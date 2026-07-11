@@ -34,6 +34,13 @@ class FileExistsResponse(BaseModel):
     exists: bool
 
 
+class QuotaResponse(BaseModel):
+    used: int
+    limit: int
+    available: int
+    percent: float
+
+
 def _decode(value: str) -> str:
     return urllib.parse.unquote(value)
 
@@ -48,6 +55,13 @@ def _verify_preview_token(token: str | None) -> None:
         get_jwt_service().decode_access_token(token)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+@router.get("/quota", response_model=QuotaResponse)
+async def get_quota(
+    uc: StorageUseCase = Depends(get_storage_use_case),
+):
+    return uc.get_quota()
 
 
 @router.get("/items", response_model=list[StorageFileInfo])
@@ -113,14 +127,30 @@ async def upload_file(
     file: UploadFile,
     folder: str = Query(default=""),
     overwrite: bool = Query(default=False),
+    file_size: int | None = Query(default=None),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
     filename = file.filename or "upload"
     try:
-        entry = await uc.upload_file_streaming(folder, filename, file, overwrite=overwrite)
+        entry = await uc.upload_file_streaming(
+            folder, filename, file,
+            overwrite=overwrite,
+            file_size=file_size,
+        )
     except FileExistsError:
         raise HTTPException(status_code=409, detail="File already exists")
-    except ValueError:
+    except ValueError as e:
+        msg = str(e)
+        if msg.startswith("QUOTA_EXCEEDED:"):
+            _, available, needed = msg.split(":")
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "code": "QUOTA_EXCEEDED",
+                    "available": int(available),
+                    "needed": int(needed),
+                },
+            )
         raise HTTPException(status_code=400, detail="Invalid path")
     ip = get_client_ip(request)
     _audit.audit("FILE_UPLOAD | ip=%s | path=%s/%s | size=%d | overwrite=%s", ip, folder, filename, entry.size, overwrite)

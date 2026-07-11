@@ -2,6 +2,13 @@
 import client from './client'
 import type { StorageItem } from '@/domain/Storage'
 
+export interface StorageQuota {
+  used: number
+  limit: number
+  available: number
+  percent: number
+}
+
 export const storageApi = {
   list: async (folder = ''): Promise<StorageItem[]> => {
     const res = await client.get<StorageItem[]>('/storage/items', { params: { folder } })
@@ -11,6 +18,11 @@ export const storageApi = {
   checkExists: async (name: string, folder = ''): Promise<boolean> => {
     const res = await client.get<{ exists: boolean }>('/storage/check', { params: { name, folder } })
     return res.data.exists
+  },
+
+  getQuota: async (): Promise<StorageQuota> => {
+    const res = await client.get<StorageQuota>('/storage/quota')
+    return res.data
   },
 
   createFolder: async (name: string, folder = ''): Promise<void> => {
@@ -30,7 +42,7 @@ export const storageApi = {
     const form = new FormData()
     form.append('file', file)
     const res = await client.post<StorageItem>('/storage/upload', form, {
-      params: { folder, overwrite },
+      params: { folder, overwrite, file_size: file.size },
       headers: { 'Content-Type': undefined },
       timeout: 0,
       onUploadProgress: (e) => {
