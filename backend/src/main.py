@@ -3,8 +3,6 @@ import logging
 import sys
 
 from contextlib import asynccontextmanager
-from alembic import command
-from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,25 +22,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_migrations() -> None:
-    try:
-        logger.info("DB 마이그레이션 실행 중...")
-        alembic_cfg = AlembicConfig("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-        logger.info("DB 마이그레이션 완료 ✅")
-    except Exception as e:
-        logger.error(f"마이그레이션 실패: {e}")
-        raise
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
 
     init_db(settings.database_url)
     logger.info("DB 엔진 초기화 ✅")
-
-    run_migrations()
 
     get_audit_logger()
     logger.info("Audit 로거 초기화 ✅")
