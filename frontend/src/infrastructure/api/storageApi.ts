@@ -32,6 +32,7 @@ export const storageApi = {
     const res = await client.post<StorageItem>('/storage/upload', form, {
       params: { folder, overwrite },
       headers: { 'Content-Type': undefined },
+      timeout: 0,
       onUploadProgress: (e) => {
         if (onProgress && e.total) {
           onProgress(Math.round((e.loaded / e.total) * 100))
