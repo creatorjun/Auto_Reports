@@ -10,7 +10,8 @@ from src.application.scheduler.report_scheduler import create_scheduler
 from src.infrastructure.config.settings import get_settings
 from src.infrastructure.container import Container
 from src.infrastructure.job_runner import JobRunner
-from src.infrastructure.persistence.database import AsyncSessionLocal, close_db, init_db
+import src.infrastructure.persistence.database as db_module
+from src.infrastructure.persistence.database import close_db, init_db
 from src.infrastructure.persistence.job_repository_impl import SqlJobRepository
 from src.shared.audit_logger import get_audit_logger
 
@@ -29,19 +30,19 @@ async def lifespan(app: FastAPI):
     init_db(settings.database_url)
     logger.info("DB 엔진 초기화 ✅")
 
+    if db_module.AsyncSessionLocal is None:
+        raise RuntimeError("DB가 초기화되지 않았습니다.")
+
     get_audit_logger()
     logger.info("Audit 로거 초기화 ✅")
 
     container = Container(settings)
 
-    if AsyncSessionLocal is None:
-        raise RuntimeError("DB가 초기화되지 않았습니다.")
-
-    job_repository = SqlJobRepository(AsyncSessionLocal)
+    job_repository = SqlJobRepository(db_module.AsyncSessionLocal)
     job_runner = JobRunner(
         container=container,
         job_repository=job_repository,
-        session_factory=AsyncSessionLocal,
+        session_factory=db_module.AsyncSessionLocal,
     )
 
     app.state.container = container
