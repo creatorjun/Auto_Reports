@@ -15,6 +15,8 @@ from src.shared.audit_logger import get_audit_logger
 router = APIRouter(prefix="/storage", tags=["storage"])
 _audit = get_audit_logger()
 
+CHUNK_SIZE = 1024 * 1024  # 1MB
+
 
 class StorageFileInfo(BaseModel):
     name: str
@@ -113,16 +115,15 @@ async def upload_file(
     overwrite: bool = Query(default=False),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
-    data = await file.read()
     filename = file.filename or "upload"
     try:
-        entry = await uc.upload_file(folder, filename, data, overwrite=overwrite)
+        entry = await uc.upload_file_streaming(folder, filename, file, overwrite=overwrite)
     except FileExistsError:
         raise HTTPException(status_code=409, detail="File already exists")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid path")
     ip = get_client_ip(request)
-    _audit.audit("FILE_UPLOAD | ip=%s | path=%s/%s | size=%d | overwrite=%s", ip, folder, filename, len(data), overwrite)
+    _audit.audit("FILE_UPLOAD | ip=%s | path=%s/%s | size=%d | overwrite=%s", ip, folder, filename, entry.size, overwrite)
     return StorageFileInfo(**entry.__dict__)
 
 

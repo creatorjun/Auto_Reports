@@ -6,8 +6,13 @@ import shutil
 from datetime import datetime, timezone
 from functools import lru_cache
 
+import aiofiles
+from fastapi import UploadFile
+
 from src.domain.ports.storage_port import StorageEntry, StoragePort
 from src.infrastructure.config.settings import get_settings
+
+CHUNK_SIZE = 1024 * 1024  # 1MB
 
 
 class LocalStorageAdapter(StoragePort):
@@ -65,8 +70,24 @@ class LocalStorageAdapter(StoragePort):
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         path_lock = await self._get_path_lock(dest)
         async with path_lock:
-            with open(dest, "wb") as f:
-                f.write(data)
+            async with aiofiles.open(dest, "wb") as f:
+                await f.write(data)
+            stat = os.stat(dest)
+        return StorageEntry(
+            name=os.path.basename(dest),
+            size=stat.st_size,
+            uploaded_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            is_dir=False,
+        )
+
+    async def save_file_streaming(self, folder: str, filename: str, upload: UploadFile) -> StorageEntry:
+        dest = self._resolve(folder, filename)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        path_lock = await self._get_path_lock(dest)
+        async with path_lock:
+            async with aiofiles.open(dest, "wb") as f:
+                while chunk := await upload.read(CHUNK_SIZE):
+                    await f.write(chunk)
             stat = os.stat(dest)
         return StorageEntry(
             name=os.path.basename(dest),
