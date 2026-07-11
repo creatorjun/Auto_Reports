@@ -53,3 +53,4 @@ class JobStatusSchema(BaseModel):
     status: Literal["pending", "running", "done", "error"]
     report_id: Optional[int] = None
     error: Optional[str] = None
+    retry_after: Optional[int] = None

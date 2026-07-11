@@ -27,6 +27,11 @@ export const reportApi = {
     const res = await client.get<JobStatus>(`/trigger/${jobId}/status`)
     return res.data
   },
+  getJobStreamUrl: (jobId: string, token?: string): string => {
+    const base = '/api/v1'
+    const path = `${base}/trigger/${jobId}/stream`
+    return token ? `${path}?token=${encodeURIComponent(token)}` : path
+  },
   delete: async (id: number): Promise<void> => {
     await client.delete(`/reports/${id}`)
   },
