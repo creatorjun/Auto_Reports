@@ -90,12 +90,11 @@ class BreakdownCollector(AbstractWidgetCollector):
 
     async def collect(self) -> WidgetResult[BreakdownWidgetData]:
         labels = list(self._queries.keys())
-        counts = await asyncio.gather(
-            *[self._jira.get_issue_count(jql) for jql in self._queries.values()]
-        )
+        jqls   = list(self._queries.values())
+        counts = await self._jira.get_issue_counts_batch(jqls)
         breakdown = {label: count for label, count in zip(labels, counts) if count > 0}
         total = sum(breakdown.values())
-        logger.info(f"[{self._name}] {total}건")
+        logger.info(f"[{self._name}] {total}건 (배치 {len(jqls)}건 JQL)")
         return WidgetResult(
             name=self._name,
             total=total,

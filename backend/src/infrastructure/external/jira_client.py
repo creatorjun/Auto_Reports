@@ -47,17 +47,37 @@ class JiraClient(JiraPort):
         self._tac_assignee_fid   = jira_tac_assignee_field_id
         self._qa_assignee_fid    = jira_qa_assignee_field_id
 
+        self._count_cache: dict[str, int] = {}
+        self._count_locks: dict[str, asyncio.Lock] = {}
+
     async def get_issue_count(self, jql: str) -> int:
-        url = f"{self._base_url}/rest/api/3/search/approximate-count"
-        try:
-            resp = await self._client.post(url, json={"jql": jql})
-            resp.raise_for_status()
-            return resp.json().get("count", 0)
-        except httpx.HTTPError as e:
-            logger.error(f"JQL 카운트 실패: {jql[:80]}... -> {e}")
-            if isinstance(e, httpx.HTTPStatusError):
-                logger.error(f"응답 상세: {e.response.text[:200]}")
-            return 0
+        if jql in self._count_cache:
+            logger.debug(f"[cache-hit] count: {jql[:60]}")
+            return self._count_cache[jql]
+
+        if jql not in self._count_locks:
+            self._count_locks[jql] = asyncio.Lock()
+
+        async with self._count_locks[jql]:
+            if jql in self._count_cache:
+                return self._count_cache[jql]
+
+            url = f"{self._base_url}/rest/api/3/search/approximate-count"
+            try:
+                resp = await self._client.post(url, json={"jql": jql})
+                resp.raise_for_status()
+                count = resp.json().get("count", 0)
+            except httpx.HTTPError as e:
+                logger.error(f"JQL 카운트 실패: {jql[:80]}... -> {e}")
+                if isinstance(e, httpx.HTTPStatusError):
+                    logger.error(f"응답 상세: {e.response.text[:200]}")
+                count = 0
+
+            self._count_cache[jql] = count
+            return count
+
+    async def get_issue_counts_batch(self, jqls: list[str]) -> list[int]:
+        return list(await asyncio.gather(*[self.get_issue_count(jql) for jql in jqls]))
 
     async def get_issues(
         self,
