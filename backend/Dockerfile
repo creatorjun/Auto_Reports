@@ -16,7 +16,7 @@ COPY . .
 
 RUN mkdir -p /app/reports /app/storage
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN printf '#!/bin/sh\nset -e\necho "[entrypoint] DB migration..."\nalembic upgrade head\necho "[entrypoint] DB migration done"\nexec uvicorn src.main:app --host 0.0.0.0 --port 8000 --timeout-graceful-shutdown 30\n' > /entrypoint.sh \
+    && chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
