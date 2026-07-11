@@ -16,12 +16,12 @@ COPY . .
 
 RUN mkdir -p /app/reports /app/storage
 
-RUN printf '#!/bin/sh\nset -e\necho "[entrypoint] DB migration..."\nalembic upgrade head\necho "[entrypoint] DB migration done"\nexec uvicorn src.main:app \\
-  --host 0.0.0.0 \\
-  --port 8000 \\
-  --timeout-keep-alive 3600 \\
-  --timeout-graceful-shutdown 3600 \\
-  --h11-max-incomplete-event-size 0\n' > /entrypoint.sh \
+RUN echo '#!/bin/sh' > /entrypoint.sh \
+    && echo 'set -e' >> /entrypoint.sh \
+    && echo 'echo "[entrypoint] DB migration..."' >> /entrypoint.sh \
+    && echo 'alembic upgrade head' >> /entrypoint.sh \
+    && echo 'echo "[entrypoint] DB migration done"' >> /entrypoint.sh \
+    && echo 'exec uvicorn src.main:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 3600 --timeout-graceful-shutdown 3600 --h11-max-incomplete-event-size 0' >> /entrypoint.sh \
     && chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
