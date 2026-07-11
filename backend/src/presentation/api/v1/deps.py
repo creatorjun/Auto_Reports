@@ -1,20 +1,16 @@
 # backend/src/presentation/api/v1/deps.py
-from fastapi import Depends, HTTPException, Security
+from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.config.settings import get_settings
 from src.infrastructure.persistence.database import get_db_session
-from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.security.jwt_service import get_jwt_service
 from src.infrastructure.storage.local_storage import get_local_storage_adapter
 from src.application.use_cases.get_report import GetReportUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
-from src.shared.cache import LruCache
 
 _bearer = HTTPBearer(auto_error=False)
-
-_report_cache: LruCache = LruCache(maxsize=64, ttl_seconds=300.0)
 
 
 async def require_auth(
@@ -36,7 +32,8 @@ def get_storage_use_case() -> StorageUseCase:
 
 
 async def get_get_use_case(
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
 ) -> GetReportUseCase:
-    repository = ReportRepositoryImpl(session)
-    return GetReportUseCase(repository=repository, cache=_report_cache)
+    container = request.app.state.container
+    return container.get_report_use_case(session)
