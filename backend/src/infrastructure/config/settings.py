@@ -36,8 +36,8 @@ class Settings(BaseSettings):
     closed_statuses: list[str] = ["Closed", "반려됨", "중복 이슈", "취소됨"]
 
     login: bool = Field(default=False, alias="LOGIN", validation_alias="LOGIN")
-    admin_username: str = Field(default="admin", alias="Admin", validation_alias="Admin")
-    admin_password: str = Field(default="", alias="Admin_PASSWORD", validation_alias="Admin_PASSWORD")
+    admin_username: str = Field(default="admin", alias="ADMIN", validation_alias="ADMIN")
+    admin_password: str = Field(default="", alias="ADMIN_PASSWORD", validation_alias="ADMIN_PASSWORD")
     jwt_secret: str = Field(default="please-set-JWT_SECRET-in-env", alias="JWT_SECRET", validation_alias="JWT_SECRET")
     jwt_access_expire_minutes: int = 30
     jwt_refresh_expire_days: int = 7
