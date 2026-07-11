@@ -1,9 +1,12 @@
 # backend/src/application/use_cases/get_report.py
+import logging
 from typing import Optional
 
 from src.application.ports.report_cache_port import ReportCachePort
 from src.domain.entities.report import Report
 from src.domain.repositories.report_repository import ReportRepository
+
+logger = logging.getLogger(__name__)
 
 
 class GetReportUseCase:
@@ -12,20 +15,27 @@ class GetReportUseCase:
         self._cache = cache
 
     async def get_by_id(self, report_id: int) -> Optional[Report]:
-        cached = await self._cache.get(report_id)
+        cached = await self._cache.get(
+            report_id,
+            refresh_fn=self._fetch_by_id,
+        )
         if cached is not None:
             return cached
         report = await self._repository.find_by_id(report_id)
         if report:
-            await self._cache.set(report_id, report)
+            await self._cache.set(report.id, report)
         return report
 
     async def get_latest(self) -> Optional[Report]:
         latest_id = await self._cache.get_latest_id()
         if latest_id is not None:
-            cached = await self._cache.get(latest_id)
+            cached = await self._cache.get(
+                latest_id,
+                refresh_fn=self._fetch_by_id,
+            )
             if cached is not None:
                 return cached
+
         report = await self._repository.find_latest()
         if report:
             await self._cache.set(report.id, report)
@@ -46,3 +56,10 @@ class GetReportUseCase:
             if latest_id == report_id:
                 await self._cache.set_latest_id(None)
         return deleted
+
+    async def _fetch_by_id(self, report_id: int) -> Optional[Report]:
+        try:
+            return await self._repository.find_by_id(report_id)
+        except Exception as exc:
+            logger.error(f"[cache-refresh] DB 조회 실패: id={report_id} -> {exc}")
+            return None

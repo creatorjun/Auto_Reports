@@ -1,13 +1,17 @@
 # backend/src/application/ports/report_cache_port.py
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from src.domain.entities.report import Report
 
 
 class ReportCachePort(ABC):
     @abstractmethod
-    async def get(self, report_id: int) -> Optional[Report]: ...
+    async def get(
+        self,
+        report_id: int,
+        refresh_fn: Optional[Callable[[int], Awaitable[Optional[Report]]]] = None,
+    ) -> Optional[Report]: ...
 
     @abstractmethod
     async def set(self, report_id: int, report: Report) -> None: ...

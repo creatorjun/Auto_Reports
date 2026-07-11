@@ -39,6 +39,9 @@ KST = ZoneInfo("Asia/Seoul")
 
 _JIRA_FIELDS_COMMON = "summary,issuetype,status,created,resolutiondate"
 
+_CACHE_FRESH_TTL  = 600.0
+_CACHE_STALE_TTL  = 120.0
+
 
 class Container:
     def __init__(self, settings: Settings):
@@ -61,7 +64,11 @@ class Container:
             sla_threshold_days=settings.sla_threshold_days,
             year_start=settings.year_start,
         )
-        self._report_cache: ReportCachePort = ReportLruCache(maxsize=50, ttl_seconds=600.0)
+        self._report_cache: ReportCachePort = ReportLruCache(
+            maxsize=50,
+            ttl_seconds=_CACHE_FRESH_TTL,
+            stale_ttl_seconds=_CACHE_STALE_TTL,
+        )
 
     def jira_port(self) -> JiraPort:
         return self._jira
@@ -72,7 +79,7 @@ class Container:
             CollectorEntry(WidgetId.YEARLY_CREATED,      SimpleCountCollector(jira, f"{now.year}년 누적 생성", q.w1_yearly_created())),
             CollectorEntry(WidgetId.YEARLY_RESOLVED,     SimpleCountCollector(jira, f"{now.year}년 누적 해결", q.w2_yearly_resolved())),
             CollectorEntry(WidgetId.CREATED_VS_RESOLVED, CreatedVsResolvedCollector(jira, q)),
-            CollectorEntry(WidgetId.ISSUE_REVIEW,        SimpleWithDetailsCollector(jira, "이슈 리뷻 중", q.w4_issue_review())),
+            CollectorEntry(WidgetId.ISSUE_REVIEW,        SimpleWithDetailsCollector(jira, "이슈 리뷷 중", q.w4_issue_review())),
             CollectorEntry(WidgetId.DATA_REQUEST,        SimpleWithDetailsCollector(jira, "자료 요청 중", q.w5_data_request())),
             CollectorEntry(WidgetId.RESULT_PENDING,      SimpleWithDetailsCollector(jira, "결과 대기 중", q.w6_result_pending())),
             CollectorEntry(WidgetId.SLA_MET_VS_VIOLATED, SlaMetVsViolatedCollector(jira, q)),
@@ -90,7 +97,7 @@ class Container:
 
     async def aclose(self) -> None:
         await self._jira.aclose()
-        logger.info("JiraClient 컨넥션 풀 종료")
+        logger.info("JiraClient 콘넥션 풀 종료")
 
     def generate_report_use_case(self, session: AsyncSession) -> GenerateReportUseCase:
         repo = ReportRepositoryImpl(session)
