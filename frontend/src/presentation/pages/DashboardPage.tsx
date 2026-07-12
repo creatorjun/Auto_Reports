@@ -1,29 +1,57 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
-import { useEffect, useState, useMemo } from 'react'
+import { lazy, Suspense, useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { useLatestReport, useReportById } from '@/infrastructure/hooks/useReport'
 import { useReportStore } from '@/app/store/reportStore'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import SummaryCard from '@/presentation/components/cards/SummaryCard'
 import AiSummaryCard from '@/presentation/components/cards/AiSummaryCard'
-import SlaDonutChart, { type ViolationEntry } from '@/presentation/components/charts/SlaDonutChart'
-import ReasonPieChart, { type SlaDelayIssue } from '@/presentation/components/charts/ReasonPieChart'
-import TypeBarChart from '@/presentation/components/charts/TypeBarChart'
-import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTimeChart'
-import TrendLineChart from '@/presentation/components/charts/TrendLineChart'
-import SlaMonthlyLineChart, { type MonthlyEntry } from '@/presentation/components/charts/SlaMonthlyLineChart'
-import MonthlyCountChart, { type MonthlyCountEntry } from '@/presentation/components/charts/MonthlyCountChart'
-import WeeklyCreatedModal, { type CreatedIssue } from '@/presentation/components/tables/WeeklyCreatedModal'
-import WeeklyResolvedModal, { type ResolvedIssue } from '@/presentation/components/tables/WeeklyResolvedModal'
-import IssueReviewModal, { type ReviewIssue } from '@/presentation/components/tables/IssueReviewModal'
-import DataRequestModal, { type DataRequestIssue } from '@/presentation/components/tables/DataRequestModal'
-import ResultPendingModal, { type ResultPendingIssue } from '@/presentation/components/tables/ResultPendingModal'
-import IncompleteIssueModal, { type IncompleteIssue } from '@/presentation/components/tables/IncompleteIssueModal'
-import SlaViolationModal, { type SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
-import SlaDelayModal from '@/presentation/components/tables/SlaDelayModal'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/shared/constants'
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
+
+const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
+const ReasonPieChart      = lazy(() => import('@/presentation/components/charts/ReasonPieChart'))
+const TypeBarChart        = lazy(() => import('@/presentation/components/charts/TypeBarChart'))
+const ResolutionTimeChart = lazy(() => import('@/presentation/components/charts/ResolutionTimeChart'))
+const TrendLineChart      = lazy(() => import('@/presentation/components/charts/TrendLineChart'))
+const SlaMonthlyLineChart = lazy(() => import('@/presentation/components/charts/SlaMonthlyLineChart'))
+const MonthlyCountChart   = lazy(() => import('@/presentation/components/charts/MonthlyCountChart'))
+
+const WeeklyCreatedModal  = lazy(() => import('@/presentation/components/tables/WeeklyCreatedModal'))
+const WeeklyResolvedModal = lazy(() => import('@/presentation/components/tables/WeeklyResolvedModal'))
+const IssueReviewModal    = lazy(() => import('@/presentation/components/tables/IssueReviewModal'))
+const DataRequestModal    = lazy(() => import('@/presentation/components/tables/DataRequestModal'))
+const ResultPendingModal  = lazy(() => import('@/presentation/components/tables/ResultPendingModal'))
+const IncompleteIssueModal = lazy(() => import('@/presentation/components/tables/IncompleteIssueModal'))
+const SlaViolationModal   = lazy(() => import('@/presentation/components/tables/SlaViolationModal'))
+const SlaDelayModal       = lazy(() => import('@/presentation/components/tables/SlaDelayModal'))
+
+import type { ViolationEntry } from '@/presentation/components/charts/SlaDonutChart'
+import type { SlaDelayIssue } from '@/presentation/components/charts/ReasonPieChart'
+import type { MonthlyEntry } from '@/presentation/components/charts/SlaMonthlyLineChart'
+import type { MonthlyCountEntry } from '@/presentation/components/charts/MonthlyCountChart'
+import type { CreatedIssue } from '@/presentation/components/tables/WeeklyCreatedModal'
+import type { ResolvedIssue } from '@/presentation/components/tables/WeeklyResolvedModal'
+import type { ReviewIssue } from '@/presentation/components/tables/IssueReviewModal'
+import type { DataRequestIssue } from '@/presentation/components/tables/DataRequestModal'
+import type { ResultPendingIssue } from '@/presentation/components/tables/ResultPendingModal'
+import type { IncompleteIssue } from '@/presentation/components/tables/IncompleteIssueModal'
+import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
+
+const ModalFallback = () => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 flex items-center justify-center">
+      <LoadingSpinner text="로딩 중..." />
+    </div>
+  </div>
+)
+
+const ChartFallback = () => (
+  <div className="flex items-center justify-center h-40 rounded-xl bg-gray-50">
+    <LoadingSpinner text="" />
+  </div>
+)
 
 interface W9Data {
   initial_response_violations?: number
@@ -147,60 +175,106 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <SummaryCard label="미완료 이슈"  value={incompleteTotal}  color="red"    onClick={() => setShowIncomplete(true)}     />
       </div>
 
-      {showWeeklyCreated  && <WeeklyCreatedModal  issues={weeklyCreated}       total={w3Created}        dateRange={dateRange} onClose={() => setShowWeeklyCreated(false)}  />}
-      {showWeeklyResolved && <WeeklyResolvedModal issues={weeklyResolved}      total={w3Resolved}       dateRange={dateRange} onClose={() => setShowWeeklyResolved(false)} />}
-      {showIssueReview    && <IssueReviewModal    issues={reviewIssues}        total={w.w4?.total ?? 0} onClose={() => setShowIssueReview(false)}    />}
-      {showDataRequest    && <DataRequestModal    issues={dataRequestIssues}   total={w.w5?.total ?? 0} onClose={() => setShowDataRequest(false)}    />}
-      {showResultPending  && <ResultPendingModal  issues={resultPendingIssues} total={w.w6?.total ?? 0} onClose={() => setShowResultPending(false)}  />}
-      {showIncomplete     && <IncompleteIssueModal issues={incompleteIssues}   total={incompleteTotal}  onClose={() => setShowIncomplete(false)}     />}
-      {slaViolationEntry  && (
-        <SlaViolationModal
-          stage={slaViolationEntry.stage}
-          issues={slaModalIssues}
-          total={slaViolationEntry.count}
-          onClose={() => setSlaViolationEntry(null)}
-        />
+      {showWeeklyCreated && (
+        <Suspense fallback={<ModalFallback />}>
+          <WeeklyCreatedModal issues={weeklyCreated} total={w3Created} dateRange={dateRange} onClose={() => setShowWeeklyCreated(false)} />
+        </Suspense>
+      )}
+      {showWeeklyResolved && (
+        <Suspense fallback={<ModalFallback />}>
+          <WeeklyResolvedModal issues={weeklyResolved} total={w3Resolved} dateRange={dateRange} onClose={() => setShowWeeklyResolved(false)} />
+        </Suspense>
+      )}
+      {showIssueReview && (
+        <Suspense fallback={<ModalFallback />}>
+          <IssueReviewModal issues={reviewIssues} total={w.w4?.total ?? 0} onClose={() => setShowIssueReview(false)} />
+        </Suspense>
+      )}
+      {showDataRequest && (
+        <Suspense fallback={<ModalFallback />}>
+          <DataRequestModal issues={dataRequestIssues} total={w.w5?.total ?? 0} onClose={() => setShowDataRequest(false)} />
+        </Suspense>
+      )}
+      {showResultPending && (
+        <Suspense fallback={<ModalFallback />}>
+          <ResultPendingModal issues={resultPendingIssues} total={w.w6?.total ?? 0} onClose={() => setShowResultPending(false)} />
+        </Suspense>
+      )}
+      {showIncomplete && (
+        <Suspense fallback={<ModalFallback />}>
+          <IncompleteIssueModal issues={incompleteIssues} total={incompleteTotal} onClose={() => setShowIncomplete(false)} />
+        </Suspense>
+      )}
+      {slaViolationEntry && (
+        <Suspense fallback={<ModalFallback />}>
+          <SlaViolationModal
+            stage={slaViolationEntry.stage}
+            issues={slaModalIssues}
+            total={slaViolationEntry.count}
+            onClose={() => setSlaViolationEntry(null)}
+          />
+        </Suspense>
       )}
       {slaDelayEntry && (
-        <SlaDelayModal
-          status={slaDelayEntry.status}
-          issues={slaDelayEntry.issues}
-          total={slaDelayEntry.issues.length}
-          onClose={() => setSlaDelayEntry(null)}
-        />
+        <Suspense fallback={<ModalFallback />}>
+          <SlaDelayModal
+            status={slaDelayEntry.status}
+            issues={slaDelayEntry.issues}
+            total={slaDelayEntry.issues.length}
+            onClose={() => setSlaDelayEntry(null)}
+          />
+        </Suspense>
       )}
 
       {(hasW13 || hasW14) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
-          <MonthlyCountChart title="📋 월별 등록 건수" subtitle="최근 6개월" monthly={w13Monthly} color={MONTHLY_COUNT_COLORS.created}  />
-          <MonthlyCountChart title="✅ 월별 해결 건수" subtitle="최근 6개월" monthly={w14Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
+          <Suspense fallback={<ChartFallback />}>
+            <MonthlyCountChart title="📋 월별 등록 건수" subtitle="최근 6개월" monthly={w13Monthly} color={MONTHLY_COUNT_COLORS.created}  />
+          </Suspense>
+          <Suspense fallback={<ChartFallback />}>
+            <MonthlyCountChart title="✅ 월별 해결 건수" subtitle="최근 6개월" monthly={w14Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
+          </Suspense>
         </div>
       )}
       {(hasW7 || hasW8) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
-          <SlaMonthlyLineChart title="✅ 최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w7Monthly} color={SLA_MONTHLY_COLORS.initial}    />
-          <SlaMonthlyLineChart title="✅ 해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w8Monthly} color={SLA_MONTHLY_COLORS.resolution} />
+          <Suspense fallback={<ChartFallback />}>
+            <SlaMonthlyLineChart title="✅ 최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w7Monthly} color={SLA_MONTHLY_COLORS.initial}    />
+          </Suspense>
+          <Suspense fallback={<ChartFallback />}>
+            <SlaMonthlyLineChart title="✅ 해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w8Monthly} color={SLA_MONTHLY_COLORS.resolution} />
+          </Suspense>
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
-        <SlaDonutChart
-          total={w9Total}
-          distribution={w9Distribution}
-          onSliceClick={(entry) => setSlaViolationEntry(entry)}
-        />
-        <ReasonPieChart
-          byStatus={w10ByStatus}
-          byStatusDetails={w10ByStatusDetails}
-          onSliceClick={(status, issues) => setSlaDelayEntry({ status, issues })}
-        />
-        <TrendLineChart
-          created={w3Created}
-          resolved={w3Resolved}
-          onBarClick={handleTrendBarClick}
-        />
-        <TypeBarChart byType={w11ByType} />
+        <Suspense fallback={<ChartFallback />}>
+          <SlaDonutChart
+            total={w9Total}
+            distribution={w9Distribution}
+            onSliceClick={(entry) => setSlaViolationEntry(entry)}
+          />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <ReasonPieChart
+            byStatus={w10ByStatus}
+            byStatusDetails={w10ByStatusDetails}
+            onSliceClick={(status, issues) => setSlaDelayEntry({ status, issues })}
+          />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <TrendLineChart
+            created={w3Created}
+            resolved={w3Resolved}
+            onBarClick={handleTrendBarClick}
+          />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <TypeBarChart byType={w11ByType} />
+        </Suspense>
       </div>
-      <ResolutionTimeChart details={recentIssues} />
+      <Suspense fallback={<ChartFallback />}>
+        <ResolutionTimeChart details={recentIssues} />
+      </Suspense>
     </div>
   )
 }
