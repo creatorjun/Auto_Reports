@@ -4,15 +4,18 @@ import { useNavigate } from 'react-router-dom'
 import { authApi, type LoginRequest } from '@/infrastructure/api/authApi'
 import { useAuthStore } from '@/app/store/authStore'
 
-export const useMe = () =>
-  useQuery({
+export const useMe = () => {
+  const { accessToken } = useAuthStore()
+  return useQuery({
     queryKey: ['me'],
     queryFn: authApi.me,
+    enabled: !!accessToken,
     retry: false,
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   })
+}
 
 export const useLogin = () => {
   const queryClient = useQueryClient()
