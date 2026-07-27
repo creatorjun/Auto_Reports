@@ -6,6 +6,7 @@ import { useAuthStore } from '@/app/store/authStore'
 
 export const useMe = () => {
   const { accessToken } = useAuthStore()
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: ['me'],
     queryFn: authApi.me,
@@ -14,6 +15,12 @@ export const useMe = () => {
     staleTime: 5 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+    throwOnError: false,
+    meta: {
+      onError: () => {
+        queryClient.removeQueries({ queryKey: ['me'] })
+      },
+    },
   })
 }
 

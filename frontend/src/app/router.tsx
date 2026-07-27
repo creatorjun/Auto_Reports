@@ -33,5 +33,5 @@ export const router = createBrowserRouter([
       { path: 'storage/preview', element: <Suspense fallback={<Fallback />}><StoragePreviewPage /></Suspense> },
     ]
   },
-  { path: '*', element: <Navigate to="/" replace /> },
+  { path: '*', element: <Navigate to="/login" replace /> },
 ])
