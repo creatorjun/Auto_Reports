@@ -35,14 +35,19 @@ class SiteRepositoryImpl(SiteRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def save(self, site: Site) -> Site:
-        orm = self._to_orm(site)
-        self._session.add(orm)
-        await self._session.flush()
-        return self._to_entity(orm)
+    async def get_all(self) -> list[Site]:
+        result = await self._session.execute(
+            select(SiteORM).options(
+                selectinload(SiteORM.nodes),
+                selectinload(SiteORM.solution_package),
+                selectinload(SiteORM.patch_histories),
+                selectinload(SiteORM.visit_histories),
+            )
+        )
+        return [self._to_domain(orm) for orm in result.scalars().all()]
 
-    async def find_by_id(self, site_id: str) -> Optional[Site]:
-        stmt = (
+    async def get_by_id(self, site_id: str) -> Optional[Site]:
+        result = await self._session.execute(
             select(SiteORM)
             .where(SiteORM.id == site_id)
             .options(
@@ -52,226 +57,121 @@ class SiteRepositoryImpl(SiteRepository):
                 selectinload(SiteORM.visit_histories),
             )
         )
-        result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
-        return self._to_entity(orm) if orm else None
+        return self._to_domain(orm) if orm else None
 
-    async def find_all(self, limit: int = 20, offset: int = 0) -> list[Site]:
-        stmt = (
-            select(SiteORM)
-            .options(
-                selectinload(SiteORM.nodes),
-                selectinload(SiteORM.solution_package),
-                selectinload(SiteORM.patch_histories),
-                selectinload(SiteORM.visit_histories),
-            )
-            .order_by(SiteORM.site_name)
-            .limit(limit)
-            .offset(offset)
+    async def save(self, site: Site) -> Site:
+        result = await self._session.execute(
+            select(SiteORM).where(SiteORM.id == site.id)
         )
-        result = await self._session.execute(stmt)
-        return [self._to_entity(row) for row in result.scalars().all()]
-
-    async def find_by_status(self, status: str, limit: int = 20, offset: int = 0) -> list[Site]:
-        stmt = (
-            select(SiteORM)
-            .where(SiteORM.status == status)
-            .options(
-                selectinload(SiteORM.nodes),
-                selectinload(SiteORM.solution_package),
-                selectinload(SiteORM.patch_histories),
-                selectinload(SiteORM.visit_histories),
-            )
-            .order_by(SiteORM.site_name)
-            .limit(limit)
-            .offset(offset)
-        )
-        result = await self._session.execute(stmt)
-        return [self._to_entity(row) for row in result.scalars().all()]
-
-    async def update(self, site: Site) -> Site:
-        existing = await self._session.get(SiteORM, site.id)
-        if not existing:
-            return await self.save(site)
-        self._apply_to_orm(existing, site)
+        orm = result.scalar_one_or_none()
+        if orm is None:
+            orm = SiteORM(id=site.id)
+            self._session.add(orm)
+        self._apply_domain(orm, site)
         await self._session.flush()
-        return site
+        await self._session.refresh(
+            orm,
+            attribute_names=["nodes", "solution_package", "patch_histories", "visit_histories"],
+        )
+        return self._to_domain(orm)
 
     async def delete(self, site_id: str) -> bool:
-        existing = await self._session.get(SiteORM, site_id)
-        if not existing:
+        result = await self._session.execute(
+            select(SiteORM).where(SiteORM.id == site_id)
+        )
+        orm = result.scalar_one_or_none()
+        if orm is None:
             return False
-        await self._session.delete(existing)
+        await self._session.delete(orm)
         await self._session.flush()
         return True
 
-    async def count_all(self) -> int:
-        result = await self._session.execute(select(func.count()).select_from(SiteORM))
-        return result.scalar_one()
-
-    def _to_orm(self, site: Site) -> SiteORM:
-        orm = SiteORM(
-            id=site.id,
-            site_name=site.site_name,
-            maintenance_company=site.maintenance_company,
-            customer_name=site.customer_contact.name,
-            customer_phone=site.customer_contact.phone,
-            customer_email=site.customer_contact.email,
-            maintenance_name=site.maintenance_contact.name,
-            maintenance_phone=site.maintenance_contact.phone,
-            maintenance_email=site.maintenance_contact.email,
-            contract_start_date=site.contract_start_date,
-            contract_end_date=site.contract_end_date,
-            contract_type=site.contract_type.value,
-            status=site.status.value,
-        )
-        orm.nodes = [
-            DeploymentNodeORM(
-                site_id=site.id,
-                hostname=n.hostname,
-                role=n.role.value,
-                cpu_cores=n.cpu_cores,
-                cpu_threads=n.cpu_threads,
-                memory_total_gb=n.memory_total_gb,
-                disk_total_gb=n.disk_total_gb,
-                os_type=n.os_type,
-                os_version=n.os_version,
-                ip_address=n.ip_address,
-                disk_free_gb=n.disk_free_gb,
-                disk_updated_at=n.disk_updated_at,
-            )
-            for n in site.nodes
-        ]
-        if site.solution_package:
-            pkg = site.solution_package
-            orm.solution_package = SolutionPackageORM(
-                site_id=site.id,
-                version=pkg.version,
-                installer_filename=pkg.installer_filename,
-                license_capacity_gb=pkg.license_capacity_gb,
-                deployment_type=pkg.deployment_type.value,
-                license_key=pkg.license_key,
-                license_expire_date=pkg.license_expire_date,
-                installed_at=pkg.installed_at,
-                updated_at=pkg.updated_at,
-            )
-        orm.patch_histories = [
-            PatchHistoryORM(
-                site_id=site.id,
-                issue_link=p.issue_link,
-                patch_date=p.patch_date,
-                patch_file_link=p.patch_file_link,
-                patch_type=p.patch_type.value,
-                applied_by=p.applied_by,
-                result_status=p.result_status.value,
-                rollback_date=p.rollback_date,
-                note=p.note,
-            )
-            for p in site.patch_histories
-        ]
-        orm.visit_histories = [
-            VisitHistoryORM(
-                site_id=site.id,
-                visit_date=v.visit_date,
-                visitor=v.visitor,
-                visit_type=v.visit_type.value,
-                visit_summary=v.visit_summary,
-                next_visit_scheduled=v.next_visit_scheduled,
-            )
-            for v in site.visit_histories
-        ]
-        return orm
-
-    def _apply_to_orm(self, orm: SiteORM, site: Site) -> None:
-        orm.site_name           = site.site_name
-        orm.maintenance_company = site.maintenance_company
-        orm.customer_name       = site.customer_contact.name
-        orm.customer_phone      = site.customer_contact.phone
-        orm.customer_email      = site.customer_contact.email
-        orm.maintenance_name    = site.maintenance_contact.name
-        orm.maintenance_phone   = site.maintenance_contact.phone
-        orm.maintenance_email   = site.maintenance_contact.email
-        orm.contract_start_date = site.contract_start_date
-        orm.contract_end_date   = site.contract_end_date
-        orm.contract_type       = site.contract_type.value
-        orm.status              = site.status.value
-
-    @staticmethod
-    def _to_entity(orm: SiteORM) -> Site:
-        nodes = [
-            DeploymentNode(
-                hostname=n.hostname,
-                role=NodeRole(n.role),
-                cpu_cores=n.cpu_cores,
-                cpu_threads=n.cpu_threads,
-                memory_total_gb=n.memory_total_gb,
-                disk_total_gb=n.disk_total_gb,
-                os_type=n.os_type,
-                os_version=n.os_version,
-                ip_address=n.ip_address,
-                disk_free_gb=n.disk_free_gb,
-                disk_updated_at=n.disk_updated_at,
-            )
-            for n in (orm.nodes or [])
-        ]
-        pkg = None
-        if orm.solution_package:
-            p = orm.solution_package
-            pkg = SolutionPackage(
-                version=p.version,
-                installer_filename=p.installer_filename,
-                license_capacity_gb=p.license_capacity_gb,
-                deployment_type=DeploymentType(p.deployment_type),
-                license_key=p.license_key,
-                license_expire_date=p.license_expire_date,
-                installed_at=p.installed_at,
-                updated_at=p.updated_at,
-            )
-        patches = [
-            PatchHistory(
-                issue_link=p.issue_link,
-                patch_date=p.patch_date,
-                patch_file_link=p.patch_file_link,
-                patch_type=PatchType(p.patch_type),
-                applied_by=p.applied_by,
-                result_status=PatchResultStatus(p.result_status),
-                rollback_date=p.rollback_date,
-                note=p.note,
-            )
-            for p in (orm.patch_histories or [])
-        ]
-        visits = [
-            VisitHistory(
-                visit_date=v.visit_date,
-                visitor=v.visitor,
-                visit_type=VisitType(v.visit_type),
-                visit_summary=v.visit_summary,
-                next_visit_scheduled=v.next_visit_scheduled,
-            )
-            for v in (orm.visit_histories or [])
-        ]
+    def _to_domain(self, orm: SiteORM) -> Site:
         return Site(
             id=orm.id,
             site_name=orm.site_name,
             maintenance_company=orm.maintenance_company,
-            customer_contact=ContactInfo(
-                name=orm.customer_name,
-                phone=orm.customer_phone,
-                email=orm.customer_email,
-            ),
-            maintenance_contact=ContactInfo(
-                name=orm.maintenance_name,
-                phone=orm.maintenance_phone,
-                email=orm.maintenance_email,
-            ),
+            customer_info=ContactInfo(name=orm.customer_name, phone=orm.customer_phone, email=orm.customer_email),
+            maintenance_info=ContactInfo(name=orm.maintenance_name, phone=orm.maintenance_phone, email=orm.maintenance_email),
             contract_start_date=orm.contract_start_date,
             contract_end_date=orm.contract_end_date,
             contract_type=ContractType(orm.contract_type),
             status=SiteStatus(orm.status),
-            nodes=nodes,
-            solution_package=pkg,
-            patch_histories=patches,
-            visit_histories=visits,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
+            nodes=[self._node_to_domain(n) for n in (orm.nodes or [])],
+            solution_package=self._pkg_to_domain(orm.solution_package) if orm.solution_package else None,
+            patch_histories=[self._patch_to_domain(p) for p in (orm.patch_histories or [])],
+            visit_histories=[self._visit_to_domain(v) for v in (orm.visit_histories or [])],
         )
+
+    def _node_to_domain(self, orm: DeploymentNodeORM) -> DeploymentNode:
+        return DeploymentNode(
+            id=orm.id,
+            site_id=orm.site_id,
+            hostname=orm.hostname,
+            role=NodeRole(orm.role),
+            cpu_cores=orm.cpu_cores,
+            cpu_threads=orm.cpu_threads,
+            memory_total_gb=orm.memory_total_gb,
+            disk_total_gb=orm.disk_total_gb,
+            os_type=orm.os_type,
+            os_version=orm.os_version,
+            ip_address=orm.ip_address,
+            disk_free_gb=orm.disk_free_gb,
+            disk_updated_at=orm.disk_updated_at,
+        )
+
+    def _pkg_to_domain(self, orm: SolutionPackageORM) -> SolutionPackage:
+        return SolutionPackage(
+            id=orm.id,
+            site_id=orm.site_id,
+            version=orm.version,
+            installer_filename=orm.installer_filename,
+            license_capacity_gb=orm.license_capacity_gb,
+            deployment_type=DeploymentType(orm.deployment_type),
+            license_key=orm.license_key,
+            license_expire_date=orm.license_expire_date,
+            installed_at=orm.installed_at,
+            updated_at=orm.updated_at,
+        )
+
+    def _patch_to_domain(self, orm: PatchHistoryORM) -> PatchHistory:
+        return PatchHistory(
+            id=orm.id,
+            site_id=orm.site_id,
+            issue_link=orm.issue_link,
+            patch_date=orm.patch_date,
+            patch_file_link=orm.patch_file_link,
+            patch_type=PatchType(orm.patch_type),
+            applied_by=orm.applied_by,
+            result_status=PatchResultStatus(orm.result_status),
+            rollback_date=orm.rollback_date,
+            note=orm.note,
+        )
+
+    def _visit_to_domain(self, orm: VisitHistoryORM) -> VisitHistory:
+        return VisitHistory(
+            id=orm.id,
+            site_id=orm.site_id,
+            visit_date=orm.visit_date,
+            visitor=orm.visitor,
+            visit_type=VisitType(orm.visit_type),
+            visit_summary=orm.visit_summary,
+            next_visit_scheduled=orm.next_visit_scheduled,
+        )
+
+    def _apply_domain(self, orm: SiteORM, site: Site) -> None:
+        orm.site_name = site.site_name
+        orm.maintenance_company = site.maintenance_company
+        orm.customer_name = site.customer_info.name
+        orm.customer_phone = site.customer_info.phone
+        orm.customer_email = site.customer_info.email
+        orm.maintenance_name = site.maintenance_info.name
+        orm.maintenance_phone = site.maintenance_info.phone
+        orm.maintenance_email = site.maintenance_info.email
+        orm.contract_start_date = site.contract_start_date
+        orm.contract_end_date = site.contract_end_date
+        orm.contract_type = site.contract_type.value
+        orm.status = site.status.value
