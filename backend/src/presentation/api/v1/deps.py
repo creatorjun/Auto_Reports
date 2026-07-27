@@ -8,6 +8,7 @@ from src.infrastructure.persistence.database import get_db_session
 from src.infrastructure.security.jwt_service import get_jwt_service
 from src.infrastructure.storage.local_storage import get_local_storage_adapter
 from src.application.use_cases.get_report import GetReportUseCase
+from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 
 _bearer = HTTPBearer(auto_error=False)
@@ -37,3 +38,11 @@ async def get_get_use_case(
 ) -> GetReportUseCase:
     container = request.app.state.container
     return container.get_report_use_case(session)
+
+
+async def get_site_use_case(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> SiteUseCase:
+    container = request.app.state.container
+    return container.site_use_case(session)

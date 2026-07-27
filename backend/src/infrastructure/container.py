@@ -12,6 +12,7 @@ from src.application.services.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
+from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.widgets.collector_factory import CollectorEntry
 from src.application.widgets.count_collector import (
     SimpleCountCollector,
@@ -31,6 +32,7 @@ from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.gemini_client import GeminiClient
 from src.infrastructure.external.jira_client import JiraClient
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
+from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
 from src.infrastructure.report_cache import ReportLruCache
 
 logger = logging.getLogger(__name__)
@@ -122,3 +124,7 @@ class Container:
     def get_report_use_case(self, session: AsyncSession) -> GetReportUseCase:
         repo = ReportRepositoryImpl(session)
         return GetReportUseCase(repo, cache=self._report_cache)
+
+    def site_use_case(self, session: AsyncSession) -> SiteUseCase:
+        repo = SiteRepositoryImpl(session)
+        return SiteUseCase(repo)
