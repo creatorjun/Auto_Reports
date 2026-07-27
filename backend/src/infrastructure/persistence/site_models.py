@@ -25,10 +25,11 @@ class SiteORM(Base):
     created_at:           Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at:           Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    nodes:            list["DeploymentNodeORM"]  = relationship("DeploymentNodeORM",  back_populates="site", cascade="all, delete-orphan")
-    solution_package: "SolutionPackageORM | None" = relationship("SolutionPackageORM", back_populates="site", uselist=False, cascade="all, delete-orphan")
-    patch_histories:  list["PatchHistoryORM"]    = relationship("PatchHistoryORM",    back_populates="site", cascade="all, delete-orphan")
-    visit_histories:  list["VisitHistoryORM"]    = relationship("VisitHistoryORM",    back_populates="site", cascade="all, delete-orphan")
+    nodes:            Mapped[list["DeploymentNodeORM"]]   = relationship(...)
+    solution_package: Mapped["SolutionPackageORM | None"] = relationship(...)
+    patch_histories:  Mapped[list["PatchHistoryORM"]]     = relationship(...)
+    visit_histories:  Mapped[list["VisitHistoryORM"]]     = relationship(...)
+
 
 
 class DeploymentNodeORM(Base):
