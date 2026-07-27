@@ -25,11 +25,10 @@ class SiteORM(Base):
     created_at:           Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at:           Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    nodes:            Mapped[list["DeploymentNodeORM"]]   = relationship(...)
-    solution_package: Mapped["SolutionPackageORM | None"] = relationship(...)
-    patch_histories:  Mapped[list["PatchHistoryORM"]]     = relationship(...)
-    visit_histories:  Mapped[list["VisitHistoryORM"]]     = relationship(...)
-
+    nodes:            Mapped[list["DeploymentNodeORM"]]   = relationship("DeploymentNodeORM",  back_populates="site", cascade="all, delete-orphan")
+    solution_package: Mapped["SolutionPackageORM | None"] = relationship("SolutionPackageORM", back_populates="site", uselist=False, cascade="all, delete-orphan")
+    patch_histories:  Mapped[list["PatchHistoryORM"]]     = relationship("PatchHistoryORM",    back_populates="site", cascade="all, delete-orphan")
+    visit_histories:  Mapped[list["VisitHistoryORM"]]     = relationship("VisitHistoryORM",    back_populates="site", cascade="all, delete-orphan")
 
 
 class DeploymentNodeORM(Base):
@@ -49,7 +48,7 @@ class DeploymentNodeORM(Base):
     disk_free_gb:    Mapped[int | None]  = mapped_column(Integer, nullable=True)
     disk_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    site: SiteORM = relationship("SiteORM", back_populates="nodes")
+    site: Mapped["SiteORM"] = relationship("SiteORM", back_populates="nodes")
 
 
 class SolutionPackageORM(Base):
@@ -66,7 +65,7 @@ class SolutionPackageORM(Base):
     installed_at:        Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_at:          Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    site: SiteORM = relationship("SiteORM", back_populates="solution_package")
+    site: Mapped["SiteORM"] = relationship("SiteORM", back_populates="solution_package")
 
 
 class PatchHistoryORM(Base):
@@ -83,7 +82,7 @@ class PatchHistoryORM(Base):
     rollback_date:   Mapped[date | None] = mapped_column(Date, nullable=True)
     note:            Mapped[str | None]  = mapped_column(Text, nullable=True)
 
-    site: SiteORM = relationship("SiteORM", back_populates="patch_histories")
+    site: Mapped["SiteORM"] = relationship("SiteORM", back_populates="patch_histories")
 
 
 class VisitHistoryORM(Base):
@@ -97,4 +96,4 @@ class VisitHistoryORM(Base):
     visit_summary:        Mapped[str]       = mapped_column(Text, nullable=False)
     next_visit_scheduled: Mapped[date | None] = mapped_column(Date, nullable=True)
 
-    site: SiteORM = relationship("SiteORM", back_populates="visit_histories")
+    site: Mapped["SiteORM"] = relationship("SiteORM", back_populates="visit_histories")
