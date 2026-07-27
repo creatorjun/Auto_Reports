@@ -10,6 +10,8 @@ services:
       POSTGRES_DB: ${DB_NAME:-auto_reports}
       TZ: Asia/Seoul
       PGTZ: Asia/Seoul
+    ports:
+      - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
       - /etc/localtime:/etc/localtime:ro
