@@ -1,6 +1,6 @@
 # backend/src/infrastructure/persistence/site_repository_impl.py
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -139,8 +139,8 @@ class SiteRepositoryImpl(SiteRepository):
             ),
             contract_start_date=orm.contract_start_date,
             contract_end_date=orm.contract_end_date,
-            contract_type=ContractType(orm.contract_type),
-            status=SiteStatus(orm.status),
+            contract_type=ContractType(orm.contract_type) if orm.contract_type else None,
+            status=SiteStatus(orm.status) if orm.status else None,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
             nodes=[self._node_to_domain(n) for n in (orm.nodes or [])],
@@ -153,7 +153,7 @@ class SiteRepositoryImpl(SiteRepository):
     def _node_to_domain(self, orm: DeploymentNodeORM) -> DeploymentNode:
         return DeploymentNode(
             hostname=orm.hostname,
-            role=NodeRole(orm.role),
+            role=NodeRole(orm.role) if orm.role else None,
             cpu_cores=orm.cpu_cores,
             cpu_threads=orm.cpu_threads,
             memory_total_gb=orm.memory_total_gb,
@@ -170,7 +170,7 @@ class SiteRepositoryImpl(SiteRepository):
             version=orm.version,
             installer_filename=orm.installer_filename,
             license_capacity_gb=orm.license_capacity_gb,
-            deployment_type=DeploymentType(orm.deployment_type),
+            deployment_type=DeploymentType(orm.deployment_type) if orm.deployment_type else None,
             license_key=orm.license_key,
             license_expire_date=orm.license_expire_date,
             installed_at=orm.installed_at,
@@ -182,9 +182,9 @@ class SiteRepositoryImpl(SiteRepository):
             issue_link=orm.issue_link,
             patch_date=orm.patch_date,
             patch_file_link=orm.patch_file_link,
-            patch_type=PatchType(orm.patch_type),
+            patch_type=PatchType(orm.patch_type) if orm.patch_type else None,
             applied_by=orm.applied_by,
-            result_status=PatchResultStatus(orm.result_status),
+            result_status=PatchResultStatus(orm.result_status) if orm.result_status else None,
             rollback_date=orm.rollback_date,
             note=orm.note,
         )
@@ -193,7 +193,7 @@ class SiteRepositoryImpl(SiteRepository):
         return VisitHistory(
             visit_date=orm.visit_date,
             visitor=orm.visitor,
-            visit_type=VisitType(orm.visit_type),
+            visit_type=VisitType(orm.visit_type) if orm.visit_type else None,
             visit_summary=orm.visit_summary,
             next_visit_scheduled=orm.next_visit_scheduled,
         )
@@ -212,18 +212,18 @@ class SiteRepositoryImpl(SiteRepository):
         )
 
     def _apply_domain(self, orm: SiteORM, site: Site) -> None:
-        orm.site_name = site.site_name
-        orm.maintenance_company = site.maintenance_company
-        orm.customer_name = site.customer_contact.name
-        orm.customer_phone = site.customer_contact.phone
-        orm.customer_email = site.customer_contact.email
-        orm.maintenance_name = site.maintenance_contact.name
-        orm.maintenance_phone = site.maintenance_contact.phone
-        orm.maintenance_email = site.maintenance_contact.email
-        orm.contract_start_date = site.contract_start_date
-        orm.contract_end_date = site.contract_end_date
-        orm.contract_type = site.contract_type.value
-        orm.status = site.status.value
+        orm.site_name            = site.site_name
+        orm.maintenance_company  = site.maintenance_company
+        orm.customer_name        = site.customer_contact.name  if site.customer_contact  else None
+        orm.customer_phone       = site.customer_contact.phone if site.customer_contact  else None
+        orm.customer_email       = site.customer_contact.email if site.customer_contact  else None
+        orm.maintenance_name     = site.maintenance_contact.name  if site.maintenance_contact else None
+        orm.maintenance_phone    = site.maintenance_contact.phone if site.maintenance_contact else None
+        orm.maintenance_email    = site.maintenance_contact.email if site.maintenance_contact else None
+        orm.contract_start_date  = site.contract_start_date
+        orm.contract_end_date    = site.contract_end_date
+        orm.contract_type        = site.contract_type.value if site.contract_type else None
+        orm.status               = site.status.value       if site.status       else None
 
         if site.access_credentials is not None:
             if orm.access_credentials is None:

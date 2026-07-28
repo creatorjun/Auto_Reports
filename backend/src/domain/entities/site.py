@@ -50,8 +50,8 @@ class VisitType(StrEnum):
 
 @dataclass
 class ContactInfo:
-    name:  str
-    phone: str
+    name:  Optional[str] = None
+    phone: Optional[str] = None
     email: Optional[str] = None
 
 
@@ -63,23 +63,23 @@ class Credential:
 
 @dataclass
 class AccessCredentials:
-    cli: Optional[Credential] = None
-    web: Optional[Credential] = None
-    db:  Optional[Credential] = None
-    vpn: Optional[Credential] = None
+    cli:  Optional[Credential] = None
+    web:  Optional[Credential] = None
+    db:   Optional[Credential] = None
+    vpn:  Optional[Credential] = None
     note: Optional[str] = None
 
 
 @dataclass
 class DeploymentNode:
-    hostname:        str
-    role:            NodeRole
-    cpu_cores:       int
-    cpu_threads:     int
-    memory_total_gb: int
-    disk_total_gb:   int
-    os_type:         str
-    os_version:      str
+    hostname:        Optional[str]      = None
+    role:            Optional[NodeRole] = None
+    cpu_cores:       Optional[int]      = None
+    cpu_threads:     Optional[int]      = None
+    memory_total_gb: Optional[int]      = None
+    disk_total_gb:   Optional[int]      = None
+    os_type:         Optional[str]      = None
+    os_version:      Optional[str]      = None
     ip_address:      Optional[str]      = None
     disk_free_gb:    Optional[int]      = None
     disk_updated_at: Optional[datetime] = None
@@ -87,10 +87,10 @@ class DeploymentNode:
 
 @dataclass
 class SolutionPackage:
-    version:             str
-    installer_filename:  str
-    license_capacity_gb: float
-    deployment_type:     DeploymentType
+    version:             Optional[str]      = None
+    installer_filename:  Optional[str]      = None
+    license_capacity_gb: Optional[float]    = None
+    deployment_type:     Optional[DeploymentType] = None
     license_key:         Optional[str]      = None
     license_expire_date: Optional[date]     = None
     installed_at:        Optional[datetime] = None
@@ -99,40 +99,40 @@ class SolutionPackage:
 
 @dataclass
 class PatchHistory:
-    issue_link:      str
-    patch_date:      date
-    patch_file_link: str
-    patch_type:      PatchType         = PatchType.REGULAR
-    applied_by:      str               = ""
-    result_status:   PatchResultStatus = PatchResultStatus.SUCCESS
-    rollback_date:   Optional[date]    = None
-    note:            Optional[str]     = None
+    issue_link:      Optional[str]             = None
+    patch_date:      Optional[date]            = None
+    patch_file_link: Optional[str]             = None
+    patch_type:      Optional[PatchType]       = None
+    applied_by:      Optional[str]             = None
+    result_status:   Optional[PatchResultStatus] = None
+    rollback_date:   Optional[date]            = None
+    note:            Optional[str]             = None
 
 
 @dataclass
 class VisitHistory:
-    visit_date:           date
-    visitor:              str
-    visit_type:           VisitType
-    visit_summary:        str
-    next_visit_scheduled: Optional[date] = None
+    visit_date:           Optional[date]      = None
+    visitor:              Optional[str]       = None
+    visit_type:           Optional[VisitType] = None
+    visit_summary:        Optional[str]       = None
+    next_visit_scheduled: Optional[date]      = None
 
 
 @dataclass
 class Site:
     id:                  str
     site_name:           str
-    maintenance_company: str
-    customer_contact:    ContactInfo
-    maintenance_contact: ContactInfo
-    contract_start_date: date
-    contract_end_date:   date
-    contract_type:       ContractType
-    status:              SiteStatus
-    nodes:               list[DeploymentNode]      = field(default_factory=list)
-    solution_package:    Optional[SolutionPackage] = None
-    patch_histories:     list[PatchHistory]        = field(default_factory=list)
-    visit_histories:     list[VisitHistory]        = field(default_factory=list)
+    maintenance_company: Optional[str]              = None
+    customer_contact:    Optional[ContactInfo]      = None
+    maintenance_contact: Optional[ContactInfo]      = None
+    contract_start_date: Optional[date]             = None
+    contract_end_date:   Optional[date]             = None
+    contract_type:       Optional[ContractType]     = None
+    status:              Optional[SiteStatus]       = None
+    nodes:               list[DeploymentNode]       = field(default_factory=list)
+    solution_package:    Optional[SolutionPackage]  = None
+    patch_histories:     list[PatchHistory]         = field(default_factory=list)
+    visit_histories:     list[VisitHistory]         = field(default_factory=list)
     access_credentials:  Optional[AccessCredentials] = None
-    created_at:          datetime                  = field(default_factory=datetime.utcnow)
-    updated_at:          datetime                  = field(default_factory=datetime.utcnow)
+    created_at:          datetime                   = field(default_factory=datetime.utcnow)
+    updated_at:          datetime                   = field(default_factory=datetime.utcnow)

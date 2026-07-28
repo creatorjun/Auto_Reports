@@ -5,7 +5,6 @@ from src.application.use_cases.site_use_cases import SiteUseCase
 from src.domain.entities.site import (
     AccessCredentials,
     ContactInfo,
-    ContractType,
     Credential,
     DeploymentNode,
     DeploymentType,
@@ -22,11 +21,16 @@ from src.domain.entities.site import (
 from src.presentation.api.v1.deps import get_site_use_case
 from src.presentation.schemas.site_schema import (
     AccessCredentialsSchema,
+    ContactInfoSchema,
     CredentialSchema,
+    DeploymentNodeSchema,
+    PatchHistorySchema,
     SiteCreateRequest,
     SiteResponse,
     SiteSummaryResponse,
     SiteUpdateRequest,
+    SolutionPackageSchema,
+    VisitHistorySchema,
 )
 
 router = APIRouter(prefix="/sites", tags=["sites"])
@@ -62,15 +66,15 @@ def _to_domain(req: SiteCreateRequest) -> Site:
         site_name=req.site_name,
         maintenance_company=req.maintenance_company,
         customer_contact=ContactInfo(
-            name=req.customer_info.name,
-            phone=req.customer_info.phone,
-            email=req.customer_info.email,
-        ),
+            name=req.customer_info.name   if req.customer_info else None,
+            phone=req.customer_info.phone if req.customer_info else None,
+            email=req.customer_info.email if req.customer_info else None,
+        ) if req.customer_info is not None else None,
         maintenance_contact=ContactInfo(
-            name=req.maintenance_info.name,
-            phone=req.maintenance_info.phone,
-            email=req.maintenance_info.email,
-        ),
+            name=req.maintenance_info.name   if req.maintenance_info else None,
+            phone=req.maintenance_info.phone if req.maintenance_info else None,
+            email=req.maintenance_info.email if req.maintenance_info else None,
+        ) if req.maintenance_info is not None else None,
         contract_start_date=req.contract_start_date,
         contract_end_date=req.contract_end_date,
         contract_type=req.contract_type,
@@ -133,20 +137,20 @@ def _to_domain(req: SiteCreateRequest) -> Site:
 
 
 def _to_response(site: Site) -> SiteResponse:
-    from src.presentation.schemas.site_schema import (
-        ContactInfoSchema,
-        DeploymentNodeSchema,
-        PatchHistorySchema,
-        SolutionPackageSchema,
-        VisitHistorySchema,
-    )
-
     return SiteResponse(
         id=site.id,
         site_name=site.site_name,
         maintenance_company=site.maintenance_company,
-        customer_info=ContactInfoSchema(**site.customer_contact.__dict__),
-        maintenance_info=ContactInfoSchema(**site.maintenance_contact.__dict__),
+        customer_info=ContactInfoSchema(
+            name=site.customer_contact.name,
+            phone=site.customer_contact.phone,
+            email=site.customer_contact.email,
+        ) if site.customer_contact else None,
+        maintenance_info=ContactInfoSchema(
+            name=site.maintenance_contact.name,
+            phone=site.maintenance_contact.phone,
+            email=site.maintenance_contact.email,
+        ) if site.maintenance_contact else None,
         contract_start_date=site.contract_start_date,
         contract_end_date=site.contract_end_date,
         contract_type=site.contract_type,
@@ -156,8 +160,7 @@ def _to_response(site: Site) -> SiteResponse:
         nodes=[DeploymentNodeSchema(**n.__dict__) for n in site.nodes],
         solution_package=(
             SolutionPackageSchema(**site.solution_package.__dict__)
-            if site.solution_package
-            else None
+            if site.solution_package else None
         ),
         patch_histories=[PatchHistorySchema(**p.__dict__) for p in site.patch_histories],
         visit_histories=[VisitHistorySchema(**v.__dict__) for v in site.visit_histories],

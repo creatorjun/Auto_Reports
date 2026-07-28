@@ -6,34 +6,29 @@ import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { siteApi } from '@/infrastructure/api/siteApi'
 
-const credentialSchema = z.object({
-  username: z.string(),
-  password: z.string(),
-})
-
 const schema = z.object({
-  id: z.string().min(1, '사이트 ID를 입력하세요'),
-  site_name: z.string().min(1, '사이트명을 입력하세요'),
-  status: z.enum(['active', 'inactive', 'expired', 'maintenance']),
-  contract_type: z.enum(['annual', 'monthly', 'one_time']),
-  customer_name: z.string().min(1, '담당자명을 입력하세요'),
-  customer_phone: z.string().min(1, '연락처를 입력하세요'),
-  customer_email: z.string().email('올바른 이메일을 입력하세요').or(z.literal('')).optional(),
-  maintenance_company: z.string().min(1, '유지보수 업체명을 입력하세요'),
-  maintenance_name: z.string().min(1, '담당자명을 입력하세요'),
-  maintenance_phone: z.string().min(1, '연락처를 입력하세요'),
-  maintenance_email: z.string().email('올바른 이메일을 입력하세요').or(z.literal('')).optional(),
-  contract_start_date: z.string().min(1, '계약 시작일을 입력하세요'),
-  contract_end_date: z.string().min(1, '계약 종료일을 입력하세요'),
-  cli_username: z.string().optional(),
-  cli_password: z.string().optional(),
-  web_username: z.string().optional(),
-  web_password: z.string().optional(),
-  db_username: z.string().optional(),
-  db_password: z.string().optional(),
-  vpn_username: z.string().optional(),
-  vpn_password: z.string().optional(),
-  access_note: z.string().optional(),
+  id:                  z.string().min(1, '사이트 ID를 입력하세요'),
+  site_name:           z.string().min(1, '사이트명을 입력하세요'),
+  status:              z.enum(['active', 'inactive', 'expired', 'maintenance']).optional(),
+  contract_type:       z.enum(['annual', 'monthly', 'one_time']).optional(),
+  maintenance_company: z.string().optional(),
+  customer_name:       z.string().optional(),
+  customer_phone:      z.string().optional(),
+  customer_email:      z.string().email('올바른 이메일').or(z.literal('')).optional(),
+  maintenance_name:    z.string().optional(),
+  maintenance_phone:   z.string().optional(),
+  maintenance_email:   z.string().email('올바른 이메일').or(z.literal('')).optional(),
+  contract_start_date: z.string().optional(),
+  contract_end_date:   z.string().optional(),
+  cli_username:        z.string().optional(),
+  cli_password:        z.string().optional(),
+  web_username:        z.string().optional(),
+  web_password:        z.string().optional(),
+  db_username:         z.string().optional(),
+  db_password:         z.string().optional(),
+  vpn_username:        z.string().optional(),
+  vpn_password:        z.string().optional(),
+  access_note:         z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -103,7 +98,7 @@ export default function SiteCreatePage() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { status: 'active', contract_type: 'annual' },
+    defaultValues: {},
   })
 
   const { mutateAsync, isError, error } = useMutation({
@@ -112,36 +107,33 @@ export default function SiteCreatePage() {
         u ? { username: u, password: p ?? '' } : undefined
 
       const creds = {
-        cli: buildCred(values.cli_username, values.cli_password),
-        web: buildCred(values.web_username, values.web_password),
-        db:  buildCred(values.db_username,  values.db_password),
-        vpn: buildCred(values.vpn_username, values.vpn_password),
+        cli:  buildCred(values.cli_username,  values.cli_password),
+        web:  buildCred(values.web_username,  values.web_password),
+        db:   buildCred(values.db_username,   values.db_password),
+        vpn:  buildCred(values.vpn_username,  values.vpn_password),
         note: values.access_note || undefined,
       }
       const hasAnyCred = creds.cli || creds.web || creds.db || creds.vpn || creds.note
 
+      const buildContact = (name?: string, phone?: string, email?: string) =>
+        name || phone || email
+          ? { name: name || undefined, phone: phone || undefined, email: email || undefined }
+          : undefined
+
       return siteApi.create({
-        id: values.id,
-        site_name: values.site_name,
-        maintenance_company: values.maintenance_company,
-        customer_info: {
-          name: values.customer_name,
-          phone: values.customer_phone,
-          email: values.customer_email || undefined,
-        },
-        maintenance_info: {
-          name: values.maintenance_name,
-          phone: values.maintenance_phone,
-          email: values.maintenance_email || undefined,
-        },
-        contract_start_date: values.contract_start_date,
-        contract_end_date: values.contract_end_date,
-        contract_type: values.contract_type,
-        status: values.status,
-        nodes: [],
-        patch_histories: [],
-        visit_histories: [],
-        access_credentials: hasAnyCred ? creds : undefined,
+        id:                  values.id,
+        site_name:           values.site_name,
+        maintenance_company: values.maintenance_company || undefined,
+        customer_info:       buildContact(values.customer_name, values.customer_phone, values.customer_email),
+        maintenance_info:    buildContact(values.maintenance_name, values.maintenance_phone, values.maintenance_email),
+        contract_start_date: values.contract_start_date || undefined,
+        contract_end_date:   values.contract_end_date   || undefined,
+        contract_type:       values.contract_type       || undefined,
+        status:              values.status              || undefined,
+        nodes:               [],
+        patch_histories:     [],
+        visit_histories:     [],
+        access_credentials:  hasAnyCred ? creds : undefined,
       })
     },
     onSuccess: (data) => navigate(`/sites/${data.id}`),
@@ -166,24 +158,26 @@ export default function SiteCreatePage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8">
         <section>
-          <SectionTitle>기본 정보</SectionTitle>
+          <SectionTitle>기본 정보 <span className="text-red-400">*</span></SectionTitle>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="사이트 ID" error={errors.id?.message}>
+            <Field label="사이트 ID *" error={errors.id?.message}>
               <input {...register('id')} className={inputCls} placeholder="예: SITE-001" />
             </Field>
-            <Field label="사이트명" error={errors.site_name?.message}>
+            <Field label="사이트명 *" error={errors.site_name?.message}>
               <input {...register('site_name')} className={inputCls} placeholder="사이트명" />
             </Field>
-            <Field label="상태" error={errors.status?.message}>
+            <Field label="상태 (선택)">
               <select {...register('status')} className={selectCls}>
+                <option value="">— 미입력 —</option>
                 <option value="active">운영 중</option>
                 <option value="inactive">비활성</option>
                 <option value="expired">만료</option>
                 <option value="maintenance">유지보수</option>
               </select>
             </Field>
-            <Field label="계약 유형" error={errors.contract_type?.message}>
+            <Field label="계약 유형 (선택)">
               <select {...register('contract_type')} className={selectCls}>
+                <option value="">— 미입력 —</option>
                 <option value="annual">연간</option>
                 <option value="monthly">월간</option>
                 <option value="one_time">일회성</option>
@@ -193,16 +187,16 @@ export default function SiteCreatePage() {
         </section>
 
         <section>
-          <SectionTitle>고객 정보</SectionTitle>
+          <SectionTitle>고객 정보 (선택)</SectionTitle>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="담당자명" error={errors.customer_name?.message}>
+            <Field label="담당자명">
               <input {...register('customer_name')} className={inputCls} placeholder="홍길동" />
             </Field>
-            <Field label="연락처" error={errors.customer_phone?.message}>
+            <Field label="연락처">
               <input {...register('customer_phone')} className={inputCls} placeholder="010-0000-0000" />
             </Field>
             <div className="col-span-2">
-              <Field label="이메일 (선택)" error={errors.customer_email?.message}>
+              <Field label="이메일" error={errors.customer_email?.message}>
                 <input {...register('customer_email')} className={inputCls} placeholder="example@email.com" />
               </Field>
             </div>
@@ -210,21 +204,21 @@ export default function SiteCreatePage() {
         </section>
 
         <section>
-          <SectionTitle>유지보수 담당</SectionTitle>
+          <SectionTitle>유지보수 담당 (선택)</SectionTitle>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <Field label="유지보수 업체" error={errors.maintenance_company?.message}>
+              <Field label="유지보수 업체">
                 <input {...register('maintenance_company')} className={inputCls} placeholder="업체명" />
               </Field>
             </div>
-            <Field label="담당자명" error={errors.maintenance_name?.message}>
+            <Field label="담당자명">
               <input {...register('maintenance_name')} className={inputCls} placeholder="담당자명" />
             </Field>
-            <Field label="연락처" error={errors.maintenance_phone?.message}>
+            <Field label="연락처">
               <input {...register('maintenance_phone')} className={inputCls} placeholder="010-0000-0000" />
             </Field>
             <div className="col-span-2">
-              <Field label="이메일 (선택)" error={errors.maintenance_email?.message}>
+              <Field label="이메일" error={errors.maintenance_email?.message}>
                 <input {...register('maintenance_email')} className={inputCls} placeholder="example@email.com" />
               </Field>
             </div>
@@ -232,12 +226,12 @@ export default function SiteCreatePage() {
         </section>
 
         <section>
-          <SectionTitle>계약 기간</SectionTitle>
+          <SectionTitle>계약 기간 (선택)</SectionTitle>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="계약 시작일" error={errors.contract_start_date?.message}>
+            <Field label="계약 시작일">
               <input type="date" {...register('contract_start_date')} className={inputCls} />
             </Field>
-            <Field label="계약 종료일" error={errors.contract_end_date?.message}>
+            <Field label="계약 종료일">
               <input type="date" {...register('contract_end_date')} className={inputCls} />
             </Field>
           </div>
@@ -246,34 +240,10 @@ export default function SiteCreatePage() {
         <section>
           <SectionTitle>접속 정보 (선택)</SectionTitle>
           <div className="flex flex-col gap-4">
-            <CredentialRow
-              label="CLI"
-              usernameKey="cli_username"
-              passwordKey="cli_password"
-              register={register}
-              errors={errors}
-            />
-            <CredentialRow
-              label="WEB"
-              usernameKey="web_username"
-              passwordKey="web_password"
-              register={register}
-              errors={errors}
-            />
-            <CredentialRow
-              label="DB"
-              usernameKey="db_username"
-              passwordKey="db_password"
-              register={register}
-              errors={errors}
-            />
-            <CredentialRow
-              label="VPN"
-              usernameKey="vpn_username"
-              passwordKey="vpn_password"
-              register={register}
-              errors={errors}
-            />
+            <CredentialRow label="CLI" usernameKey="cli_username" passwordKey="cli_password" register={register} errors={errors} />
+            <CredentialRow label="WEB" usernameKey="web_username" passwordKey="web_password" register={register} errors={errors} />
+            <CredentialRow label="DB"  usernameKey="db_username"  passwordKey="db_password"  register={register} errors={errors} />
+            <CredentialRow label="VPN" usernameKey="vpn_username" passwordKey="vpn_password" register={register} errors={errors} />
             <Field label="기타 사항">
               <textarea
                 {...register('access_note')}
