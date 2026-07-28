@@ -87,6 +87,52 @@ class SiteRepositoryImpl(SiteRepository):
         await self._session.flush()
         return True
 
+    async def search(self, query: str, limit: int = 10) -> list[Site]:
+        result = await self._session.execute(
+            select(SiteORM)
+            .where(SiteORM.site_name.ilike(f"%{query}%"))
+            .order_by(SiteORM.site_name)
+            .limit(limit)
+        )
+        return [self._to_domain(orm) for orm in result.scalars().all()]
+
+    async def get_recent(self, limit: int = 5) -> list[Site]:
+        result = await self._session.execute(
+            select(SiteORM)
+            .order_by(SiteORM.updated_at.desc())
+            .limit(limit)
+        )
+        return [self._to_domain(orm) for orm in result.scalars().all()]
+
+    async def find_by_id(self, site_id: str) -> Optional[Site]:
+        return await self.get_by_id(site_id)
+
+    async def find_all(self, limit: int = 20, offset: int = 0) -> list[Site]:
+        result = await self._session.execute(
+            select(SiteORM)
+            .order_by(SiteORM.site_name)
+            .limit(limit)
+            .offset(offset)
+        )
+        return [self._to_domain(orm) for orm in result.scalars().all()]
+
+    async def find_by_status(self, status: str, limit: int = 20, offset: int = 0) -> list[Site]:
+        result = await self._session.execute(
+            select(SiteORM)
+            .where(SiteORM.status == status)
+            .order_by(SiteORM.site_name)
+            .limit(limit)
+            .offset(offset)
+        )
+        return [self._to_domain(orm) for orm in result.scalars().all()]
+
+    async def update(self, site: Site) -> Site:
+        return await self.save(site)
+
+    async def count_all(self) -> int:
+        result = await self._session.execute(select(func.count()).select_from(SiteORM))
+        return result.scalar_one()
+
     def _to_domain(self, orm: SiteORM) -> Site:
         return Site(
             id=orm.id,

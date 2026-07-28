@@ -1,5 +1,5 @@
 # backend/src/presentation/api/v1/sites.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.domain.entities.site import (
@@ -21,6 +21,7 @@ from src.presentation.api.v1.deps import get_site_use_case
 from src.presentation.schemas.site_schema import (
     SiteCreateRequest,
     SiteResponse,
+    SiteSummaryResponse,
     SiteUpdateRequest,
 )
 
@@ -140,6 +141,43 @@ def _to_response(site: Site) -> SiteResponse:
         patch_histories=[PatchHistorySchema(**p.__dict__) for p in site.patch_histories],
         visit_histories=[VisitHistorySchema(**v.__dict__) for v in site.visit_histories],
     )
+
+
+@router.get("/search", response_model=list[SiteSummaryResponse])
+async def search_sites(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(10, ge=1, le=50),
+    use_case: SiteUseCase = Depends(get_site_use_case),
+):
+    dtos = await use_case.search(q, limit)
+    return [
+        SiteSummaryResponse(
+            id=d.id,
+            site_name=d.site_name,
+            customer_name=d.customer_name,
+            status=d.status,
+            contract_end_date=d.contract_end_date,
+        )
+        for d in dtos
+    ]
+
+
+@router.get("/recent", response_model=list[SiteSummaryResponse])
+async def get_recent_sites(
+    limit: int = Query(5, ge=1, le=20),
+    use_case: SiteUseCase = Depends(get_site_use_case),
+):
+    dtos = await use_case.get_recent(limit)
+    return [
+        SiteSummaryResponse(
+            id=d.id,
+            site_name=d.site_name,
+            customer_name=d.customer_name,
+            status=d.status,
+            contract_end_date=d.contract_end_date,
+        )
+        for d in dtos
+    ]
 
 
 @router.get("/", response_model=list[SiteResponse])

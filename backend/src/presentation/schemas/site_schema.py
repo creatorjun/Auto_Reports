@@ -69,6 +69,16 @@ class VisitHistorySchema(BaseModel):
     next_visit_scheduled: Optional[date] = None
 
 
+class SiteSummaryResponse(BaseModel):
+    id: str
+    site_name: str
+    customer_name: str
+    status: str
+    contract_end_date: date
+
+    model_config = {"from_attributes": True}
+
+
 class SiteCreateRequest(BaseModel):
     id: str
     site_name: str

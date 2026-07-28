@@ -7,7 +7,7 @@ import { useLogout } from '@/infrastructure/hooks/useAuth'
 const reportLinks = [
   {
     to: '/',
-    label: '\ub300\uc2dc\ubcf4\ub4dc',
+    label: '대시보드',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.9" />
@@ -15,11 +15,11 @@ const reportLinks = [
         <rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.5" />
         <rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.3" />
       </svg>
-    )
+    ),
   },
   {
     to: '/history',
-    label: '\ubcf4\uace0\uc11c \ud788\uc2a4\ud1a0\ub9ac',
+    label: '보고서 히스토리',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="2" y="2" width="12" height="2" rx="1" fill="currentColor" />
@@ -27,11 +27,11 @@ const reportLinks = [
         <rect x="2" y="10" width="11" height="2" rx="1" fill="currentColor" opacity="0.6" />
         <rect x="2" y="14" width="6" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
       </svg>
-    )
+    ),
   },
   {
     to: '/storage',
-    label: '\ud30c\uc77c \ubcf4\uad00\ud568',
+    label: '파일 보관함',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="1" y="4" width="14" height="10" rx="1.5" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.2" />
@@ -40,8 +40,18 @@ const reportLinks = [
         <rect x="9" y="1.5" width="3" height="3" rx="0.75" fill="currentColor" opacity="0.6" />
         <rect x="4" y="9.5" width="8" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
       </svg>
-    )
-  }
+    ),
+  },
+  {
+    to: '/sites',
+    label: '사이트 관리',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" fill="currentColor" fillOpacity="0.08" />
+        <path d="M1.5 8h13M8 1.5a10 6.5 0 0 0 0 13M8 1.5a10 6.5 0 0 1 0 13" stroke="currentColor" strokeWidth="1.2" />
+      </svg>
+    ),
+  },
 ]
 
 function CollapseIcon({ collapsed }: { collapsed: boolean }) {
@@ -89,7 +99,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                    rounded-xl text-apple-light
                    hover:bg-apple-gray hover:text-apple-dark
                    transition-all duration-200 mb-2 self-end"
-        title={collapsed ? '\uc0ac\uc774\ub4dc\ubc14 \ud3bc\uce58\uae30' : '\uc0ac\uc774\ub4dc\ubc14 \uc811\uae30'}
+        title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
       >
         <CollapseIcon collapsed={collapsed} />
       </button>
