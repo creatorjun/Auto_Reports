@@ -54,6 +54,8 @@ class ContactInfo:
 class Credential:
     username: str
     password: str
+    ip:       Optional[str] = None
+    port:     Optional[str] = None
 
 
 @dataclass
