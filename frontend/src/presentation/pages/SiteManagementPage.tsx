@@ -39,8 +39,8 @@ export default function SiteManagementPage() {
   const { data: searchResults = [], isLoading: isSearching } = useQuery({
     queryKey: ['site-search', debouncedQuery],
     queryFn: () => siteApi.search(debouncedQuery),
-    enabled: debouncedQuery.length >= 1,
-    staleTime: 30_000,
+    enabled: debouncedQuery.trim().length >= 1,
+    staleTime: 0,
   })
 
   const { data: recentSites = [] } = useQuery({
@@ -51,7 +51,7 @@ export default function SiteManagementPage() {
 
   useEffect(() => {
     setActiveIndex(-1)
-    setDropdownOpen(debouncedQuery.length >= 1)
+    setDropdownOpen(debouncedQuery.trim().length >= 1)
   }, [debouncedQuery])
 
   const handleSelect = useCallback(
@@ -96,7 +96,7 @@ export default function SiteManagementPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              onFocus={() => debouncedQuery.length >= 1 && setDropdownOpen(true)}
+              onFocus={() => debouncedQuery.trim().length >= 1 && setDropdownOpen(true)}
               onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
               placeholder="사이트명으로 검색..."
               className="flex-1 bg-transparent outline-none text-sm text-apple-dark placeholder:text-apple-light"
