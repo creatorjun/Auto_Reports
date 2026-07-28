@@ -13,6 +13,7 @@ export interface ContactInfo {
   name?: string
   phone?: string
   email?: string
+  company?: string
 }
 
 export interface Credential {

@@ -18,6 +18,7 @@ class SiteORM(Base):
     maintenance_name:     Mapped[str | None]    = mapped_column(String, nullable=True)
     maintenance_phone:    Mapped[str | None]    = mapped_column(String, nullable=True)
     maintenance_email:    Mapped[str | None]    = mapped_column(String, nullable=True)
+    maintenance_contact_company: Mapped[str | None] = mapped_column(String, nullable=True)
     contract_start_date:  Mapped[date | None]   = mapped_column(Date, nullable=True)
     contract_end_date:    Mapped[date | None]   = mapped_column(Date, nullable=True)
     contract_type:        Mapped[str | None]    = mapped_column(String, nullable=True)

@@ -44,9 +44,10 @@ class PatchResultStatus(StrEnum):
 
 @dataclass
 class ContactInfo:
-    name:  Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
+    name:    Optional[str] = None
+    phone:   Optional[str] = None
+    email:   Optional[str] = None
+    company: Optional[str] = None
 
 
 @dataclass

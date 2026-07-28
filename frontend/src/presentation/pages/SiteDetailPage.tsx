@@ -378,8 +378,9 @@ function SiteContactInfo({ site }: { site: SiteDetail }) {
       )}
       {site.maintenance_info && (
         <>
-          <p className="text-xs font-semibold text-apple-light mb-1.5 mt-3">유지보수담당</p>
+          <p className="text-xs font-semibold text-apple-light mb-1.5 mt-3">유지보수</p>
           <Row label="이름" value={site.maintenance_info.name} />
+          <Row label="소속" value={site.maintenance_info.company} />
           <Row label="연락처" value={site.maintenance_info.phone} />
           <Row label="이메일" value={site.maintenance_info.email} />
         </>

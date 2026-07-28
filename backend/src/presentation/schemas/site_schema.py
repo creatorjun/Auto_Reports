@@ -15,9 +15,10 @@ from src.domain.entities.site import (
 
 
 class ContactInfoSchema(BaseModel):
-    name:  Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
+    name:    Optional[str] = None
+    phone:   Optional[str] = None
+    email:   Optional[str] = None
+    company: Optional[str] = None
 
 
 class CredentialSchema(BaseModel):

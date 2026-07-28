@@ -10,35 +10,36 @@ import { siteApi } from '@/infrastructure/api/siteApi'
 const emptyToUndefined = (val: unknown) => (val === '' ? undefined : val)
 
 const schema = z.object({
-  site_name:           z.string().min(1, '사이트명을 입력하세요'),
-  status:              z.preprocess(emptyToUndefined, z.enum(['installing', 'active', 'inactive', 'expired', 'maintenance']).optional()),
-  contract_type:       z.preprocess(emptyToUndefined, z.enum(['정식라이센스', '임시라이센스']).optional()),
-  maintenance_company: z.string().optional(),
-  customer_name:       z.string().optional(),
-  customer_phone:      z.string().optional(),
-  customer_email:      z.string().email('올바른 이메일').or(z.literal('')).optional(),
-  maintenance_name:    z.string().optional(),
-  maintenance_phone:   z.string().optional(),
-  maintenance_email:   z.string().email('올바른 이메일').or(z.literal('')).optional(),
-  contract_start_date: z.preprocess(emptyToUndefined, z.string().optional()),
-  contract_end_date:   z.preprocess(emptyToUndefined, z.string().optional()),
-  cli_username:        z.string().optional(),
-  cli_password:        z.string().optional(),
-  cli_ip:              z.string().optional(),
-  cli_port:            z.string().optional(),
-  web_username:        z.string().optional(),
-  web_password:        z.string().optional(),
-  web_ip:              z.string().optional(),
-  web_port:            z.string().optional(),
-  db_username:         z.string().optional(),
-  db_password:         z.string().optional(),
-  db_ip:               z.string().optional(),
-  db_port:             z.string().optional(),
-  vpn_username:        z.string().optional(),
-  vpn_password:        z.string().optional(),
-  vpn_ip:              z.string().optional(),
-  vpn_port:            z.string().optional(),
-  access_note:         z.string().optional(),
+  site_name:               z.string().min(1, '사이트명을 입력하세요'),
+  status:                  z.preprocess(emptyToUndefined, z.enum(['installing', 'active', 'inactive', 'expired', 'maintenance']).optional()),
+  contract_type:           z.preprocess(emptyToUndefined, z.enum(['정식라이센스', '임시라이센스']).optional()),
+  maintenance_company:     z.string().optional(),
+  customer_name:           z.string().optional(),
+  customer_phone:          z.string().optional(),
+  customer_email:          z.string().email('올바른 이메일').or(z.literal('')).optional(),
+  maintenance_name:        z.string().optional(),
+  maintenance_phone:       z.string().optional(),
+  maintenance_email:       z.string().email('올바른 이메일').or(z.literal('')).optional(),
+  maintenance_contact_company: z.string().optional(),
+  contract_start_date:     z.preprocess(emptyToUndefined, z.string().optional()),
+  contract_end_date:       z.preprocess(emptyToUndefined, z.string().optional()),
+  cli_username:            z.string().optional(),
+  cli_password:            z.string().optional(),
+  cli_ip:                  z.string().optional(),
+  cli_port:                z.string().optional(),
+  web_username:            z.string().optional(),
+  web_password:            z.string().optional(),
+  web_ip:                  z.string().optional(),
+  web_port:                z.string().optional(),
+  db_username:             z.string().optional(),
+  db_password:             z.string().optional(),
+  db_ip:                   z.string().optional(),
+  db_port:                 z.string().optional(),
+  vpn_username:            z.string().optional(),
+  vpn_password:            z.string().optional(),
+  vpn_ip:                  z.string().optional(),
+  vpn_port:                z.string().optional(),
+  access_note:             z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -197,35 +198,36 @@ export default function SiteCreatePage() {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     values: isEdit && existing ? {
-      site_name:           existing.site_name ?? '',
-      status:              (existing.status as FormValues['status']) ?? undefined,
-      contract_type:       (existing.contract_type as FormValues['contract_type']) ?? undefined,
-      maintenance_company: existing.maintenance_company ?? '',
-      customer_name:       existing.customer_info?.name ?? '',
-      customer_phone:      existing.customer_info?.phone ?? '',
-      customer_email:      existing.customer_info?.email ?? '',
-      maintenance_name:    existing.maintenance_info?.name ?? '',
-      maintenance_phone:   existing.maintenance_info?.phone ?? '',
-      maintenance_email:   existing.maintenance_info?.email ?? '',
-      contract_start_date: existing.contract_start_date ?? '',
-      contract_end_date:   existing.contract_end_date ?? '',
-      cli_username:        existing.access_credentials?.cli?.username ?? '',
-      cli_password:        existing.access_credentials?.cli?.password ?? '',
-      cli_ip:              existing.access_credentials?.cli?.ip ?? '',
-      cli_port:            existing.access_credentials?.cli?.port ?? '',
-      web_username:        existing.access_credentials?.web?.username ?? '',
-      web_password:        existing.access_credentials?.web?.password ?? '',
-      web_ip:              existing.access_credentials?.web?.ip ?? '',
-      web_port:            existing.access_credentials?.web?.port ?? '',
-      db_username:         existing.access_credentials?.db?.username ?? '',
-      db_password:         existing.access_credentials?.db?.password ?? '',
-      db_ip:               existing.access_credentials?.db?.ip ?? '',
-      db_port:             existing.access_credentials?.db?.port ?? '',
-      vpn_username:        existing.access_credentials?.vpn?.username ?? '',
-      vpn_password:        existing.access_credentials?.vpn?.password ?? '',
-      vpn_ip:              existing.access_credentials?.vpn?.ip ?? '',
-      vpn_port:            existing.access_credentials?.vpn?.port ?? '',
-      access_note:         existing.access_credentials?.note ?? '',
+      site_name:               existing.site_name ?? '',
+      status:                  (existing.status as FormValues['status']) ?? undefined,
+      contract_type:           (existing.contract_type as FormValues['contract_type']) ?? undefined,
+      maintenance_company:     existing.maintenance_company ?? '',
+      customer_name:           existing.customer_info?.name ?? '',
+      customer_phone:          existing.customer_info?.phone ?? '',
+      customer_email:          existing.customer_info?.email ?? '',
+      maintenance_name:        existing.maintenance_info?.name ?? '',
+      maintenance_phone:       existing.maintenance_info?.phone ?? '',
+      maintenance_email:       existing.maintenance_info?.email ?? '',
+      maintenance_contact_company: existing.maintenance_info?.company ?? '',
+      contract_start_date:     existing.contract_start_date ?? '',
+      contract_end_date:       existing.contract_end_date ?? '',
+      cli_username:            existing.access_credentials?.cli?.username ?? '',
+      cli_password:            existing.access_credentials?.cli?.password ?? '',
+      cli_ip:                  existing.access_credentials?.cli?.ip ?? '',
+      cli_port:                existing.access_credentials?.cli?.port ?? '',
+      web_username:            existing.access_credentials?.web?.username ?? '',
+      web_password:            existing.access_credentials?.web?.password ?? '',
+      web_ip:                  existing.access_credentials?.web?.ip ?? '',
+      web_port:                existing.access_credentials?.web?.port ?? '',
+      db_username:             existing.access_credentials?.db?.username ?? '',
+      db_password:             existing.access_credentials?.db?.password ?? '',
+      db_ip:                   existing.access_credentials?.db?.ip ?? '',
+      db_port:                 existing.access_credentials?.db?.port ?? '',
+      vpn_username:            existing.access_credentials?.vpn?.username ?? '',
+      vpn_password:            existing.access_credentials?.vpn?.password ?? '',
+      vpn_ip:                  existing.access_credentials?.vpn?.ip ?? '',
+      vpn_port:                existing.access_credentials?.vpn?.port ?? '',
+      access_note:             existing.access_credentials?.note ?? '',
     } : undefined,
   })
 
@@ -249,16 +251,26 @@ export default function SiteCreatePage() {
       }
       const hasAnyCred = creds.cli || creds.web || creds.db || creds.vpn || creds.note
 
-      const buildContact = (name?: string, phone?: string, email?: string) =>
-        name || phone || email
-          ? { name: name || undefined, phone: phone || undefined, email: email || undefined }
+      const buildContact = (name?: string, phone?: string, email?: string, company?: string) =>
+        name || phone || email || company
+          ? {
+              name:    name    || undefined,
+              phone:   phone   || undefined,
+              email:   email   || undefined,
+              company: company || undefined,
+            }
           : undefined
 
       const payload = {
         site_name:           values.site_name,
         maintenance_company: values.maintenance_company || undefined,
         customer_info:       buildContact(values.customer_name, values.customer_phone, values.customer_email),
-        maintenance_info:    buildContact(values.maintenance_name, values.maintenance_phone, values.maintenance_email),
+        maintenance_info:    buildContact(
+          values.maintenance_name,
+          values.maintenance_phone,
+          values.maintenance_email,
+          values.maintenance_contact_company,
+        ),
         contract_start_date: values.contract_start_date || undefined,
         contract_end_date:   values.contract_end_date   || undefined,
         contract_type:       values.contract_type       || undefined,
@@ -351,7 +363,7 @@ export default function SiteCreatePage() {
         </section>
 
         <section>
-          <SectionTitle>유지보수 담당 (선택)</SectionTitle>
+          <SectionTitle>유지보수 (선택)</SectionTitle>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Field label="유지보수 업체">
@@ -364,6 +376,11 @@ export default function SiteCreatePage() {
             <Field label="연락처">
               <PhoneInput name="maintenance_phone" register={register} setValue={setValue} />
             </Field>
+            <div className="col-span-2">
+              <Field label="소속">
+                <input {...register('maintenance_contact_company')} className={inputCls} placeholder="소속 회사 / 부서" />
+              </Field>
+            </div>
             <div className="col-span-2">
               <Field label="이메일" error={errors.maintenance_email?.message}>
                 <input {...register('maintenance_email')} className={inputCls} placeholder="example@email.com" />
