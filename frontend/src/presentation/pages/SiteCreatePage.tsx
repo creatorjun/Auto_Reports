@@ -12,7 +12,7 @@ const emptyToUndefined = (val: unknown) => (val === '' ? undefined : val)
 const schema = z.object({
   site_name:           z.string().min(1, '사이트명을 입력하세요'),
   status:              z.preprocess(emptyToUndefined, z.enum(['installing', 'active', 'inactive', 'expired', 'maintenance']).optional()),
-  contract_type:       z.preprocess(emptyToUndefined, z.enum(['annual', 'monthly', 'one_time']).optional()),
+  contract_type:       z.preprocess(emptyToUndefined, z.enum(['일반유지보수', '기술지원', '위탁운영']).optional()),
   maintenance_company: z.string().optional(),
   customer_name:       z.string().optional(),
   customer_phone:      z.string().optional(),
@@ -326,9 +326,9 @@ export default function SiteCreatePage() {
             <Field label="계약 유형 (선택)" error={(errors.contract_type as { message?: string })?.message}>
               <select {...register('contract_type')} className={selectCls}>
                 <option value="">— 미입력 —</option>
-                <option value="annual">연간</option>
-                <option value="monthly">월간</option>
-                <option value="one_time">일회성</option>
+                <option value="일반유지보수">일반유지보수</option>
+                <option value="기술지원">기술지원</option>
+                <option value="위탁운영">위탁운영</option>
               </select>
             </Field>
           </div>
