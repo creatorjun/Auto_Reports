@@ -19,8 +19,8 @@ const schema = z.object({
   maintenance_name:    z.string().optional(),
   maintenance_phone:   z.string().optional(),
   maintenance_email:   z.string().email('올바른 이메일').or(z.literal('')).optional(),
-  contract_start_date: z.string().optional(),
-  contract_end_date:   z.string().optional(),
+  contract_start_date: z.preprocess(emptyToUndefined, z.string().optional()),
+  contract_end_date:   z.preprocess(emptyToUndefined, z.string().optional()),
   cli_username:        z.string().optional(),
   cli_password:        z.string().optional(),
   cli_ip:              z.string().optional(),
@@ -41,6 +41,24 @@ const schema = z.object({
 })
 
 type FormValues = z.infer<typeof schema>
+
+type ApiError = {
+  response?: {
+    data?: {
+      detail?: string | Array<{ msg: string; loc: (string | number)[] }>
+    }
+  }
+}
+
+function extractErrorMessage(error: unknown): string {
+  const detail = (error as ApiError)?.response?.data?.detail
+  if (!detail) return '저장 중 오류가 발생했습니다'
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail.map((e) => `${e.loc.slice(-1)[0]}: ${e.msg}`).join(' / ')
+  }
+  return '저장 중 오류가 발생했습니다'
+}
 
 function formatPhone(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11)
@@ -375,7 +393,7 @@ export default function SiteCreatePage() {
 
         {isError && (
           <p className="text-sm text-red-500">
-            {(error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'}
+            {extractErrorMessage(error)}
           </p>
         )}
 
