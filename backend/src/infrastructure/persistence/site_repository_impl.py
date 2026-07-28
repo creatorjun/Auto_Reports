@@ -57,15 +57,30 @@ class SiteRepositoryImpl(SiteRepository):
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
+    async def find_by_name(self, site_name: str) -> Optional[Site]:
+        normalized = site_name.strip()
+        result = await self._session.execute(
+            select(SiteORM)
+            .where(func.lower(func.trim(SiteORM.site_name)) == func.lower(normalized))
+            .options(*self._opts())
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
     async def save(self, site: Site) -> Site:
         if site.id is not None:
             result = await self._session.execute(select(SiteORM).where(SiteORM.id == site.id))
             orm = result.scalar_one_or_none()
         else:
             orm = None
+
         if orm is None:
+            existing = await self.find_by_name(site.site_name)
+            if existing is not None:
+                raise ValueError(f"이미 동일한 이름의 사이트가 존재합니다: '{site.site_name}'")
             orm = SiteORM()
             self._session.add(orm)
+
         self._apply_domain(orm, site)
         await self._session.flush()
         await self._session.refresh(
@@ -84,9 +99,11 @@ class SiteRepositoryImpl(SiteRepository):
         return True
 
     async def search(self, query: str, limit: int = 10) -> list[Site]:
+        normalized = query.strip()
         result = await self._session.execute(
             select(SiteORM)
-            .where(SiteORM.site_name.ilike(f"%{query}%"))
+            .where(func.lower(SiteORM.site_name).contains(func.lower(normalized)))
+            .options(*self._opts())
             .order_by(SiteORM.site_name)
             .limit(limit)
         )
@@ -94,7 +111,7 @@ class SiteRepositoryImpl(SiteRepository):
 
     async def get_recent(self, limit: int = 5) -> list[Site]:
         result = await self._session.execute(
-            select(SiteORM).order_by(SiteORM.updated_at.desc()).limit(limit)
+            select(SiteORM).options(*self._opts()).order_by(SiteORM.updated_at.desc()).limit(limit)
         )
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
@@ -103,7 +120,7 @@ class SiteRepositoryImpl(SiteRepository):
 
     async def find_all(self, limit: int = 20, offset: int = 0) -> list[Site]:
         result = await self._session.execute(
-            select(SiteORM).order_by(SiteORM.site_name).limit(limit).offset(offset)
+            select(SiteORM).options(*self._opts()).order_by(SiteORM.site_name).limit(limit).offset(offset)
         )
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
@@ -111,6 +128,7 @@ class SiteRepositoryImpl(SiteRepository):
         result = await self._session.execute(
             select(SiteORM)
             .where(SiteORM.status == status)
+            .options(*self._opts())
             .order_by(SiteORM.site_name)
             .limit(limit)
             .offset(offset)
@@ -154,6 +172,7 @@ class SiteRepositoryImpl(SiteRepository):
 
     def _node_to_domain(self, orm: DeploymentNodeORM) -> DeploymentNode:
         return DeploymentNode(
+            id=orm.id,
             hostname=orm.hostname,
             role=NodeRole(orm.role) if orm.role else None,
             cpu_cores=orm.cpu_cores,
@@ -169,6 +188,7 @@ class SiteRepositoryImpl(SiteRepository):
 
     def _pkg_to_domain(self, orm: SolutionPackageORM) -> SolutionPackage:
         return SolutionPackage(
+            id=orm.id,
             version=orm.version,
             installer_filename=orm.installer_filename,
             license_capacity_gb=orm.license_capacity_gb,
@@ -204,14 +224,10 @@ class SiteRepositoryImpl(SiteRepository):
 
     def _creds_to_domain(self, orm: AccessCredentialsORM) -> AccessCredentials:
         return AccessCredentials(
-            cli=Credential(username=orm.cli_username, password=orm.cli_password)
-                if orm.cli_username is not None else None,
-            web=Credential(username=orm.web_username, password=orm.web_password)
-                if orm.web_username is not None else None,
-            db=Credential(username=orm.db_username, password=orm.db_password)
-                if orm.db_username is not None else None,
-            vpn=Credential(username=orm.vpn_username, password=orm.vpn_password)
-                if orm.vpn_username is not None else None,
+            cli=Credential(username=orm.cli_username, password=orm.cli_password) if orm.cli_username else None,
+            web=Credential(username=orm.web_username, password=orm.web_password) if orm.web_username else None,
+            db=Credential(username=orm.db_username,  password=orm.db_password)  if orm.db_username  else None,
+            vpn=Credential(username=orm.vpn_username, password=orm.vpn_password) if orm.vpn_username else None,
             note=orm.note,
         )
 
@@ -227,24 +243,112 @@ class SiteRepositoryImpl(SiteRepository):
         orm.contract_start_date  = site.contract_start_date
         orm.contract_end_date    = site.contract_end_date
         orm.contract_type        = site.contract_type.value if site.contract_type else None
-        orm.status               = site.status.value       if site.status       else None
+        orm.status               = site.status.value if site.status else None
+        orm.updated_at           = datetime.utcnow()
 
-        if site.access_credentials is not None:
-            if orm.access_credentials is None:
-                creds_orm = AccessCredentialsORM(site_id=orm.id)
-                self._session.add(creds_orm)
-                orm.access_credentials = creds_orm
-            self._apply_credentials(orm.access_credentials, site.access_credentials)
-        else:
+        existing_node_ids = {n.id for n in orm.nodes} if orm.nodes else set()
+        incoming_node_ids = {n.id for n in site.nodes if n.id is not None}
+        for n in list(orm.nodes or []):
+            if n.id not in incoming_node_ids:
+                self._session.delete(n)
+        for n in site.nodes:
+            if n.id is not None:
+                node_orm = next((x for x in (orm.nodes or []) if x.id == n.id), None)
+            else:
+                node_orm = None
+            if node_orm is None:
+                node_orm = DeploymentNodeORM(site=orm)
+                if orm.nodes is None:
+                    orm.nodes = []
+                orm.nodes.append(node_orm)
+            node_orm.hostname        = n.hostname
+            node_orm.role            = n.role.value if n.role else None
+            node_orm.cpu_cores       = n.cpu_cores
+            node_orm.cpu_threads     = n.cpu_threads
+            node_orm.memory_total_gb = n.memory_total_gb
+            node_orm.disk_total_gb   = n.disk_total_gb
+            node_orm.os_type         = n.os_type
+            node_orm.os_version      = n.os_version
+            node_orm.ip_address      = n.ip_address
+            node_orm.disk_free_gb    = n.disk_free_gb
+            node_orm.disk_updated_at = n.disk_updated_at
+
+        if site.solution_package:
+            pkg = orm.solution_package
+            if pkg is None:
+                pkg = SolutionPackageORM(site=orm)
+                orm.solution_package = pkg
+            pkg.version              = site.solution_package.version
+            pkg.installer_filename   = site.solution_package.installer_filename
+            pkg.license_capacity_gb  = site.solution_package.license_capacity_gb
+            pkg.deployment_type      = site.solution_package.deployment_type.value if site.solution_package.deployment_type else None
+            pkg.license_key          = site.solution_package.license_key
+            pkg.license_expire_date  = site.solution_package.license_expire_date
+            pkg.installed_at         = site.solution_package.installed_at
+            pkg.updated_at           = site.solution_package.updated_at
+        elif orm.solution_package is not None:
+            self._session.delete(orm.solution_package)
+            orm.solution_package = None
+
+        existing_patch_ids = {p.id for p in orm.patch_histories} if orm.patch_histories else set()
+        incoming_patch_ids = {p.id for p in site.patch_histories if p.id is not None}
+        for p in list(orm.patch_histories or []):
+            if p.id not in incoming_patch_ids:
+                self._session.delete(p)
+        for p in site.patch_histories:
+            if p.id is not None:
+                patch_orm = next((x for x in (orm.patch_histories or []) if x.id == p.id), None)
+            else:
+                patch_orm = None
+            if patch_orm is None:
+                patch_orm = PatchHistoryORM(site=orm)
+                if orm.patch_histories is None:
+                    orm.patch_histories = []
+                orm.patch_histories.append(patch_orm)
+            patch_orm.issue_link      = p.issue_link
+            patch_orm.patch_date      = p.patch_date
+            patch_orm.patch_file_link = p.patch_file_link
+            patch_orm.patch_type      = p.patch_type.value if p.patch_type else None
+            patch_orm.applied_by      = p.applied_by
+            patch_orm.result_status   = p.result_status.value if p.result_status else None
+            patch_orm.rollback_date   = p.rollback_date
+            patch_orm.note            = p.note
+
+        existing_visit_ids = {v.id for v in orm.visit_histories} if orm.visit_histories else set()
+        incoming_visit_ids = {v.id for v in site.visit_histories if v.id is not None}
+        for v in list(orm.visit_histories or []):
+            if v.id not in incoming_visit_ids:
+                self._session.delete(v)
+        for v in site.visit_histories:
+            if v.id is not None:
+                visit_orm = next((x for x in (orm.visit_histories or []) if x.id == v.id), None)
+            else:
+                visit_orm = None
+            if visit_orm is None:
+                visit_orm = VisitHistoryORM(site=orm)
+                if orm.visit_histories is None:
+                    orm.visit_histories = []
+                orm.visit_histories.append(visit_orm)
+            visit_orm.visit_datetime  = v.visit_datetime
+            visit_orm.engineer_name   = v.engineer_name
+            visit_orm.engineer_phone  = v.engineer_phone
+            visit_orm.request_content = v.request_content
+            visit_orm.action_content  = v.action_content
+
+        if site.access_credentials:
+            creds = orm.access_credentials
+            if creds is None:
+                creds = AccessCredentialsORM(site=orm)
+                orm.access_credentials = creds
+            creds.cli_username = site.access_credentials.cli.username if site.access_credentials.cli else None
+            creds.cli_password = site.access_credentials.cli.password if site.access_credentials.cli else None
+            creds.web_username = site.access_credentials.web.username if site.access_credentials.web else None
+            creds.web_password = site.access_credentials.web.password if site.access_credentials.web else None
+            creds.db_username  = site.access_credentials.db.username  if site.access_credentials.db  else None
+            creds.db_password  = site.access_credentials.db.password  if site.access_credentials.db  else None
+            creds.vpn_username = site.access_credentials.vpn.username if site.access_credentials.vpn else None
+            creds.vpn_password = site.access_credentials.vpn.password if site.access_credentials.vpn else None
+            creds.note         = site.access_credentials.note
+        elif orm.access_credentials is not None:
+            self._session.delete(orm.access_credentials)
             orm.access_credentials = None
-
-    def _apply_credentials(self, orm: AccessCredentialsORM, creds: AccessCredentials) -> None:
-        orm.cli_username = creds.cli.username if creds.cli else None
-        orm.cli_password = creds.cli.password if creds.cli else None
-        orm.web_username = creds.web.username if creds.web else None
-        orm.web_password = creds.web.password if creds.web else None
-        orm.db_username  = creds.db.username  if creds.db  else None
-        orm.db_password  = creds.db.password  if creds.db  else None
-        orm.vpn_username = creds.vpn.username if creds.vpn else None
-        orm.vpn_password = creds.vpn.password if creds.vpn else None
-        orm.note         = creds.note
