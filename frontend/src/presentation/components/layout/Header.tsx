@@ -34,8 +34,6 @@ export default function Header() {
               <RefreshButton />
               <p className="text-[11px] text-apple-light tabular-nums truncate max-w-[160px]">
                 {currentReport.week_start} – {currentReport.week_end}
-                <span className="mx-1 text-apple-divider">·</span>
-                생성: {currentReport.report_date}
               </p>
             </div>
           )}
@@ -55,8 +53,6 @@ export default function Header() {
               </div>
               <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums truncate">
                 {currentReport.week_start} – {currentReport.week_end}
-                <span className="mx-1.5 text-apple-divider">·</span>
-                생성: {currentReport.report_date}
               </p>
             </>
           )}
