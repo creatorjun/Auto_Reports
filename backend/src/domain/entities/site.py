@@ -15,9 +15,8 @@ class SiteStatus(StrEnum):
 
 
 class ContractType(StrEnum):
-    MAINTENANCE       = "일반유지보수"
-    TECHNICAL_SUPPORT = "기술지원"
-    MANAGED           = "위탁운영"
+    OFFICIAL  = "정식라이센스"
+    TEMPORARY = "임시라이센스"
 
 
 class DeploymentType(StrEnum):
@@ -34,7 +33,7 @@ class NodeRole(StrEnum):
 class PatchType(StrEnum):
     REGULAR   = "정기패치"
     EMERGENCY = "긴급패치"
-    HOTFIX    = "핫픽스"
+    HOTFIX    = "핸픽스"
 
 
 class PatchResultStatus(StrEnum):

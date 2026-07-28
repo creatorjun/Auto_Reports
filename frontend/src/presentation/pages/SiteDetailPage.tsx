@@ -224,7 +224,7 @@ function PatchForm({
             <option value="">— 선택 —</option>
             <option value="정기패치">정기패치</option>
             <option value="긴급패치">긴급패치</option>
-            <option value="핫픽스">핫픽스</option>
+            <option value="핸픽스">핸픽스</option>
           </select>
         </div>
         <div className="flex flex-col gap-1">
@@ -356,7 +356,7 @@ function SiteBasicInfo({ site }: { site: SiteDetail }) {
       <Row label="사이트 ID" value={site.id} />
       <Row label="사이트명" value={site.site_name} />
       <Row label="유지보수 업체" value={site.maintenance_company} />
-      <Row label="계약 유형" value={site.contract_type} />
+      <Row label="라이센스 유형" value={site.contract_type} />
       <Row label="계약 시작" value={site.contract_start_date} />
       <Row label="계약 종료" value={site.contract_end_date} />
       <Row label="등록일" value={site.created_at?.slice(0, 10)} />
