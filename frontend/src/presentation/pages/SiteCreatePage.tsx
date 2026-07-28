@@ -6,10 +6,12 @@ import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { siteApi } from '@/infrastructure/api/siteApi'
 
+const emptyToUndefined = (val: unknown) => (val === '' ? undefined : val)
+
 const schema = z.object({
   site_name:           z.string().min(1, '사이트명을 입력하세요'),
-  status:              z.enum(['installing', 'active', 'inactive', 'expired', 'maintenance']).optional(),
-  contract_type:       z.enum(['annual', 'monthly', 'one_time']).optional(),
+  status:              z.preprocess(emptyToUndefined, z.enum(['installing', 'active', 'inactive', 'expired', 'maintenance']).optional()),
+  contract_type:       z.preprocess(emptyToUndefined, z.enum(['annual', 'monthly', 'one_time']).optional()),
   maintenance_company: z.string().optional(),
   customer_name:       z.string().optional(),
   customer_phone:      z.string().optional(),
@@ -31,6 +33,14 @@ const schema = z.object({
 })
 
 type FormValues = z.infer<typeof schema>
+
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.length < 4) return digits
+  if (digits.length < 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`
+  if (digits.length < 11) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+}
 
 function Field({
   label,
@@ -60,6 +70,32 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     <h2 className="text-sm font-semibold text-apple-dark border-b border-apple-divider pb-1.5 mb-4">
       {children}
     </h2>
+  )
+}
+
+function PhoneInput({
+  name,
+  register,
+  setValue,
+  placeholder = '010-0000-0000',
+}: {
+  name: 'customer_phone' | 'maintenance_phone'
+  register: ReturnType<typeof useForm<FormValues>>['register']
+  setValue: ReturnType<typeof useForm<FormValues>>['setValue']
+  placeholder?: string
+}) {
+  const { onChange, ...rest } = register(name)
+  return (
+    <input
+      {...rest}
+      className={inputCls}
+      placeholder={placeholder}
+      inputMode="numeric"
+      onChange={(e) => {
+        const formatted = formatPhone(e.target.value)
+        setValue(name, formatted, { shouldValidate: true })
+      }}
+    />
   )
 }
 
@@ -94,6 +130,7 @@ export default function SiteCreatePage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -163,7 +200,7 @@ export default function SiteCreatePage() {
                 <input {...register('site_name')} className={inputCls} placeholder="사이트명" />
               </Field>
             </div>
-            <Field label="상태 (선택)">
+            <Field label="상태 (선택)" error={(errors.status as { message?: string })?.message}>
               <select {...register('status')} className={selectCls}>
                 <option value="">— 미입력 —</option>
                 <option value="installing">구축중</option>
@@ -173,7 +210,7 @@ export default function SiteCreatePage() {
                 <option value="maintenance">유지보수</option>
               </select>
             </Field>
-            <Field label="계약 유형 (선택)">
+            <Field label="계약 유형 (선택)" error={(errors.contract_type as { message?: string })?.message}>
               <select {...register('contract_type')} className={selectCls}>
                 <option value="">— 미입력 —</option>
                 <option value="annual">연간</option>
@@ -191,7 +228,7 @@ export default function SiteCreatePage() {
               <input {...register('customer_name')} className={inputCls} placeholder="홍길동" />
             </Field>
             <Field label="연락처">
-              <input {...register('customer_phone')} className={inputCls} placeholder="010-0000-0000" />
+              <PhoneInput name="customer_phone" register={register} setValue={setValue} />
             </Field>
             <div className="col-span-2">
               <Field label="이메일" error={errors.customer_email?.message}>
@@ -213,7 +250,7 @@ export default function SiteCreatePage() {
               <input {...register('maintenance_name')} className={inputCls} placeholder="담당자명" />
             </Field>
             <Field label="연락처">
-              <input {...register('maintenance_phone')} className={inputCls} placeholder="010-0000-0000" />
+              <PhoneInput name="maintenance_phone" register={register} setValue={setValue} />
             </Field>
             <div className="col-span-2">
               <Field label="이메일" error={errors.maintenance_email?.message}>
