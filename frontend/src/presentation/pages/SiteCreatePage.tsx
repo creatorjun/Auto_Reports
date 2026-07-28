@@ -1,9 +1,9 @@
 // frontend/src/presentation/pages/SiteCreatePage.tsx
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { siteApi } from '@/infrastructure/api/siteApi'
 
 const emptyToUndefined = (val: unknown) => (val === '' ? undefined : val)
@@ -43,13 +43,9 @@ function formatPhone(value: string): string {
 }
 
 function Field({
-  label,
-  error,
-  children,
+  label, error, children,
 }: {
-  label: string
-  error?: string
-  children: React.ReactNode
+  label: string; error?: string; children: React.ReactNode
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -60,9 +56,7 @@ function Field({
   )
 }
 
-const inputCls =
-  'w-full border border-apple-divider rounded-xl px-3 py-2 text-sm text-apple-dark bg-white outline-none focus:ring-2 focus:ring-blue-500/30 transition'
-
+const inputCls = 'w-full border border-apple-divider rounded-xl px-3 py-2 text-sm text-apple-dark bg-white outline-none focus:ring-2 focus:ring-blue-500/30 transition'
 const selectCls = inputCls + ' cursor-pointer'
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -74,10 +68,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 function PhoneInput({
-  name,
-  register,
-  setValue,
-  placeholder = '010-0000-0000',
+  name, register, setValue, placeholder = '010-0000-0000',
 }: {
   name: 'customer_phone' | 'maintenance_phone'
   register: ReturnType<typeof useForm<FormValues>>['register']
@@ -92,19 +83,14 @@ function PhoneInput({
       placeholder={placeholder}
       inputMode="numeric"
       onChange={(e) => {
-        const formatted = formatPhone(e.target.value)
-        setValue(name, formatted, { shouldValidate: true })
+        setValue(name, formatPhone(e.target.value), { shouldValidate: true })
       }}
     />
   )
 }
 
 function CredentialRow({
-  label,
-  usernameKey,
-  passwordKey,
-  register,
-  errors,
+  label, usernameKey, passwordKey, register, errors,
 }: {
   label: string
   usernameKey: keyof FormValues
@@ -126,15 +112,44 @@ function CredentialRow({
 
 export default function SiteCreatePage() {
   const navigate = useNavigate()
+  const { id } = useParams<{ id?: string }>()
+  const isEdit = !!id
+  const queryClient = useQueryClient()
+
+  const { data: existing, isLoading } = useQuery({
+    queryKey: ['site-detail', id],
+    queryFn: () => siteApi.getById(id!),
+    enabled: isEdit,
+  })
 
   const {
-    register,
-    handleSubmit,
-    setValue,
+    register, handleSubmit, setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {},
+    values: isEdit && existing ? {
+      site_name:           existing.site_name ?? '',
+      status:              (existing.status as FormValues['status']) ?? undefined,
+      contract_type:       (existing.contract_type as FormValues['contract_type']) ?? undefined,
+      maintenance_company: existing.maintenance_company ?? '',
+      customer_name:       existing.customer_info?.name ?? '',
+      customer_phone:      existing.customer_info?.phone ?? '',
+      customer_email:      existing.customer_info?.email ?? '',
+      maintenance_name:    existing.maintenance_info?.name ?? '',
+      maintenance_phone:   existing.maintenance_info?.phone ?? '',
+      maintenance_email:   existing.maintenance_info?.email ?? '',
+      contract_start_date: existing.contract_start_date ?? '',
+      contract_end_date:   existing.contract_end_date ?? '',
+      cli_username:        existing.access_credentials?.cli?.username ?? '',
+      cli_password:        existing.access_credentials?.cli?.password ?? '',
+      web_username:        existing.access_credentials?.web?.username ?? '',
+      web_password:        existing.access_credentials?.web?.password ?? '',
+      db_username:         existing.access_credentials?.db?.username ?? '',
+      db_password:         existing.access_credentials?.db?.password ?? '',
+      vpn_username:        existing.access_credentials?.vpn?.username ?? '',
+      vpn_password:        existing.access_credentials?.vpn?.password ?? '',
+      access_note:         existing.access_credentials?.note ?? '',
+    } : undefined,
   })
 
   const { mutateAsync, isError, error } = useMutation({
@@ -156,7 +171,7 @@ export default function SiteCreatePage() {
           ? { name: name || undefined, phone: phone || undefined, email: email || undefined }
           : undefined
 
-      return siteApi.create({
+      const payload = {
         site_name:           values.site_name,
         maintenance_company: values.maintenance_company || undefined,
         customer_info:       buildContact(values.customer_name, values.customer_phone, values.customer_email),
@@ -165,33 +180,48 @@ export default function SiteCreatePage() {
         contract_end_date:   values.contract_end_date   || undefined,
         contract_type:       values.contract_type       || undefined,
         status:              values.status              || undefined,
-        nodes:               [],
-        patch_histories:     [],
-        visit_histories:     [],
+        nodes:               existing?.nodes            ?? [],
+        patch_histories:     existing?.patch_histories  ?? [],
+        visit_histories:     existing?.visit_histories  ?? [],
         access_credentials:  hasAnyCred ? creds : undefined,
-      })
+      }
+
+      return isEdit
+        ? siteApi.update(Number(id), payload)
+        : siteApi.create(payload)
     },
-    onSuccess: (data) => navigate(`/sites/${data.id}`),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['site-detail', String(data.id)] })
+      navigate(`/sites/${data.id}`)
+    },
   })
 
-  const onSubmit = (values: FormValues) => mutateAsync(values)
+  if (isEdit && isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <span className="text-sm text-apple-light">불러오는 중...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-2xl mx-auto px-6 py-10">
       <div className="flex items-center gap-3 mb-8">
         <button
           type="button"
-          onClick={() => navigate('/sites')}
+          onClick={() => navigate(isEdit ? `/sites/${id}` : '/sites')}
           className="text-apple-light hover:text-apple-dark transition-colors"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="text-xl font-semibold text-apple-dark">새 사이트 등록</h1>
+        <h1 className="text-xl font-semibold text-apple-dark">
+          {isEdit ? '사이트 수정' : '새 사이트 등록'}
+        </h1>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8">
+      <form onSubmit={handleSubmit(v => mutateAsync(v))} className="flex flex-col gap-8">
         <section>
           <SectionTitle>기본 정보 <span className="text-red-400">*</span></SectionTitle>
           <div className="grid grid-cols-2 gap-4">
@@ -292,14 +322,14 @@ export default function SiteCreatePage() {
 
         {isError && (
           <p className="text-sm text-red-500">
-            {(error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '등록 중 오류가 발생했습니다'}
+            {(error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'}
           </p>
         )}
 
         <div className="flex gap-3 justify-end">
           <button
             type="button"
-            onClick={() => navigate('/sites')}
+            onClick={() => navigate(isEdit ? `/sites/${id}` : '/sites')}
             className="px-5 py-2 rounded-xl text-sm text-apple-light border border-apple-divider hover:bg-apple-gray transition-colors"
           >
             취소
@@ -309,7 +339,7 @@ export default function SiteCreatePage() {
             disabled={isSubmitting}
             className="px-5 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {isSubmitting ? '등록 중...' : '사이트 등록'}
+            {isSubmitting ? '저장 중...' : isEdit ? '수정 완료' : '사이트 등록'}
           </button>
         </div>
       </form>

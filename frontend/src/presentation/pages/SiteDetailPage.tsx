@@ -147,10 +147,7 @@ type VisitFormValues = z.infer<typeof visitSchema>
 function PatchForm({
   siteId, initial, onSuccess, onCancel,
 }: {
-  siteId: number
-  initial?: PatchHistory
-  onSuccess: () => void
-  onCancel: () => void
+  siteId: number; initial?: PatchHistory; onSuccess: () => void; onCancel: () => void
 }) {
   const { register, handleSubmit, formState: { isSubmitting } } = useForm<PatchFormValues>({
     resolver: zodResolver(patchSchema),
@@ -251,10 +248,7 @@ function PatchForm({
 function VisitForm({
   siteId, initial, onSuccess, onCancel,
 }: {
-  siteId: number
-  initial?: VisitHistory
-  onSuccess: () => void
-  onCancel: () => void
+  siteId: number; initial?: VisitHistory; onSuccess: () => void; onCancel: () => void
 }) {
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<VisitFormValues>({
     resolver: zodResolver(visitSchema),
@@ -458,13 +452,11 @@ function SitePatchHistory({ site }: { site: SiteDetail }) {
       <div className="flex justify-end mb-4">
         <AddBtn onClick={() => { setShowAddForm(v => !v); setEditTarget(null) }} label="패치 추가" />
       </div>
-
       {showAddForm && !editTarget && (
         <PatchForm siteId={site.id}
           onSuccess={() => { invalidate(); setShowAddForm(false) }}
           onCancel={() => setShowAddForm(false)} />
       )}
-
       {site.patch_histories.length === 0 ? (
         <p className="text-sm text-apple-light">패치 이력이 없습니다</p>
       ) : (
@@ -481,24 +473,17 @@ function SitePatchHistory({ site }: { site: SiteDetail }) {
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-apple-dark">{p.patch_date ?? '—'}</span>
                       {p.result_status && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          p.result_status === '성공' ? 'bg-green-100 text-green-700' :
-                          p.result_status === '실패' ? 'bg-red-100 text-red-600' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>{p.result_status}</span>
-                      )}
-                      {p.patch_type && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">{p.patch_type}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">{p.result_status}</span>
                       )}
                     </div>
                     <CardActions
                       onEdit={() => { setEditTarget(p); setShowAddForm(false) }}
-                      onDelete={() => p.id && deletePatch(p.id)} />
+                      onDelete={() => p.id && deletePatch(p.id)}
+                    />
                   </div>
+                  <Row label="패치 유형" value={p.patch_type} />
                   <Row label="적용자" value={p.applied_by} />
-                  <Row label="이슈링크" value={p.issue_link} />
-                  <Row label="패치파일" value={p.patch_file_link} />
-                  <Row label="롤백일" value={p.rollback_date} />
+                  <Row label="이슈" value={p.issue_link} />
                   <Row label="비고" value={p.note} />
                 </div>
               )}
@@ -527,13 +512,11 @@ function SiteVisitHistory({ site }: { site: SiteDetail }) {
       <div className="flex justify-end mb-4">
         <AddBtn onClick={() => { setShowAddForm(v => !v); setEditTarget(null) }} label="방문 추가" />
       </div>
-
       {showAddForm && !editTarget && (
         <VisitForm siteId={site.id}
           onSuccess={() => { invalidate(); setShowAddForm(false) }}
           onCancel={() => setShowAddForm(false)} />
       )}
-
       {site.visit_histories.length === 0 ? (
         <p className="text-sm text-apple-light">방문 이력이 없습니다</p>
       ) : (
@@ -546,38 +529,19 @@ function SiteVisitHistory({ site }: { site: SiteDetail }) {
                   onCancel={() => setEditTarget(null)} />
               ) : (
                 <div className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-sm">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="text-xs font-semibold text-apple-dark">
-                        {v.visit_datetime
-                          ? new Date(v.visit_datetime).toLocaleString('ko-KR', {
-                              year: 'numeric', month: '2-digit', day: '2-digit',
-                              hour: '2-digit', minute: '2-digit',
-                            })
-                          : '—'}
-                      </p>
-                      {(v.engineer_name || v.engineer_phone) && (
-                        <p className="text-xs text-apple-light mt-0.5">
-                          {[v.engineer_name, v.engineer_phone].filter(Boolean).join(' · ')}
-                        </p>
-                      )}
-                    </div>
+                  <div className="flex items-start justify-between mb-2">
+                    <span className="text-xs font-semibold text-apple-dark">
+                      {v.visit_datetime?.slice(0, 16).replace('T', ' ') ?? '—'}
+                    </span>
                     <CardActions
                       onEdit={() => { setEditTarget(v); setShowAddForm(false) }}
-                      onDelete={() => v.id && deleteVisit(v.id)} />
+                      onDelete={() => v.id && deleteVisit(v.id)}
+                    />
                   </div>
-                  {v.request_content && (
-                    <div className="mb-2">
-                      <p className="text-[10px] font-semibold text-apple-light uppercase tracking-wide mb-1">요청내용</p>
-                      <p className="text-sm text-apple-dark whitespace-pre-wrap rounded-lg bg-apple-gray/50 px-3 py-2">{v.request_content}</p>
-                    </div>
-                  )}
-                  {v.action_content && (
-                    <div>
-                      <p className="text-[10px] font-semibold text-apple-light uppercase tracking-wide mb-1">조치내용</p>
-                      <p className="text-sm text-apple-dark whitespace-pre-wrap rounded-lg bg-green-50 px-3 py-2">{v.action_content}</p>
-                    </div>
-                  )}
+                  <Row label="담당자" value={v.engineer_name} />
+                  <Row label="연락처" value={v.engineer_phone} />
+                  <Row label="요청내용" value={v.request_content} />
+                  <Row label="조치내용" value={v.action_content} />
                 </div>
               )}
             </div>
@@ -596,54 +560,66 @@ export default function SiteDetailPage() {
     queryKey: ['site-detail', id],
     queryFn: () => siteApi.getById(id!),
     enabled: !!id,
-    staleTime: 30_000,
+    retry: 1,
   })
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center w-full h-full py-20">
-        <span className="text-sm text-apple-light">로딩 중...</span>
+      <div className="flex items-center justify-center h-64">
+        <span className="text-sm text-apple-light">불러오는 중...</span>
       </div>
     )
   }
 
   if (isError || !site) {
     return (
-      <div className="flex flex-col items-center justify-center w-full h-full py-20 gap-3">
-        <p className="text-sm text-red-500">사이트 정보를 불러오지 못했습니다</p>
-        <button onClick={() => navigate('/sites')} className="text-sm text-blue-600 hover:underline">목록으로 돌아가기</button>
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <p className="text-sm text-apple-light">사이트 정보를 불러오지 못했습니다</p>
+        <button onClick={() => navigate('/sites')}
+          className="text-xs text-blue-600 hover:underline">목록으로 돌아가기</button>
       </div>
     )
   }
 
   return (
     <div className="w-full max-w-2xl mx-auto px-6 py-10">
-      <div className="flex items-center gap-3 mb-6">
-        <button type="button" onClick={() => navigate('/sites')}
-          className="text-apple-light hover:text-apple-dark transition-colors">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-semibold text-apple-dark truncate">{site.site_name}</h1>
-          {site.maintenance_company && <p className="text-xs text-apple-light mt-0.5">{site.maintenance_company}</p>}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => navigate('/sites')}
+            className="text-apple-light hover:text-apple-dark transition-colors">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-semibold text-apple-dark">{site.site_name}</h1>
+            {site.status && (
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                STATUS_COLOR[site.status] ?? 'bg-gray-100 text-gray-500'
+              }`}>
+                {STATUS_LABEL[site.status] ?? site.status}
+              </span>
+            )}
+          </div>
         </div>
-        {site.status && (
-          <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${
-            STATUS_COLOR[site.status] ?? 'bg-gray-100 text-gray-500'
-          }`}>
-            {STATUS_LABEL[site.status] ?? site.status}
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={() => navigate(`/sites/${id}/edit`)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium border border-apple-divider text-apple-dark hover:bg-apple-gray hover:border-blue-300 hover:text-blue-600 transition-colors"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <path d="M9.5 1.5a1.414 1.414 0 0 1 2 2L4 11H1.5V8.5L9.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          수정
+        </button>
       </div>
 
       <div className="flex flex-col gap-3">
-        <SiteBasicInfo    site={site} />
-        <SiteContactInfo  site={site} />
+        <SiteBasicInfo site={site} />
+        <SiteContactInfo site={site} />
         <SiteHardwareInfo site={site} />
         <SiteSolutionInfo site={site} />
-        <SiteAccessInfo   site={site} />
+        <SiteAccessInfo site={site} />
         <SitePatchHistory site={site} />
         <SiteVisitHistory site={site} />
       </div>

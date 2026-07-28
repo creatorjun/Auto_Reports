@@ -29,14 +29,15 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true,             element: <Suspense fallback={<Fallback />}><DashboardPage /></Suspense> },
-      { path: 'history',         element: <Suspense fallback={<Fallback />}><HistoryPage /></Suspense> },
-      { path: 'reports/:id',     element: <Suspense fallback={<Fallback />}><DashboardPage /></Suspense> },
-      { path: 'storage',         element: <Suspense fallback={<Fallback />}><StoragePage /></Suspense> },
-      { path: 'storage/preview', element: <Suspense fallback={<Fallback />}><StoragePreviewPage /></Suspense> },
-      { path: 'sites',           element: <Suspense fallback={<Fallback />}><SiteManagementPage /></Suspense> },
-      { path: 'sites/new',       element: <Suspense fallback={<Fallback />}><SiteCreatePage /></Suspense> },
-      { path: 'sites/:id',       element: <Suspense fallback={<Fallback />}><SiteDetailPage /></Suspense> },
+      { index: true,              element: <Suspense fallback={<Fallback />}><DashboardPage /></Suspense> },
+      { path: 'history',          element: <Suspense fallback={<Fallback />}><HistoryPage /></Suspense> },
+      { path: 'reports/:id',      element: <Suspense fallback={<Fallback />}><DashboardPage /></Suspense> },
+      { path: 'storage',          element: <Suspense fallback={<Fallback />}><StoragePage /></Suspense> },
+      { path: 'storage/preview',  element: <Suspense fallback={<Fallback />}><StoragePreviewPage /></Suspense> },
+      { path: 'sites',            element: <Suspense fallback={<Fallback />}><SiteManagementPage /></Suspense> },
+      { path: 'sites/new',        element: <Suspense fallback={<Fallback />}><SiteCreatePage /></Suspense> },
+      { path: 'sites/:id',        element: <Suspense fallback={<Fallback />}><SiteDetailPage /></Suspense> },
+      { path: 'sites/:id/edit',   element: <Suspense fallback={<Fallback />}><SiteCreatePage /></Suspense> },
     ]
   },
   { path: '*', element: <Navigate to="/login" replace /> },

@@ -31,6 +31,11 @@ export const siteApi = {
     return res.data
   },
 
+  update: async (id: number, payload: Partial<SiteCreatePayload>): Promise<SiteDetail> => {
+    const res = await client.put<SiteDetail>(`/sites/${id}`, payload)
+    return res.data
+  },
+
   addPatchHistory: async (siteId: number, payload: PatchHistoryPayload): Promise<PatchHistory> => {
     const res = await client.post<PatchHistory>(`/sites/${siteId}/patch_histories`, payload)
     return res.data
