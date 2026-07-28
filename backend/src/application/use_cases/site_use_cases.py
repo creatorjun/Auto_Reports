@@ -3,17 +3,17 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from src.domain.entities.site import Site
+from src.domain.entities.site import PatchHistory, Site, VisitHistory
 from src.domain.repositories.site_repository import SiteRepository
 
 
 @dataclass
 class SiteSummaryDTO:
-    id: str
+    id: int
     site_name: str
-    customer_name: str
-    status: str
-    contract_end_date: date
+    customer_name: Optional[str]
+    status: Optional[str]
+    contract_end_date: Optional[date]
 
 
 class SiteUseCase:
@@ -23,22 +23,16 @@ class SiteUseCase:
     async def get_all(self) -> list[Site]:
         return await self._repo.get_all()
 
-    async def get_by_id(self, site_id: str) -> Optional[Site]:
+    async def get_by_id(self, site_id: int) -> Optional[Site]:
         return await self._repo.get_by_id(site_id)
 
     async def create(self, site: Site) -> Site:
-        existing = await self._repo.get_by_id(site.id)
-        if existing:
-            raise ValueError(f"Site '{site.id}' already exists")
         return await self._repo.save(site)
 
     async def update(self, site: Site) -> Site:
-        existing = await self._repo.get_by_id(site.id)
-        if not existing:
-            raise ValueError(f"Site '{site.id}' not found")
         return await self._repo.save(site)
 
-    async def delete(self, site_id: str) -> bool:
+    async def delete(self, site_id: int) -> bool:
         return await self._repo.delete(site_id)
 
     async def search(self, query: str, limit: int = 10) -> list[SiteSummaryDTO]:
@@ -49,11 +43,25 @@ class SiteUseCase:
         sites = await self._repo.get_recent(limit)
         return [self._to_summary_dto(s) for s in sites]
 
+    async def add_patch_history(self, site_id: int, patch: PatchHistory) -> Site:
+        site = await self._repo.get_by_id(site_id)
+        if not site:
+            raise ValueError(f"Site '{site_id}' not found")
+        site.patch_histories.append(patch)
+        return await self._repo.save(site)
+
+    async def add_visit_history(self, site_id: int, visit: VisitHistory) -> Site:
+        site = await self._repo.get_by_id(site_id)
+        if not site:
+            raise ValueError(f"Site '{site_id}' not found")
+        site.visit_histories.append(visit)
+        return await self._repo.save(site)
+
     def _to_summary_dto(self, site: Site) -> SiteSummaryDTO:
         return SiteSummaryDTO(
             id=site.id,
             site_name=site.site_name,
-            customer_name=site.customer_info.name,
-            status=site.status.value,
+            customer_name=site.customer_contact.name if site.customer_contact else None,
+            status=site.status.value if site.status else None,
             contract_end_date=site.contract_end_date,
         )
