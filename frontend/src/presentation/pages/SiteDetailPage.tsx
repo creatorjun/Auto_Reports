@@ -185,8 +185,6 @@ function PatchForm({
     onSuccess,
   })
 
-  const emptyToUndefined = (val: unknown) => (val === '' ? undefined : val)
-
   return (
     <form onSubmit={handleSubmit(v => mutateAsync(v))}
       className="mb-4 rounded-2xl border border-blue-200 bg-blue-50/40 px-5 py-4 flex flex-col gap-3">
