@@ -23,6 +23,8 @@ class ContactInfoSchema(BaseModel):
 class CredentialSchema(BaseModel):
     username: str
     password: str
+    ip:       Optional[str] = None
+    port:     Optional[str] = None
 
 
 class AccessCredentialsSchema(BaseModel):
@@ -138,10 +140,9 @@ class SiteCreateRequest(BaseModel):
     contract_end_date:   Optional[date]                   = None
     contract_type:       Optional[ContractType]           = None
     status:              Optional[SiteStatus]             = None
-    nodes:               list[DeploymentNodeSchema]       = []
-    solution_package:    Optional[SolutionPackageSchema]  = None
-    patch_histories:     list[PatchHistorySchema]         = []
-    visit_histories:     list[VisitHistorySchema]         = []
+    nodes:               list                             = []
+    patch_histories:     list                             = []
+    visit_histories:     list                             = []
     access_credentials:  Optional[AccessCredentialsSchema] = None
 
 
