@@ -43,10 +43,10 @@ def _creds_from_schema(schema: AccessCredentialsSchema | None) -> AccessCredenti
     if schema is None:
         return None
     return AccessCredentials(
-        cli=Credential(username=schema.cli.username, password=schema.cli.password) if schema.cli else None,
-        web=Credential(username=schema.web.username, password=schema.web.password) if schema.web else None,
-        db=Credential(username=schema.db.username,  password=schema.db.password)  if schema.db  else None,
-        vpn=Credential(username=schema.vpn.username, password=schema.vpn.password) if schema.vpn else None,
+        cli=Credential(username=schema.cli.username, password=schema.cli.password, ip=schema.cli.ip, port=schema.cli.port) if schema.cli else None,
+        web=Credential(username=schema.web.username, password=schema.web.password, ip=schema.web.ip, port=schema.web.port) if schema.web else None,
+        db=Credential(username=schema.db.username,  password=schema.db.password,  ip=schema.db.ip,  port=schema.db.port)  if schema.db  else None,
+        vpn=Credential(username=schema.vpn.username, password=schema.vpn.password, ip=schema.vpn.ip, port=schema.vpn.port) if schema.vpn else None,
         note=schema.note,
     )
 
@@ -55,10 +55,10 @@ def _creds_to_schema(creds: AccessCredentials | None) -> AccessCredentialsSchema
     if creds is None:
         return None
     return AccessCredentialsSchema(
-        cli=CredentialSchema(username=creds.cli.username, password=creds.cli.password) if creds.cli else None,
-        web=CredentialSchema(username=creds.web.username, password=creds.web.password) if creds.web else None,
-        db=CredentialSchema(username=creds.db.username,  password=creds.db.password)  if creds.db  else None,
-        vpn=CredentialSchema(username=creds.vpn.username, password=creds.vpn.password) if creds.vpn else None,
+        cli=CredentialSchema(username=creds.cli.username, password=creds.cli.password, ip=creds.cli.ip, port=creds.cli.port) if creds.cli else None,
+        web=CredentialSchema(username=creds.web.username, password=creds.web.password, ip=creds.web.ip, port=creds.web.port) if creds.web else None,
+        db=CredentialSchema(username=creds.db.username,  password=creds.db.password,  ip=creds.db.ip,  port=creds.db.port)  if creds.db  else None,
+        vpn=CredentialSchema(username=creds.vpn.username, password=creds.vpn.password, ip=creds.vpn.ip, port=creds.vpn.port) if creds.vpn else None,
         note=creds.note,
     )
 
