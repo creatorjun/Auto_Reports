@@ -18,6 +18,8 @@ export interface ContactInfo {
 export interface Credential {
   username: string
   password: string
+  ip?: string
+  port?: string
 }
 
 export interface AccessCredentials {
@@ -67,27 +69,8 @@ export interface PatchHistory {
   note?: string
 }
 
-export interface PatchHistoryPayload {
-  issue_link?: string
-  patch_date?: string
-  patch_file_link?: string
-  patch_type?: string
-  applied_by?: string
-  result_status?: string
-  rollback_date?: string
-  note?: string
-}
-
 export interface VisitHistory {
   id?: number
-  visit_datetime?: string
-  engineer_name?: string
-  engineer_phone?: string
-  request_content?: string
-  action_content?: string
-}
-
-export interface VisitHistoryPayload {
   visit_datetime?: string
   engineer_name?: string
   engineer_phone?: string
@@ -104,7 +87,7 @@ export interface SiteDetail {
   contract_start_date?: string
   contract_end_date?: string
   contract_type?: string
-  status?: string
+  status?: SiteStatus
   created_at: string
   updated_at: string
   nodes: DeploymentNode[]
