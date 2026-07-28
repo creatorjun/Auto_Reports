@@ -40,27 +40,32 @@ export default function RefreshButton() {
       onClick={handleRefresh}
       disabled={isDisabled}
       title={`${currentReport.week_start} ~ ${currentReport.week_end} 재조회`}
-      className="flex items-center gap-1.5 px-3 py-1.5
+      className="inline-flex items-center justify-center gap-1.5
+                 min-w-[88px] h-[28px] px-3
                  rounded-lg border border-apple-divider
                  text-[12px] font-medium text-apple-dark
                  hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50
                  disabled:opacity-40 disabled:cursor-not-allowed
-                 active:scale-95 transition-all duration-200"
+                 transition-colors duration-200"
     >
-      {isDisabled ? (
-        <span className="w-3 h-3 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin" />
-      ) : (
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-          <path
-            d="M11 6.5A4.5 4.5 0 1 1 6.5 2a4.48 4.48 0 0 1 3.18 1.32M9.68 1v2.32H12"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )}
-      <span>{isDisabled ? '새로고침 중...' : '새로고침'}</span>
+      <span className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
+        {isDisabled ? (
+          <span className="block w-3 h-3 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin" />
+        ) : (
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+            <path
+              d="M11 6.5A4.5 4.5 0 1 1 6.5 2a4.48 4.48 0 0 1 3.18 1.32M9.68 1v2.32H12"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </span>
+      <span className="whitespace-nowrap">
+        {isDisabled ? '새로고침 중...' : '새로고침'}
+      </span>
     </button>
   )
 }

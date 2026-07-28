@@ -10,6 +10,7 @@ export default function Header() {
 
   return (
     <header className="bg-white flex-shrink-0 border-b border-apple-divider/60">
+      {/* 모바일 */}
       <div className="md:hidden flex flex-col">
         <div className="flex items-center justify-center px-4 pt-3 pb-1">
           <div className="flex items-center gap-2">
@@ -25,31 +26,34 @@ export default function Header() {
           </div>
         </div>
         {triggerMessage && (
-          <p className="text-center text-[11px] text-green-700 pb-0.5">{triggerMessage}</p>
+          <p className="text-center text-[11px] text-green-700 pb-0.5 px-4 truncate">{triggerMessage}</p>
         )}
-        <div className="flex items-center gap-2 px-4 pb-2.5 pt-1">
+        <div className="flex items-center gap-2 px-4 pb-2.5 pt-1 overflow-hidden">
           {currentReport && (
-            <>
+            <div className="flex items-center gap-2 flex-shrink-0">
               <RefreshButton />
-              <p className="text-[11px] text-apple-light tabular-nums truncate">
+              <p className="text-[11px] text-apple-light tabular-nums truncate max-w-[160px]">
                 {currentReport.week_start} – {currentReport.week_end}
                 <span className="mx-1 text-apple-divider">·</span>
                 생성: {currentReport.report_date}
               </p>
-            </>
+            </div>
           )}
-          <div className="ml-auto">
+          <div className="ml-auto flex-shrink-0">
             <SearchWidget />
           </div>
         </div>
       </div>
 
+      {/* 데스크탑 */}
       <div className="hidden md:flex h-14 3xl:h-16 items-center justify-between px-4">
-        <div className="w-[28rem] 3xl:w-[32rem] flex items-center gap-3">
+        <div className="w-[28rem] 3xl:w-[32rem] flex items-center gap-3 overflow-hidden">
           {currentReport && (
             <>
-              <RefreshButton />
-              <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums">
+              <div className="flex-shrink-0">
+                <RefreshButton />
+              </div>
+              <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums truncate">
                 {currentReport.week_start} – {currentReport.week_end}
                 <span className="mx-1.5 text-apple-divider">·</span>
                 생성: {currentReport.report_date}
@@ -58,7 +62,7 @@ export default function Header() {
           )}
         </div>
 
-        <div className="flex flex-col items-center justify-center gap-0.5">
+        <div className="flex flex-col items-center justify-center gap-0.5 flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 3xl:w-8 3xl:h-8 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -71,11 +75,13 @@ export default function Header() {
             <span className="text-[20px] 3xl:text-[24px] font-bold text-apple-dark tracking-tight">TAC 보고서</span>
           </div>
           {triggerMessage && (
-            <span className="text-[11px] 3xl:text-[12px] text-green-700">{triggerMessage}</span>
+            <span className="text-[11px] 3xl:text-[12px] text-green-700 max-w-[260px] truncate">{triggerMessage}</span>
           )}
         </div>
 
-        <SearchWidget />
+        <div className="flex-shrink-0">
+          <SearchWidget />
+        </div>
       </div>
     </header>
   )
