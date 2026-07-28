@@ -68,7 +68,10 @@ function Row({ label, value }: { label: string; value?: string | number | null }
   )
 }
 
-function CredRow({ label, cred }: { label: string; cred?: { username: string; password: string } | null }) {
+function CredRow({ label, cred }: {
+  label: string
+  cred?: { username: string; password: string; ip?: string; port?: string } | null
+}) {
   const [show, setShow] = useState(false)
   if (!cred) return null
   return (
@@ -83,6 +86,11 @@ function CredRow({ label, cred }: { label: string; cred?: { username: string; pa
             {show ? '숨기기' : '보기'}
           </button>
         </span>
+        {cred.ip && (
+          <span className="text-xs text-apple-light">
+            {cred.ip}{cred.port ? `:${cred.port}` : ''}
+          </span>
+        )}
       </div>
     </div>
   )
