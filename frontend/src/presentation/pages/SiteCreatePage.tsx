@@ -6,6 +6,11 @@ import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { siteApi } from '@/infrastructure/api/siteApi'
 
+const credentialSchema = z.object({
+  username: z.string(),
+  password: z.string(),
+})
+
 const schema = z.object({
   id: z.string().min(1, '사이트 ID를 입력하세요'),
   site_name: z.string().min(1, '사이트명을 입력하세요'),
@@ -20,6 +25,15 @@ const schema = z.object({
   maintenance_email: z.string().email('올바른 이메일을 입력하세요').or(z.literal('')).optional(),
   contract_start_date: z.string().min(1, '계약 시작일을 입력하세요'),
   contract_end_date: z.string().min(1, '계약 종료일을 입력하세요'),
+  cli_username: z.string().optional(),
+  cli_password: z.string().optional(),
+  web_username: z.string().optional(),
+  web_password: z.string().optional(),
+  db_username: z.string().optional(),
+  db_password: z.string().optional(),
+  vpn_username: z.string().optional(),
+  vpn_password: z.string().optional(),
+  access_note: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -55,6 +69,31 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   )
 }
 
+function CredentialRow({
+  label,
+  usernameKey,
+  passwordKey,
+  register,
+  errors,
+}: {
+  label: string
+  usernameKey: keyof FormValues
+  passwordKey: keyof FormValues
+  register: ReturnType<typeof useForm<FormValues>>['register']
+  errors: ReturnType<typeof useForm<FormValues>>['formState']['errors']
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <Field label={`${label} ID`} error={(errors[usernameKey] as { message?: string })?.message}>
+        <input {...register(usernameKey)} className={inputCls} placeholder="username" />
+      </Field>
+      <Field label={`${label} PW`} error={(errors[passwordKey] as { message?: string })?.message}>
+        <input type="password" {...register(passwordKey)} className={inputCls} placeholder="password" />
+      </Field>
+    </div>
+  )
+}
+
 export default function SiteCreatePage() {
   const navigate = useNavigate()
 
@@ -68,8 +107,20 @@ export default function SiteCreatePage() {
   })
 
   const { mutateAsync, isError, error } = useMutation({
-    mutationFn: (values: FormValues) =>
-      siteApi.create({
+    mutationFn: (values: FormValues) => {
+      const buildCred = (u?: string, p?: string) =>
+        u ? { username: u, password: p ?? '' } : undefined
+
+      const creds = {
+        cli: buildCred(values.cli_username, values.cli_password),
+        web: buildCred(values.web_username, values.web_password),
+        db:  buildCred(values.db_username,  values.db_password),
+        vpn: buildCred(values.vpn_username, values.vpn_password),
+        note: values.access_note || undefined,
+      }
+      const hasAnyCred = creds.cli || creds.web || creds.db || creds.vpn || creds.note
+
+      return siteApi.create({
         id: values.id,
         site_name: values.site_name,
         maintenance_company: values.maintenance_company,
@@ -90,7 +141,9 @@ export default function SiteCreatePage() {
         nodes: [],
         patch_histories: [],
         visit_histories: [],
-      }),
+        access_credentials: hasAnyCred ? creds : undefined,
+      })
+    },
     onSuccess: (data) => navigate(`/sites/${data.id}`),
   })
 
@@ -186,6 +239,48 @@ export default function SiteCreatePage() {
             </Field>
             <Field label="계약 종료일" error={errors.contract_end_date?.message}>
               <input type="date" {...register('contract_end_date')} className={inputCls} />
+            </Field>
+          </div>
+        </section>
+
+        <section>
+          <SectionTitle>접속 정보 (선택)</SectionTitle>
+          <div className="flex flex-col gap-4">
+            <CredentialRow
+              label="CLI"
+              usernameKey="cli_username"
+              passwordKey="cli_password"
+              register={register}
+              errors={errors}
+            />
+            <CredentialRow
+              label="WEB"
+              usernameKey="web_username"
+              passwordKey="web_password"
+              register={register}
+              errors={errors}
+            />
+            <CredentialRow
+              label="DB"
+              usernameKey="db_username"
+              passwordKey="db_password"
+              register={register}
+              errors={errors}
+            />
+            <CredentialRow
+              label="VPN"
+              usernameKey="vpn_username"
+              passwordKey="vpn_password"
+              register={register}
+              errors={errors}
+            />
+            <Field label="기타 사항">
+              <textarea
+                {...register('access_note')}
+                className={inputCls + ' resize-none'}
+                rows={3}
+                placeholder="추가 접속 정보 및 참고사항..."
+              />
             </Field>
           </div>
         </section>

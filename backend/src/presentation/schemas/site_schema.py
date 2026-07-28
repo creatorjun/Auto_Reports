@@ -21,6 +21,19 @@ class ContactInfoSchema(BaseModel):
     email: Optional[str] = None
 
 
+class CredentialSchema(BaseModel):
+    username: str
+    password: str
+
+
+class AccessCredentialsSchema(BaseModel):
+    cli:  Optional[CredentialSchema] = None
+    web:  Optional[CredentialSchema] = None
+    db:   Optional[CredentialSchema] = None
+    vpn:  Optional[CredentialSchema] = None
+    note: Optional[str] = None
+
+
 class DeploymentNodeSchema(BaseModel):
     id: Optional[int] = None
     hostname: str
@@ -93,6 +106,7 @@ class SiteCreateRequest(BaseModel):
     solution_package: Optional[SolutionPackageSchema] = None
     patch_histories: list[PatchHistorySchema] = []
     visit_histories: list[VisitHistorySchema] = []
+    access_credentials: Optional[AccessCredentialsSchema] = None
 
 
 class SiteUpdateRequest(BaseModel):
@@ -104,6 +118,7 @@ class SiteUpdateRequest(BaseModel):
     contract_end_date: Optional[date] = None
     contract_type: Optional[ContractType] = None
     status: Optional[SiteStatus] = None
+    access_credentials: Optional[AccessCredentialsSchema] = None
 
 
 class SiteResponse(BaseModel):
@@ -122,5 +137,6 @@ class SiteResponse(BaseModel):
     solution_package: Optional[SolutionPackageSchema] = None
     patch_histories: list[PatchHistorySchema] = []
     visit_histories: list[VisitHistorySchema] = []
+    access_credentials: Optional[AccessCredentialsSchema] = None
 
     model_config = {"from_attributes": True}

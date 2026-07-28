@@ -56,6 +56,21 @@ class ContactInfo:
 
 
 @dataclass
+class Credential:
+    username: str
+    password: str
+
+
+@dataclass
+class AccessCredentials:
+    cli: Optional[Credential] = None
+    web: Optional[Credential] = None
+    db:  Optional[Credential] = None
+    vpn: Optional[Credential] = None
+    note: Optional[str] = None
+
+
+@dataclass
 class DeploymentNode:
     hostname:        str
     role:            NodeRole
@@ -118,5 +133,6 @@ class Site:
     solution_package:    Optional[SolutionPackage] = None
     patch_histories:     list[PatchHistory]        = field(default_factory=list)
     visit_histories:     list[VisitHistory]        = field(default_factory=list)
+    access_credentials:  Optional[AccessCredentials] = None
     created_at:          datetime                  = field(default_factory=datetime.utcnow)
     updated_at:          datetime                  = field(default_factory=datetime.utcnow)

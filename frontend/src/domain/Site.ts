@@ -15,6 +15,19 @@ export interface ContactInfo {
   email?: string
 }
 
+export interface Credential {
+  username: string
+  password: string
+}
+
+export interface AccessCredentials {
+  cli?: Credential
+  web?: Credential
+  db?: Credential
+  vpn?: Credential
+  note?: string
+}
+
 export interface SiteCreatePayload {
   id: string
   site_name: string
@@ -28,4 +41,5 @@ export interface SiteCreatePayload {
   nodes: []
   patch_histories: []
   visit_histories: []
+  access_credentials?: AccessCredentials
 }

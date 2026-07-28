@@ -3,8 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.domain.entities.site import (
+    AccessCredentials,
     ContactInfo,
     ContractType,
+    Credential,
     DeploymentNode,
     DeploymentType,
     NodeRole,
@@ -19,6 +21,8 @@ from src.domain.entities.site import (
 )
 from src.presentation.api.v1.deps import get_site_use_case
 from src.presentation.schemas.site_schema import (
+    AccessCredentialsSchema,
+    CredentialSchema,
     SiteCreateRequest,
     SiteResponse,
     SiteSummaryResponse,
@@ -28,17 +32,41 @@ from src.presentation.schemas.site_schema import (
 router = APIRouter(prefix="/sites", tags=["sites"])
 
 
+def _creds_from_schema(schema: AccessCredentialsSchema | None) -> AccessCredentials | None:
+    if schema is None:
+        return None
+    return AccessCredentials(
+        cli=Credential(username=schema.cli.username, password=schema.cli.password) if schema.cli else None,
+        web=Credential(username=schema.web.username, password=schema.web.password) if schema.web else None,
+        db=Credential(username=schema.db.username,  password=schema.db.password)  if schema.db  else None,
+        vpn=Credential(username=schema.vpn.username, password=schema.vpn.password) if schema.vpn else None,
+        note=schema.note,
+    )
+
+
+def _creds_to_schema(creds: AccessCredentials | None) -> AccessCredentialsSchema | None:
+    if creds is None:
+        return None
+    return AccessCredentialsSchema(
+        cli=CredentialSchema(username=creds.cli.username, password=creds.cli.password) if creds.cli else None,
+        web=CredentialSchema(username=creds.web.username, password=creds.web.password) if creds.web else None,
+        db=CredentialSchema(username=creds.db.username,  password=creds.db.password)  if creds.db  else None,
+        vpn=CredentialSchema(username=creds.vpn.username, password=creds.vpn.password) if creds.vpn else None,
+        note=creds.note,
+    )
+
+
 def _to_domain(req: SiteCreateRequest) -> Site:
     return Site(
         id=req.id,
         site_name=req.site_name,
         maintenance_company=req.maintenance_company,
-        customer_info=ContactInfo(
+        customer_contact=ContactInfo(
             name=req.customer_info.name,
             phone=req.customer_info.phone,
             email=req.customer_info.email,
         ),
-        maintenance_info=ContactInfo(
+        maintenance_contact=ContactInfo(
             name=req.maintenance_info.name,
             phone=req.maintenance_info.phone,
             email=req.maintenance_info.email,
@@ -49,8 +77,6 @@ def _to_domain(req: SiteCreateRequest) -> Site:
         status=req.status,
         nodes=[
             DeploymentNode(
-                id=n.id,
-                site_id=req.id,
                 hostname=n.hostname,
                 role=n.role,
                 cpu_cores=n.cpu_cores,
@@ -67,8 +93,6 @@ def _to_domain(req: SiteCreateRequest) -> Site:
         ],
         solution_package=(
             SolutionPackage(
-                id=req.solution_package.id,
-                site_id=req.id,
                 version=req.solution_package.version,
                 installer_filename=req.solution_package.installer_filename,
                 license_capacity_gb=req.solution_package.license_capacity_gb,
@@ -83,8 +107,6 @@ def _to_domain(req: SiteCreateRequest) -> Site:
         ),
         patch_histories=[
             PatchHistory(
-                id=p.id,
-                site_id=req.id,
                 issue_link=p.issue_link,
                 patch_date=p.patch_date,
                 patch_file_link=p.patch_file_link,
@@ -98,8 +120,6 @@ def _to_domain(req: SiteCreateRequest) -> Site:
         ],
         visit_histories=[
             VisitHistory(
-                id=v.id,
-                site_id=req.id,
                 visit_date=v.visit_date,
                 visitor=v.visitor,
                 visit_type=v.visit_type,
@@ -108,6 +128,7 @@ def _to_domain(req: SiteCreateRequest) -> Site:
             )
             for v in req.visit_histories
         ],
+        access_credentials=_creds_from_schema(req.access_credentials),
     )
 
 
@@ -124,8 +145,8 @@ def _to_response(site: Site) -> SiteResponse:
         id=site.id,
         site_name=site.site_name,
         maintenance_company=site.maintenance_company,
-        customer_info=ContactInfoSchema(**site.customer_info.__dict__),
-        maintenance_info=ContactInfoSchema(**site.maintenance_info.__dict__),
+        customer_info=ContactInfoSchema(**site.customer_contact.__dict__),
+        maintenance_info=ContactInfoSchema(**site.maintenance_contact.__dict__),
         contract_start_date=site.contract_start_date,
         contract_end_date=site.contract_end_date,
         contract_type=site.contract_type,
@@ -140,6 +161,7 @@ def _to_response(site: Site) -> SiteResponse:
         ),
         patch_histories=[PatchHistorySchema(**p.__dict__) for p in site.patch_histories],
         visit_histories=[VisitHistorySchema(**v.__dict__) for v in site.visit_histories],
+        access_credentials=_creds_to_schema(site.access_credentials),
     )
 
 
@@ -227,23 +249,23 @@ async def update_site(
             if body.maintenance_company is not None
             else existing.maintenance_company
         ),
-        customer_info=(
+        customer_contact=(
             ContactInfo(
                 name=body.customer_info.name,
                 phone=body.customer_info.phone,
                 email=body.customer_info.email,
             )
             if body.customer_info is not None
-            else existing.customer_info
+            else existing.customer_contact
         ),
-        maintenance_info=(
+        maintenance_contact=(
             ContactInfo(
                 name=body.maintenance_info.name,
                 phone=body.maintenance_info.phone,
                 email=body.maintenance_info.email,
             )
             if body.maintenance_info is not None
-            else existing.maintenance_info
+            else existing.maintenance_contact
         ),
         contract_start_date=(
             body.contract_start_date
@@ -263,6 +285,11 @@ async def update_site(
         solution_package=existing.solution_package,
         patch_histories=existing.patch_histories,
         visit_histories=existing.visit_histories,
+        access_credentials=(
+            _creds_from_schema(body.access_credentials)
+            if body.access_credentials is not None
+            else existing.access_credentials
+        ),
     )
     site = await use_case.update(updated)
     return _to_response(site)
