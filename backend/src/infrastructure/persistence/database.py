@@ -24,7 +24,12 @@ async def get_db_session():
     if AsyncSessionLocal is None:
         raise RuntimeError("DB가 초기화되지 않았습니다.")
     async with AsyncSessionLocal() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 
 async def close_db() -> None:
