@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { siteApi } from '@/infrastructure/api/siteApi'
-import type { SiteDetail, PatchHistory, VisitHistory } from '@/domain/Site'
+import type { SiteDetail, PatchHistory, VisitHistory, DeploymentNode } from '@/domain/Site'
 
 const STATUS_LABEL: Record<string, string> = {
   installing: '구축중',
@@ -96,19 +96,13 @@ function CredRow({ label, cred }: {
         <span>{cred.username}</span>
         <span className="flex items-center gap-1.5">
           <span className="font-mono text-xs">{show ? cred.password : '•'.repeat(Math.min(cred.password.length, 10))}</span>
-          <button
-            type="button"
-            onClick={() => setShow(v => !v)}
-            className="text-apple-light hover:text-apple-dark transition-colors"
-            title={show ? '숨기기' : '비밀번호 보기'}
-          >
+          <button type="button" onClick={() => setShow(v => !v)}
+            className="text-apple-light hover:text-apple-dark transition-colors">
             <EyeIcon open={show} />
           </button>
         </span>
         {cred.ip && (
-          <span className="text-xs text-apple-light">
-            IP(URL): {cred.ip}{cred.port ? `:${cred.port}` : ''}
-          </span>
+          <span className="text-xs text-apple-light">IP(URL): {cred.ip}{cred.port ? `:${cred.port}` : ''}</span>
         )}
       </div>
     </div>
@@ -139,16 +133,21 @@ function CardActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () =>
   return (
     <div className="flex gap-1.5">
       <button type="button" onClick={onEdit}
-        className="text-xs px-2.5 py-1 rounded-lg border border-apple-divider text-apple-light hover:text-blue-600 hover:border-blue-300 transition-colors">
-        수정
-      </button>
+        className="text-xs px-2.5 py-1 rounded-lg border border-apple-divider text-apple-light hover:text-blue-600 hover:border-blue-300 transition-colors">수정</button>
       <button type="button" onClick={onDelete}
-        className="text-xs px-2.5 py-1 rounded-lg border border-apple-divider text-apple-light hover:text-red-500 hover:border-red-300 transition-colors">
-        삭제
-      </button>
+        className="text-xs px-2.5 py-1 rounded-lg border border-apple-divider text-apple-light hover:text-red-500 hover:border-red-300 transition-colors">삭제</button>
     </div>
   )
 }
+
+const nodeSchema = z.object({
+  purpose:     z.string().min(1, '용도를 입력하세요'),
+  cpu_cores:   z.preprocess(v => v === '' ? undefined : Number(v), z.number().int().positive().optional()),
+  cpu_threads: z.preprocess(v => v === '' ? undefined : Number(v), z.number().int().positive().optional()),
+  ram_gb:      z.preprocess(v => v === '' ? undefined : Number(v), z.number().int().positive().optional()),
+  storage_gb:  z.preprocess(v => v === '' ? undefined : Number(v), z.number().int().positive().optional()),
+})
+type NodeFormValues = z.infer<typeof nodeSchema>
 
 const patchSchema = z.object({
   patch_date:      z.string().optional(),
@@ -170,6 +169,78 @@ const visitSchema = z.object({
   action_content:  z.string().optional(),
 })
 type VisitFormValues = z.infer<typeof visitSchema>
+
+function NodeForm({
+  siteId, initial, onSuccess, onCancel,
+}: {
+  siteId: number; initial?: DeploymentNode; onSuccess: () => void; onCancel: () => void
+}) {
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<NodeFormValues>({
+    resolver: zodResolver(nodeSchema),
+    defaultValues: {
+      purpose:     initial?.purpose     ?? '',
+      cpu_cores:   initial?.cpu_cores   ?? ('' as unknown as number),
+      cpu_threads: initial?.cpu_threads ?? ('' as unknown as number),
+      ram_gb:      initial?.ram_gb      ?? ('' as unknown as number),
+      storage_gb:  initial?.storage_gb  ?? ('' as unknown as number),
+    },
+  })
+
+  const { mutateAsync, isError } = useMutation({
+    mutationFn: (v: NodeFormValues) => {
+      const payload = {
+        purpose:     v.purpose     || undefined,
+        cpu_cores:   v.cpu_cores   || undefined,
+        cpu_threads: v.cpu_threads || undefined,
+        ram_gb:      v.ram_gb      || undefined,
+        storage_gb:  v.storage_gb  || undefined,
+      }
+      return initial?.id
+        ? siteApi.updateNode(siteId, initial.id, payload)
+        : siteApi.addNode(siteId, payload)
+    },
+    onSuccess,
+  })
+
+  return (
+    <form onSubmit={handleSubmit(v => mutateAsync(v))}
+      className="mb-4 rounded-2xl border border-blue-200 bg-blue-50/40 px-5 py-4 flex flex-col gap-3">
+      <p className="text-xs font-semibold text-blue-700">{initial ? '하드웨어 수정' : '새 하드웨어 추가'}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2 flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">용도 *</label>
+          <input {...register('purpose')} className={inputCls} placeholder="예: Analyzer, Collector, DB 서버" />
+          {errors.purpose && <p className="text-xs text-red-500">{errors.purpose.message}</p>}
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">CPU 코어</label>
+          <input {...register('cpu_cores')} className={inputCls} placeholder="16" inputMode="numeric" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">CPU 스레드</label>
+          <input {...register('cpu_threads')} className={inputCls} placeholder="32" inputMode="numeric" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">RAM (GB)</label>
+          <input {...register('ram_gb')} className={inputCls} placeholder="64" inputMode="numeric" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">스토리지 (GB)</label>
+          <input {...register('storage_gb')} className={inputCls} placeholder="2000" inputMode="numeric" />
+        </div>
+      </div>
+      {isError && <p className="text-xs text-red-500">저장 중 오류가 발생했습니다</p>}
+      <div className="flex gap-2 justify-end pt-1">
+        <button type="button" onClick={onCancel}
+          className="px-4 py-1.5 rounded-xl text-xs text-apple-light border border-apple-divider hover:bg-apple-gray transition-colors">취소</button>
+        <button type="submit" disabled={isSubmitting}
+          className="px-4 py-1.5 rounded-xl text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+          {isSubmitting ? '저장 중...' : '저장'}
+        </button>
+      </div>
+    </form>
+  )
+}
 
 function PatchForm({
   siteId, initial, onSuccess, onCancel,
@@ -224,7 +295,7 @@ function PatchForm({
             <option value="">— 선택 —</option>
             <option value="정기패치">정기패치</option>
             <option value="긴급패치">긴급패치</option>
-            <option value="핸픽스">핸픽스</option>
+            <option value="핫픽스">핫픽스</option>
           </select>
         </div>
         <div className="flex flex-col gap-1">
@@ -260,9 +331,7 @@ function PatchForm({
       {isError && <p className="text-xs text-red-500">저장 중 오류가 발생했습니다</p>}
       <div className="flex gap-2 justify-end pt-1">
         <button type="button" onClick={onCancel}
-          className="px-4 py-1.5 rounded-xl text-xs text-apple-light border border-apple-divider hover:bg-apple-gray transition-colors">
-          취소
-        </button>
+          className="px-4 py-1.5 rounded-xl text-xs text-apple-light border border-apple-divider hover:bg-apple-gray transition-colors">취소</button>
         <button type="submit" disabled={isSubmitting}
           className="px-4 py-1.5 rounded-xl text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
           {isSubmitting ? '저장 중...' : '저장'}
@@ -326,21 +395,17 @@ function VisitForm({
         </div>
         <div className="col-span-2 flex flex-col gap-1">
           <label className="text-xs font-medium text-apple-light">요청내용</label>
-          <textarea {...register('request_content')} className={inputCls + ' resize-none'} rows={2}
-            placeholder="고객 요청 사항" />
+          <textarea {...register('request_content')} className={inputCls + ' resize-none'} rows={2} placeholder="고객 요청 사항" />
         </div>
         <div className="col-span-2 flex flex-col gap-1">
           <label className="text-xs font-medium text-apple-light">조치내용</label>
-          <textarea {...register('action_content')} className={inputCls + ' resize-none'} rows={2}
-            placeholder="처리 및 조치 내용" />
+          <textarea {...register('action_content')} className={inputCls + ' resize-none'} rows={2} placeholder="처리 및 조치 내용" />
         </div>
       </div>
       {isError && <p className="text-xs text-red-500">저장 중 오류가 발생했습니다</p>}
       <div className="flex gap-2 justify-end pt-1">
         <button type="button" onClick={onCancel}
-          className="px-4 py-1.5 rounded-xl text-xs text-apple-light border border-apple-divider hover:bg-apple-gray transition-colors">
-          취소
-        </button>
+          className="px-4 py-1.5 rounded-xl text-xs text-apple-light border border-apple-divider hover:bg-apple-gray transition-colors">취소</button>
         <button type="submit" disabled={isSubmitting}
           className="px-4 py-1.5 rounded-xl text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
           {isSubmitting ? '저장 중...' : '저장'}
@@ -393,23 +458,51 @@ function SiteContactInfo({ site }: { site: SiteDetail }) {
 }
 
 function SiteHardwareInfo({ site }: { site: SiteDetail }) {
+  const queryClient = useQueryClient()
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editTarget, setEditTarget] = useState<DeploymentNode | null>(null)
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['site-detail', String(site.id)] })
+
+  const { mutate: deleteNode } = useMutation({
+    mutationFn: (nodeId: number) => siteApi.deleteNode(site.id, nodeId),
+    onSuccess: invalidate,
+  })
+
   return (
     <Section title="하드웨어 정보" badge={site.nodes.length} defaultOpen={false}>
+      <div className="flex justify-end mb-4">
+        <AddBtn onClick={() => { setShowAddForm(v => !v); setEditTarget(null) }} label="하드웨어 추가" />
+      </div>
+      {showAddForm && !editTarget && (
+        <NodeForm siteId={site.id}
+          onSuccess={() => { invalidate(); setShowAddForm(false) }}
+          onCancel={() => setShowAddForm(false)} />
+      )}
       {site.nodes.length === 0 ? (
-        <p className="text-sm text-apple-light">등록된 노드가 없습니다</p>
+        <p className="text-sm text-apple-light">등록된 하드웨어가 없습니다</p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           {site.nodes.map((node, i) => (
-            <div key={node.id ?? i} className="rounded-xl border border-apple-divider/70 px-4 py-3">
-              <p className="text-xs font-semibold text-blue-600 mb-2">
-                {node.role ?? '—'} {node.hostname ? `— ${node.hostname}` : ''}
-              </p>
-              <Row label="IP 주소" value={node.ip_address} />
-              <Row label="CPU" value={node.cpu_cores != null ? `${node.cpu_cores}코어 / ${node.cpu_threads}스레드` : undefined} />
-              <Row label="메모리" value={node.memory_total_gb != null ? `${node.memory_total_gb} GB` : undefined} />
-              <Row label="디스크 (전체)" value={node.disk_total_gb != null ? `${node.disk_total_gb} GB` : undefined} />
-              <Row label="디스크 (여유)" value={node.disk_free_gb != null ? `${node.disk_free_gb} GB` : undefined} />
-              <Row label="OS" value={node.os_type && node.os_version ? `${node.os_type} ${node.os_version}` : (node.os_type ?? node.os_version)} />
+            <div key={node.id ?? i}>
+              {editTarget?.id === node.id ? (
+                <NodeForm siteId={site.id} initial={node}
+                  onSuccess={() => { invalidate(); setEditTarget(null) }}
+                  onCancel={() => setEditTarget(null)} />
+              ) : (
+                <div className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-sm">
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs font-semibold text-blue-600">{node.purpose ?? '—'}</p>
+                    <CardActions
+                      onEdit={() => { setEditTarget(node); setShowAddForm(false) }}
+                      onDelete={() => node.id && deleteNode(node.id)}
+                    />
+                  </div>
+                  <Row label="CPU" value={node.cpu_cores != null ? `${node.cpu_cores}코어 / ${node.cpu_threads ?? '?'}스레드` : undefined} />
+                  <Row label="RAM" value={node.ram_gb != null ? `${node.ram_gb} GB` : undefined} />
+                  <Row label="스토리지" value={node.storage_gb != null ? `${node.storage_gb} GB` : undefined} />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -429,9 +522,9 @@ function SiteSolutionInfo({ site }: { site: SiteDetail }) {
           <Row label="버전" value={pkg.version} />
           <Row label="인스톨러" value={pkg.installer_filename} />
           <Row label="배포 유형" value={pkg.deployment_type} />
-          <Row label="라이선스 용량" value={pkg.license_capacity_gb != null ? `${pkg.license_capacity_gb} GB` : undefined} />
-          <Row label="라이선스 키" value={pkg.license_key} />
-          <Row label="라이선스 만료" value={pkg.license_expire_date} />
+          <Row label="라이센스 용량" value={pkg.license_capacity_gb != null ? `${pkg.license_capacity_gb} GB` : undefined} />
+          <Row label="라이센스 키" value={pkg.license_key} />
+          <Row label="라이센스 만료" value={pkg.license_expire_date} />
           <Row label="설치일" value={pkg.installed_at?.slice(0, 10)} />
         </>
       )}
@@ -467,9 +560,7 @@ function SitePatchHistory({ site }: { site: SiteDetail }) {
   const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
   const [editTarget, setEditTarget] = useState<PatchHistory | null>(null)
-
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['site-detail', String(site.id)] })
-
   const { mutate: deletePatch } = useMutation({
     mutationFn: (patchId: number) => siteApi.deletePatchHistory(site.id, patchId),
     onSuccess: invalidate,
@@ -527,9 +618,7 @@ function SiteVisitHistory({ site }: { site: SiteDetail }) {
   const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
   const [editTarget, setEditTarget] = useState<VisitHistory | null>(null)
-
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['site-detail', String(site.id)] })
-
   const { mutate: deleteVisit } = useMutation({
     mutationFn: (visitId: number) => siteApi.deleteVisitHistory(site.id, visitId),
     onSuccess: invalidate,
@@ -603,8 +692,7 @@ export default function SiteDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <p className="text-sm text-apple-light">사이트 정보를 불러오지 못했습니다</p>
-        <button onClick={() => navigate('/sites')}
-          className="text-xs text-blue-600 hover:underline">목록으로 돌아가기</button>
+        <button onClick={() => navigate('/sites')} className="text-xs text-blue-600 hover:underline">목록으로 돌아가기</button>
       </div>
     )
   }
@@ -630,11 +718,8 @@ export default function SiteDetailPage() {
             )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate(`/sites/${id}/edit`)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium border border-apple-divider text-apple-dark hover:bg-apple-gray hover:border-blue-300 hover:text-blue-600 transition-colors"
-        >
+        <button type="button" onClick={() => navigate(`/sites/${id}/edit`)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium border border-apple-divider text-apple-dark hover:bg-apple-gray hover:border-blue-300 hover:text-blue-600 transition-colors">
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
             <path d="M9.5 1.5a1.414 1.414 0 0 1 2 2L4 11H1.5V8.5L9.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

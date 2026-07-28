@@ -7,7 +7,6 @@ from pydantic import BaseModel
 from src.domain.entities.site import (
     ContractType,
     DeploymentType,
-    NodeRole,
     PatchResultStatus,
     PatchType,
     SiteStatus,
@@ -37,18 +36,12 @@ class AccessCredentialsSchema(BaseModel):
 
 
 class DeploymentNodeSchema(BaseModel):
-    id:              Optional[int]          = None
-    hostname:        Optional[str]          = None
-    role:            Optional[NodeRole]     = None
-    cpu_cores:       Optional[int]          = None
-    cpu_threads:     Optional[int]          = None
-    memory_total_gb: Optional[int]          = None
-    disk_total_gb:   Optional[int]          = None
-    os_type:         Optional[str]          = None
-    os_version:      Optional[str]          = None
-    ip_address:      Optional[str]          = None
-    disk_free_gb:    Optional[int]          = None
-    disk_updated_at: Optional[datetime]     = None
+    id:          Optional[int] = None
+    purpose:     Optional[str] = None
+    cpu_cores:   Optional[int] = None
+    cpu_threads: Optional[int] = None
+    ram_gb:      Optional[int] = None
+    storage_gb:  Optional[int] = None
 
 
 class SolutionPackageSchema(BaseModel):
@@ -59,8 +52,8 @@ class SolutionPackageSchema(BaseModel):
     deployment_type:     Optional[DeploymentType] = None
     license_key:         Optional[str]            = None
     license_expire_date: Optional[date]           = None
-    installed_at:        Optional[datetime]        = None
-    updated_at:          Optional[datetime]        = None
+    installed_at:        Optional[datetime]       = None
+    updated_at:          Optional[datetime]       = None
 
 
 class PatchHistorySchema(BaseModel):
@@ -122,6 +115,22 @@ class VisitHistoryUpdateRequest(BaseModel):
     action_content:   Optional[str]      = None
 
 
+class NodeCreateRequest(BaseModel):
+    purpose:     Optional[str] = None
+    cpu_cores:   Optional[int] = None
+    cpu_threads: Optional[int] = None
+    ram_gb:      Optional[int] = None
+    storage_gb:  Optional[int] = None
+
+
+class NodeUpdateRequest(BaseModel):
+    purpose:     Optional[str] = None
+    cpu_cores:   Optional[int] = None
+    cpu_threads: Optional[int] = None
+    ram_gb:      Optional[int] = None
+    storage_gb:  Optional[int] = None
+
+
 class SiteSummaryResponse(BaseModel):
     id:                int
     site_name:         str
@@ -134,48 +143,48 @@ class SiteSummaryResponse(BaseModel):
 
 class SiteCreateRequest(BaseModel):
     site_name:           str
-    maintenance_company: Optional[str]                      = None
-    customer_info:       Optional[ContactInfoSchema]        = None
-    maintenance_info:    Optional[ContactInfoSchema]        = None
-    contract_start_date: Optional[date]                     = None
-    contract_end_date:   Optional[date]                     = None
-    contract_type:       Optional[ContractType]             = None
-    status:              Optional[SiteStatus]               = None
-    nodes:               list[DeploymentNodeSchema]         = []
-    solution_package:    Optional[SolutionPackageSchema]    = None
-    patch_histories:     list[PatchHistorySchema]           = []
-    visit_histories:     list[VisitHistorySchema]           = []
-    access_credentials:  Optional[AccessCredentialsSchema]  = None
+    maintenance_company: Optional[str]                     = None
+    customer_info:       Optional[ContactInfoSchema]       = None
+    maintenance_info:    Optional[ContactInfoSchema]       = None
+    contract_start_date: Optional[date]                    = None
+    contract_end_date:   Optional[date]                    = None
+    contract_type:       Optional[ContractType]            = None
+    status:              Optional[SiteStatus]              = None
+    nodes:               list[DeploymentNodeSchema]        = []
+    solution_package:    Optional[SolutionPackageSchema]   = None
+    patch_histories:     list[PatchHistorySchema]          = []
+    visit_histories:     list[VisitHistorySchema]          = []
+    access_credentials:  Optional[AccessCredentialsSchema] = None
 
 
 class SiteUpdateRequest(BaseModel):
-    site_name:           Optional[str]                      = None
-    maintenance_company: Optional[str]                      = None
-    customer_info:       Optional[ContactInfoSchema]        = None
-    maintenance_info:    Optional[ContactInfoSchema]        = None
-    contract_start_date: Optional[date]                     = None
-    contract_end_date:   Optional[date]                     = None
-    contract_type:       Optional[ContractType]             = None
-    status:              Optional[SiteStatus]               = None
-    access_credentials:  Optional[AccessCredentialsSchema]  = None
+    site_name:           Optional[str]                     = None
+    maintenance_company: Optional[str]                     = None
+    customer_info:       Optional[ContactInfoSchema]       = None
+    maintenance_info:    Optional[ContactInfoSchema]       = None
+    contract_start_date: Optional[date]                    = None
+    contract_end_date:   Optional[date]                    = None
+    contract_type:       Optional[ContractType]            = None
+    status:              Optional[SiteStatus]              = None
+    access_credentials:  Optional[AccessCredentialsSchema] = None
 
 
 class SiteResponse(BaseModel):
     id:                  int
     site_name:           str
-    maintenance_company: Optional[str]                      = None
-    customer_info:       Optional[ContactInfoSchema]        = None
-    maintenance_info:    Optional[ContactInfoSchema]        = None
-    contract_start_date: Optional[date]                     = None
-    contract_end_date:   Optional[date]                     = None
-    contract_type:       Optional[ContractType]             = None
-    status:              Optional[SiteStatus]               = None
+    maintenance_company: Optional[str]                     = None
+    customer_info:       Optional[ContactInfoSchema]       = None
+    maintenance_info:    Optional[ContactInfoSchema]       = None
+    contract_start_date: Optional[date]                    = None
+    contract_end_date:   Optional[date]                    = None
+    contract_type:       Optional[ContractType]            = None
+    status:              Optional[SiteStatus]              = None
     created_at:          datetime
     updated_at:          datetime
-    nodes:               list[DeploymentNodeSchema]         = []
-    solution_package:    Optional[SolutionPackageSchema]    = None
-    patch_histories:     list[PatchHistorySchema]           = []
-    visit_histories:     list[VisitHistorySchema]           = []
-    access_credentials:  Optional[AccessCredentialsSchema]  = None
+    nodes:               list[DeploymentNodeSchema]        = []
+    solution_package:    Optional[SolutionPackageSchema]   = None
+    patch_histories:     list[PatchHistorySchema]          = []
+    visit_histories:     list[VisitHistorySchema]          = []
+    access_credentials:  Optional[AccessCredentialsSchema] = None
 
     model_config = {"from_attributes": True}

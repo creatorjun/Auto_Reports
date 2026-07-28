@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from src.domain.entities.site import PatchHistory, Site, VisitHistory
+from src.domain.entities.site import DeploymentNode, PatchHistory, Site, VisitHistory
 from src.domain.repositories.site_repository import SiteRepository
 
 
@@ -58,6 +58,13 @@ class SiteUseCase:
         if not site:
             raise ValueError(f"Site '{site_id}' not found")
         site.visit_histories.append(visit)
+        return await self._repo.save(site)
+
+    async def add_node(self, site_id: int, node: DeploymentNode) -> Site:
+        site = await self._repo.get_by_id(site_id)
+        if not site:
+            raise ValueError(f"Site '{site_id}' not found")
+        site.nodes.append(node)
         return await self._repo.save(site)
 
     def _to_summary_dto(self, site: Site) -> SiteSummaryDTO:

@@ -7,8 +7,6 @@ from src.domain.entities.site import (
     ContactInfo,
     Credential,
     DeploymentNode,
-    DeploymentType,
-    NodeRole,
     PatchHistory,
     PatchResultStatus,
     PatchType,
@@ -23,6 +21,8 @@ from src.presentation.schemas.site_schema import (
     ContactInfoSchema,
     CredentialSchema,
     DeploymentNodeSchema,
+    NodeCreateRequest,
+    NodeUpdateRequest,
     PatchHistorySchema,
     PatchHistoryCreateRequest,
     PatchHistoryUpdateRequest,
@@ -63,37 +63,46 @@ def _creds_to_schema(creds: AccessCredentials | None) -> AccessCredentialsSchema
     )
 
 
+def _contact_from_schema(s: ContactInfoSchema | None) -> ContactInfo | None:
+    if s is None:
+        return None
+    return ContactInfo(name=s.name, phone=s.phone, email=s.email, company=s.company)
+
+
+def _contact_to_schema(c: ContactInfo | None) -> ContactInfoSchema | None:
+    if c is None:
+        return None
+    return ContactInfoSchema(name=c.name, phone=c.phone, email=c.email, company=c.company)
+
+
+def _node_to_schema(n: DeploymentNode) -> DeploymentNodeSchema:
+    return DeploymentNodeSchema(
+        id=n.id,
+        purpose=n.purpose,
+        cpu_cores=n.cpu_cores,
+        cpu_threads=n.cpu_threads,
+        ram_gb=n.ram_gb,
+        storage_gb=n.storage_gb,
+    )
+
+
 def _to_domain(req: SiteCreateRequest) -> Site:
     return Site(
         site_name=req.site_name,
         maintenance_company=req.maintenance_company,
-        customer_contact=ContactInfo(
-            name=req.customer_info.name   if req.customer_info else None,
-            phone=req.customer_info.phone if req.customer_info else None,
-            email=req.customer_info.email if req.customer_info else None,
-        ) if req.customer_info is not None else None,
-        maintenance_contact=ContactInfo(
-            name=req.maintenance_info.name   if req.maintenance_info else None,
-            phone=req.maintenance_info.phone if req.maintenance_info else None,
-            email=req.maintenance_info.email if req.maintenance_info else None,
-        ) if req.maintenance_info is not None else None,
+        customer_contact=_contact_from_schema(req.customer_info),
+        maintenance_contact=_contact_from_schema(req.maintenance_info),
         contract_start_date=req.contract_start_date,
         contract_end_date=req.contract_end_date,
         contract_type=req.contract_type,
         status=req.status,
         nodes=[
             DeploymentNode(
-                hostname=n.hostname,
-                role=n.role,
+                purpose=n.purpose,
                 cpu_cores=n.cpu_cores,
                 cpu_threads=n.cpu_threads,
-                memory_total_gb=n.memory_total_gb,
-                disk_total_gb=n.disk_total_gb,
-                os_type=n.os_type,
-                os_version=n.os_version,
-                ip_address=n.ip_address,
-                disk_free_gb=n.disk_free_gb,
-                disk_updated_at=n.disk_updated_at,
+                ram_gb=n.ram_gb,
+                storage_gb=n.storage_gb,
             )
             for n in req.nodes
         ],
@@ -108,8 +117,7 @@ def _to_domain(req: SiteCreateRequest) -> Site:
                 installed_at=req.solution_package.installed_at,
                 updated_at=req.solution_package.updated_at,
             )
-            if req.solution_package
-            else None
+            if req.solution_package else None
         ),
         patch_histories=[
             PatchHistory(
@@ -143,42 +151,18 @@ def _to_response(site: Site) -> SiteResponse:
         id=site.id,
         site_name=site.site_name,
         maintenance_company=site.maintenance_company,
-        customer_info=ContactInfoSchema(
-            name=site.customer_contact.name,
-            phone=site.customer_contact.phone,
-            email=site.customer_contact.email,
-        ) if site.customer_contact else None,
-        maintenance_info=ContactInfoSchema(
-            name=site.maintenance_contact.name,
-            phone=site.maintenance_contact.phone,
-            email=site.maintenance_contact.email,
-        ) if site.maintenance_contact else None,
+        customer_info=_contact_to_schema(site.customer_contact),
+        maintenance_info=_contact_to_schema(site.maintenance_contact),
         contract_start_date=site.contract_start_date,
         contract_end_date=site.contract_end_date,
         contract_type=site.contract_type.value if site.contract_type else None,
         status=site.status.value if site.status else None,
         created_at=site.created_at,
         updated_at=site.updated_at,
-        nodes=[
-            DeploymentNodeSchema(
-                id=getattr(n, 'id', None),
-                hostname=n.hostname,
-                role=n.role.value if n.role else None,
-                cpu_cores=n.cpu_cores,
-                cpu_threads=n.cpu_threads,
-                memory_total_gb=n.memory_total_gb,
-                disk_total_gb=n.disk_total_gb,
-                os_type=n.os_type,
-                os_version=n.os_version,
-                ip_address=n.ip_address,
-                disk_free_gb=n.disk_free_gb,
-                disk_updated_at=n.disk_updated_at,
-            )
-            for n in site.nodes
-        ],
+        nodes=[_node_to_schema(n) for n in site.nodes],
         solution_package=(
             SolutionPackageSchema(
-                id=getattr(site.solution_package, 'id', None),
+                id=site.solution_package.id,
                 version=site.solution_package.version,
                 installer_filename=site.solution_package.installer_filename,
                 license_capacity_gb=site.solution_package.license_capacity_gb,
@@ -192,7 +176,7 @@ def _to_response(site: Site) -> SiteResponse:
         ),
         patch_histories=[
             PatchHistorySchema(
-                id=getattr(p, 'id', None),
+                id=p.id,
                 issue_link=p.issue_link,
                 patch_date=p.patch_date,
                 patch_file_link=p.patch_file_link,
@@ -206,7 +190,7 @@ def _to_response(site: Site) -> SiteResponse:
         ],
         visit_histories=[
             VisitHistorySchema(
-                id=getattr(v, 'id', None),
+                id=v.id,
                 visit_datetime=v.visit_datetime,
                 engineer_name=v.engineer_name,
                 engineer_phone=v.engineer_phone,
@@ -227,13 +211,8 @@ async def search_sites(
 ):
     dtos = await use_case.search(q, limit)
     return [
-        SiteSummaryResponse(
-            id=d.id,
-            site_name=d.site_name,
-            customer_name=d.customer_name,
-            status=d.status,
-            contract_end_date=d.contract_end_date,
-        )
+        SiteSummaryResponse(id=d.id, site_name=d.site_name, customer_name=d.customer_name,
+                            status=d.status, contract_end_date=d.contract_end_date)
         for d in dtos
     ]
 
@@ -245,28 +224,19 @@ async def get_recent_sites(
 ):
     dtos = await use_case.get_recent(limit)
     return [
-        SiteSummaryResponse(
-            id=d.id,
-            site_name=d.site_name,
-            customer_name=d.customer_name,
-            status=d.status,
-            contract_end_date=d.contract_end_date,
-        )
+        SiteSummaryResponse(id=d.id, site_name=d.site_name, customer_name=d.customer_name,
+                            status=d.status, contract_end_date=d.contract_end_date)
         for d in dtos
     ]
 
 
 @router.get("/", response_model=list[SiteResponse])
 async def list_sites(use_case: SiteUseCase = Depends(get_site_use_case)):
-    sites = await use_case.get_all()
-    return [_to_response(s) for s in sites]
+    return [_to_response(s) for s in await use_case.get_all()]
 
 
 @router.get("/{site_id}", response_model=SiteResponse)
-async def get_site(
-    site_id: int,
-    use_case: SiteUseCase = Depends(get_site_use_case),
-):
+async def get_site(site_id: int, use_case: SiteUseCase = Depends(get_site_use_case)):
     site = await use_case.get_by_id(site_id)
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
@@ -274,10 +244,7 @@ async def get_site(
 
 
 @router.post("/", response_model=SiteResponse, status_code=201)
-async def create_site(
-    body: SiteCreateRequest,
-    use_case: SiteUseCase = Depends(get_site_use_case),
-):
+async def create_site(body: SiteCreateRequest, use_case: SiteUseCase = Depends(get_site_use_case)):
     try:
         site = await use_case.create(_to_domain(body))
     except ValueError as e:
@@ -294,69 +261,86 @@ async def update_site(
     existing = await use_case.get_by_id(site_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Site not found")
-
     updated = Site(
         id=existing.id,
         site_name=body.site_name if body.site_name is not None else existing.site_name,
-        maintenance_company=(
-            body.maintenance_company
-            if body.maintenance_company is not None
-            else existing.maintenance_company
-        ),
-        customer_contact=(
-            ContactInfo(
-                name=body.customer_info.name,
-                phone=body.customer_info.phone,
-                email=body.customer_info.email,
-            )
-            if body.customer_info is not None
-            else existing.customer_contact
-        ),
-        maintenance_contact=(
-            ContactInfo(
-                name=body.maintenance_info.name,
-                phone=body.maintenance_info.phone,
-                email=body.maintenance_info.email,
-            )
-            if body.maintenance_info is not None
-            else existing.maintenance_contact
-        ),
-        contract_start_date=(
-            body.contract_start_date
-            if body.contract_start_date is not None
-            else existing.contract_start_date
-        ),
-        contract_end_date=(
-            body.contract_end_date
-            if body.contract_end_date is not None
-            else existing.contract_end_date
-        ),
-        contract_type=(
-            body.contract_type if body.contract_type is not None else existing.contract_type
-        ),
+        maintenance_company=body.maintenance_company if body.maintenance_company is not None else existing.maintenance_company,
+        customer_contact=_contact_from_schema(body.customer_info) if body.customer_info is not None else existing.customer_contact,
+        maintenance_contact=_contact_from_schema(body.maintenance_info) if body.maintenance_info is not None else existing.maintenance_contact,
+        contract_start_date=body.contract_start_date if body.contract_start_date is not None else existing.contract_start_date,
+        contract_end_date=body.contract_end_date if body.contract_end_date is not None else existing.contract_end_date,
+        contract_type=body.contract_type if body.contract_type is not None else existing.contract_type,
         status=body.status if body.status is not None else existing.status,
         nodes=existing.nodes,
         solution_package=existing.solution_package,
         patch_histories=existing.patch_histories,
         visit_histories=existing.visit_histories,
-        access_credentials=(
-            _creds_from_schema(body.access_credentials)
-            if body.access_credentials is not None
-            else existing.access_credentials
-        ),
+        access_credentials=_creds_from_schema(body.access_credentials) if body.access_credentials is not None else existing.access_credentials,
     )
-    site = await use_case.update(updated)
-    return _to_response(site)
+    return _to_response(await use_case.update(updated))
 
 
 @router.delete("/{site_id}", status_code=204)
-async def delete_site(
+async def delete_site(site_id: int, use_case: SiteUseCase = Depends(get_site_use_case)):
+    if not await use_case.delete(site_id):
+        raise HTTPException(status_code=404, detail="Site not found")
+
+
+@router.post("/{site_id}/nodes", response_model=DeploymentNodeSchema, status_code=201)
+async def add_node(
     site_id: int,
+    body: NodeCreateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    deleted = await use_case.delete(site_id)
-    if not deleted:
+    node = DeploymentNode(
+        purpose=body.purpose,
+        cpu_cores=body.cpu_cores,
+        cpu_threads=body.cpu_threads,
+        ram_gb=body.ram_gb,
+        storage_gb=body.storage_gb,
+    )
+    updated_site = await use_case.add_node(site_id, node)
+    added = max(updated_site.nodes, key=lambda n: n.id or 0)
+    return _node_to_schema(added)
+
+
+@router.put("/{site_id}/nodes/{node_id}", response_model=DeploymentNodeSchema)
+async def update_node(
+    site_id: int,
+    node_id: int,
+    body: NodeUpdateRequest,
+    use_case: SiteUseCase = Depends(get_site_use_case),
+):
+    site = await use_case.get_by_id(site_id)
+    if not site:
         raise HTTPException(status_code=404, detail="Site not found")
+    node = next((n for n in site.nodes if n.id == node_id), None)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    if body.purpose     is not None: node.purpose     = body.purpose
+    if body.cpu_cores   is not None: node.cpu_cores   = body.cpu_cores
+    if body.cpu_threads is not None: node.cpu_threads = body.cpu_threads
+    if body.ram_gb      is not None: node.ram_gb      = body.ram_gb
+    if body.storage_gb  is not None: node.storage_gb  = body.storage_gb
+    updated_site = await use_case.update(site)
+    updated_node = next(n for n in updated_site.nodes if n.id == node_id)
+    return _node_to_schema(updated_node)
+
+
+@router.delete("/{site_id}/nodes/{node_id}", status_code=204)
+async def delete_node(
+    site_id: int,
+    node_id: int,
+    use_case: SiteUseCase = Depends(get_site_use_case),
+):
+    site = await use_case.get_by_id(site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    original_len = len(site.nodes)
+    site.nodes = [n for n in site.nodes if n.id != node_id]
+    if len(site.nodes) == original_len:
+        raise HTTPException(status_code=404, detail="Node not found")
+    await use_case.update(site)
 
 
 @router.post("/{site_id}/patch_histories", response_model=PatchHistorySchema, status_code=201)
@@ -365,9 +349,6 @@ async def add_patch_history(
     body: PatchHistoryCreateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    site = await use_case.get_by_id(site_id)
-    if not site:
-        raise HTTPException(status_code=404, detail="Site not found")
     patch = PatchHistory(
         issue_link=body.issue_link,
         patch_date=body.patch_date,
@@ -379,10 +360,9 @@ async def add_patch_history(
         note=body.note,
     )
     updated_site = await use_case.add_patch_history(site_id, patch)
-    added = updated_site.patch_histories[-1]
-    p = added
+    p = max(updated_site.patch_histories, key=lambda x: x.id or 0)
     return PatchHistorySchema(
-        id=getattr(p, 'id', None),
+        id=p.id,
         issue_link=p.issue_link,
         patch_date=p.patch_date,
         patch_file_link=p.patch_file_link,
@@ -418,7 +398,7 @@ async def update_patch_history(
     updated_site = await use_case.update(site)
     p = next(p for p in updated_site.patch_histories if p.id == patch_id)
     return PatchHistorySchema(
-        id=getattr(p, 'id', None),
+        id=p.id,
         issue_link=p.issue_link,
         patch_date=p.patch_date,
         patch_file_link=p.patch_file_link,
@@ -463,9 +443,9 @@ async def add_visit_history(
         action_content=body.action_content,
     )
     updated_site = await use_case.add_visit_history(site_id, visit)
-    v = updated_site.visit_histories[-1]
+    v = max(updated_site.visit_histories, key=lambda x: x.id or 0)
     return VisitHistorySchema(
-        id=getattr(v, 'id', None),
+        id=v.id,
         visit_datetime=v.visit_datetime,
         engineer_name=v.engineer_name,
         engineer_phone=v.engineer_phone,
@@ -495,7 +475,7 @@ async def update_visit_history(
     updated_site = await use_case.update(site)
     v = next(v for v in updated_site.visit_histories if v.id == visit_id)
     return VisitHistorySchema(
-        id=getattr(v, 'id', None),
+        id=v.id,
         visit_datetime=v.visit_datetime,
         engineer_name=v.engineer_name,
         engineer_phone=v.engineer_phone,

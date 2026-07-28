@@ -24,16 +24,10 @@ class DeploymentType(StrEnum):
     SEPARATED  = "분리구성"
 
 
-class NodeRole(StrEnum):
-    ALL_IN_ONE = "AllInOne"
-    ANALYZER   = "Analyzer"
-    COLLECTOR  = "Collector"
-
-
 class PatchType(StrEnum):
     REGULAR   = "정기패치"
     EMERGENCY = "긴급패치"
-    HOTFIX    = "핸픽스"
+    HOTFIX    = "핫픽스"
 
 
 class PatchResultStatus(StrEnum):
@@ -69,31 +63,25 @@ class AccessCredentials:
 
 @dataclass
 class DeploymentNode:
-    id:              Optional[int]      = None
-    hostname:        Optional[str]      = None
-    role:            Optional[NodeRole] = None
-    cpu_cores:       Optional[int]      = None
-    cpu_threads:     Optional[int]      = None
-    memory_total_gb: Optional[int]      = None
-    disk_total_gb:   Optional[int]      = None
-    os_type:         Optional[str]      = None
-    os_version:      Optional[str]      = None
-    ip_address:      Optional[str]      = None
-    disk_free_gb:    Optional[int]      = None
-    disk_updated_at: Optional[datetime] = None
+    id:          Optional[int] = None
+    purpose:     Optional[str] = None
+    cpu_cores:   Optional[int] = None
+    cpu_threads: Optional[int] = None
+    ram_gb:      Optional[int] = None
+    storage_gb:  Optional[int] = None
 
 
 @dataclass
 class SolutionPackage:
-    id:                  Optional[int]         = None
-    version:             Optional[str]          = None
-    installer_filename:  Optional[str]          = None
-    license_capacity_gb: Optional[float]        = None
+    id:                  Optional[int]           = None
+    version:             Optional[str]            = None
+    installer_filename:  Optional[str]            = None
+    license_capacity_gb: Optional[float]          = None
     deployment_type:     Optional[DeploymentType] = None
-    license_key:         Optional[str]          = None
-    license_expire_date: Optional[date]         = None
-    installed_at:        Optional[datetime]     = None
-    updated_at:          Optional[datetime]     = None
+    license_key:         Optional[str]            = None
+    license_expire_date: Optional[date]           = None
+    installed_at:        Optional[datetime]       = None
+    updated_at:          Optional[datetime]       = None
 
 
 @dataclass
@@ -122,18 +110,18 @@ class VisitHistory:
 @dataclass
 class Site:
     site_name:           str
-    id:                  Optional[int]             = None
-    maintenance_company: Optional[str]             = None
-    customer_contact:    Optional[ContactInfo]     = None
-    maintenance_contact: Optional[ContactInfo]     = None
-    contract_start_date: Optional[date]            = None
-    contract_end_date:   Optional[date]            = None
-    contract_type:       Optional[ContractType]    = None
-    status:              Optional[SiteStatus]      = None
-    nodes:               list[DeploymentNode]      = field(default_factory=list)
-    solution_package:    Optional[SolutionPackage] = None
-    patch_histories:     list[PatchHistory]        = field(default_factory=list)
-    visit_histories:     list[VisitHistory]        = field(default_factory=list)
+    id:                  Optional[int]              = None
+    maintenance_company: Optional[str]              = None
+    customer_contact:    Optional[ContactInfo]      = None
+    maintenance_contact: Optional[ContactInfo]      = None
+    contract_start_date: Optional[date]             = None
+    contract_end_date:   Optional[date]             = None
+    contract_type:       Optional[ContractType]     = None
+    status:              Optional[SiteStatus]       = None
+    nodes:               list[DeploymentNode]       = field(default_factory=list)
+    solution_package:    Optional[SolutionPackage]  = None
+    patch_histories:     list[PatchHistory]         = field(default_factory=list)
+    visit_histories:     list[VisitHistory]         = field(default_factory=list)
     access_credentials:  Optional[AccessCredentials] = None
-    created_at:          datetime                  = field(default_factory=datetime.utcnow)
-    updated_at:          datetime                  = field(default_factory=datetime.utcnow)
+    created_at:          datetime                   = field(default_factory=datetime.utcnow)
+    updated_at:          datetime                   = field(default_factory=datetime.utcnow)
