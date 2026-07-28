@@ -103,16 +103,24 @@ class VisitHistoryORM(Base):
 class AccessCredentialsORM(Base):
     __tablename__ = "access_credentials"
 
-    id:           Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
-    site_id:      Mapped[int]      = mapped_column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, unique=True)
+    id:           Mapped[int]        = mapped_column(Integer, primary_key=True, autoincrement=True)
+    site_id:      Mapped[int]        = mapped_column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, unique=True)
     cli_username: Mapped[str | None] = mapped_column(String, nullable=True)
     cli_password: Mapped[str | None] = mapped_column(String, nullable=True)
+    cli_ip:       Mapped[str | None] = mapped_column(String, nullable=True)
+    cli_port:     Mapped[str | None] = mapped_column(String, nullable=True)
     web_username: Mapped[str | None] = mapped_column(String, nullable=True)
     web_password: Mapped[str | None] = mapped_column(String, nullable=True)
+    web_ip:       Mapped[str | None] = mapped_column(String, nullable=True)
+    web_port:     Mapped[str | None] = mapped_column(String, nullable=True)
     db_username:  Mapped[str | None] = mapped_column(String, nullable=True)
     db_password:  Mapped[str | None] = mapped_column(String, nullable=True)
+    db_ip:        Mapped[str | None] = mapped_column(String, nullable=True)
+    db_port:      Mapped[str | None] = mapped_column(String, nullable=True)
     vpn_username: Mapped[str | None] = mapped_column(String, nullable=True)
     vpn_password: Mapped[str | None] = mapped_column(String, nullable=True)
+    vpn_ip:       Mapped[str | None] = mapped_column(String, nullable=True)
+    vpn_port:     Mapped[str | None] = mapped_column(String, nullable=True)
     note:         Mapped[str | None] = mapped_column(Text, nullable=True)
 
     site: Mapped["SiteORM"] = relationship("SiteORM", back_populates="access_credentials")
