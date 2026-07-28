@@ -21,7 +21,6 @@ from src.domain.entities.site import (
     SiteStatus,
     SolutionPackage,
     VisitHistory,
-    VisitType,
 )
 from src.domain.repositories.site_repository import SiteRepository
 from src.infrastructure.persistence.site_models import (
@@ -182,6 +181,7 @@ class SiteRepositoryImpl(SiteRepository):
 
     def _patch_to_domain(self, orm: PatchHistoryORM) -> PatchHistory:
         return PatchHistory(
+            id=orm.id,
             issue_link=orm.issue_link,
             patch_date=orm.patch_date,
             patch_file_link=orm.patch_file_link,
@@ -194,11 +194,12 @@ class SiteRepositoryImpl(SiteRepository):
 
     def _visit_to_domain(self, orm: VisitHistoryORM) -> VisitHistory:
         return VisitHistory(
-            visit_date=orm.visit_date,
-            visitor=orm.visitor,
-            visit_type=VisitType(orm.visit_type) if orm.visit_type else None,
-            visit_summary=orm.visit_summary,
-            next_visit_scheduled=orm.next_visit_scheduled,
+            id=orm.id,
+            visit_datetime=orm.visit_datetime,
+            engineer_name=orm.engineer_name,
+            engineer_phone=orm.engineer_phone,
+            request_content=orm.request_content,
+            action_content=orm.action_content,
         )
 
     def _creds_to_domain(self, orm: AccessCredentialsORM) -> AccessCredentials:
