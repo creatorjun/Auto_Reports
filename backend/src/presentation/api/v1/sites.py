@@ -7,6 +7,8 @@ from src.domain.entities.site import (
     ContactInfo,
     Credential,
     DeploymentNode,
+    DeploymentType,
+    NodeRole,
     PatchHistory,
     PatchResultStatus,
     PatchType,
@@ -21,8 +23,6 @@ from src.presentation.schemas.site_schema import (
     ContactInfoSchema,
     CredentialSchema,
     DeploymentNodeSchema,
-    NodeCreateRequest,
-    NodeUpdateRequest,
     PatchHistorySchema,
     PatchHistoryCreateRequest,
     PatchHistoryUpdateRequest,
@@ -78,11 +78,17 @@ def _contact_to_schema(c: ContactInfo | None) -> ContactInfoSchema | None:
 def _node_to_schema(n: DeploymentNode) -> DeploymentNodeSchema:
     return DeploymentNodeSchema(
         id=n.id,
-        purpose=n.purpose,
+        hostname=n.hostname,
+        role=n.role.value if n.role else None,
         cpu_cores=n.cpu_cores,
         cpu_threads=n.cpu_threads,
-        ram_gb=n.ram_gb,
-        storage_gb=n.storage_gb,
+        memory_total_gb=n.memory_total_gb,
+        disk_total_gb=n.disk_total_gb,
+        os_type=n.os_type,
+        os_version=n.os_version,
+        ip_address=n.ip_address,
+        disk_free_gb=n.disk_free_gb,
+        disk_updated_at=n.disk_updated_at,
     )
 
 
@@ -98,11 +104,17 @@ def _to_domain(req: SiteCreateRequest) -> Site:
         status=req.status,
         nodes=[
             DeploymentNode(
-                purpose=n.purpose,
+                hostname=n.hostname,
+                role=NodeRole(n.role) if n.role else None,
                 cpu_cores=n.cpu_cores,
                 cpu_threads=n.cpu_threads,
-                ram_gb=n.ram_gb,
-                storage_gb=n.storage_gb,
+                memory_total_gb=n.memory_total_gb,
+                disk_total_gb=n.disk_total_gb,
+                os_type=n.os_type,
+                os_version=n.os_version,
+                ip_address=n.ip_address,
+                disk_free_gb=n.disk_free_gb,
+                disk_updated_at=n.disk_updated_at,
             )
             for n in req.nodes
         ],
@@ -284,63 +296,6 @@ async def update_site(
 async def delete_site(site_id: int, use_case: SiteUseCase = Depends(get_site_use_case)):
     if not await use_case.delete(site_id):
         raise HTTPException(status_code=404, detail="Site not found")
-
-
-@router.post("/{site_id}/nodes", response_model=DeploymentNodeSchema, status_code=201)
-async def add_node(
-    site_id: int,
-    body: NodeCreateRequest,
-    use_case: SiteUseCase = Depends(get_site_use_case),
-):
-    node = DeploymentNode(
-        purpose=body.purpose,
-        cpu_cores=body.cpu_cores,
-        cpu_threads=body.cpu_threads,
-        ram_gb=body.ram_gb,
-        storage_gb=body.storage_gb,
-    )
-    updated_site = await use_case.add_node(site_id, node)
-    added = max(updated_site.nodes, key=lambda n: n.id or 0)
-    return _node_to_schema(added)
-
-
-@router.put("/{site_id}/nodes/{node_id}", response_model=DeploymentNodeSchema)
-async def update_node(
-    site_id: int,
-    node_id: int,
-    body: NodeUpdateRequest,
-    use_case: SiteUseCase = Depends(get_site_use_case),
-):
-    site = await use_case.get_by_id(site_id)
-    if not site:
-        raise HTTPException(status_code=404, detail="Site not found")
-    node = next((n for n in site.nodes if n.id == node_id), None)
-    if not node:
-        raise HTTPException(status_code=404, detail="Node not found")
-    if body.purpose     is not None: node.purpose     = body.purpose
-    if body.cpu_cores   is not None: node.cpu_cores   = body.cpu_cores
-    if body.cpu_threads is not None: node.cpu_threads = body.cpu_threads
-    if body.ram_gb      is not None: node.ram_gb      = body.ram_gb
-    if body.storage_gb  is not None: node.storage_gb  = body.storage_gb
-    updated_site = await use_case.update(site)
-    updated_node = next(n for n in updated_site.nodes if n.id == node_id)
-    return _node_to_schema(updated_node)
-
-
-@router.delete("/{site_id}/nodes/{node_id}", status_code=204)
-async def delete_node(
-    site_id: int,
-    node_id: int,
-    use_case: SiteUseCase = Depends(get_site_use_case),
-):
-    site = await use_case.get_by_id(site_id)
-    if not site:
-        raise HTTPException(status_code=404, detail="Site not found")
-    original_len = len(site.nodes)
-    site.nodes = [n for n in site.nodes if n.id != node_id]
-    if len(site.nodes) == original_len:
-        raise HTTPException(status_code=404, detail="Node not found")
-    await use_case.update(site)
 
 
 @router.post("/{site_id}/patch_histories", response_model=PatchHistorySchema, status_code=201)

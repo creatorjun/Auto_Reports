@@ -4,8 +4,6 @@ import type {
   SiteDetail,
   SiteSummary,
   SiteCreatePayload,
-  DeploymentNode,
-  DeploymentNodePayload,
   PatchHistory,
   PatchHistoryPayload,
   VisitHistory,
@@ -36,20 +34,6 @@ export const siteApi = {
   update: async (id: number, payload: Partial<SiteCreatePayload>): Promise<SiteDetail> => {
     const res = await client.put<SiteDetail>(`/sites/${id}`, payload)
     return res.data
-  },
-
-  addNode: async (siteId: number, payload: DeploymentNodePayload): Promise<DeploymentNode> => {
-    const res = await client.post<DeploymentNode>(`/sites/${siteId}/nodes`, payload)
-    return res.data
-  },
-
-  updateNode: async (siteId: number, nodeId: number, payload: DeploymentNodePayload): Promise<DeploymentNode> => {
-    const res = await client.put<DeploymentNode>(`/sites/${siteId}/nodes/${nodeId}`, payload)
-    return res.data
-  },
-
-  deleteNode: async (siteId: number, nodeId: number): Promise<void> => {
-    await client.delete(`/sites/${siteId}/nodes/${nodeId}`)
   },
 
   addPatchHistory: async (siteId: number, payload: PatchHistoryPayload): Promise<PatchHistory> => {

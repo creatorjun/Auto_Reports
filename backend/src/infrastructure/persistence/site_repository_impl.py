@@ -13,6 +13,7 @@ from src.domain.entities.site import (
     Credential,
     DeploymentNode,
     DeploymentType,
+    NodeRole,
     PatchHistory,
     PatchResultStatus,
     PatchType,
@@ -175,11 +176,17 @@ class SiteRepositoryImpl(SiteRepository):
     def _node_to_domain(self, orm: DeploymentNodeORM) -> DeploymentNode:
         return DeploymentNode(
             id=orm.id,
-            purpose=orm.purpose,
+            hostname=orm.hostname,
+            role=NodeRole(orm.role) if orm.role else None,
             cpu_cores=orm.cpu_cores,
             cpu_threads=orm.cpu_threads,
-            ram_gb=orm.ram_gb,
-            storage_gb=orm.storage_gb,
+            memory_total_gb=orm.memory_total_gb,
+            disk_total_gb=orm.disk_total_gb,
+            os_type=orm.os_type,
+            os_version=orm.os_version,
+            ip_address=orm.ip_address,
+            disk_free_gb=orm.disk_free_gb,
+            disk_updated_at=orm.disk_updated_at,
         )
 
     def _pkg_to_domain(self, orm: SolutionPackageORM) -> SolutionPackage:
@@ -228,18 +235,18 @@ class SiteRepositoryImpl(SiteRepository):
         )
 
     def _apply_domain(self, orm: SiteORM, site: Site) -> None:
-        orm.site_name           = site.site_name
-        orm.maintenance_company = site.maintenance_company
-        orm.customer_name       = site.customer_contact.name  if site.customer_contact  else None
-        orm.customer_phone      = site.customer_contact.phone if site.customer_contact  else None
-        orm.customer_email      = site.customer_contact.email if site.customer_contact  else None
-        orm.maintenance_name    = site.maintenance_contact.name  if site.maintenance_contact else None
-        orm.maintenance_phone   = site.maintenance_contact.phone if site.maintenance_contact else None
-        orm.maintenance_email   = site.maintenance_contact.email if site.maintenance_contact else None
-        orm.contract_start_date = site.contract_start_date
-        orm.contract_end_date   = site.contract_end_date
-        orm.contract_type       = site.contract_type.value if site.contract_type else None
-        orm.status              = site.status.value if site.status else None
+        orm.site_name                   = site.site_name
+        orm.maintenance_company         = site.maintenance_company
+        orm.customer_name               = site.customer_contact.name  if site.customer_contact  else None
+        orm.customer_phone              = site.customer_contact.phone if site.customer_contact  else None
+        orm.customer_email              = site.customer_contact.email if site.customer_contact  else None
+        orm.maintenance_name            = site.maintenance_contact.name  if site.maintenance_contact else None
+        orm.maintenance_phone           = site.maintenance_contact.phone if site.maintenance_contact else None
+        orm.maintenance_email           = site.maintenance_contact.email if site.maintenance_contact else None
+        orm.contract_start_date         = site.contract_start_date
+        orm.contract_end_date           = site.contract_end_date
+        orm.contract_type               = site.contract_type.value if site.contract_type else None
+        orm.status                      = site.status.value if site.status else None
 
         incoming_node_ids = {n.id for n in site.nodes if n.id is not None}
         for n in list(orm.nodes or []):
@@ -252,11 +259,17 @@ class SiteRepositoryImpl(SiteRepository):
                 if orm.nodes is None:
                     orm.nodes = []
                 orm.nodes.append(node_orm)
-            node_orm.purpose     = n.purpose
-            node_orm.cpu_cores   = n.cpu_cores
-            node_orm.cpu_threads = n.cpu_threads
-            node_orm.ram_gb      = n.ram_gb
-            node_orm.storage_gb  = n.storage_gb
+            node_orm.hostname        = n.hostname
+            node_orm.role            = n.role.value if n.role else None
+            node_orm.cpu_cores       = n.cpu_cores
+            node_orm.cpu_threads     = n.cpu_threads
+            node_orm.memory_total_gb = n.memory_total_gb
+            node_orm.disk_total_gb   = n.disk_total_gb
+            node_orm.os_type         = n.os_type
+            node_orm.os_version      = n.os_version
+            node_orm.ip_address      = n.ip_address
+            node_orm.disk_free_gb    = n.disk_free_gb
+            node_orm.disk_updated_at = n.disk_updated_at
 
         if site.solution_package:
             pkg = orm.solution_package

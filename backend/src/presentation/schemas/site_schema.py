@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from src.domain.entities.site import (
     ContractType,
     DeploymentType,
+    NodeRole,
     PatchResultStatus,
     PatchType,
     SiteStatus,
@@ -36,12 +37,18 @@ class AccessCredentialsSchema(BaseModel):
 
 
 class DeploymentNodeSchema(BaseModel):
-    id:          Optional[int] = None
-    purpose:     Optional[str] = None
-    cpu_cores:   Optional[int] = None
-    cpu_threads: Optional[int] = None
-    ram_gb:      Optional[int] = None
-    storage_gb:  Optional[int] = None
+    id:              Optional[int]      = None
+    hostname:        Optional[str]      = None
+    role:            Optional[NodeRole] = None
+    cpu_cores:       Optional[int]      = None
+    cpu_threads:     Optional[int]      = None
+    memory_total_gb: Optional[int]      = None
+    disk_total_gb:   Optional[int]      = None
+    os_type:         Optional[str]      = None
+    os_version:      Optional[str]      = None
+    ip_address:      Optional[str]      = None
+    disk_free_gb:    Optional[int]      = None
+    disk_updated_at: Optional[datetime] = None
 
 
 class SolutionPackageSchema(BaseModel):
@@ -113,22 +120,6 @@ class VisitHistoryUpdateRequest(BaseModel):
     engineer_phone:   Optional[str]      = None
     request_content:  Optional[str]      = None
     action_content:   Optional[str]      = None
-
-
-class NodeCreateRequest(BaseModel):
-    purpose:     Optional[str] = None
-    cpu_cores:   Optional[int] = None
-    cpu_threads: Optional[int] = None
-    ram_gb:      Optional[int] = None
-    storage_gb:  Optional[int] = None
-
-
-class NodeUpdateRequest(BaseModel):
-    purpose:     Optional[str] = None
-    cpu_cores:   Optional[int] = None
-    cpu_threads: Optional[int] = None
-    ram_gb:      Optional[int] = None
-    storage_gb:  Optional[int] = None
 
 
 class SiteSummaryResponse(BaseModel):
