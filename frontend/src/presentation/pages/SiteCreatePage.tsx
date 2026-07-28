@@ -1,4 +1,5 @@
 // frontend/src/presentation/pages/SiteCreatePage.tsx
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -68,6 +69,21 @@ function formatPhone(value: string): string {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
 }
 
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M2 2l12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  ) : (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  )
+}
+
 function Field({
   label, error, children,
 }: {
@@ -126,6 +142,7 @@ function CredentialRow({
   register: ReturnType<typeof useForm<FormValues>>['register']
   errors: ReturnType<typeof useForm<FormValues>>['formState']['errors']
 }) {
+  const [showPw, setShowPw] = useState(false)
   return (
     <div className="rounded-xl border border-apple-divider/60 px-4 py-3 flex flex-col gap-3">
       <p className="text-xs font-semibold text-blue-600">{label}</p>
@@ -134,10 +151,25 @@ function CredentialRow({
           <input {...register(usernameKey)} className={inputCls} placeholder="username" />
         </Field>
         <Field label="PW" error={(errors[passwordKey] as { message?: string })?.message}>
-          <input type="password" {...register(passwordKey)} className={inputCls} placeholder="password" />
+          <div className="relative">
+            <input
+              {...register(passwordKey)}
+              type={showPw ? 'text' : 'password'}
+              className={inputCls + ' pr-9'}
+              placeholder="password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw(v => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-apple-light hover:text-apple-dark transition-colors"
+              tabIndex={-1}
+            >
+              <EyeIcon open={showPw} />
+            </button>
+          </div>
         </Field>
-        <Field label="IP" error={(errors[ipKey] as { message?: string })?.message}>
-          <input {...register(ipKey)} className={inputCls} placeholder="192.168.0.1" />
+        <Field label="IP(URL)" error={(errors[ipKey] as { message?: string })?.message}>
+          <input {...register(ipKey)} className={inputCls} placeholder="192.168.0.1 또는 https://..." />
         </Field>
         <Field label="Port" error={(errors[portKey] as { message?: string })?.message}>
           <input {...register(portKey)} className={inputCls} placeholder="22" inputMode="numeric" />

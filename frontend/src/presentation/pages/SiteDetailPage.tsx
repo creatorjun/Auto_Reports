@@ -68,6 +68,21 @@ function Row({ label, value }: { label: string; value?: string | number | null }
   )
 }
 
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M2 2l12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  ) : (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  )
+}
+
 function CredRow({ label, cred }: {
   label: string
   cred?: { username: string; password: string; ip?: string; port?: string } | null
@@ -81,14 +96,18 @@ function CredRow({ label, cred }: {
         <span>{cred.username}</span>
         <span className="flex items-center gap-1.5">
           <span className="font-mono text-xs">{show ? cred.password : '•'.repeat(Math.min(cred.password.length, 10))}</span>
-          <button type="button" onClick={() => setShow(v => !v)}
-            className="text-[10px] text-blue-500 hover:text-blue-700 transition-colors">
-            {show ? '숨기기' : '보기'}
+          <button
+            type="button"
+            onClick={() => setShow(v => !v)}
+            className="text-apple-light hover:text-apple-dark transition-colors"
+            title={show ? '숨기기' : '비밀번호 보기'}
+          >
+            <EyeIcon open={show} />
           </button>
         </span>
         {cred.ip && (
           <span className="text-xs text-apple-light">
-            {cred.ip}{cred.port ? `:${cred.port}` : ''}
+            IP(URL): {cred.ip}{cred.port ? `:${cred.port}` : ''}
           </span>
         )}
       </div>
