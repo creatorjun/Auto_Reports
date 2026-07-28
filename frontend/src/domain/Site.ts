@@ -1,5 +1,5 @@
 // frontend/src/domain/Site.ts
-export type SiteStatus = 'active' | 'inactive' | 'expired' | 'maintenance'
+export type SiteStatus = 'installing' | 'active' | 'inactive' | 'expired' | 'maintenance'
 
 export interface SiteSummary {
   id: number

@@ -7,6 +7,7 @@ from typing import Optional
 
 
 class SiteStatus(StrEnum):
+    INSTALLING = "구축중"
     ACTIVE     = "운영중"
     SUSPENDED  = "일시중단"
     EXPIRED    = "계약종료"

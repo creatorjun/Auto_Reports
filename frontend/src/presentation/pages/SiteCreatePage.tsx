@@ -8,7 +8,7 @@ import { siteApi } from '@/infrastructure/api/siteApi'
 
 const schema = z.object({
   site_name:           z.string().min(1, '사이트명을 입력하세요'),
-  status:              z.enum(['active', 'inactive', 'expired', 'maintenance']).optional(),
+  status:              z.enum(['installing', 'active', 'inactive', 'expired', 'maintenance']).optional(),
   contract_type:       z.enum(['annual', 'monthly', 'one_time']).optional(),
   maintenance_company: z.string().optional(),
   customer_name:       z.string().optional(),
@@ -166,6 +166,7 @@ export default function SiteCreatePage() {
             <Field label="상태 (선택)">
               <select {...register('status')} className={selectCls}>
                 <option value="">— 미입력 —</option>
+                <option value="installing">구축중</option>
                 <option value="active">운영 중</option>
                 <option value="inactive">비활성</option>
                 <option value="expired">만료</option>
