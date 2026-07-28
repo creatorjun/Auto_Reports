@@ -69,7 +69,9 @@ class SiteRepositoryImpl(SiteRepository):
 
     async def save(self, site: Site) -> Site:
         if site.id is not None:
-            result = await self._session.execute(select(SiteORM).where(SiteORM.id == site.id))
+            result = await self._session.execute(
+                select(SiteORM).where(SiteORM.id == site.id).options(*self._opts())
+            )
             orm = result.scalar_one_or_none()
         else:
             orm = None
@@ -245,7 +247,7 @@ class SiteRepositoryImpl(SiteRepository):
         orm.contract_type        = site.contract_type.value if site.contract_type else None
         orm.status               = site.status.value if site.status else None
 
-        existing_node_ids = {n.id for n in orm.nodes} if orm.nodes else set()
+        existing_node_ids = {n.id for n in (orm.nodes or [])}
         incoming_node_ids = {n.id for n in site.nodes if n.id is not None}
         for n in list(orm.nodes or []):
             if n.id not in incoming_node_ids:
@@ -289,7 +291,7 @@ class SiteRepositoryImpl(SiteRepository):
             self._session.delete(orm.solution_package)
             orm.solution_package = None
 
-        existing_patch_ids = {p.id for p in orm.patch_histories} if orm.patch_histories else set()
+        existing_patch_ids = {p.id for p in (orm.patch_histories or [])}
         incoming_patch_ids = {p.id for p in site.patch_histories if p.id is not None}
         for p in list(orm.patch_histories or []):
             if p.id not in incoming_patch_ids:
@@ -313,7 +315,7 @@ class SiteRepositoryImpl(SiteRepository):
             patch_orm.rollback_date   = p.rollback_date
             patch_orm.note            = p.note
 
-        existing_visit_ids = {v.id for v in orm.visit_histories} if orm.visit_histories else set()
+        existing_visit_ids = {v.id for v in (orm.visit_histories or [])}
         incoming_visit_ids = {v.id for v in site.visit_histories if v.id is not None}
         for v in list(orm.visit_histories or []):
             if v.id not in incoming_visit_ids:

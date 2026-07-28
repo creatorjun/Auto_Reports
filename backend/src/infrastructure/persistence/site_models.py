@@ -25,11 +25,11 @@ class SiteORM(Base):
     created_at:           Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at:           Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    nodes:               Mapped[list["DeploymentNodeORM"]]     = relationship("DeploymentNodeORM",  back_populates="site", cascade="all, delete-orphan")
-    solution_package:    Mapped["SolutionPackageORM | None"]   = relationship("SolutionPackageORM", back_populates="site", uselist=False, cascade="all, delete-orphan")
-    patch_histories:     Mapped[list["PatchHistoryORM"]]       = relationship("PatchHistoryORM",    back_populates="site", cascade="all, delete-orphan")
-    visit_histories:     Mapped[list["VisitHistoryORM"]]       = relationship("VisitHistoryORM",    back_populates="site", cascade="all, delete-orphan")
-    access_credentials:  Mapped["AccessCredentialsORM | None"] = relationship("AccessCredentialsORM", back_populates="site", uselist=False, cascade="all, delete-orphan")
+    nodes:               Mapped[list["DeploymentNodeORM"]]     = relationship("DeploymentNodeORM",  back_populates="site", cascade="all, delete-orphan", lazy="selectin")
+    solution_package:    Mapped["SolutionPackageORM | None"]   = relationship("SolutionPackageORM", back_populates="site", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    patch_histories:     Mapped[list["PatchHistoryORM"]]       = relationship("PatchHistoryORM",    back_populates="site", cascade="all, delete-orphan", lazy="selectin")
+    visit_histories:     Mapped[list["VisitHistoryORM"]]       = relationship("VisitHistoryORM",    back_populates="site", cascade="all, delete-orphan", lazy="selectin")
+    access_credentials:  Mapped["AccessCredentialsORM | None"] = relationship("AccessCredentialsORM", back_populates="site", uselist=False, cascade="all, delete-orphan", lazy="selectin")
 
 
 class DeploymentNodeORM(Base):
@@ -89,13 +89,13 @@ class PatchHistoryORM(Base):
 class VisitHistoryORM(Base):
     __tablename__ = "visit_histories"
 
-    id:                   Mapped[int]         = mapped_column(Integer, primary_key=True, autoincrement=True)
-    site_id:              Mapped[int]         = mapped_column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
-    visit_date:           Mapped[date | None] = mapped_column(Date, nullable=True)
-    visitor:              Mapped[str | None]  = mapped_column(String, nullable=True)
-    visit_type:           Mapped[str | None]  = mapped_column(String, nullable=True)
-    visit_summary:        Mapped[str | None]  = mapped_column(Text, nullable=True)
-    next_visit_scheduled: Mapped[date | None] = mapped_column(Date, nullable=True)
+    id:               Mapped[int]             = mapped_column(Integer, primary_key=True, autoincrement=True)
+    site_id:          Mapped[int]             = mapped_column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
+    visit_datetime:   Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    engineer_name:    Mapped[str | None]      = mapped_column(String, nullable=True)
+    engineer_phone:   Mapped[str | None]      = mapped_column(String, nullable=True)
+    request_content:  Mapped[str | None]      = mapped_column(Text, nullable=True)
+    action_content:   Mapped[str | None]      = mapped_column(Text, nullable=True)
 
     site: Mapped["SiteORM"] = relationship("SiteORM", back_populates="visit_histories")
 
