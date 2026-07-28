@@ -27,6 +27,9 @@ class SiteUseCase:
         return await self._repo.get_by_id(site_id)
 
     async def create(self, site: Site) -> Site:
+        existing = await self._repo.find_by_name(site.site_name)
+        if existing is not None:
+            raise ValueError(f"이미 동일한 이름의 사이트가 존재합니다: '{site.site_name}'")
         return await self._repo.save(site)
 
     async def update(self, site: Site) -> Site:
