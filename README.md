@@ -58,7 +58,7 @@ docker compose up -d
 ```
 
 ```bash
-git pull && docker compose down && docker compose build --no-cache && docker compose up -d
+git pull && docker compose down && docker compose build && docker compose up -d && docker logs -f tac_backend
 ```
 
 ```bash
