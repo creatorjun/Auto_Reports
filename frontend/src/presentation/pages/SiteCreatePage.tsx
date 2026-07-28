@@ -23,12 +23,20 @@ const schema = z.object({
   contract_end_date:   z.string().optional(),
   cli_username:        z.string().optional(),
   cli_password:        z.string().optional(),
+  cli_ip:              z.string().optional(),
+  cli_port:            z.string().optional(),
   web_username:        z.string().optional(),
   web_password:        z.string().optional(),
+  web_ip:              z.string().optional(),
+  web_port:            z.string().optional(),
   db_username:         z.string().optional(),
   db_password:         z.string().optional(),
+  db_ip:               z.string().optional(),
+  db_port:             z.string().optional(),
   vpn_username:        z.string().optional(),
   vpn_password:        z.string().optional(),
+  vpn_ip:              z.string().optional(),
+  vpn_port:            z.string().optional(),
   access_note:         z.string().optional(),
 })
 
@@ -90,22 +98,33 @@ function PhoneInput({
 }
 
 function CredentialRow({
-  label, usernameKey, passwordKey, register, errors,
+  label, usernameKey, passwordKey, ipKey, portKey, register, errors,
 }: {
   label: string
   usernameKey: keyof FormValues
   passwordKey: keyof FormValues
+  ipKey: keyof FormValues
+  portKey: keyof FormValues
   register: ReturnType<typeof useForm<FormValues>>['register']
   errors: ReturnType<typeof useForm<FormValues>>['formState']['errors']
 }) {
   return (
-    <div className="grid grid-cols-2 gap-4">
-      <Field label={`${label} ID`} error={(errors[usernameKey] as { message?: string })?.message}>
-        <input {...register(usernameKey)} className={inputCls} placeholder="username" />
-      </Field>
-      <Field label={`${label} PW`} error={(errors[passwordKey] as { message?: string })?.message}>
-        <input type="password" {...register(passwordKey)} className={inputCls} placeholder="password" />
-      </Field>
+    <div className="rounded-xl border border-apple-divider/60 px-4 py-3 flex flex-col gap-3">
+      <p className="text-xs font-semibold text-blue-600">{label}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="ID" error={(errors[usernameKey] as { message?: string })?.message}>
+          <input {...register(usernameKey)} className={inputCls} placeholder="username" />
+        </Field>
+        <Field label="PW" error={(errors[passwordKey] as { message?: string })?.message}>
+          <input type="password" {...register(passwordKey)} className={inputCls} placeholder="password" />
+        </Field>
+        <Field label="IP" error={(errors[ipKey] as { message?: string })?.message}>
+          <input {...register(ipKey)} className={inputCls} placeholder="192.168.0.1" />
+        </Field>
+        <Field label="Port" error={(errors[portKey] as { message?: string })?.message}>
+          <input {...register(portKey)} className={inputCls} placeholder="22" inputMode="numeric" />
+        </Field>
+      </div>
     </div>
   )
 }
@@ -142,26 +161,40 @@ export default function SiteCreatePage() {
       contract_end_date:   existing.contract_end_date ?? '',
       cli_username:        existing.access_credentials?.cli?.username ?? '',
       cli_password:        existing.access_credentials?.cli?.password ?? '',
+      cli_ip:              existing.access_credentials?.cli?.ip ?? '',
+      cli_port:            existing.access_credentials?.cli?.port ?? '',
       web_username:        existing.access_credentials?.web?.username ?? '',
       web_password:        existing.access_credentials?.web?.password ?? '',
+      web_ip:              existing.access_credentials?.web?.ip ?? '',
+      web_port:            existing.access_credentials?.web?.port ?? '',
       db_username:         existing.access_credentials?.db?.username ?? '',
       db_password:         existing.access_credentials?.db?.password ?? '',
+      db_ip:               existing.access_credentials?.db?.ip ?? '',
+      db_port:             existing.access_credentials?.db?.port ?? '',
       vpn_username:        existing.access_credentials?.vpn?.username ?? '',
       vpn_password:        existing.access_credentials?.vpn?.password ?? '',
+      vpn_ip:              existing.access_credentials?.vpn?.ip ?? '',
+      vpn_port:            existing.access_credentials?.vpn?.port ?? '',
       access_note:         existing.access_credentials?.note ?? '',
     } : undefined,
   })
 
   const { mutateAsync, isError, error } = useMutation({
     mutationFn: (values: FormValues) => {
-      const buildCred = (u?: string, p?: string) =>
-        u ? { username: u, password: p ?? '' } : undefined
+      const buildCred = (
+        u?: string, p?: string, ip?: string, port?: string,
+      ) => u ? {
+        username: u,
+        password: p ?? '',
+        ip:       ip   || undefined,
+        port:     port || undefined,
+      } : undefined
 
       const creds = {
-        cli:  buildCred(values.cli_username,  values.cli_password),
-        web:  buildCred(values.web_username,  values.web_password),
-        db:   buildCred(values.db_username,   values.db_password),
-        vpn:  buildCred(values.vpn_username,  values.vpn_password),
+        cli:  buildCred(values.cli_username,  values.cli_password,  values.cli_ip,  values.cli_port),
+        web:  buildCred(values.web_username,  values.web_password,  values.web_ip,  values.web_port),
+        db:   buildCred(values.db_username,   values.db_password,   values.db_ip,   values.db_port),
+        vpn:  buildCred(values.vpn_username,  values.vpn_password,  values.vpn_ip,  values.vpn_port),
         note: values.access_note || undefined,
       }
       const hasAnyCred = creds.cli || creds.web || creds.db || creds.vpn || creds.note
@@ -304,11 +337,31 @@ export default function SiteCreatePage() {
 
         <section>
           <SectionTitle>접속 정보 (선택)</SectionTitle>
-          <div className="flex flex-col gap-4">
-            <CredentialRow label="CLI" usernameKey="cli_username" passwordKey="cli_password" register={register} errors={errors} />
-            <CredentialRow label="WEB" usernameKey="web_username" passwordKey="web_password" register={register} errors={errors} />
-            <CredentialRow label="DB"  usernameKey="db_username"  passwordKey="db_password"  register={register} errors={errors} />
-            <CredentialRow label="VPN" usernameKey="vpn_username" passwordKey="vpn_password" register={register} errors={errors} />
+          <div className="flex flex-col gap-3">
+            <CredentialRow
+              label="CLI"
+              usernameKey="cli_username" passwordKey="cli_password"
+              ipKey="cli_ip" portKey="cli_port"
+              register={register} errors={errors}
+            />
+            <CredentialRow
+              label="WEB"
+              usernameKey="web_username" passwordKey="web_password"
+              ipKey="web_ip" portKey="web_port"
+              register={register} errors={errors}
+            />
+            <CredentialRow
+              label="DB"
+              usernameKey="db_username" passwordKey="db_password"
+              ipKey="db_ip" portKey="db_port"
+              register={register} errors={errors}
+            />
+            <CredentialRow
+              label="VPN"
+              usernameKey="vpn_username" passwordKey="vpn_password"
+              ipKey="vpn_ip" portKey="vpn_port"
+              register={register} errors={errors}
+            />
             <Field label="기타 사항">
               <textarea
                 {...register('access_note')}
