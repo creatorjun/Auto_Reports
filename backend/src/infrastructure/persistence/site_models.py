@@ -9,7 +9,7 @@ from src.infrastructure.persistence.models import Base
 class SiteORM(Base):
     __tablename__ = "sites"
 
-    id:                   Mapped[str]           = mapped_column(String, primary_key=True)
+    id:                   Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
     site_name:            Mapped[str]           = mapped_column(String, nullable=False)
     maintenance_company:  Mapped[str | None]    = mapped_column(String, nullable=True)
     customer_name:        Mapped[str | None]    = mapped_column(String, nullable=True)
@@ -36,7 +36,7 @@ class DeploymentNodeORM(Base):
     __tablename__ = "deployment_nodes"
 
     id:              Mapped[int]          = mapped_column(Integer, primary_key=True, autoincrement=True)
-    site_id:         Mapped[str]          = mapped_column(String, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
+    site_id:         Mapped[int]          = mapped_column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
     hostname:        Mapped[str | None]   = mapped_column(String, nullable=True)
     role:            Mapped[str | None]   = mapped_column(String, nullable=True)
     cpu_cores:       Mapped[int | None]   = mapped_column(Integer, nullable=True)
@@ -56,7 +56,7 @@ class SolutionPackageORM(Base):
     __tablename__ = "solution_packages"
 
     id:                  Mapped[int]         = mapped_column(Integer, primary_key=True, autoincrement=True)
-    site_id:             Mapped[str]         = mapped_column(String, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, unique=True)
+    site_id:             Mapped[int]         = mapped_column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, unique=True)
     version:             Mapped[str | None]  = mapped_column(String, nullable=True)
     installer_filename:  Mapped[str | None]  = mapped_column(String, nullable=True)
     license_capacity_gb: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -73,7 +73,7 @@ class PatchHistoryORM(Base):
     __tablename__ = "patch_histories"
 
     id:              Mapped[int]         = mapped_column(Integer, primary_key=True, autoincrement=True)
-    site_id:         Mapped[str]         = mapped_column(String, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
+    site_id:         Mapped[int]         = mapped_column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
     issue_link:      Mapped[str | None]  = mapped_column(Text, nullable=True)
     patch_date:      Mapped[date | None] = mapped_column(Date, nullable=True)
     patch_file_link: Mapped[str | None]  = mapped_column(Text, nullable=True)
@@ -90,7 +90,7 @@ class VisitHistoryORM(Base):
     __tablename__ = "visit_histories"
 
     id:                   Mapped[int]         = mapped_column(Integer, primary_key=True, autoincrement=True)
-    site_id:              Mapped[str]         = mapped_column(String, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
+    site_id:              Mapped[int]         = mapped_column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
     visit_date:           Mapped[date | None] = mapped_column(Date, nullable=True)
     visitor:              Mapped[str | None]  = mapped_column(String, nullable=True)
     visit_type:           Mapped[str | None]  = mapped_column(String, nullable=True)
@@ -104,7 +104,7 @@ class AccessCredentialsORM(Base):
     __tablename__ = "access_credentials"
 
     id:           Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
-    site_id:      Mapped[str]      = mapped_column(String, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, unique=True)
+    site_id:      Mapped[int]      = mapped_column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, unique=True)
     cli_username: Mapped[str | None] = mapped_column(String, nullable=True)
     cli_password: Mapped[str | None] = mapped_column(String, nullable=True)
     web_username: Mapped[str | None] = mapped_column(String, nullable=True)

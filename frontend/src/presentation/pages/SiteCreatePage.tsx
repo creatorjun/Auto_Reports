@@ -7,7 +7,6 @@ import { useMutation } from '@tanstack/react-query'
 import { siteApi } from '@/infrastructure/api/siteApi'
 
 const schema = z.object({
-  id:                  z.string().min(1, '사이트 ID를 입력하세요'),
   site_name:           z.string().min(1, '사이트명을 입력하세요'),
   status:              z.enum(['active', 'inactive', 'expired', 'maintenance']).optional(),
   contract_type:       z.enum(['annual', 'monthly', 'one_time']).optional(),
@@ -121,7 +120,6 @@ export default function SiteCreatePage() {
           : undefined
 
       return siteApi.create({
-        id:                  values.id,
         site_name:           values.site_name,
         maintenance_company: values.maintenance_company || undefined,
         customer_info:       buildContact(values.customer_name, values.customer_phone, values.customer_email),
@@ -160,12 +158,11 @@ export default function SiteCreatePage() {
         <section>
           <SectionTitle>기본 정보 <span className="text-red-400">*</span></SectionTitle>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="사이트 ID *" error={errors.id?.message}>
-              <input {...register('id')} className={inputCls} placeholder="예: SITE-001" />
-            </Field>
-            <Field label="사이트명 *" error={errors.site_name?.message}>
-              <input {...register('site_name')} className={inputCls} placeholder="사이트명" />
-            </Field>
+            <div className="col-span-2">
+              <Field label="사이트명 *" error={errors.site_name?.message}>
+                <input {...register('site_name')} className={inputCls} placeholder="사이트명" />
+              </Field>
+            </div>
             <Field label="상태 (선택)">
               <select {...register('status')} className={selectCls}>
                 <option value="">— 미입력 —</option>

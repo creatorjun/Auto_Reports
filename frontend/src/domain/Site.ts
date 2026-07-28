@@ -2,7 +2,7 @@
 export type SiteStatus = 'active' | 'inactive' | 'expired' | 'maintenance'
 
 export interface SiteSummary {
-  id: string
+  id: number
   site_name: string
   customer_name?: string
   status?: SiteStatus
@@ -77,7 +77,7 @@ export interface VisitHistory {
 }
 
 export interface SiteDetail {
-  id: string
+  id: number
   site_name: string
   maintenance_company?: string
   customer_info?: ContactInfo
@@ -96,7 +96,6 @@ export interface SiteDetail {
 }
 
 export interface SiteCreatePayload {
-  id: string
   site_name: string
   maintenance_company?: string
   customer_info?: ContactInfo

@@ -62,7 +62,6 @@ def _creds_to_schema(creds: AccessCredentials | None) -> AccessCredentialsSchema
 
 def _to_domain(req: SiteCreateRequest) -> Site:
     return Site(
-        id=req.id,
         site_name=req.site_name,
         maintenance_company=req.maintenance_company,
         customer_contact=ContactInfo(
@@ -213,7 +212,7 @@ async def list_sites(use_case: SiteUseCase = Depends(get_site_use_case)):
 
 @router.get("/{site_id}", response_model=SiteResponse)
 async def get_site(
-    site_id: str,
+    site_id: int,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
     site = await use_case.get_by_id(site_id)
@@ -236,7 +235,7 @@ async def create_site(
 
 @router.put("/{site_id}", response_model=SiteResponse)
 async def update_site(
-    site_id: str,
+    site_id: int,
     body: SiteUpdateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
@@ -300,7 +299,7 @@ async def update_site(
 
 @router.delete("/{site_id}", status_code=204)
 async def delete_site(
-    site_id: str,
+    site_id: int,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
     deleted = await use_case.delete(site_id)

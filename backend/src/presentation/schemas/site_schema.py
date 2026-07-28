@@ -83,7 +83,7 @@ class VisitHistorySchema(BaseModel):
 
 
 class SiteSummaryResponse(BaseModel):
-    id:                str
+    id:                int
     site_name:         str
     customer_name:     Optional[str] = None
     status:            Optional[str] = None
@@ -93,7 +93,6 @@ class SiteSummaryResponse(BaseModel):
 
 
 class SiteCreateRequest(BaseModel):
-    id:                  str
     site_name:           str
     maintenance_company: Optional[str]                    = None
     customer_info:       Optional[ContactInfoSchema]      = None
@@ -122,7 +121,7 @@ class SiteUpdateRequest(BaseModel):
 
 
 class SiteResponse(BaseModel):
-    id:                  str
+    id:                  int
     site_name:           str
     maintenance_company: Optional[str]                    = None
     customer_info:       Optional[ContactInfoSchema]      = None

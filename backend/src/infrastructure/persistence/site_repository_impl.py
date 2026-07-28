@@ -51,7 +51,7 @@ class SiteRepositoryImpl(SiteRepository):
         result = await self._session.execute(select(SiteORM).options(*self._opts()))
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
-    async def get_by_id(self, site_id: str) -> Optional[Site]:
+    async def get_by_id(self, site_id: int) -> Optional[Site]:
         result = await self._session.execute(
             select(SiteORM).where(SiteORM.id == site_id).options(*self._opts())
         )
@@ -59,10 +59,13 @@ class SiteRepositoryImpl(SiteRepository):
         return self._to_domain(orm) if orm else None
 
     async def save(self, site: Site) -> Site:
-        result = await self._session.execute(select(SiteORM).where(SiteORM.id == site.id))
-        orm = result.scalar_one_or_none()
+        if site.id is not None:
+            result = await self._session.execute(select(SiteORM).where(SiteORM.id == site.id))
+            orm = result.scalar_one_or_none()
+        else:
+            orm = None
         if orm is None:
-            orm = SiteORM(id=site.id)
+            orm = SiteORM()
             self._session.add(orm)
         self._apply_domain(orm, site)
         await self._session.flush()
@@ -72,7 +75,7 @@ class SiteRepositoryImpl(SiteRepository):
         )
         return self._to_domain(orm)
 
-    async def delete(self, site_id: str) -> bool:
+    async def delete(self, site_id: int) -> bool:
         result = await self._session.execute(select(SiteORM).where(SiteORM.id == site_id))
         orm = result.scalar_one_or_none()
         if orm is None:
@@ -96,7 +99,7 @@ class SiteRepositoryImpl(SiteRepository):
         )
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
-    async def find_by_id(self, site_id: str) -> Optional[Site]:
+    async def find_by_id(self, site_id: int) -> Optional[Site]:
         return await self.get_by_id(site_id)
 
     async def find_all(self, limit: int = 20, offset: int = 0) -> list[Site]:
@@ -227,7 +230,7 @@ class SiteRepositoryImpl(SiteRepository):
 
         if site.access_credentials is not None:
             if orm.access_credentials is None:
-                creds_orm = AccessCredentialsORM(site_id=site.id)
+                creds_orm = AccessCredentialsORM(site_id=orm.id)
                 self._session.add(creds_orm)
                 orm.access_credentials = creds_orm
             self._apply_credentials(orm.access_credentials, site.access_credentials)

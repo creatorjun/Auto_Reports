@@ -120,19 +120,19 @@ class VisitHistory:
 
 @dataclass
 class Site:
-    id:                  str
     site_name:           str
-    maintenance_company: Optional[str]              = None
-    customer_contact:    Optional[ContactInfo]      = None
-    maintenance_contact: Optional[ContactInfo]      = None
-    contract_start_date: Optional[date]             = None
-    contract_end_date:   Optional[date]             = None
-    contract_type:       Optional[ContractType]     = None
-    status:              Optional[SiteStatus]       = None
-    nodes:               list[DeploymentNode]       = field(default_factory=list)
-    solution_package:    Optional[SolutionPackage]  = None
-    patch_histories:     list[PatchHistory]         = field(default_factory=list)
-    visit_histories:     list[VisitHistory]         = field(default_factory=list)
+    id:                  Optional[int]           = None
+    maintenance_company: Optional[str]           = None
+    customer_contact:    Optional[ContactInfo]   = None
+    maintenance_contact: Optional[ContactInfo]   = None
+    contract_start_date: Optional[date]          = None
+    contract_end_date:   Optional[date]          = None
+    contract_type:       Optional[ContractType]  = None
+    status:              Optional[SiteStatus]    = None
+    nodes:               list[DeploymentNode]    = field(default_factory=list)
+    solution_package:    Optional[SolutionPackage] = None
+    patch_histories:     list[PatchHistory]      = field(default_factory=list)
+    visit_histories:     list[VisitHistory]      = field(default_factory=list)
     access_credentials:  Optional[AccessCredentials] = None
-    created_at:          datetime                   = field(default_factory=datetime.utcnow)
-    updated_at:          datetime                   = field(default_factory=datetime.utcnow)
+    created_at:          datetime                = field(default_factory=datetime.utcnow)
+    updated_at:          datetime                = field(default_factory=datetime.utcnow)
