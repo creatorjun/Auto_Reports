@@ -155,17 +155,66 @@ def _to_response(site: Site) -> SiteResponse:
         ) if site.maintenance_contact else None,
         contract_start_date=site.contract_start_date,
         contract_end_date=site.contract_end_date,
-        contract_type=site.contract_type,
-        status=site.status,
+        contract_type=site.contract_type.value if site.contract_type else None,
+        status=site.status.value if site.status else None,
         created_at=site.created_at,
         updated_at=site.updated_at,
-        nodes=[DeploymentNodeSchema(**n.__dict__) for n in site.nodes],
+        nodes=[
+            DeploymentNodeSchema(
+                id=getattr(n, 'id', None),
+                hostname=n.hostname,
+                role=n.role.value if n.role else None,
+                cpu_cores=n.cpu_cores,
+                cpu_threads=n.cpu_threads,
+                memory_total_gb=n.memory_total_gb,
+                disk_total_gb=n.disk_total_gb,
+                os_type=n.os_type,
+                os_version=n.os_version,
+                ip_address=n.ip_address,
+                disk_free_gb=n.disk_free_gb,
+                disk_updated_at=n.disk_updated_at,
+            )
+            for n in site.nodes
+        ],
         solution_package=(
-            SolutionPackageSchema(**site.solution_package.__dict__)
+            SolutionPackageSchema(
+                id=getattr(site.solution_package, 'id', None),
+                version=site.solution_package.version,
+                installer_filename=site.solution_package.installer_filename,
+                license_capacity_gb=site.solution_package.license_capacity_gb,
+                deployment_type=site.solution_package.deployment_type.value if site.solution_package.deployment_type else None,
+                license_key=site.solution_package.license_key,
+                license_expire_date=site.solution_package.license_expire_date,
+                installed_at=site.solution_package.installed_at,
+                updated_at=site.solution_package.updated_at,
+            )
             if site.solution_package else None
         ),
-        patch_histories=[PatchHistorySchema(**p.__dict__) for p in site.patch_histories],
-        visit_histories=[VisitHistorySchema(**v.__dict__) for v in site.visit_histories],
+        patch_histories=[
+            PatchHistorySchema(
+                id=getattr(p, 'id', None),
+                issue_link=p.issue_link,
+                patch_date=p.patch_date,
+                patch_file_link=p.patch_file_link,
+                patch_type=p.patch_type.value if p.patch_type else None,
+                applied_by=p.applied_by,
+                result_status=p.result_status.value if p.result_status else None,
+                rollback_date=p.rollback_date,
+                note=p.note,
+            )
+            for p in site.patch_histories
+        ],
+        visit_histories=[
+            VisitHistorySchema(
+                id=getattr(v, 'id', None),
+                visit_datetime=v.visit_datetime,
+                engineer_name=v.engineer_name,
+                engineer_phone=v.engineer_phone,
+                request_content=v.request_content,
+                action_content=v.action_content,
+            )
+            for v in site.visit_histories
+        ],
         access_credentials=_creds_to_schema(site.access_credentials),
     )
 
@@ -331,7 +380,18 @@ async def add_patch_history(
     )
     updated_site = await use_case.add_patch_history(site_id, patch)
     added = updated_site.patch_histories[-1]
-    return PatchHistorySchema(**added.__dict__)
+    p = added
+    return PatchHistorySchema(
+        id=getattr(p, 'id', None),
+        issue_link=p.issue_link,
+        patch_date=p.patch_date,
+        patch_file_link=p.patch_file_link,
+        patch_type=p.patch_type.value if p.patch_type else None,
+        applied_by=p.applied_by,
+        result_status=p.result_status.value if p.result_status else None,
+        rollback_date=p.rollback_date,
+        note=p.note,
+    )
 
 
 @router.put("/{site_id}/patch_histories/{patch_id}", response_model=PatchHistorySchema)
@@ -356,8 +416,18 @@ async def update_patch_history(
     if body.rollback_date   is not None: patch.rollback_date   = body.rollback_date
     if body.note            is not None: patch.note            = body.note
     updated_site = await use_case.update(site)
-    updated_patch = next(p for p in updated_site.patch_histories if p.id == patch_id)
-    return PatchHistorySchema(**updated_patch.__dict__)
+    p = next(p for p in updated_site.patch_histories if p.id == patch_id)
+    return PatchHistorySchema(
+        id=getattr(p, 'id', None),
+        issue_link=p.issue_link,
+        patch_date=p.patch_date,
+        patch_file_link=p.patch_file_link,
+        patch_type=p.patch_type.value if p.patch_type else None,
+        applied_by=p.applied_by,
+        result_status=p.result_status.value if p.result_status else None,
+        rollback_date=p.rollback_date,
+        note=p.note,
+    )
 
 
 @router.delete("/{site_id}/patch_histories/{patch_id}", status_code=204)
@@ -393,8 +463,15 @@ async def add_visit_history(
         action_content=body.action_content,
     )
     updated_site = await use_case.add_visit_history(site_id, visit)
-    added = updated_site.visit_histories[-1]
-    return VisitHistorySchema(**added.__dict__)
+    v = updated_site.visit_histories[-1]
+    return VisitHistorySchema(
+        id=getattr(v, 'id', None),
+        visit_datetime=v.visit_datetime,
+        engineer_name=v.engineer_name,
+        engineer_phone=v.engineer_phone,
+        request_content=v.request_content,
+        action_content=v.action_content,
+    )
 
 
 @router.put("/{site_id}/visit_histories/{visit_id}", response_model=VisitHistorySchema)
@@ -416,8 +493,15 @@ async def update_visit_history(
     if body.request_content is not None: visit.request_content = body.request_content
     if body.action_content  is not None: visit.action_content  = body.action_content
     updated_site = await use_case.update(site)
-    updated_visit = next(v for v in updated_site.visit_histories if v.id == visit_id)
-    return VisitHistorySchema(**updated_visit.__dict__)
+    v = next(v for v in updated_site.visit_histories if v.id == visit_id)
+    return VisitHistorySchema(
+        id=getattr(v, 'id', None),
+        visit_datetime=v.visit_datetime,
+        engineer_name=v.engineer_name,
+        engineer_phone=v.engineer_phone,
+        request_content=v.request_content,
+        action_content=v.action_content,
+    )
 
 
 @router.delete("/{site_id}/visit_histories/{visit_id}", status_code=204)

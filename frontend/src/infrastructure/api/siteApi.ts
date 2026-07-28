@@ -26,8 +26,8 @@ export const siteApi = {
     return res.data
   },
 
-  create: async (payload: SiteCreatePayload): Promise<{ id: string }> => {
-    const res = await client.post<{ id: string }>('/sites/', payload)
+  create: async (payload: SiteCreatePayload): Promise<SiteDetail> => {
+    const res = await client.post<SiteDetail>('/sites/', payload)
     return res.data
   },
 
