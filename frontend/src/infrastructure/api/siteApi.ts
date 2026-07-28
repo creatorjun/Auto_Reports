@@ -1,6 +1,14 @@
 // frontend/src/infrastructure/api/siteApi.ts
 import client from './client'
-import type { SiteDetail, SiteSummary, SiteCreatePayload, VisitHistoryCreatePayload, VisitHistory } from '@/domain/Site'
+import type {
+  SiteDetail,
+  SiteSummary,
+  SiteCreatePayload,
+  PatchHistory,
+  PatchHistoryPayload,
+  VisitHistory,
+  VisitHistoryPayload,
+} from '@/domain/Site'
 
 export const siteApi = {
   search: async (q: string, limit = 10): Promise<SiteSummary[]> => {
@@ -23,8 +31,31 @@ export const siteApi = {
     return res.data
   },
 
-  addVisitHistory: async (siteId: number, payload: VisitHistoryCreatePayload): Promise<VisitHistory> => {
+  addPatchHistory: async (siteId: number, payload: PatchHistoryPayload): Promise<PatchHistory> => {
+    const res = await client.post<PatchHistory>(`/sites/${siteId}/patch_histories`, payload)
+    return res.data
+  },
+
+  updatePatchHistory: async (siteId: number, patchId: number, payload: PatchHistoryPayload): Promise<PatchHistory> => {
+    const res = await client.put<PatchHistory>(`/sites/${siteId}/patch_histories/${patchId}`, payload)
+    return res.data
+  },
+
+  deletePatchHistory: async (siteId: number, patchId: number): Promise<void> => {
+    await client.delete(`/sites/${siteId}/patch_histories/${patchId}`)
+  },
+
+  addVisitHistory: async (siteId: number, payload: VisitHistoryPayload): Promise<VisitHistory> => {
     const res = await client.post<VisitHistory>(`/sites/${siteId}/visit_histories`, payload)
     return res.data
+  },
+
+  updateVisitHistory: async (siteId: number, visitId: number, payload: VisitHistoryPayload): Promise<VisitHistory> => {
+    const res = await client.put<VisitHistory>(`/sites/${siteId}/visit_histories/${visitId}`, payload)
+    return res.data
+  },
+
+  deleteVisitHistory: async (siteId: number, visitId: number): Promise<void> => {
+    await client.delete(`/sites/${siteId}/visit_histories/${visitId}`)
   },
 }

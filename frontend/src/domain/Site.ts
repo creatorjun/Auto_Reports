@@ -67,8 +67,27 @@ export interface PatchHistory {
   note?: string
 }
 
+export interface PatchHistoryPayload {
+  issue_link?: string
+  patch_date?: string
+  patch_file_link?: string
+  patch_type?: string
+  applied_by?: string
+  result_status?: string
+  rollback_date?: string
+  note?: string
+}
+
 export interface VisitHistory {
   id?: number
+  visit_datetime?: string
+  engineer_name?: string
+  engineer_phone?: string
+  request_content?: string
+  action_content?: string
+}
+
+export interface VisitHistoryPayload {
   visit_datetime?: string
   engineer_name?: string
   engineer_phone?: string
@@ -108,12 +127,4 @@ export interface SiteCreatePayload {
   patch_histories: []
   visit_histories: []
   access_credentials?: AccessCredentials
-}
-
-export interface VisitHistoryCreatePayload {
-  visit_datetime?: string
-  engineer_name?: string
-  engineer_phone?: string
-  request_content?: string
-  action_content?: string
 }

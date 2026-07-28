@@ -11,7 +11,6 @@ from src.domain.entities.site import (
     PatchResultStatus,
     PatchType,
     SiteStatus,
-    VisitType,
 )
 
 
@@ -73,13 +72,51 @@ class PatchHistorySchema(BaseModel):
     note:            Optional[str]               = None
 
 
+class PatchHistoryCreateRequest(BaseModel):
+    issue_link:      Optional[str]               = None
+    patch_date:      Optional[date]              = None
+    patch_file_link: Optional[str]               = None
+    patch_type:      Optional[PatchType]         = None
+    applied_by:      Optional[str]               = None
+    result_status:   Optional[PatchResultStatus] = None
+    rollback_date:   Optional[date]              = None
+    note:            Optional[str]               = None
+
+
+class PatchHistoryUpdateRequest(BaseModel):
+    issue_link:      Optional[str]               = None
+    patch_date:      Optional[date]              = None
+    patch_file_link: Optional[str]               = None
+    patch_type:      Optional[PatchType]         = None
+    applied_by:      Optional[str]               = None
+    result_status:   Optional[PatchResultStatus] = None
+    rollback_date:   Optional[date]              = None
+    note:            Optional[str]               = None
+
+
 class VisitHistorySchema(BaseModel):
-    id:                   Optional[int]       = None
-    visit_date:           Optional[date]      = None
-    visitor:              Optional[str]       = None
-    visit_type:           Optional[VisitType] = None
-    visit_summary:        Optional[str]       = None
-    next_visit_scheduled: Optional[date]      = None
+    id:               Optional[int]      = None
+    visit_datetime:   Optional[datetime] = None
+    engineer_name:    Optional[str]      = None
+    engineer_phone:   Optional[str]      = None
+    request_content:  Optional[str]      = None
+    action_content:   Optional[str]      = None
+
+
+class VisitHistoryCreateRequest(BaseModel):
+    visit_datetime:   Optional[datetime] = None
+    engineer_name:    Optional[str]      = None
+    engineer_phone:   Optional[str]      = None
+    request_content:  Optional[str]      = None
+    action_content:   Optional[str]      = None
+
+
+class VisitHistoryUpdateRequest(BaseModel):
+    visit_datetime:   Optional[datetime] = None
+    engineer_name:    Optional[str]      = None
+    engineer_phone:   Optional[str]      = None
+    request_content:  Optional[str]      = None
+    action_content:   Optional[str]      = None
 
 
 class SiteSummaryResponse(BaseModel):
