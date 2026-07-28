@@ -420,9 +420,9 @@ function SiteHardwareInfo({ site }: { site: SiteDetail }) {
 function SiteSolutionInfo({ site }: { site: SiteDetail }) {
   const pkg = site.solution_package
   return (
-    <Section title="소루션 패키지" defaultOpen={false}>
+    <Section title="솔루션 패키지" defaultOpen={false}>
       {!pkg ? (
-        <p className="text-sm text-apple-light">등록된 소루션 정보가 없습니다</p>
+        <p className="text-sm text-apple-light">등록된 솔루션 정보가 없습니다</p>
       ) : (
         <>
           <Row label="버전" value={pkg.version} />
