@@ -224,10 +224,10 @@ class SiteRepositoryImpl(SiteRepository):
 
     def _creds_to_domain(self, orm: AccessCredentialsORM) -> AccessCredentials:
         return AccessCredentials(
-            cli=Credential(username=orm.cli_username, password=orm.cli_password) if orm.cli_username else None,
-            web=Credential(username=orm.web_username, password=orm.web_password) if orm.web_username else None,
-            db=Credential(username=orm.db_username,  password=orm.db_password)  if orm.db_username  else None,
-            vpn=Credential(username=orm.vpn_username, password=orm.vpn_password) if orm.vpn_username else None,
+            cli=Credential(username=orm.cli_username, password=orm.cli_password, ip=orm.cli_ip, port=orm.cli_port) if orm.cli_username else None,
+            web=Credential(username=orm.web_username, password=orm.web_password, ip=orm.web_ip, port=orm.web_port) if orm.web_username else None,
+            db=Credential(username=orm.db_username,  password=orm.db_password,  ip=orm.db_ip,  port=orm.db_port)  if orm.db_username  else None,
+            vpn=Credential(username=orm.vpn_username, password=orm.vpn_password, ip=orm.vpn_ip, port=orm.vpn_port) if orm.vpn_username else None,
             note=orm.note,
         )
 
@@ -244,7 +244,6 @@ class SiteRepositoryImpl(SiteRepository):
         orm.contract_end_date    = site.contract_end_date
         orm.contract_type        = site.contract_type.value if site.contract_type else None
         orm.status               = site.status.value if site.status else None
-        orm.updated_at           = datetime.utcnow()
 
         existing_node_ids = {n.id for n in orm.nodes} if orm.nodes else set()
         incoming_node_ids = {n.id for n in site.nodes if n.id is not None}
@@ -342,12 +341,20 @@ class SiteRepositoryImpl(SiteRepository):
                 orm.access_credentials = creds
             creds.cli_username = site.access_credentials.cli.username if site.access_credentials.cli else None
             creds.cli_password = site.access_credentials.cli.password if site.access_credentials.cli else None
+            creds.cli_ip       = site.access_credentials.cli.ip       if site.access_credentials.cli else None
+            creds.cli_port     = site.access_credentials.cli.port     if site.access_credentials.cli else None
             creds.web_username = site.access_credentials.web.username if site.access_credentials.web else None
             creds.web_password = site.access_credentials.web.password if site.access_credentials.web else None
+            creds.web_ip       = site.access_credentials.web.ip       if site.access_credentials.web else None
+            creds.web_port     = site.access_credentials.web.port     if site.access_credentials.web else None
             creds.db_username  = site.access_credentials.db.username  if site.access_credentials.db  else None
             creds.db_password  = site.access_credentials.db.password  if site.access_credentials.db  else None
+            creds.db_ip        = site.access_credentials.db.ip        if site.access_credentials.db  else None
+            creds.db_port      = site.access_credentials.db.port      if site.access_credentials.db  else None
             creds.vpn_username = site.access_credentials.vpn.username if site.access_credentials.vpn else None
             creds.vpn_password = site.access_credentials.vpn.password if site.access_credentials.vpn else None
+            creds.vpn_ip       = site.access_credentials.vpn.ip       if site.access_credentials.vpn else None
+            creds.vpn_port     = site.access_credentials.vpn.port     if site.access_credentials.vpn else None
             creds.note         = site.access_credentials.note
         elif orm.access_credentials is not None:
             self._session.delete(orm.access_credentials)
