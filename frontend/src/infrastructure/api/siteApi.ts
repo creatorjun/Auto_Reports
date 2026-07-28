@@ -1,6 +1,6 @@
 // frontend/src/infrastructure/api/siteApi.ts
 import client from './client'
-import type { SiteDetail, SiteSummary, SiteCreatePayload } from '@/domain/Site'
+import type { SiteDetail, SiteSummary, SiteCreatePayload, VisitHistoryCreatePayload, VisitHistory } from '@/domain/Site'
 
 export const siteApi = {
   search: async (q: string, limit = 10): Promise<SiteSummary[]> => {
@@ -20,6 +20,11 @@ export const siteApi = {
 
   create: async (payload: SiteCreatePayload): Promise<{ id: string }> => {
     const res = await client.post<{ id: string }>('/sites/', payload)
+    return res.data
+  },
+
+  addVisitHistory: async (siteId: number, payload: VisitHistoryCreatePayload): Promise<VisitHistory> => {
+    const res = await client.post<VisitHistory>(`/sites/${siteId}/visit_histories`, payload)
     return res.data
   },
 }

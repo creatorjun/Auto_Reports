@@ -112,11 +112,11 @@ class PatchHistory:
 
 @dataclass
 class VisitHistory:
-    visit_date:           Optional[date]      = None
-    visitor:              Optional[str]       = None
-    visit_type:           Optional[VisitType] = None
-    visit_summary:        Optional[str]       = None
-    next_visit_scheduled: Optional[date]      = None
+    visit_datetime:   Optional[datetime] = None
+    engineer_name:    Optional[str]      = None
+    engineer_phone:   Optional[str]      = None
+    request_content:  Optional[str]      = None
+    action_content:   Optional[str]      = None
 
 
 @dataclass

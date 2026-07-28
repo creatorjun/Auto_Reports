@@ -69,11 +69,11 @@ export interface PatchHistory {
 
 export interface VisitHistory {
   id?: number
-  visit_date?: string
-  visitor?: string
-  visit_type?: string
-  visit_summary?: string
-  next_visit_scheduled?: string
+  visit_datetime?: string
+  engineer_name?: string
+  engineer_phone?: string
+  request_content?: string
+  action_content?: string
 }
 
 export interface SiteDetail {
@@ -108,4 +108,12 @@ export interface SiteCreatePayload {
   patch_histories: []
   visit_histories: []
   access_credentials?: AccessCredentials
+}
+
+export interface VisitHistoryCreatePayload {
+  visit_datetime?: string
+  engineer_name?: string
+  engineer_phone?: string
+  request_content?: string
+  action_content?: string
 }
