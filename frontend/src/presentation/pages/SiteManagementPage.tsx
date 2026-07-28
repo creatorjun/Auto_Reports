@@ -146,10 +146,10 @@ export default function SiteManagementPage() {
                     <span
                       className={[
                         'text-xs px-2 py-0.5 rounded-full font-medium',
-                        STATUS_COLOR[site.status] ?? 'bg-gray-100 text-gray-500',
+                        STATUS_COLOR[site.status ?? ''] ?? 'bg-gray-100 text-gray-500',
                       ].join(' ')}
                     >
-                      {STATUS_LABEL[site.status] ?? site.status}
+                      {STATUS_LABEL[site.status ?? ''] ?? site.status}
                     </span>
                   </div>
                 ))
