@@ -38,3 +38,6 @@ class SiteRepository(ABC):
 
     @abstractmethod
     async def get_recent(self, limit: int = 5) -> list[Site]: ...
+
+    @abstractmethod
+    async def find_by_name(self, site_name: str) -> Optional[Site]: ...
