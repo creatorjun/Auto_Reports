@@ -23,6 +23,8 @@ from src.presentation.schemas.site_schema import (
     ContactInfoSchema,
     CredentialSchema,
     DeploymentNodeSchema,
+    DeploymentNodeCreateRequest,
+    DeploymentNodeUpdateRequest,
     PatchHistorySchema,
     PatchHistoryCreateRequest,
     PatchHistoryUpdateRequest,
@@ -296,6 +298,75 @@ async def update_site(
 async def delete_site(site_id: int, use_case: SiteUseCase = Depends(get_site_use_case)):
     if not await use_case.delete(site_id):
         raise HTTPException(status_code=404, detail="Site not found")
+
+
+@router.post("/{site_id}/nodes", response_model=DeploymentNodeSchema, status_code=201)
+async def add_node(
+    site_id: int,
+    body: DeploymentNodeCreateRequest,
+    use_case: SiteUseCase = Depends(get_site_use_case),
+):
+    node = DeploymentNode(
+        hostname=body.hostname,
+        role=NodeRole(body.role) if body.role else None,
+        cpu_cores=body.cpu_cores,
+        cpu_threads=body.cpu_threads,
+        memory_total_gb=body.memory_total_gb,
+        disk_total_gb=body.disk_total_gb,
+        os_type=body.os_type,
+        os_version=body.os_version,
+        ip_address=body.ip_address,
+        disk_free_gb=body.disk_free_gb,
+        disk_updated_at=body.disk_updated_at,
+    )
+    updated_site = await use_case.add_node(site_id, node)
+    n = max(updated_site.nodes, key=lambda x: x.id or 0)
+    return _node_to_schema(n)
+
+
+@router.put("/{site_id}/nodes/{node_id}", response_model=DeploymentNodeSchema)
+async def update_node(
+    site_id: int,
+    node_id: int,
+    body: DeploymentNodeUpdateRequest,
+    use_case: SiteUseCase = Depends(get_site_use_case),
+):
+    site = await use_case.get_by_id(site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    node = next((n for n in site.nodes if n.id == node_id), None)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    if body.hostname        is not None: node.hostname        = body.hostname
+    if body.role            is not None: node.role            = NodeRole(body.role)
+    if body.cpu_cores       is not None: node.cpu_cores       = body.cpu_cores
+    if body.cpu_threads     is not None: node.cpu_threads     = body.cpu_threads
+    if body.memory_total_gb is not None: node.memory_total_gb = body.memory_total_gb
+    if body.disk_total_gb   is not None: node.disk_total_gb   = body.disk_total_gb
+    if body.os_type         is not None: node.os_type         = body.os_type
+    if body.os_version      is not None: node.os_version      = body.os_version
+    if body.ip_address      is not None: node.ip_address      = body.ip_address
+    if body.disk_free_gb    is not None: node.disk_free_gb    = body.disk_free_gb
+    if body.disk_updated_at is not None: node.disk_updated_at = body.disk_updated_at
+    updated_site = await use_case.update(site)
+    n = next(n for n in updated_site.nodes if n.id == node_id)
+    return _node_to_schema(n)
+
+
+@router.delete("/{site_id}/nodes/{node_id}", status_code=204)
+async def delete_node(
+    site_id: int,
+    node_id: int,
+    use_case: SiteUseCase = Depends(get_site_use_case),
+):
+    site = await use_case.get_by_id(site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    original_len = len(site.nodes)
+    site.nodes = [n for n in site.nodes if n.id != node_id]
+    if len(site.nodes) == original_len:
+        raise HTTPException(status_code=404, detail="Node not found")
+    await use_case.update(site)
 
 
 @router.post("/{site_id}/patch_histories", response_model=PatchHistorySchema, status_code=201)

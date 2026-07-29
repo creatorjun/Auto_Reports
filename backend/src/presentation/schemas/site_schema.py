@@ -51,6 +51,34 @@ class DeploymentNodeSchema(BaseModel):
     disk_updated_at: Optional[datetime] = None
 
 
+class DeploymentNodeCreateRequest(BaseModel):
+    hostname:        Optional[str]      = None
+    role:            Optional[NodeRole] = None
+    cpu_cores:       Optional[int]      = None
+    cpu_threads:     Optional[int]      = None
+    memory_total_gb: Optional[int]      = None
+    disk_total_gb:   Optional[int]      = None
+    os_type:         Optional[str]      = None
+    os_version:      Optional[str]      = None
+    ip_address:      Optional[str]      = None
+    disk_free_gb:    Optional[int]      = None
+    disk_updated_at: Optional[datetime] = None
+
+
+class DeploymentNodeUpdateRequest(BaseModel):
+    hostname:        Optional[str]      = None
+    role:            Optional[NodeRole] = None
+    cpu_cores:       Optional[int]      = None
+    cpu_threads:     Optional[int]      = None
+    memory_total_gb: Optional[int]      = None
+    disk_total_gb:   Optional[int]      = None
+    os_type:         Optional[str]      = None
+    os_version:      Optional[str]      = None
+    ip_address:      Optional[str]      = None
+    disk_free_gb:    Optional[int]      = None
+    disk_updated_at: Optional[datetime] = None
+
+
 class SolutionPackageSchema(BaseModel):
     id:                  Optional[int]            = None
     version:             Optional[str]            = None

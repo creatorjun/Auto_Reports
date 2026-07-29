@@ -48,6 +48,20 @@ export interface DeploymentNode {
   disk_updated_at?: string
 }
 
+export interface DeploymentNodePayload {
+  hostname?: string
+  role?: NodeRole
+  cpu_cores?: number
+  cpu_threads?: number
+  memory_total_gb?: number
+  disk_total_gb?: number
+  os_type?: string
+  os_version?: string
+  ip_address?: string
+  disk_free_gb?: number
+  disk_updated_at?: string
+}
+
 export interface SolutionPackage {
   id?: number
   version?: string

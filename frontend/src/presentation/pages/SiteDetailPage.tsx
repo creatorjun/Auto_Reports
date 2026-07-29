@@ -140,6 +140,20 @@ function CardActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () =>
   )
 }
 
+const nodeSchema = z.object({
+  hostname:        z.string().optional(),
+  role:            z.enum(['AllInOne', 'Analyzer', 'Collector']).optional(),
+  ip_address:      z.string().optional(),
+  os_type:         z.string().optional(),
+  os_version:      z.string().optional(),
+  cpu_cores:       z.coerce.number().int().positive().optional().or(z.literal('')),
+  cpu_threads:     z.coerce.number().int().positive().optional().or(z.literal('')),
+  memory_total_gb: z.coerce.number().int().positive().optional().or(z.literal('')),
+  disk_total_gb:   z.coerce.number().int().positive().optional().or(z.literal('')),
+  disk_free_gb:    z.coerce.number().int().positive().optional().or(z.literal('')),
+})
+type NodeFormValues = z.infer<typeof nodeSchema>
+
 const patchSchema = z.object({
   patch_date:      z.string().optional(),
   patch_type:      z.string().optional(),
@@ -160,6 +174,112 @@ const visitSchema = z.object({
   action_content:  z.string().optional(),
 })
 type VisitFormValues = z.infer<typeof visitSchema>
+
+function NodeForm({
+  siteId, initial, onSuccess, onCancel,
+}: {
+  siteId: number; initial?: DeploymentNode; onSuccess: () => void; onCancel: () => void
+}) {
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm<NodeFormValues>({
+    resolver: zodResolver(nodeSchema),
+    defaultValues: {
+      hostname:        initial?.hostname        ?? '',
+      role:            initial?.role            ?? undefined,
+      ip_address:      initial?.ip_address      ?? '',
+      os_type:         initial?.os_type         ?? '',
+      os_version:      initial?.os_version      ?? '',
+      cpu_cores:       initial?.cpu_cores       ?? '',
+      cpu_threads:     initial?.cpu_threads     ?? '',
+      memory_total_gb: initial?.memory_total_gb ?? '',
+      disk_total_gb:   initial?.disk_total_gb   ?? '',
+      disk_free_gb:    initial?.disk_free_gb    ?? '',
+    },
+  })
+
+  const { mutateAsync, isError } = useMutation({
+    mutationFn: (v: NodeFormValues) => {
+      const payload = {
+        hostname:        v.hostname        || undefined,
+        role:            v.role            || undefined,
+        ip_address:      v.ip_address      || undefined,
+        os_type:         v.os_type         || undefined,
+        os_version:      v.os_version      || undefined,
+        cpu_cores:       v.cpu_cores !== '' ? Number(v.cpu_cores) : undefined,
+        cpu_threads:     v.cpu_threads !== '' ? Number(v.cpu_threads) : undefined,
+        memory_total_gb: v.memory_total_gb !== '' ? Number(v.memory_total_gb) : undefined,
+        disk_total_gb:   v.disk_total_gb !== '' ? Number(v.disk_total_gb) : undefined,
+        disk_free_gb:    v.disk_free_gb !== '' ? Number(v.disk_free_gb) : undefined,
+      }
+      return initial?.id
+        ? siteApi.updateNode(siteId, initial.id, payload)
+        : siteApi.addNode(siteId, payload)
+    },
+    onSuccess,
+  })
+
+  return (
+    <form onSubmit={handleSubmit(v => mutateAsync(v))}
+      className="mb-4 rounded-2xl border border-blue-200 bg-blue-50/40 px-5 py-4 flex flex-col gap-3">
+      <p className="text-xs font-semibold text-blue-700">{initial ? '하드웨어 수정' : '새 하드웨어 추가'}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">호스트명</label>
+          <input {...register('hostname')} className={inputCls} placeholder="server-01" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">역할</label>
+          <select {...register('role')} className={inputCls + ' cursor-pointer'}>
+            <option value="">— 선택 —</option>
+            <option value="AllInOne">AllInOne</option>
+            <option value="Analyzer">Analyzer</option>
+            <option value="Collector">Collector</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">IP 주소</label>
+          <input {...register('ip_address')} className={inputCls} placeholder="192.168.0.1" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">OS 유형</label>
+          <input {...register('os_type')} className={inputCls} placeholder="Ubuntu" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">OS 버전</label>
+          <input {...register('os_version')} className={inputCls} placeholder="22.04" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">CPU 코어</label>
+          <input type="number" min={1} {...register('cpu_cores')} className={inputCls} placeholder="8" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">CPU 스레드</label>
+          <input type="number" min={1} {...register('cpu_threads')} className={inputCls} placeholder="16" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">RAM (GB)</label>
+          <input type="number" min={1} {...register('memory_total_gb')} className={inputCls} placeholder="32" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">디스크 전체 (GB)</label>
+          <input type="number" min={1} {...register('disk_total_gb')} className={inputCls} placeholder="500" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">디스크 여유 (GB)</label>
+          <input type="number" min={0} {...register('disk_free_gb')} className={inputCls} placeholder="120" />
+        </div>
+      </div>
+      {isError && <p className="text-xs text-red-500">저장 중 오류가 발생했습니다</p>}
+      <div className="flex gap-2 justify-end pt-1">
+        <button type="button" onClick={onCancel}
+          className="px-4 py-1.5 rounded-xl text-xs text-apple-light border border-apple-divider hover:bg-apple-gray transition-colors">취소</button>
+        <button type="submit" disabled={isSubmitting}
+          className="px-4 py-1.5 rounded-xl text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+          {isSubmitting ? '저장 중...' : '저장'}
+        </button>
+      </div>
+    </form>
+  )
+}
 
 function PatchForm({
   siteId, initial, onSuccess, onCancel,
@@ -377,30 +497,58 @@ function SiteContactInfo({ site }: { site: SiteDetail }) {
 }
 
 function SiteHardwareInfo({ site }: { site: SiteDetail }) {
-  if (site.nodes.length === 0) {
-    return (
-      <Section title="하드웨어 정보" badge={0} defaultOpen={false}>
-        <p className="text-sm text-apple-light">등록된 하드웨어가 없습니다</p>
-      </Section>
-    )
-  }
+  const queryClient = useQueryClient()
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editTarget, setEditTarget] = useState<DeploymentNode | null>(null)
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['site-detail', String(site.id)] })
+  const { mutate: deleteNode } = useMutation({
+    mutationFn: (nodeId: number) => siteApi.deleteNode(site.id, nodeId),
+    onSuccess: invalidate,
+  })
+
   return (
     <Section title="하드웨어 정보" badge={site.nodes.length} defaultOpen={false}>
-      <div className="flex flex-col gap-3">
-        {site.nodes.map((node: DeploymentNode, i: number) => (
-          <div key={node.id ?? i} className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-semibold text-blue-600 mb-2">{node.hostname ?? node.role ?? `노드 ${i + 1}`}</p>
-            <Row label="역할" value={node.role} />
-            <Row label="호스트명" value={node.hostname} />
-            <Row label="IP" value={node.ip_address} />
-            <Row label="OS" value={node.os_type ? `${node.os_type}${node.os_version ? ` ${node.os_version}` : ''}` : undefined} />
-            <Row label="CPU" value={node.cpu_cores != null ? `${node.cpu_cores}코어 / ${node.cpu_threads ?? '?'}스레드` : undefined} />
-            <Row label="RAM" value={node.memory_total_gb != null ? `${node.memory_total_gb} GB` : undefined} />
-            <Row label="스토리지" value={node.disk_total_gb != null ? `${node.disk_total_gb} GB` : undefined} />
-            <Row label="여유 디스크" value={node.disk_free_gb != null ? `${node.disk_free_gb} GB` : undefined} />
-          </div>
-        ))}
+      <div className="flex justify-end mb-4">
+        <AddBtn onClick={() => { setShowAddForm(v => !v); setEditTarget(null) }} label="하드웨어 추가" />
       </div>
+      {showAddForm && !editTarget && (
+        <NodeForm siteId={site.id}
+          onSuccess={() => { invalidate(); setShowAddForm(false) }}
+          onCancel={() => setShowAddForm(false)} />
+      )}
+      {site.nodes.length === 0 ? (
+        <p className="text-sm text-apple-light">등록된 하드웨어가 없습니다</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {site.nodes.map((node, i) => (
+            <div key={node.id ?? i}>
+              {editTarget?.id === node.id ? (
+                <NodeForm siteId={site.id} initial={node}
+                  onSuccess={() => { invalidate(); setEditTarget(null) }}
+                  onCancel={() => setEditTarget(null)} />
+              ) : (
+                <div className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-sm">
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs font-semibold text-blue-600">{node.hostname ?? node.role ?? `노드 ${i + 1}`}</p>
+                    <CardActions
+                      onEdit={() => { setEditTarget(node); setShowAddForm(false) }}
+                      onDelete={() => node.id && deleteNode(node.id)}
+                    />
+                  </div>
+                  <Row label="역할" value={node.role} />
+                  <Row label="호스트명" value={node.hostname} />
+                  <Row label="IP" value={node.ip_address} />
+                  <Row label="OS" value={node.os_type ? `${node.os_type}${node.os_version ? ` ${node.os_version}` : ''}` : undefined} />
+                  <Row label="CPU" value={node.cpu_cores != null ? `${node.cpu_cores}코어 / ${node.cpu_threads ?? '?'}스레드` : undefined} />
+                  <Row label="RAM" value={node.memory_total_gb != null ? `${node.memory_total_gb} GB` : undefined} />
+                  <Row label="스토리지" value={node.disk_total_gb != null ? `${node.disk_total_gb} GB` : undefined} />
+                  <Row label="여유 디스크" value={node.disk_free_gb != null ? `${node.disk_free_gb} GB` : undefined} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </Section>
   )
 }
