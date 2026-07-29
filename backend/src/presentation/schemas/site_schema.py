@@ -91,6 +91,16 @@ class SolutionPackageSchema(BaseModel):
     updated_at:          Optional[datetime]       = None
 
 
+class SolutionPackageUpsertRequest(BaseModel):
+    version:             Optional[str]            = None
+    installer_filename:  Optional[str]            = None
+    license_capacity_gb: Optional[float]          = None
+    deployment_type:     Optional[DeploymentType] = None
+    license_key:         Optional[str]            = None
+    license_expire_date: Optional[date]           = None
+    installed_at:        Optional[datetime]       = None
+
+
 class PatchHistorySchema(BaseModel):
     id:              Optional[int]               = None
     issue_link:      Optional[str]               = None
