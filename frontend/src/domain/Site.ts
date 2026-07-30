@@ -90,4 +90,70 @@ export interface PatchHistory {
   patch_date?: string
   patch_file_link?: string
   patch_type?: string
-  appl
+  applied_by?: string
+  result_status?: string
+  rollback_date?: string
+  note?: string
+}
+
+export interface PatchHistoryPayload {
+  patch_date?: string
+  patch_type?: string
+  applied_by?: string
+  result_status?: string
+  issue_link?: string
+  patch_file_link?: string
+  rollback_date?: string
+  note?: string
+}
+
+export interface VisitHistory {
+  id?: number
+  visit_datetime?: string
+  engineer_name?: string
+  engineer_phone?: string
+  request_content?: string
+  action_content?: string
+}
+
+export interface VisitHistoryPayload {
+  visit_datetime?: string
+  engineer_name?: string
+  engineer_phone?: string
+  request_content?: string
+  action_content?: string
+}
+
+export interface SiteDetail {
+  id: number
+  site_name: string
+  maintenance_company?: string
+  customer_info?: ContactInfo
+  maintenance_info?: ContactInfo
+  contract_start_date?: string
+  contract_end_date?: string
+  contract_type?: string
+  status?: SiteStatus
+  created_at: string
+  updated_at: string
+  nodes: DeploymentNode[]
+  solution_package?: SolutionPackage
+  patch_histories: PatchHistory[]
+  visit_histories: VisitHistory[]
+  access_credentials?: AccessCredentials
+}
+
+export interface SiteCreatePayload {
+  site_name: string
+  maintenance_company?: string
+  customer_info?: ContactInfo
+  maintenance_info?: ContactInfo
+  contract_start_date?: string
+  contract_end_date?: string
+  contract_type?: string
+  status?: SiteStatus
+  nodes: DeploymentNode[]
+  patch_histories: PatchHistory[]
+  visit_histories: VisitHistory[]
+  access_credentials?: AccessCredentials
+}
