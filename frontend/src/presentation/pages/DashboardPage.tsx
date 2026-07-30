@@ -283,7 +283,18 @@ export default function DashboardPage() {
   const { id } = useParams<{ id: string }>()
   const latestQuery = useLatestReport()
   const byIdQuery   = useReportById(Number(id))
-  const { data, isLoading, error } = id ? byIdQuery : latestQuery
+  const { data, isLoading, error, refetch } = id ? byIdQuery : latestQuery
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault()
+        refetch()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [refetch])
 
   if (isLoading) return <LoadingSpinner text="보고서 로딩 중..." />
   if (error)     return <div className="card text-ui-base text-red-500">데이터를 불러올 수 없습니다.</div>
