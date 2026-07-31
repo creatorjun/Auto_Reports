@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { useJira } from '@/app/context/JiraContext'
-import { STATUS_STYLE, STATUS_LEGEND } from '@/shared/ui'
+import { STATUS_STYLE } from '@/shared/ui'
 import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC } from '@/shared/constants'
 import type { RecentIssue } from '@/domain/Issue'
 
@@ -158,16 +158,6 @@ export default function ResolutionTimeChart({ details }: Props) {
 
   return (
     <div className="card p-0 overflow-hidden">
-      <div className="px-4 pt-4 pb-3 md:px-5 md:pt-5">
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {STATUS_LEGEND.map((l) => (
-            <span key={l.label} className="flex items-center gap-1 text-ui-sm text-apple-light">
-              <span className={`inline-block w-2 h-2 rounded-full ${l.color}`} />{l.label}
-            </span>
-          ))}
-        </div>
-      </div>
-
       <div className="md:hidden divide-y divide-apple-divider/40">
         {pageItems.map((issue) => (
           <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase} />
