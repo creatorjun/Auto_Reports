@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { useJira } from '@/app/context/JiraContext'
-import { STATUS_STYLE, STATUS_LEGEND, STAGE_TOTAL } from '@/shared/ui'
+import { STATUS_STYLE, STATUS_LEGEND } from '@/shared/ui'
 import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC } from '@/shared/constants'
 import type { RecentIssue } from '@/domain/Issue'
 
@@ -24,16 +24,6 @@ interface Props {
 
 function getStatusStyle(status: string) {
   return STATUS_STYLE[status] ?? { bg: 'bg-status-todo', text: 'text-white' }
-}
-
-function StageBar({ stageIndex }: { stageIndex: number }) {
-  return (
-    <div className="flex gap-[2px] items-center">
-      {Array.from({ length: STAGE_TOTAL }).map((_, i) => (
-        <div key={i} className={`h-[10px] w-[10px] rounded-[2px] ${i <= stageIndex ? 'bg-amber-400' : 'bg-gray-200'}`} />
-      ))}
-    </div>
-  )
 }
 
 function SortIcon({ dir }: { dir: SortDir | null }) {
@@ -96,13 +86,10 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${style.bg} ${style.text}`}>{issue.status}</span>
       </div>
       <p className="text-[13px] text-apple-dark leading-snug line-clamp-2">{issue.summary}</p>
-      <div className="flex items-center justify-between gap-2">
-        <StageBar stageIndex={issue.stage_index} />
-        <div className="flex items-center gap-2 text-[11px] text-apple-light">
-          <span>{issue.reporter}</span>
-          <span className="text-apple-divider">·</span>
-          <span>{issue.tac_team}</span>
-        </div>
+      <div className="flex items-center gap-2 text-[11px] text-apple-light">
+        <span>{issue.reporter}</span>
+        <span className="text-apple-divider">·</span>
+        <span>{issue.tac_team}</span>
       </div>
       <div className="flex items-center gap-1 text-[11px] text-apple-light">
         <span className="tabular-nums">{createdDate}</span>
@@ -172,11 +159,6 @@ export default function ResolutionTimeChart({ details }: Props) {
   return (
     <div className="card p-0 overflow-hidden">
       <div className="px-4 pt-4 pb-3 md:px-5 md:pt-5">
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <h3 className="text-ui-md font-semibold text-apple-primary whitespace-nowrap">
-            📌 최근 이슈 현황{' '}<span className="text-apple-light font-normal text-ui-sm">(최신 {details.length}건)</span>
-          </h3>
-        </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {STATUS_LEGEND.map((l) => (
             <span key={l.label} className="flex items-center gap-1 text-ui-sm text-apple-light">
@@ -217,10 +199,7 @@ export default function ResolutionTimeChart({ details }: Props) {
                   <td className="py-2 pr-3 overflow-hidden"><span className="font-mono text-ui-sm text-blue-500 truncate block">{issue.key}</span></td>
                   <td className="py-2 pr-3 overflow-hidden"><span className="text-apple-primary truncate block" title={issue.summary}>{issue.summary}</span></td>
                   <td className="py-2 pr-3 overflow-hidden">
-                    <div className="flex items-center gap-2">
-                      <StageBar stageIndex={issue.stage_index} />
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-ui-sm font-medium ${style.bg} ${style.text} whitespace-nowrap`}>{issue.status}</span>
-                    </div>
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-ui-sm font-medium ${style.bg} ${style.text} whitespace-nowrap`}>{issue.status}</span>
                   </td>
                   <td className="py-2 pr-3 overflow-hidden"><span className="text-ui-sm text-apple-light truncate block">{issue.reporter}</span></td>
                   <td className="py-2 pr-3 overflow-hidden"><span className="text-ui-sm text-apple-light truncate block">{issue.tac_team}</span></td>

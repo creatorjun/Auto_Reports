@@ -1,10 +1,14 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
 import { lazy, Suspense, useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
+import {
+  BarChart2, CheckSquare, ShieldAlert, Timer,
+  TrendingUp, Activity, ClipboardList, Pin
+} from 'lucide-react'
 import { useLatestReport, useReportById } from '@/infrastructure/hooks/useReport'
 import { useReportStore } from '@/app/store/reportStore'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
-import SummaryCard from '@/presentation/components/cards/SummaryCard'
+import SummaryCard, { SUMMARY_ICONS } from '@/presentation/components/cards/SummaryCard'
 import AiSummaryCard from '@/presentation/components/cards/AiSummaryCard'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/shared/constants'
 import type { ReportDetail } from '@/domain/Report'
@@ -52,6 +56,16 @@ const ChartFallback = () => (
     <LoadingSpinner text="" />
   </div>
 )
+
+function SectionTitle({ icon: Icon, title, subtitle }: { icon: React.ComponentType<{ size?: number; className?: string }>; title: string; subtitle?: string }) {
+  return (
+    <div className="flex items-center gap-2 px-1 mb-1">
+      <Icon size={15} className="text-brand-500 flex-shrink-0" />
+      <span className="text-ui-sm font-semibold text-apple-primary">{title}</span>
+      {subtitle && <span className="text-ui-xs text-apple-light">{subtitle}</span>}
+    </div>
+  )
+}
 
 interface W9Data {
   initial_response_violations?: number
@@ -165,14 +179,14 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
-        <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w1?.total ?? 0} color="gray" />
-        <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w2?.total ?? 0} color="gray" />
-        <SummaryCard label="생성"         value={w3Created}        color="blue"   onClick={() => setShowWeeklyCreated(true)}  />
-        <SummaryCard label="완료"         value={w3Resolved}       color="green"  onClick={() => setShowWeeklyResolved(true)} />
-        <SummaryCard label="이슈 리뷰 중" value={w.w4?.total ?? 0} color="yellow" onClick={() => setShowIssueReview(true)}    />
-        <SummaryCard label="자료 요청 중" value={w.w5?.total ?? 0} color="yellow" onClick={() => setShowDataRequest(true)}    />
-        <SummaryCard label="결과 대기 중" value={w.w6?.total ?? 0} color="yellow" onClick={() => setShowResultPending(true)}  />
-        <SummaryCard label="미완료 이슈"  value={incompleteTotal}  color="red"    onClick={() => setShowIncomplete(true)}     />
+        <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w1?.total ?? 0} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
+        <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w2?.total ?? 0} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
+        <SummaryCard label="생성"         value={w3Created}        color="blue"   icon={SUMMARY_ICONS.weekCreated}   onClick={() => setShowWeeklyCreated(true)}  />
+        <SummaryCard label="완료"         value={w3Resolved}       color="green"  icon={SUMMARY_ICONS.weekResolved}   onClick={() => setShowWeeklyResolved(true)} />
+        <SummaryCard label="이슈 리뷰 중" value={w.w4?.total ?? 0} color="yellow" icon={SUMMARY_ICONS.issueReview}    onClick={() => setShowIssueReview(true)}    />
+        <SummaryCard label="자료 요청 중" value={w.w5?.total ?? 0} color="yellow" icon={SUMMARY_ICONS.dataRequest}    onClick={() => setShowDataRequest(true)}    />
+        <SummaryCard label="결과 대기 중" value={w.w6?.total ?? 0} color="yellow" icon={SUMMARY_ICONS.resultPending}  onClick={() => setShowResultPending(true)}  />
+        <SummaryCard label="미완료 이슈"  value={incompleteTotal}  color="red"    icon={SUMMARY_ICONS.incomplete}     onClick={() => setShowIncomplete(true)}     />
       </div>
 
       {showWeeklyCreated && (
@@ -227,54 +241,66 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       )}
 
       {(hasW13 || hasW14) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
-          <Suspense fallback={<ChartFallback />}>
-            <MonthlyCountChart title="📋 월별 등록 건수" subtitle="최근 6개월" monthly={w13Monthly} color={MONTHLY_COUNT_COLORS.created}  />
-          </Suspense>
-          <Suspense fallback={<ChartFallback />}>
-            <MonthlyCountChart title="✅ 월별 해결 건수" subtitle="최근 6개월" monthly={w14Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
-          </Suspense>
+        <div className="space-y-1">
+          <SectionTitle icon={BarChart2} title="월별 이슈 현황" subtitle="최근 6개월" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
+            <Suspense fallback={<ChartFallback />}>
+              <MonthlyCountChart title="월별 등록 건수" subtitle="최근 6개월" monthly={w13Monthly} color={MONTHLY_COUNT_COLORS.created}  />
+            </Suspense>
+            <Suspense fallback={<ChartFallback />}>
+              <MonthlyCountChart title="월별 해결 건수" subtitle="최근 6개월" monthly={w14Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
+            </Suspense>
+          </div>
         </div>
       )}
       {(hasW7 || hasW8) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
-          <Suspense fallback={<ChartFallback />}>
-            <SlaMonthlyLineChart title="✅ 최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w7Monthly} color={SLA_MONTHLY_COLORS.initial}    />
-          </Suspense>
-          <Suspense fallback={<ChartFallback />}>
-            <SlaMonthlyLineChart title="✅ 해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w8Monthly} color={SLA_MONTHLY_COLORS.resolution} />
-          </Suspense>
+        <div className="space-y-1">
+          <SectionTitle icon={ShieldAlert} title="SLA 준수율" subtitle="최근 6개월" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
+            <Suspense fallback={<ChartFallback />}>
+              <SlaMonthlyLineChart title="최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w7Monthly} color={SLA_MONTHLY_COLORS.initial}    />
+            </Suspense>
+            <Suspense fallback={<ChartFallback />}>
+              <SlaMonthlyLineChart title="해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w8Monthly} color={SLA_MONTHLY_COLORS.resolution} />
+            </Suspense>
+          </div>
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
+      <div className="space-y-1">
+        <SectionTitle icon={Activity} title="분석 차트" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
+          <Suspense fallback={<ChartFallback />}>
+            <SlaDonutChart
+              total={w9Total}
+              distribution={w9Distribution}
+              onSliceClick={(entry) => setSlaViolationEntry(entry)}
+            />
+          </Suspense>
+          <Suspense fallback={<ChartFallback />}>
+            <ReasonPieChart
+              byStatus={w10ByStatus}
+              byStatusDetails={w10ByStatusDetails}
+              onSliceClick={(status, issues) => setSlaDelayEntry({ status, issues })}
+            />
+          </Suspense>
+          <Suspense fallback={<ChartFallback />}>
+            <TrendLineChart
+              created={w3Created}
+              resolved={w3Resolved}
+              onBarClick={handleTrendBarClick}
+            />
+          </Suspense>
+          <Suspense fallback={<ChartFallback />}>
+            <TypeBarChart byType={w11ByType} />
+          </Suspense>
+        </div>
+      </div>
+      <div className="space-y-1">
+        <SectionTitle icon={Pin} title="최근 이슈 현황" subtitle={`최신 ${recentIssues.length}건`} />
         <Suspense fallback={<ChartFallback />}>
-          <SlaDonutChart
-            total={w9Total}
-            distribution={w9Distribution}
-            onSliceClick={(entry) => setSlaViolationEntry(entry)}
-          />
-        </Suspense>
-        <Suspense fallback={<ChartFallback />}>
-          <ReasonPieChart
-            byStatus={w10ByStatus}
-            byStatusDetails={w10ByStatusDetails}
-            onSliceClick={(status, issues) => setSlaDelayEntry({ status, issues })}
-          />
-        </Suspense>
-        <Suspense fallback={<ChartFallback />}>
-          <TrendLineChart
-            created={w3Created}
-            resolved={w3Resolved}
-            onBarClick={handleTrendBarClick}
-          />
-        </Suspense>
-        <Suspense fallback={<ChartFallback />}>
-          <TypeBarChart byType={w11ByType} />
+          <ResolutionTimeChart details={recentIssues} />
         </Suspense>
       </div>
-      <Suspense fallback={<ChartFallback />}>
-        <ResolutionTimeChart details={recentIssues} />
-      </Suspense>
     </div>
   )
 }
