@@ -13,6 +13,7 @@ from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
+from src.application.use_cases.storage_use_case import StorageUseCase
 from src.application.widgets.collector_factory import CollectorEntry
 from src.application.widgets.count_collector import (
     SimpleCountCollector,
@@ -34,6 +35,8 @@ from src.infrastructure.external.jira_client import JiraClient
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
 from src.infrastructure.report_cache import ReportLruCache
+from src.infrastructure.security.jwt_service import JwtService
+from src.infrastructure.storage.local_storage import LocalStorageAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +67,6 @@ class Container:
             year_start=settings.year_start,
         )
         self._report_cache: ReportCachePort = ReportLruCache(maxsize=50)
-
         self._query_builder = WidgetQueryBuilder(self._query_config)
         self._assembler = ReportAssembler(
             query_builder=self._query_builder,
@@ -75,6 +77,20 @@ class Container:
             ai=self._ai,
             enabled=settings.ai_enabled,
         )
+        self._jwt_service = JwtService(settings)
+        self._storage_use_case = StorageUseCase(
+            LocalStorageAdapter(settings.storage_dir)
+        )
+
+    @property
+    def login_enabled(self) -> bool:
+        return self._settings.login
+
+    def jwt_service(self) -> JwtService:
+        return self._jwt_service
+
+    def storage_use_case(self) -> StorageUseCase:
+        return self._storage_use_case
 
     def jira_port(self) -> JiraPort:
         return self._jira
