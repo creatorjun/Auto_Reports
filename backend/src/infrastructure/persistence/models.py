@@ -1,6 +1,6 @@
 # backend/src/infrastructure/persistence/models.py
 from datetime import datetime
-from sqlalchemy import Date, DateTime, Integer, String, func
+from sqlalchemy import Date, DateTime, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -20,6 +20,10 @@ class ReportORM(Base):
     ai_analysis: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_reports_created_at", "created_at"),
     )
 
 

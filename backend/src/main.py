@@ -1,13 +1,13 @@
 # backend/src/main.py
 import logging
 import sys
-
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.application.scheduler.report_scheduler import create_scheduler
-from src.infrastructure.config.settings import get_settings
+from src.infrastructure.config.settings import Settings, get_settings
 from src.infrastructure.container import Container
 from src.infrastructure.job_runner import JobRunner
 import src.infrastructure.persistence.database as db_module
@@ -23,65 +23,67 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    settings = get_settings()
+def create_app(settings: Settings) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        init_db(settings.database_url)
+        logger.info("DB 엔진 초기화 ✅")
 
-    init_db(settings.database_url)
-    logger.info("DB 엔진 초기화 ✅")
+        if db_module.AsyncSessionLocal is None:
+            raise RuntimeError("DB가 초기화되지 않았습니다.")
 
-    if db_module.AsyncSessionLocal is None:
-        raise RuntimeError("DB가 초기화되지 않았습니다.")
+        get_audit_logger()
+        logger.info("Audit 로거 초기화 ✅")
 
-    get_audit_logger()
-    logger.info("Audit 로거 초기화 ✅")
+        container = Container(settings)
 
-    container = Container(settings)
+        job_repository = SqlJobRepository(db_module.AsyncSessionLocal)
+        job_runner = JobRunner(
+            container=container,
+            job_repository=job_repository,
+            session_factory=db_module.AsyncSessionLocal,
+        )
 
-    job_repository = SqlJobRepository(db_module.AsyncSessionLocal)
-    job_runner = JobRunner(
-        container=container,
-        job_repository=job_repository,
-        session_factory=db_module.AsyncSessionLocal,
+        app.state.container = container
+        app.state.job_runner = job_runner
+
+        scheduler = create_scheduler(
+            schedule_cron=settings.schedule_cron,
+            tz=settings.tz,
+            generate_fn=job_runner.run_scheduled_job,
+        )
+        scheduler.start()
+        logger.info("TAC Auto Reports 서비스 시작 ✅")
+
+        yield
+
+        scheduler.shutdown()
+        await container.aclose()
+        await close_db()
+        logger.info("TAC Auto Reports 서비스 종료")
+
+    application = FastAPI(
+        title="TAC Auto Reports API",
+        version="1.0.0",
+        lifespan=lifespan,
     )
 
-    app.state.container = container
-    app.state.job_runner = job_runner
-
-    scheduler = create_scheduler(
-        schedule_cron=settings.schedule_cron,
-        tz=settings.tz,
-        generate_fn=job_runner.run_scheduled_job,
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
-    scheduler.start()
-    logger.info("TAC Auto Reports 서비스 시작 ✅")
 
-    yield
+    from src.presentation.api.v1.router import router
+    application.include_router(router)
 
-    scheduler.shutdown()
-    await container.aclose()
-    await close_db()
-    logger.info("TAC Auto Reports 서비스 종료")
+    @application.get("/api/health")
+    async def health():
+        return {"status": "ok"}
 
-
-app = FastAPI(
-    title="TAC Auto Reports API",
-    version="1.0.0",
-    lifespan=lifespan,
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_settings().cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-from src.presentation.api.v1.router import router
-app.include_router(router)
+    return application
 
 
-@app.get("/api/health")
-async def health():
-    return {"status": "ok"}
+app = create_app(get_settings())

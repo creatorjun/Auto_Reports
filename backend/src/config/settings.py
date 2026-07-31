@@ -1,2 +1,4 @@
 # backend/src/config/settings.py
-from src.infrastructure.config.settings import Settings, get_settings  # noqa: F401
+from src.infrastructure.config.settings import Settings, get_settings
+
+__all__ = ["Settings", "get_settings"]
