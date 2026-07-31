@@ -31,7 +31,7 @@ class ReportRepositoryImpl(ReportRepository):
             ai_analysis=ai_dict,
         )
         self._session.add(orm)
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(orm)
         return Report(
             id=orm.id,
@@ -67,7 +67,7 @@ class ReportRepositoryImpl(ReportRepository):
         result = await self._session.execute(
             delete(ReportORM).where(ReportORM.id == report_id)
         )
-        await self._session.commit()
+        await self._session.flush()
         return result.rowcount > 0
 
     async def delete_before(self, cutoff: date) -> list[int]:
@@ -81,7 +81,7 @@ class ReportRepositoryImpl(ReportRepository):
         await self._session.execute(
             delete(ReportORM).where(ReportORM.id.in_(expired_ids))
         )
-        await self._session.commit()
+        await self._session.flush()
         return expired_ids
 
     async def count_all(self) -> int:
