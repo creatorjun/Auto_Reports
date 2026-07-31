@@ -3,18 +3,11 @@ import logging
 from typing import Optional
 
 from src.domain.entities.report import NewReport
-from src.domain.entities.widget_data import (
-    CreatedVsResolvedWidgetData,
-    OverdueWidgetData,
-    RecentIssueWidgetData,
-    SlaDelayWidgetData,
-    SlaMetVsViolatedWidgetData,
-)
 from src.domain.ports.ai_port import AiPort
 from src.domain.ports.report_analyzer_port import ReportAnalyzerPort
 from src.domain.value_objects.ai_analysis import AiAnalysis
 from src.domain.value_objects.widget_id import WidgetId
-from src.shared.constants import AI_OVERDUE_DETAIL_LIMIT, SUMMARY_TRUNCATE_SHORT_LEN
+from src.shared.constants import AI_OVERDUE_DETAIL_LIMIT
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +45,15 @@ sentiment 판단 기준:
 - critical: SLA 위반율 50% 이상, 또는 SLA 초과 30건 이상
 """
 
+_DEFAULTS: dict = {
+    "created": 0,
+    "resolved": 0,
+    "sla_violated": 0,
+    "avg_resolution_days": 0,
+    "delay_reasons": "{}",
+    "overdue_issue_list": "  (데이터 없음)",
+}
+
 
 class AiAnalyzer(ReportAnalyzerPort):
     def __init__(self, ai: AiPort | None, enabled: bool = True):
@@ -69,79 +71,30 @@ class AiAnalyzer(ReportAnalyzerPort):
             widget = widgets.get(widget_id)
             return widget.total if widget is not None else 0
 
-        overdue_issues = widgets.get(WidgetId.OVERDUE_ISSUES)
-        overdue_data = (
-            overdue_issues.data
-            if overdue_issues and isinstance(overdue_issues.data, OverdueWidgetData)
-            else None
-        )
-        overdue_details = []
-        if overdue_data is not None:
-            for detail in overdue_data.issue_details[:AI_OVERDUE_DETAIL_LIMIT]:
-                overdue_details.append(
-                    f"  - {detail.key} [{detail.type}] "
-                    f"{detail.summary[:SUMMARY_TRUNCATE_SHORT_LEN]} / "
-                    f"생성: {detail.created} / "
-                    f"상태: {detail.resp_status} / "
-                    f"초과: +{detail.over_h}h"
-                )
-
-        created_vs_resolved = widgets.get(WidgetId.CREATED_VS_RESOLVED)
-        created_resolved_data = (
-            created_vs_resolved.data
-            if created_vs_resolved and isinstance(created_vs_resolved.data, CreatedVsResolvedWidgetData)
-            else None
-        )
-
-        sla_met_vs_violated = widgets.get(WidgetId.SLA_MET_VS_VIOLATED)
-        sla_data = (
-            sla_met_vs_violated.data
-            if sla_met_vs_violated and isinstance(sla_met_vs_violated.data, SlaMetVsViolatedWidgetData)
-            else None
-        )
-
-        recent_issues = widgets.get(WidgetId.RESOLUTION_REPORT)
-        recent_data = (
-            recent_issues.data
-            if recent_issues and isinstance(recent_issues.data, RecentIssueWidgetData)
-            else None
-        )
-
-        delay_reasons = widgets.get(WidgetId.SLA_DELAY_REASON)
-        delay_reason_data = (
-            delay_reasons.data
-            if delay_reasons and isinstance(delay_reasons.data, SlaDelayWidgetData)
-            else None
-        )
-
-        avg_resolution_days = 0
-        if recent_data is not None and recent_data.issue_details:
-            avg_resolution_days = round(
-                sum(d.elapsed_days for d in recent_data.issue_details) / len(recent_data.issue_details),
-                1,
-            )
+        ai_ctx: dict = dict(_DEFAULTS)
+        for widget_id in (
+            WidgetId.OVERDUE_ISSUES,
+            WidgetId.CREATED_VS_RESOLVED,
+            WidgetId.SLA_MET_VS_VIOLATED,
+            WidgetId.RESOLUTION_REPORT,
+            WidgetId.SLA_DELAY_REASON,
+        ):
+            widget = widgets.get(widget_id)
+            if widget is not None:
+                ai_ctx.update(widget.ai_context())
 
         context = {
+            **ai_ctx,
             "week_start": report.week_start,
             "week_end": report.week_end,
-            "created": created_resolved_data.created if created_resolved_data is not None else 0,
-            "resolved": created_resolved_data.resolved if created_resolved_data is not None else 0,
             "sla_overdue": total(WidgetId.OVERDUE_ISSUES),
             "issue_review": total(WidgetId.ISSUE_REVIEW),
             "data_request": total(WidgetId.DATA_REQUEST),
             "result_pending": total(WidgetId.RESULT_PENDING),
             "sla_met": 0,
-            "sla_violated": (
-                sla_data.initial_response_violations + sla_data.resolution_violations
-                if sla_data is not None
-                else 0
-            ),
-            "avg_resolution_days": avg_resolution_days,
             "yearly_created": total(WidgetId.YEARLY_CREATED),
             "yearly_resolved": total(WidgetId.YEARLY_RESOLVED),
-            "delay_reasons": str(delay_reason_data.by_status) if delay_reason_data is not None else "{}",
             "overdue_limit": AI_OVERDUE_DETAIL_LIMIT,
-            "overdue_issue_list": "\n".join(overdue_details) if overdue_details else "  (데이터 없음)",
         }
 
         prompt = PROMPT_TEMPLATE.format(**context)
