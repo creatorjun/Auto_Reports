@@ -28,6 +28,10 @@ function detectType(name: string): PreviewType {
   return 'unsupported'
 }
 
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+
+const FULLSCREEN_HINT = isMac ? '⌘⇧F' : 'F11'
+
 function CloseIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -493,7 +497,10 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
         }
         return
       }
-      if (e.key === 'F11') {
+      const isFullscreenKey = isMac
+        ? (e.metaKey && e.shiftKey && e.key === 'f')
+        : (e.key === 'F11')
+      if (isFullscreenKey) {
         e.preventDefault()
         toggleFullscreen()
         return
@@ -595,7 +602,7 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
           <button
             onClick={toggleFullscreen}
             className="w-8 h-8 rounded-xl flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors"
-            title={isFullscreen ? '전체화면 종료 (F11)' : '전체화면 (F11)'}>
+            title={isFullscreen ? `전체화면 종료 (${FULLSCREEN_HINT})` : `전체화면 (${FULLSCREEN_HINT})`}>
             {isFullscreen ? (
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
                 <path d="M5.5 1.5v4h-4M9.5 1.5v4h4M5.5 13.5v-4h-4M9.5 13.5v-4h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
