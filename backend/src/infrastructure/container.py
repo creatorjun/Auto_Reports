@@ -86,6 +86,32 @@ class Container:
     def login_enabled(self) -> bool:
         return self._settings.login
 
+    @property
+    def jira_base_url(self) -> str:
+        return self._settings.jira_base_url
+
+    @property
+    def superadmin_username(self) -> str:
+        return self._settings.superadmin_username
+
+    @property
+    def jwt_refresh_expire_days(self) -> int:
+        return self._settings.jwt_refresh_expire_days
+
+    def is_valid_credentials(self, username: str, password: str) -> bool:
+        s = self._settings
+        if username == s.admin_username and password == s.admin_password:
+            return True
+        return self.is_superadmin(username, password)
+
+    def is_superadmin(self, username: str, password: str) -> bool:
+        s = self._settings
+        return bool(
+            s.superadmin_username
+            and username == s.superadmin_username
+            and password == s.superadmin_password
+        )
+
     def jwt_service(self) -> JwtService:
         return self._jwt_service
 

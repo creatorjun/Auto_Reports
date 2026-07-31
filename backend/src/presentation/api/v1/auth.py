@@ -1,9 +1,6 @@
 # backend/src/presentation/api/v1/auth.py
-from fastapi import APIRouter, Cookie, HTTPException, Response
+from fastapi import APIRouter, Cookie, HTTPException, Request, Response
 from pydantic import BaseModel
-
-from src.infrastructure.config.settings import get_settings
-from src.infrastructure.security.jwt_service import get_jwt_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -25,71 +22,54 @@ class MeResponse(BaseModel):
     login_required: bool
 
 
-def _set_refresh_cookie(response: Response, token: str) -> None:
-    settings = get_settings()
+def _set_refresh_cookie(response: Response, token: str, expire_days: int) -> None:
     response.set_cookie(
         key=REFRESH_COOKIE,
         value=token,
         httponly=True,
         secure=False,
         samesite="lax",
-        max_age=settings.jwt_refresh_expire_days * 86400,
+        max_age=expire_days * 86400,
         path="/api/v1/auth",
     )
 
 
-def _is_superadmin(username: str, password: str) -> bool:
-    settings = get_settings()
-    return bool(
-        settings.superadmin_username
-        and username == settings.superadmin_username
-        and password == settings.superadmin_password
-    )
-
-
-def _is_valid_credentials(username: str, password: str) -> bool:
-    settings = get_settings()
-    if username == settings.admin_username and password == settings.admin_password:
-        return True
-    return _is_superadmin(username, password)
-
-
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, response: Response):
-    settings = get_settings()
-    if not settings.login:
+async def login(body: LoginRequest, request: Request, response: Response):
+    container = request.app.state.container
+    if not container.login_enabled:
         raise HTTPException(status_code=404, detail="Auth not enabled")
 
-    if not _is_valid_credentials(body.username, body.password):
+    if not container.is_valid_credentials(body.username, body.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    svc = get_jwt_service()
+    svc = container.jwt_service()
 
-    if _is_superadmin(body.username, body.password):
+    if container.is_superadmin(body.username, body.password):
         gen = svc.bump_superadmin_generation()
-        _set_refresh_cookie(response, svc.create_refresh_token(body.username, generation=gen))
+        _set_refresh_cookie(response, svc.create_refresh_token(body.username, generation=gen), container.jwt_refresh_expire_days)
         return TokenResponse(access_token=svc.create_access_token(body.username, generation=gen))
 
-    _set_refresh_cookie(response, svc.create_refresh_token(body.username))
+    _set_refresh_cookie(response, svc.create_refresh_token(body.username), container.jwt_refresh_expire_days)
     return TokenResponse(access_token=svc.create_access_token(body.username))
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(response: Response, refresh_token: str = Cookie(default=None, alias=REFRESH_COOKIE)):
-    settings = get_settings()
-    if not settings.login:
+async def refresh(request: Request, response: Response, refresh_token: str = Cookie(default=None, alias=REFRESH_COOKIE)):
+    container = request.app.state.container
+    if not container.login_enabled:
         raise HTTPException(status_code=404, detail="Auth not enabled")
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
 
-    svc = get_jwt_service()
+    svc = container.jwt_service()
     try:
         username = svc.decode_refresh_token(refresh_token)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    gen = svc.current_superadmin_generation() if username == settings.superadmin_username else None
-    _set_refresh_cookie(response, svc.create_refresh_token(username, generation=gen))
+    gen = svc.current_superadmin_generation() if username == container.superadmin_username else None
+    _set_refresh_cookie(response, svc.create_refresh_token(username, generation=gen), container.jwt_refresh_expire_days)
     return TokenResponse(access_token=svc.create_access_token(username, generation=gen))
 
 
@@ -100,14 +80,14 @@ async def logout(response: Response):
 
 
 @router.get("/me", response_model=MeResponse)
-async def me(refresh_token: str = Cookie(default=None, alias=REFRESH_COOKIE)):
-    settings = get_settings()
-    if not settings.login:
+async def me(request: Request, refresh_token: str = Cookie(default=None, alias=REFRESH_COOKIE)):
+    container = request.app.state.container
+    if not container.login_enabled:
         return MeResponse(username="guest", login_required=False)
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    svc = get_jwt_service()
+    svc = container.jwt_service()
     try:
         username = svc.decode_refresh_token(refresh_token)
     except ValueError:
