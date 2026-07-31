@@ -1,10 +1,8 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
 import { lazy, Suspense, useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import {
-  BarChart2, CheckSquare, ShieldAlert, Timer,
-  TrendingUp, Activity, ClipboardList, Pin
-} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { BarChart2, ShieldAlert, Activity, Pin } from 'lucide-react'
 import { useLatestReport, useReportById } from '@/infrastructure/hooks/useReport'
 import { useReportStore } from '@/app/store/reportStore'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
@@ -57,7 +55,7 @@ const ChartFallback = () => (
   </div>
 )
 
-function SectionTitle({ icon: Icon, title, subtitle }: { icon: React.ComponentType<{ size?: number; className?: string }>; title: string; subtitle?: string }) {
+function SectionTitle({ icon: Icon, title, subtitle }: { icon: LucideIcon; title: string; subtitle?: string }) {
   return (
     <div className="flex items-center gap-2 px-1 mb-1">
       <Icon size={15} className="text-brand-500 flex-shrink-0" />
