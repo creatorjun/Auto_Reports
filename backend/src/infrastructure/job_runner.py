@@ -88,6 +88,7 @@ class JobRunner(JobRunnerPort):
             async with self._session_factory() as session:
                 uc = self._container.generate_report_use_case(session)
                 report = await uc.execute(start_date=start_date, end_date=end_date)
+                await session.commit()
             await self._repo.save(
                 JobRecord(job_id=job_id, status=JobStatus.DONE, report_id=report.id)
             )
