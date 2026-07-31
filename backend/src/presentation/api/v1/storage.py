@@ -7,8 +7,6 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from src.application.use_cases.storage_use_case import StorageUseCase
-from src.infrastructure.config.settings import get_settings
-from src.infrastructure.security.jwt_service import get_jwt_service
 from src.presentation.api.v1.deps import get_storage_use_case
 from src.shared.audit_helper import get_client_ip
 from src.shared.audit_logger import get_audit_logger
@@ -67,14 +65,14 @@ def _decode(value: str) -> str:
     return urllib.parse.unquote(value)
 
 
-def _verify_preview_token(token: str | None) -> None:
-    settings = get_settings()
-    if not settings.login:
+def _verify_preview_token(request: Request, token: str | None) -> None:
+    container = request.app.state.container
+    if not container.login_enabled:
         return
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        get_jwt_service().decode_access_token(token)
+        container.jwt_service().decode_access_token(token)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -260,12 +258,13 @@ async def chunked_upload_abort(
 
 @preview_router.get("/preview")
 async def preview_file(
+    request: Request,
     folder: str = Query(default=""),
     name: str = Query(...),
     _t: str | None = Query(default=None),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
-    _verify_preview_token(_t)
+    _verify_preview_token(request, _t)
     folder, name = _decode(folder), _decode(name)
     try:
         path = uc.get_file_path(folder, name)
@@ -286,12 +285,13 @@ async def preview_file(
 
 @preview_router.get("/preview-converted")
 async def preview_converted(
+    request: Request,
     folder: str = Query(default=""),
     name: str = Query(...),
     _t: str | None = Query(default=None),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
-    _verify_preview_token(_t)
+    _verify_preview_token(request, _t)
     folder, name = _decode(folder), _decode(name)
     if not uc.is_convertible(name):
         raise HTTPException(status_code=400, detail="Unsupported format for conversion")
@@ -316,12 +316,13 @@ async def preview_converted(
 
 @preview_router.get("/download")
 async def download_file(
+    request: Request,
     folder: str = Query(default=""),
     name: str = Query(...),
     _t: str | None = Query(default=None),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
-    _verify_preview_token(_t)
+    _verify_preview_token(request, _t)
     folder, name = _decode(folder), _decode(name)
     try:
         path = uc.get_file_path(folder, name)
