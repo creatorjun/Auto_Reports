@@ -9,7 +9,7 @@ from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import MonthlyEntry, SlaMonthlyWidgetData
 from src.domain.ports.jira_port import JiraPort
-from src.shared.constants import JIRA_MAX_RESULTS_LARGE
+from src.shared.constants import JIRA_MAX_RESULT
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class MonthlyCollector(AbstractWidgetCollector):
         async def _fetch_month(y: int, m: int) -> tuple[int, int, list]:
             jql = self._q.w7_w8_monthly_candidates(y, m)
             issues = await self._jira.get_issues_with_sla(
-                jql, max_results=JIRA_MAX_RESULTS_LARGE, extra_fields="resolutiondate"
+                jql, max_results=JIRA_MAX_RESULT, extra_fields="resolutiondate"
             )
             return y, m, issues
 

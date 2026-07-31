@@ -7,7 +7,7 @@ from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import ResolutionTypeEntry, ResolutionTypeWidgetData
 from src.domain.ports.jira_port import JiraPort
-from src.shared.constants import JIRA_MAX_RESULTS_DEFAULT
+from src.shared.constants import JIRA_MAX_RESULT
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class ResolutionCollector(AbstractWidgetCollector):
     async def collect(self) -> WidgetResult[ResolutionTypeWidgetData]:
         jql = self._q.w11_resolution_resolved()
         issues = await self._jira.get_issues(
-            jql, max_results=JIRA_MAX_RESULTS_DEFAULT, fields="summary,issuetype,created,resolutiondate",
+            jql, max_results=JIRA_MAX_RESULT, fields="summary,issuetype,created,resolutiondate",
         )
         now_ts = datetime.now()
         by_type: dict[str, list[float]] = {}

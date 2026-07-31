@@ -16,8 +16,7 @@ from src.domain.entities.widget_data import (
 )
 from src.domain.ports.jira_port import JiraPort
 from src.shared.constants import (
-    JIRA_MAX_RESULTS_DEFAULT,
-    JIRA_MAX_RESULTS_LARGE,
+    JIRA_MAX_RESULT,
     SUMMARY_TRUNCATE_LEN,
 )
 
@@ -48,7 +47,7 @@ class SimpleWithDetailsCollector(AbstractWidgetCollector):
     async def collect(self) -> WidgetResult[SimpleIssueWidgetData]:
         issues = await self._jira.get_issues(
             self._jql,
-            max_results=JIRA_MAX_RESULTS_DEFAULT,
+            max_results=JIRA_MAX_RESULT,
             fields="summary,issuetype,status,created",
         )
         now_ts = datetime.now()
@@ -109,7 +108,7 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
 
     async def collect(self) -> WidgetResult[SlaMetVsViolatedWidgetData]:
         jql = self._q.w9_sla()
-        issues = await self._jira.get_issues_with_sla(jql, max_results=JIRA_MAX_RESULTS_LARGE)
+        issues = await self._jira.get_issues_with_sla(jql, max_results=JIRA_MAX_RESULT)
 
         only_initial_issues: list[SlaViolationIssueDetail] = []
         only_resolution_issues: list[SlaViolationIssueDetail] = []

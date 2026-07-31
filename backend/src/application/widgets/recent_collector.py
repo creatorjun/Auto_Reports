@@ -8,7 +8,7 @@ from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import RecentIssueWidgetData, RecentIssueDetail
 from src.domain.ports.jira_port import JiraPort
 from src.shared.constants import (
-    JIRA_RECENT_MAX_RESULTS,
+    JIRA_MAX_RESULT,
     STAGE_MAP,
     SUMMARY_TRUNCATE_LEN,
 )
@@ -48,7 +48,7 @@ class RecentCollector(AbstractWidgetCollector):
     async def collect(self) -> WidgetResult[RecentIssueWidgetData]:
         jql = self._q.w12_recent()
         issues = await self._jira.get_issues_with_assignees(
-            jql, max_results=JIRA_RECENT_MAX_RESULTS
+            jql, max_results=JIRA_MAX_RESULT
         )
         now_ts = datetime.now()
         issue_details = []

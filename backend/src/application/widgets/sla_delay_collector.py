@@ -6,7 +6,7 @@ from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import SlaDelayIssueDetail, SlaDelayWidgetData
 from src.domain.ports.jira_port import JiraPort
-from src.shared.constants import JIRA_MAX_RESULTS_LARGE, SUMMARY_TRUNCATE_LEN
+from src.shared.constants import JIRA_MAX_RESULT, SUMMARY_TRUNCATE_LEN
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class SlaDelayCollector(AbstractWidgetCollector):
 
     async def collect(self) -> WidgetResult[SlaDelayWidgetData]:
         jql = self._q.w9_sla()
-        issues = await self._jira.get_issues_with_sla(jql, max_results=JIRA_MAX_RESULTS_LARGE)
+        issues = await self._jira.get_issues_with_sla(jql, max_results=JIRA_MAX_RESULT)
 
         by_status: dict[str, int] = {}
         by_status_details: dict[str, list[SlaDelayIssueDetail]] = {}
@@ -62,10 +62,8 @@ class SlaDelayCollector(AbstractWidgetCollector):
     def _is_sla_breached(sla_val: dict | None) -> bool:
         if not sla_val:
             return False
-        for cycle in (sla_val.get("completedCycles") or []):
+        for cycle in sla_val.get("completedCycles") or []:
             if cycle.get("breached"):
                 return True
         ongoing = sla_val.get("ongoingCycle")
-        if ongoing and ongoing.get("breached"):
-            return True
-        return False
+        return bool(ongoing and ongoing.get("breached"))
