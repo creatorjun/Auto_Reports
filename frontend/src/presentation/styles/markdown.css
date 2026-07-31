@@ -90,10 +90,12 @@
   margin-bottom: 1.4em;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #e5e5ea;
-  background: #f8f9fb;
+  border: none;
+  background: #1e1e2e;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
 }
 
+.markdown-body pre code,
 .markdown-body pre code.hljs {
   display: block;
   overflow-x: auto;
@@ -102,8 +104,46 @@
   font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
   line-height: 1.65;
   border-radius: 10px;
-  background: #f8f9fb;
+  background: #1e1e2e !important;
+  color: #cdd6f4 !important;
 }
+
+.markdown-body pre .hljs-keyword,
+.markdown-body pre .hljs-selector-tag,
+.markdown-body pre .hljs-built_in,
+.markdown-body pre .hljs-name,
+.markdown-body pre .hljs-tag { color: #cba6f7 !important; }
+
+.markdown-body pre .hljs-string,
+.markdown-body pre .hljs-attr,
+.markdown-body pre .hljs-template-variable,
+.markdown-body pre .hljs-variable { color: #a6e3a1 !important; }
+
+.markdown-body pre .hljs-comment,
+.markdown-body pre .hljs-quote { color: #6c7086 !important; font-style: italic; }
+
+.markdown-body pre .hljs-number,
+.markdown-body pre .hljs-literal,
+.markdown-body pre .hljs-regexp { color: #fab387 !important; }
+
+.markdown-body pre .hljs-title,
+.markdown-body pre .hljs-function,
+.markdown-body pre .hljs-class .hljs-title { color: #89b4fa !important; }
+
+.markdown-body pre .hljs-type,
+.markdown-body pre .hljs-class { color: #f9e2af !important; }
+
+.markdown-body pre .hljs-symbol,
+.markdown-body pre .hljs-bullet,
+.markdown-body pre .hljs-section { color: #f38ba8 !important; }
+
+.markdown-body pre .hljs-params { color: #fab387 !important; }
+
+.markdown-body pre .hljs-punctuation { color: #89dceb !important; }
+
+.markdown-body pre .hljs-operator { color: #89dceb !important; }
+
+.markdown-body pre .hljs-meta { color: #a6e3a1 !important; }
 
 .markdown-body table {
   width: 100%;
