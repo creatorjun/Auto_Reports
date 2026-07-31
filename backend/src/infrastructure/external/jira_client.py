@@ -92,7 +92,6 @@ class JiraClient(JiraPort):
             "jql": jql,
             "maxResults": _PAGE_SIZE,
             "startAt": start_at,
-            "fieldsByKeys": False,
         }
         if fields:
             payload["fields"] = fields
