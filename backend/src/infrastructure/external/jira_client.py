@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from src.domain.ports.jira_port import JiraPort
+from src.shared.cache import LruCache
 from src.shared.constants import JIRA_MAX_RESULTS_DEFAULT
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,10 @@ _QA_ASSIGNEE_KEY    = "_qa_assignee"
 
 _FETCH_PAGE_SIZE    = 200
 _PARALLEL_THRESHOLD = 200
+
+_COUNT_CACHE_MAXSIZE  = 256
+_COUNT_CACHE_TTL      = 600.0
+_COUNT_CACHE_STALE    = 120.0
 
 
 class JiraClient(JiraPort):
@@ -50,34 +55,31 @@ class JiraClient(JiraPort):
         self._tac_assignee_fid   = jira_tac_assignee_field_id
         self._qa_assignee_fid    = jira_qa_assignee_field_id
 
-        self._count_cache: dict[str, int] = {}
-        self._count_locks: dict[str, asyncio.Lock] = {}
+        self._count_cache: LruCache[str, int] = LruCache(
+            maxsize=_COUNT_CACHE_MAXSIZE,
+            ttl_seconds=_COUNT_CACHE_TTL,
+            stale_ttl_seconds=_COUNT_CACHE_STALE,
+        )
 
     async def get_issue_count(self, jql: str) -> int:
-        if jql in self._count_cache:
+        cached = await self._count_cache.async_get(jql)
+        if cached is not None:
             logger.debug(f"[cache-hit] count: {jql[:60]}")
-            return self._count_cache[jql]
+            return cached
 
-        if jql not in self._count_locks:
-            self._count_locks[jql] = asyncio.Lock()
+        url = f"{self._base_url}/rest/api/3/search/approximate-count"
+        try:
+            resp = await self._client.post(url, json={"jql": jql})
+            resp.raise_for_status()
+            count = resp.json().get("count", 0)
+        except httpx.HTTPError as e:
+            logger.error(f"JQL 카운트 실패: {jql[:80]}... -> {e}")
+            if isinstance(e, httpx.HTTPStatusError):
+                logger.error(f"응답 상세: {e.response.text[:200]}")
+            count = 0
 
-        async with self._count_locks[jql]:
-            if jql in self._count_cache:
-                return self._count_cache[jql]
-
-            url = f"{self._base_url}/rest/api/3/search/approximate-count"
-            try:
-                resp = await self._client.post(url, json={"jql": jql})
-                resp.raise_for_status()
-                count = resp.json().get("count", 0)
-            except httpx.HTTPError as e:
-                logger.error(f"JQL 카운트 실패: {jql[:80]}... -> {e}")
-                if isinstance(e, httpx.HTTPStatusError):
-                    logger.error(f"응답 상세: {e.response.text[:200]}")
-                count = 0
-
-            self._count_cache[jql] = count
-            return count
+        await self._count_cache.async_set(jql, count)
+        return count
 
     async def get_issue_counts_batch(self, jqls: list[str]) -> list[int]:
         return list(await asyncio.gather(*[self.get_issue_count(jql) for jql in jqls]))

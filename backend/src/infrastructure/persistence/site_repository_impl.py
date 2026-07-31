@@ -32,6 +32,8 @@ from src.infrastructure.persistence.site_models import (
     VisitHistoryORM,
 )
 
+_GET_ALL_LIMIT = 500
+
 
 class SiteRepositoryImpl(SiteRepository):
     def __init__(self, session: AsyncSession) -> None:
@@ -47,7 +49,12 @@ class SiteRepositoryImpl(SiteRepository):
         ]
 
     async def get_all(self) -> list[Site]:
-        result = await self._session.execute(select(SiteORM).options(*self._opts()))
+        result = await self._session.execute(
+            select(SiteORM)
+            .options(*self._opts())
+            .order_by(SiteORM.site_name)
+            .limit(_GET_ALL_LIMIT)
+        )
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
     async def get_by_id(self, site_id: int) -> Optional[Site]:
