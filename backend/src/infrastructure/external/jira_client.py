@@ -84,27 +84,30 @@ class JiraClient(JiraPort):
     async def _fetch_page(
         self,
         jql: str,
-        start_at: int,
         fields: list[str] | None,
-    ) -> tuple[list[dict[str, Any]], int]:
+        next_page_token: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None]:
         url = f"{self._base_url}/rest/api/3/search/jql"
         payload: dict[str, Any] = {
             "jql": jql,
             "maxResults": _PAGE_SIZE,
-            "startAt": start_at,
         }
         if fields:
             payload["fields"] = fields
+        if next_page_token:
+            payload["nextPageToken"] = next_page_token
         try:
             resp = await self._client.post(url, json=payload)
             resp.raise_for_status()
             data = resp.json()
-            return data.get("issues", []), data.get("total", 0)
+            is_last: bool = data.get("isLast", True)
+            token: str | None = data.get("nextPageToken") if not is_last else None
+            return data.get("issues", []), token
         except httpx.HTTPError as e:
-            logger.error(f"JQL 페이지 요청 실패 (startAt={start_at}): {jql[:80]}... -> {e}")
+            logger.error(f"JQL 페이지 요청 실패 (nextPageToken={next_page_token}): {jql[:80]}... -> {e}")
             if isinstance(e, httpx.HTTPStatusError):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
-            return [], 0
+            return [], None
 
     async def get_issues(
         self,
@@ -115,24 +118,19 @@ class JiraClient(JiraPort):
         field_list = [f.strip() for f in fields.split(",") if f.strip()] if fields else None
 
         all_issues: list[dict[str, Any]] = []
-        start_at = 0
+        next_page_token: str | None = None
 
         while True:
-            if start_at > 0:
+            if all_issues:
                 await asyncio.sleep(0.3)
 
-            page, total = await self._fetch_page(jql, start_at, field_list)
+            page, next_page_token = await self._fetch_page(jql, field_list, next_page_token)
             all_issues.extend(page)
 
-            logger.debug(f"JQL 페이지 수신: startAt={start_at}, 수신={len(page)}, 누적={len(all_issues)}, 전체={total}")
+            logger.debug(f"JQL 페이지 수신: 수신={len(page)}, 누적={len(all_issues)}, nextPageToken={next_page_token}")
 
-            if not page or len(all_issues) >= min(max_results, total):
+            if not page or next_page_token is None or len(all_issues) >= max_results:
                 break
-
-            if len(page) < _PAGE_SIZE:
-                break
-
-            start_at += len(page)
 
         return all_issues[:max_results]
 
