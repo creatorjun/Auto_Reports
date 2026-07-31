@@ -17,7 +17,7 @@ router = APIRouter(prefix="/storage", tags=["storage"])
 preview_router = APIRouter(prefix="/storage", tags=["storage"])
 _audit = get_audit_logger()
 
-CHUNK_SIZE = 1024 * 1024  # 1MB
+CHUNK_SIZE = 1024 * 1024
 
 
 class StorageFileInfo(BaseModel):
@@ -314,12 +314,14 @@ async def preview_converted(
     )
 
 
-@router.get("/download")
+@preview_router.get("/download")
 async def download_file(
     folder: str = Query(default=""),
     name: str = Query(...),
+    _t: str | None = Query(default=None),
     uc: StorageUseCase = Depends(get_storage_use_case),
 ):
+    _verify_preview_token(_t)
     folder, name = _decode(folder), _decode(name)
     try:
         path = uc.get_file_path(folder, name)
