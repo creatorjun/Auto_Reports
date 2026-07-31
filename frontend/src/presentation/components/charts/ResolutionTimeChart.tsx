@@ -171,7 +171,7 @@ export default function ResolutionTimeChart({ details }: Props) {
             <tr className="border-b border-apple-divider text-ui-sm text-apple-light">
               {headers.map(({ key, label, rightCol, alignRight }) => (
                 <th key={key} onClick={() => handleSort(key)}
-                  className={['pb-1.5 font-medium whitespace-nowrap relative pr-5 select-none cursor-pointer hover:text-apple-primary transition-colors', alignRight ? 'text-right' : 'text-left', sortKey === key ? 'text-apple-primary' : ''].join(' ')}>
+                  className={['pt-3 pb-1.5 font-medium whitespace-nowrap relative pr-5 select-none cursor-pointer hover:text-apple-primary transition-colors', alignRight ? 'text-right' : 'text-left', sortKey === key ? 'text-apple-primary' : ''].join(' ')}>
                   {label}<SortIcon dir={sortKey === key ? sortDir : null} />
                   {rightCol && <ResizeHandle tableWidth={getTableWidth()} onDrag={(df) => resize(key, rightCol, df)} />}
                 </th>
