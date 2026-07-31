@@ -1,5 +1,4 @@
 # backend/src/presentation/api/v1/trigger.py
-import asyncio
 import json
 import uuid
 from datetime import datetime
@@ -25,9 +24,9 @@ router = APIRouter(prefix="/trigger", tags=["trigger"])
 KST = ZoneInfo("Asia/Seoul")
 _audit = get_audit_logger()
 
-_SSE_POLL_INTERVAL   = 1.0
+_SSE_WAIT_TIMEOUT    = 30.0
 _SSE_TIMEOUT_SECONDS = 300
-_SSE_KEEPALIVE_EVERY = 15
+_SSE_KEEPALIVE_EVERY = 15.0
 
 
 @router.post("/", response_model=TriggerAcceptedSchema, status_code=202)
@@ -115,9 +114,9 @@ async def stream_job_status(
 
             yield _sse_event("status", payload)
 
-            await asyncio.sleep(_SSE_POLL_INTERVAL)
-            elapsed   += _SSE_POLL_INTERVAL
-            keepalive += _SSE_POLL_INTERVAL
+            await job_runner.wait_for_update(job_id, timeout=_SSE_WAIT_TIMEOUT)
+            elapsed   += _SSE_WAIT_TIMEOUT
+            keepalive += _SSE_WAIT_TIMEOUT
 
             if keepalive >= _SSE_KEEPALIVE_EVERY:
                 yield ": keepalive\n\n"

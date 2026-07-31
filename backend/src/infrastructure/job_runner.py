@@ -26,6 +26,7 @@ class JobRunner(JobRunnerPort):
         self._session_factory = session_factory
         self._lock = asyncio.Lock()
         self._running_job_id: str | None = None
+        self._notify_events: dict[str, asyncio.Event] = {}
 
     @property
     def is_running(self) -> bool:
@@ -34,8 +35,26 @@ class JobRunner(JobRunnerPort):
     def current_job_id(self) -> str | None:
         return self._running_job_id
 
+    def _get_or_create_event(self, job_id: str) -> asyncio.Event:
+        if job_id not in self._notify_events:
+            self._notify_events[job_id] = asyncio.Event()
+        return self._notify_events[job_id]
+
+    def _notify(self, job_id: str) -> None:
+        event = self._get_or_create_event(job_id)
+        event.set()
+        event.clear()
+
+    async def wait_for_update(self, job_id: str, timeout: float = 30.0) -> None:
+        event = self._get_or_create_event(job_id)
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            pass
+
     async def save_pending(self, job_id: str) -> None:
         await self._repo.save(JobRecord(job_id=job_id, status=JobStatus.PENDING))
+        self._notify(job_id)
 
     async def get_job_status(self, job_id: str) -> JobRecord | None:
         return await self._repo.find(job_id)
@@ -59,10 +78,12 @@ class JobRunner(JobRunnerPort):
                         error=f"이미 실행 중인 보고서 생성 작업이 있습니다. (job_id={self._running_job_id})",
                     )
                 )
+                self._notify(job_id)
                 return
             self._running_job_id = job_id
 
         await self._repo.save(JobRecord(job_id=job_id, status=JobStatus.RUNNING))
+        self._notify(job_id)
         try:
             async with self._session_factory() as session:
                 uc = self._container.generate_report_use_case(session)
@@ -70,15 +91,18 @@ class JobRunner(JobRunnerPort):
             await self._repo.save(
                 JobRecord(job_id=job_id, status=JobStatus.DONE, report_id=report.id)
             )
+            self._notify(job_id)
             logger.info(f"[job:{job_id}] 완료 report_id={report.id}")
         except Exception as e:
             await self._repo.save(
                 JobRecord(job_id=job_id, status=JobStatus.ERROR, error=str(e))
             )
+            self._notify(job_id)
             logger.error(f"[job:{job_id}] 실패: {e}")
         finally:
             async with self._lock:
                 self._running_job_id = None
+            self._notify_events.pop(job_id, None)
 
     async def run_scheduled_job(self) -> None:
         job_id = str(uuid.uuid4())

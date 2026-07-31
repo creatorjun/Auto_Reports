@@ -20,8 +20,8 @@ _SLA_RESOLUTION_KEY = "_sla_resolution"
 _TAC_ASSIGNEE_KEY   = "_tac_assignee"
 _QA_ASSIGNEE_KEY    = "_qa_assignee"
 
-_FETCH_PAGE_SIZE    = 200
-_PARALLEL_THRESHOLD = 200
+_FETCH_PAGE_SIZE         = 200
+_PARALLEL_TOTAL_THRESHOLD = 400
 
 _COUNT_CACHE_MAXSIZE  = 256
 _COUNT_CACHE_TTL      = 600.0
@@ -150,7 +150,9 @@ class JiraClient(JiraPort):
         if not first_page or first_token is None or len(first_page) >= max_results:
             return first_page[:max_results]
 
-        if len(first_page) < _PARALLEL_THRESHOLD:
+        total = await self.get_issue_count(jql)
+
+        if total < _PARALLEL_TOTAL_THRESHOLD:
             all_issues = list(first_page)
             next_token: str | None = first_token
             while next_token and len(all_issues) < max_results:
@@ -161,7 +163,6 @@ class JiraClient(JiraPort):
                     break
             return all_issues[:max_results]
 
-        total = await self.get_issue_count(jql)
         remaining_start = page_size
         fetch_count = min(total, max_results)
         offsets = list(range(remaining_start, fetch_count, page_size))
