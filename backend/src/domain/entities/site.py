@@ -1,7 +1,7 @@
 # backend/src/domain/entities/site.py
 from __future__ import annotations
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import StrEnum
 from typing import Optional
 
@@ -15,13 +15,13 @@ class SiteStatus(StrEnum):
 
 
 class ContractType(StrEnum):
-    OFFICIAL  = "정식라이센스"
-    TEMPORARY = "임시라이센스"
+    OFFICIAL  = "\uc815\uc2dd\ub77c\uc774\uc13c\uc2a4"
+    TEMPORARY = "\uc784\uc2dc\ub77c\uc774\uc13c\uc2a4"
 
 
 class DeploymentType(StrEnum):
-    ALL_IN_ONE = "올인원"
-    SEPARATED  = "분리구성"
+    ALL_IN_ONE = "\uc62c\uc778\uc6d0"
+    SEPARATED  = "\ubd84\ub9ac\uad6c\uc131"
 
 
 class NodeRole(StrEnum):
@@ -31,18 +31,22 @@ class NodeRole(StrEnum):
 
 
 class PatchType(StrEnum):
-    REGULAR   = "정기패치"
-    EMERGENCY = "긴급패치"
-    HOTFIX    = "핫픽스"
+    REGULAR   = "\uc815\uae30\ud328\uce58"
+    EMERGENCY = "\uae34\uae09\ud328\uce58"
+    HOTFIX    = "\ud56f\ud53d\uc2a4"
 
 
 class PatchResultStatus(StrEnum):
-    SUCCESS     = "성공"
-    FAILED      = "실패"
-    ROLLED_BACK = "롤백"
+    SUCCESS     = "\uc131\uacf5"
+    FAILED      = "\uc2e4\ud328"
+    ROLLED_BACK = "\ub864\ubc31"
 
 
-@dataclass
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+@dataclass(frozen=True)
 class ContactInfo:
     name:    Optional[str] = None
     phone:   Optional[str] = None
@@ -50,7 +54,7 @@ class ContactInfo:
     company: Optional[str] = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class Credential:
     username: str
     password: str
@@ -58,7 +62,7 @@ class Credential:
     port:     Optional[str] = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class AccessCredentials:
     cli:  Optional[Credential] = None
     web:  Optional[Credential] = None
@@ -67,7 +71,7 @@ class AccessCredentials:
     note: Optional[str] = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class DeploymentNode:
     id:              Optional[int]      = None
     hostname:        Optional[str]      = None
@@ -83,7 +87,7 @@ class DeploymentNode:
     disk_updated_at: Optional[datetime] = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class SolutionPackage:
     id:                  Optional[int]           = None
     version:             Optional[str]            = None
@@ -96,7 +100,7 @@ class SolutionPackage:
     updated_at:          Optional[datetime]       = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class PatchHistory:
     id:              Optional[int]               = None
     issue_link:      Optional[str]               = None
@@ -109,7 +113,7 @@ class PatchHistory:
     note:            Optional[str]               = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class VisitHistory:
     id:               Optional[int]      = None
     visit_datetime:   Optional[datetime] = None
@@ -122,18 +126,18 @@ class VisitHistory:
 @dataclass
 class Site:
     site_name:           str
-    id:                  Optional[int]              = None
-    maintenance_company: Optional[str]              = None
-    customer_contact:    Optional[ContactInfo]      = None
-    maintenance_contact: Optional[ContactInfo]      = None
-    contract_start_date: Optional[date]             = None
-    contract_end_date:   Optional[date]             = None
-    contract_type:       Optional[ContractType]     = None
-    status:              Optional[SiteStatus]       = None
-    nodes:               list[DeploymentNode]       = field(default_factory=list)
-    solution_package:    Optional[SolutionPackage]  = None
-    patch_histories:     list[PatchHistory]         = field(default_factory=list)
-    visit_histories:     list[VisitHistory]         = field(default_factory=list)
+    id:                  Optional[int]               = None
+    maintenance_company: Optional[str]               = None
+    customer_contact:    Optional[ContactInfo]       = None
+    maintenance_contact: Optional[ContactInfo]       = None
+    contract_start_date: Optional[date]              = None
+    contract_end_date:   Optional[date]              = None
+    contract_type:       Optional[ContractType]      = None
+    status:              Optional[SiteStatus]        = None
+    nodes:               list[DeploymentNode]        = field(default_factory=list)
+    solution_package:    Optional[SolutionPackage]   = None
+    patch_histories:     list[PatchHistory]          = field(default_factory=list)
+    visit_histories:     list[VisitHistory]          = field(default_factory=list)
     access_credentials:  Optional[AccessCredentials] = None
-    created_at:          datetime                   = field(default_factory=datetime.utcnow)
-    updated_at:          datetime                   = field(default_factory=datetime.utcnow)
+    created_at:          datetime                    = field(default_factory=_utc_now)
+    updated_at:          datetime                    = field(default_factory=_utc_now)

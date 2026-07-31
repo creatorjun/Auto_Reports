@@ -2,10 +2,10 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from src.shared.constants import JIRA_MAX_RESULT
-
 
 class JiraPort(ABC):
+    MAX_RESULTS: int = 100
+
     @abstractmethod
     async def get_issue_count(self, jql: str) -> int: ...
 
@@ -16,7 +16,7 @@ class JiraPort(ABC):
     async def get_issues(
         self,
         jql: str,
-        max_results: int = JIRA_MAX_RESULT,
+        max_results: int = MAX_RESULTS,
         fields: str = "",
     ) -> list[dict[str, Any]]: ...
 
@@ -24,7 +24,7 @@ class JiraPort(ABC):
     async def get_issues_with_sla(
         self,
         jql: str,
-        max_results: int = JIRA_MAX_RESULT,
+        max_results: int = MAX_RESULTS,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]: ...
 
@@ -32,7 +32,7 @@ class JiraPort(ABC):
     async def get_issues_with_assignees(
         self,
         jql: str,
-        max_results: int = JIRA_MAX_RESULT,
+        max_results: int = MAX_RESULTS,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]: ...
 
