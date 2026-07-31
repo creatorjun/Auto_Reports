@@ -157,6 +157,23 @@ function PdfViewer({ url, onPageChange }: PdfViewerProps) {
     if (!loading && !error) renderPage(currentPage)
   }, [loading, error, currentPage, renderPage])
 
+  useEffect(() => {
+    if (loading || error || totalPages <= 1) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        e.stopPropagation()
+        setCurrentPage(p => Math.max(1, p - 1))
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        e.stopPropagation()
+        setCurrentPage(p => Math.min(totalPages, p + 1))
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [loading, error, totalPages])
+
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 h-full bg-black/60 px-6">
@@ -188,7 +205,7 @@ function PdfViewer({ url, onPageChange }: PdfViewerProps) {
   )
 }
 
-function PptxPreview({ name, folder }: { name: string; folder: string }) {
+function PptxPreview({ name, folder, onPageChange }: { name: string; folder: string; onPageChange?: (page: number, total: number) => void }) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [errMsg, setErrMsg] = useState('')
@@ -236,7 +253,7 @@ function PptxPreview({ name, folder }: { name: string; folder: string }) {
     )
   }
 
-  return <PdfViewer url={pdfUrl!} />
+  return <PdfViewer url={pdfUrl!} onPageChange={onPageChange} />
 }
 
 function TextPreview({ url }: { url: string }) {
@@ -481,14 +498,15 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
         toggleFullscreen()
         return
       }
+      if (isPdfMultiPage) return
       if (e.key === 'ArrowLeft') {
         e.preventDefault()
-        if (!isPdfMultiPage) handlePrev()
+        handlePrev()
         return
       }
       if (e.key === 'ArrowRight') {
         e.preventDefault()
-        if (!isPdfMultiPage) handleNext()
+        handleNext()
         return
       }
     }
@@ -521,7 +539,7 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
       case 'csv': return <CsvPreview url={url} />
       case 'xlsx': return <XlsxPreview url={url} />
       case 'docx': return <DocxPreview url={url} />
-      case 'pptx': return <PptxPreview name={name} folder={folder} />
+      case 'pptx': return <PptxPreview name={name} folder={folder} onPageChange={handlePdfPageChange} />
       case 'archive': return <ArchivePreview name={name} folder={folder} />
       default:
         return (
