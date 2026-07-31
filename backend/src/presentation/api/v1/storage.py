@@ -331,6 +331,9 @@ async def download_file(
         media_type="application/octet-stream",
         headers={
             "Content-Disposition": f"attachment; filename*=UTF-8''{safe_name}",
+            "X-Content-Type-Options": "nosniff",
+            "X-Download-Options": "noopen",
+            "Cache-Control": "no-store",
         },
     )
 
