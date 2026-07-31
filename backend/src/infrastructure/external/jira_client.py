@@ -22,7 +22,7 @@ _SLA_RESOLUTION_KEY = "_sla_resolution"
 _TAC_ASSIGNEE_KEY   = "_tac_assignee"
 _QA_ASSIGNEE_KEY    = "_qa_assignee"
 
-_FETCH_PAGE_SIZE         = 200
+_FETCH_PAGE_SIZE          = 100
 _PARALLEL_TOTAL_THRESHOLD = 400
 
 _COUNT_CACHE_MAXSIZE  = 256
@@ -149,10 +149,31 @@ class JiraClient(JiraPort):
         first_page, first_token = await self._fetch_page(jql, field_list, None, page_size)
         logger.info(f"JQL 첫 페이지 수신: {len(first_page)}건, nextPageToken={first_token}")
 
-        if not first_page or first_token is None or len(first_page) >= max_results:
+        if not first_page:
+            return []
+
+        if len(first_page) >= max_results:
             return first_page[:max_results]
 
         total = await self.get_issue_count(jql)
+        fetch_count = min(total, max_results)
+        logger.info(f"JQL 전체 건수: {total}, 수집 목표: {fetch_count}")
+
+        if first_token is None:
+            if total <= len(first_page):
+                return first_page
+            offsets = list(range(len(first_page), fetch_count, page_size))
+            logger.info(f"JQL startAt 방식 수집: pages={len(offsets)}")
+            tasks = [
+                self._fetch_page_by_start(jql, field_list, offset, page_size)
+                for offset in offsets
+            ]
+            pages = await asyncio.gather(*tasks)
+            all_issues = list(first_page)
+            for page in pages:
+                all_issues.extend(page)
+            logger.info(f"JQL startAt 수집 완료: 누적={len(all_issues)}건")
+            return all_issues[:max_results]
 
         if total < _PARALLEL_TOTAL_THRESHOLD:
             all_issues = list(first_page)
@@ -166,21 +187,16 @@ class JiraClient(JiraPort):
             return all_issues[:max_results]
 
         remaining_start = page_size
-        fetch_count = min(total, max_results)
         offsets = list(range(remaining_start, fetch_count, page_size))
-
         logger.info(f"JQL 병렬 페이지 fetch: total={total}, pages={len(offsets)+1}")
-
         tasks = [
             self._fetch_page_by_start(jql, field_list, offset, page_size)
             for offset in offsets
         ]
         parallel_pages = await asyncio.gather(*tasks)
-
         all_issues = list(first_page)
         for page in parallel_pages:
             all_issues.extend(page)
-
         logger.info(f"JQL 병렬 수집 완료: 누적={len(all_issues)}건")
         return all_issues[:max_results]
 
