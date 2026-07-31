@@ -8,8 +8,7 @@ import httpx
 from src.domain.ports.jira_port import JiraPort
 from src.shared.cache import LruCache
 from src.shared.constants import (
-    JIRA_MAX_RESULTS_DEFAULT,
-    JIRA_MAX_RESULTS_LARGE,
+    JIRA_MAX_RESULT
 )
 
 logger = logging.getLogger(__name__)
@@ -141,7 +140,7 @@ class JiraClient(JiraPort):
     async def get_issues(
         self,
         jql: str,
-        max_results: int = JIRA_MAX_RESULTS_DEFAULT,
+        max_results: int = JIRA_MAX_RESULT,
         fields: str = "",
     ) -> list[dict[str, Any]]:
         field_list = [f.strip() for f in fields.split(",") if f.strip()] if fields else None
@@ -188,7 +187,7 @@ class JiraClient(JiraPort):
     async def get_issues_with_sla(
         self,
         jql: str,
-        max_results: int = JIRA_MAX_RESULTS_LARGE,
+        max_results: int = JIRA_MAX_RESULT,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]:
         base = "summary,issuetype,status,created,resolutiondate"
@@ -204,7 +203,7 @@ class JiraClient(JiraPort):
     async def get_issues_with_assignees(
         self,
         jql: str,
-        max_results: int = JIRA_MAX_RESULTS_DEFAULT,
+        max_results: int = JIRA_MAX_RESULT,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]:
         base = "summary,issuetype,status,created,reporter,assignee"
