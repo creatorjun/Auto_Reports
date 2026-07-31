@@ -1,6 +1,7 @@
 # backend/src/infrastructure/security/jwt_service.py
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
+from threading import Lock
 
 from jose import JWTError, jwt
 
@@ -13,17 +14,29 @@ REFRESH_TOKEN_TYPE = "refresh"
 class JwtService:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
+        self._superadmin_generation: int = 0
+        self._lock = Lock()
 
-    def create_access_token(self, subject: str) -> str:
+    def bump_superadmin_generation(self) -> int:
+        with self._lock:
+            self._superadmin_generation += 1
+            return self._superadmin_generation
+
+    def current_superadmin_generation(self) -> int:
+        return self._superadmin_generation
+
+    def create_access_token(self, subject: str, generation: int | None = None) -> str:
         return self._create(
             subject, ACCESS_TOKEN_TYPE,
             timedelta(minutes=self._settings.jwt_access_expire_minutes),
+            generation=generation,
         )
 
-    def create_refresh_token(self, subject: str) -> str:
+    def create_refresh_token(self, subject: str, generation: int | None = None) -> str:
         return self._create(
             subject, REFRESH_TOKEN_TYPE,
             timedelta(days=self._settings.jwt_refresh_expire_days),
+            generation=generation,
         )
 
     def decode_access_token(self, token: str) -> str:
@@ -32,9 +45,17 @@ class JwtService:
     def decode_refresh_token(self, token: str) -> str:
         return self._decode(token, REFRESH_TOKEN_TYPE)
 
-    def _create(self, subject: str, token_type: str, expire_delta: timedelta) -> str:
+    def _create(
+        self,
+        subject: str,
+        token_type: str,
+        expire_delta: timedelta,
+        generation: int | None = None,
+    ) -> str:
         expire = datetime.now(timezone.utc) + expire_delta
-        payload = {"sub": subject, "type": token_type, "exp": expire}
+        payload: dict = {"sub": subject, "type": token_type, "exp": expire}
+        if generation is not None:
+            payload["gen"] = generation
         return jwt.encode(payload, self._settings.jwt_secret, algorithm="HS256")
 
     def _decode(self, token: str, expected_type: str) -> str:
@@ -42,7 +63,11 @@ class JwtService:
             payload = jwt.decode(token, self._settings.jwt_secret, algorithms=["HS256"])
             if payload.get("type") != expected_type:
                 raise ValueError("Token type mismatch")
-            return payload["sub"]
+            subject: str = payload["sub"]
+            gen = payload.get("gen")
+            if gen is not None and gen != self._superadmin_generation:
+                raise ValueError("Superadmin session invalidated")
+            return subject
         except (JWTError, ValueError, KeyError) as e:
             raise ValueError("Invalid or expired token") from e
 
