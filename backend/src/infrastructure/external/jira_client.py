@@ -87,16 +87,16 @@ class JiraClient(JiraPort):
         start_at: int,
         fields: list[str] | None,
     ) -> tuple[list[dict[str, Any]], int]:
-        url = f"{self._base_url}/rest/api/3/search"
-        params: dict[str, Any] = {
+        url = f"{self._base_url}/rest/api/3/search/jql"
+        payload: dict[str, Any] = {
             "jql": jql,
             "maxResults": _PAGE_SIZE,
             "startAt": start_at,
         }
         if fields:
-            params["fields"] = ",".join(fields)
+            payload["fields"] = fields
         try:
-            resp = await self._client.get(url, params=params)
+            resp = await self._client.post(url, json=payload)
             resp.raise_for_status()
             data = resp.json()
             return data.get("issues", []), data.get("total", 0)
