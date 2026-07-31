@@ -34,8 +34,14 @@ const reportLinks = [
     label: '사이트 관리',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" fill="currentColor" fillOpacity="0.08" />
-        <path d="M1.5 8h13M8 1.5a10 6.5 0 0 0 0 13M8 1.5a10 6.5 0 0 1 0 13" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="2" y="4" width="12" height="11" rx="1" fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="4" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
+        <rect x="7" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
+        <rect x="10" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
+        <rect x="4" y="10" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
+        <rect x="10" y="10" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
+        <rect x="6" y="10" width="4" height="5" rx="0.5" fill="currentColor" opacity="0.5" />
+        <path d="M1 4.5L8 1.5L15 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
