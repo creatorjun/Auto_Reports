@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github.css'
+import '@/presentation/styles/markdown.css'
 import { storageApi } from '@/infrastructure/api/storageApi'
 
 type PreviewType =
@@ -198,7 +199,7 @@ function PdfViewer({ url, onPageChange }: PdfViewerProps) {
             className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors">
             ← 이전
           </button>
-          <span className="text-[12px] text-apple-light">{currentPage} / {totalPages}</span>
+          <span className="text-[12px] text-apple-light tabular-nums">{currentPage} / {totalPages}</span>
           <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}
             className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors">
             다음 →
@@ -292,9 +293,14 @@ function MarkdownPreview({ url }: { url: string }) {
   }, [url])
   if (content === null) return <LoadingSpinnerSmall />
   return (
-    <div className="overflow-auto h-full bg-black/60">
-      <div className="max-w-3xl mx-auto my-6 px-8 py-8 bg-white rounded-xl shadow-2xl markdown-body">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{content}</ReactMarkdown>
+    <div className="overflow-auto h-full bg-[#f2f2f7]">
+      <div className="max-w-3xl mx-auto my-8 px-10 py-10 bg-white rounded-2xl shadow-xl markdown-body">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[[rehypeHighlight, { detect: true }]]}
+        >
+          {content}
+        </ReactMarkdown>
       </div>
     </div>
   )
@@ -418,8 +424,8 @@ function DocxPreview({ url }: { url: string }) {
   if (error) return <div className="flex items-center justify-center h-full bg-black/60"><p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p></div>
   if (html === null) return <LoadingSpinnerSmall />
   return (
-    <div className="overflow-auto h-full bg-black/60">
-      <div className="max-w-3xl mx-auto my-6 px-8 py-8 bg-white rounded-xl shadow-2xl prose prose-sm text-apple-dark" dangerouslySetInnerHTML={{ __html: html }} />
+    <div className="overflow-auto h-full bg-[#f2f2f7]">
+      <div className="max-w-3xl mx-auto my-8 px-10 py-10 bg-white rounded-2xl shadow-xl prose prose-sm text-apple-dark" dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   )
 }
