@@ -218,11 +218,40 @@ def _to_response(site: Site) -> SiteResponse:
     )
 
 
+def _summary_dto_to_response(dto) -> SiteSummaryResponse:
+    return SiteSummaryResponse(
+        id=dto.id,
+        site_name=dto.site_name,
+        customer_name=dto.customer_name,
+        status=dto.status,
+        contract_end_date=dto.contract_end_date,
+    )
+
+
+@router.get("/search", response_model=list[SiteSummaryResponse])
+async def search_sites(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(10, ge=1, le=100),
+    use_case: SiteUseCase = Depends(get_site_use_case),
+):
+    dtos = await use_case.search(q, limit)
+    return [_summary_dto_to_response(d) for d in dtos]
+
+
+@router.get("/recent", response_model=list[SiteSummaryResponse])
+async def get_recent_sites(
+    limit: int = Query(5, ge=1, le=50),
+    use_case: SiteUseCase = Depends(get_site_use_case),
+):
+    dtos = await use_case.get_recent(limit)
+    return [_summary_dto_to_response(d) for d in dtos]
+
+
 @router.get("/", response_model=list[SiteSummaryResponse])
 async def list_sites(
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    sites = await use_case.list_sites()
+    sites = await use_case.get_all()
     return [
         SiteSummaryResponse(
             id=s.id,
@@ -240,7 +269,7 @@ async def get_site(
     site_id: int,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    site = await use_case.get_site(site_id)
+    site = await use_case.get_by_id(site_id)
     if site is None:
         raise HTTPException(status_code=404, detail="Site not found")
     return _to_response(site)
@@ -251,7 +280,7 @@ async def create_site(
     req: SiteCreateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    site = await use_case.create_site(_to_domain(req))
+    site = await use_case.create(_to_domain(req))
     return _to_response(site)
 
 
@@ -261,9 +290,13 @@ async def update_site(
     req: SiteUpdateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    site = await use_case.update_site(site_id, req.model_dump(exclude_unset=True))
-    if site is None:
+    existing = await use_case.get_by_id(site_id)
+    if existing is None:
         raise HTTPException(status_code=404, detail="Site not found")
+    updates = req.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(existing, key, value)
+    site = await use_case.update(existing)
     return _to_response(site)
 
 
@@ -272,7 +305,7 @@ async def delete_site(
     site_id: int,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    deleted = await use_case.delete_site(site_id)
+    deleted = await use_case.delete(site_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Site not found")
 
@@ -296,10 +329,9 @@ async def add_node(
         disk_free_gb=req.disk_free_gb,
         disk_updated_at=req.disk_updated_at,
     )
-    result = await use_case.add_node(site_id, node)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Site not found")
-    return _node_to_schema(result)
+    site = await use_case.add_node(site_id, node)
+    added = site.nodes[-1]
+    return _node_to_schema(added)
 
 
 @router.patch("/{site_id}/nodes/{node_id}", response_model=DeploymentNodeSchema)
@@ -309,10 +341,20 @@ async def update_node(
     req: DeploymentNodeUpdateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    result = await use_case.update_node(site_id, node_id, req.model_dump(exclude_unset=True))
-    if result is None:
+    site = await use_case.get_by_id(site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+    node = next((n for n in site.nodes if n.id == node_id), None)
+    if node is None:
         raise HTTPException(status_code=404, detail="Node not found")
-    return _node_to_schema(result)
+    updates = req.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(node, key, value)
+    updated_site = await use_case.update(site)
+    updated_node = next((n for n in updated_site.nodes if n.id == node_id), None)
+    if updated_node is None:
+        raise HTTPException(status_code=404, detail="Node not found")
+    return _node_to_schema(updated_node)
 
 
 @router.delete("/{site_id}/nodes/{node_id}", status_code=204)
@@ -321,9 +363,14 @@ async def delete_node(
     node_id: int,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    deleted = await use_case.delete_node(site_id, node_id)
-    if not deleted:
+    site = await use_case.get_by_id(site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+    before = len(site.nodes)
+    site.nodes = [n for n in site.nodes if n.id != node_id]
+    if len(site.nodes) == before:
         raise HTTPException(status_code=404, detail="Node not found")
+    await use_case.update(site)
 
 
 @router.put("/{site_id}/solution-package", response_model=SolutionPackageSchema)
@@ -341,10 +388,8 @@ async def upsert_solution_package(
         license_expire_date=req.license_expire_date,
         installed_at=req.installed_at,
     )
-    result = await use_case.upsert_solution_package(site_id, pkg)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Site not found")
-    return _pkg_to_schema(result)
+    site = await use_case.upsert_solution_package(site_id, pkg)
+    return _pkg_to_schema(site.solution_package)
 
 
 @router.post("/{site_id}/patch-histories", response_model=PatchHistorySchema, status_code=201)
@@ -363,9 +408,8 @@ async def add_patch_history(
         rollback_date=req.rollback_date,
         note=req.note,
     )
-    result = await use_case.add_patch_history(site_id, ph)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Site not found")
+    site = await use_case.add_patch_history(site_id, ph)
+    result = site.patch_histories[-1]
     return PatchHistorySchema(
         id=result.id,
         issue_link=result.issue_link,
@@ -386,9 +430,17 @@ async def update_patch_history(
     req: PatchHistoryUpdateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    result = await use_case.update_patch_history(site_id, ph_id, req.model_dump(exclude_unset=True))
-    if result is None:
+    site = await use_case.get_by_id(site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+    ph = next((p for p in site.patch_histories if p.id == ph_id), None)
+    if ph is None:
         raise HTTPException(status_code=404, detail="PatchHistory not found")
+    updates = req.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(ph, key, value)
+    updated_site = await use_case.update(site)
+    result = next((p for p in updated_site.patch_histories if p.id == ph_id), ph)
     return PatchHistorySchema(
         id=result.id,
         issue_link=result.issue_link,
@@ -408,9 +460,14 @@ async def delete_patch_history(
     ph_id: int,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    deleted = await use_case.delete_patch_history(site_id, ph_id)
-    if not deleted:
+    site = await use_case.get_by_id(site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+    before = len(site.patch_histories)
+    site.patch_histories = [p for p in site.patch_histories if p.id != ph_id]
+    if len(site.patch_histories) == before:
         raise HTTPException(status_code=404, detail="PatchHistory not found")
+    await use_case.update(site)
 
 
 @router.post("/{site_id}/visit-histories", response_model=VisitHistorySchema, status_code=201)
@@ -426,9 +483,8 @@ async def add_visit_history(
         request_content=req.request_content,
         action_content=req.action_content,
     )
-    result = await use_case.add_visit_history(site_id, vh)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Site not found")
+    site = await use_case.add_visit_history(site_id, vh)
+    result = site.visit_histories[-1]
     return VisitHistorySchema(
         id=result.id,
         visit_datetime=result.visit_datetime,
@@ -446,9 +502,17 @@ async def update_visit_history(
     req: VisitHistoryUpdateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    result = await use_case.update_visit_history(site_id, vh_id, req.model_dump(exclude_unset=True))
-    if result is None:
+    site = await use_case.get_by_id(site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+    vh = next((v for v in site.visit_histories if v.id == vh_id), None)
+    if vh is None:
         raise HTTPException(status_code=404, detail="VisitHistory not found")
+    updates = req.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(vh, key, value)
+    updated_site = await use_case.update(site)
+    result = next((v for v in updated_site.visit_histories if v.id == vh_id), vh)
     return VisitHistorySchema(
         id=result.id,
         visit_datetime=result.visit_datetime,
@@ -465,6 +529,11 @@ async def delete_visit_history(
     vh_id: int,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    deleted = await use_case.delete_visit_history(site_id, vh_id)
-    if not deleted:
+    site = await use_case.get_by_id(site_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+    before = len(site.visit_histories)
+    site.visit_histories = [v for v in site.visit_histories if v.id != vh_id]
+    if len(site.visit_histories) == before:
         raise HTTPException(status_code=404, detail="VisitHistory not found")
+    await use_case.update(site)
