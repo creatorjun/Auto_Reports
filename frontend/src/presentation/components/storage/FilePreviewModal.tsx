@@ -65,7 +65,12 @@ async function getPdfjsLib() {
   return lib
 }
 
-function PdfViewer({ url }: { url: string }) {
+interface PdfViewerProps {
+  url: string
+  onPageChange?: (page: number, total: number) => void
+}
+
+function PdfViewer({ url, onPageChange }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [totalPages, setTotalPages] = useState(0)
@@ -111,6 +116,12 @@ function PdfViewer({ url }: { url: string }) {
       renderTaskRef.current = null
     }
   }, [url])
+
+  useEffect(() => {
+    if (!loading && !error && onPageChange) {
+      onPageChange(currentPage, totalPages)
+    }
+  }, [loading, error, currentPage, totalPages, onPageChange])
 
   const renderPage = useCallback(async (pageNum: number) => {
     if (!pdfRef.current || !canvasRef.current) return
@@ -410,22 +421,84 @@ function ArchivePreview({ name, folder }: { name: string; folder: string }) {
 interface Props {
   name: string
   folder: string
+  fileList?: string[]
+  onNavigate?: (name: string) => void
   onClose: () => void
 }
 
-export default function FilePreviewModal({ name, folder, onClose }: Props) {
+export default function FilePreviewModal({ name, folder, fileList = [], onNavigate, onClose }: Props) {
   const type = detectType(name)
   const url = storageApi.preview(name, folder)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [pdfPageInfo, setPdfPageInfo] = useState<{ current: number; total: number } | null>(null)
+
+  const currentIndex = fileList.indexOf(name)
+  const hasPrev = currentIndex > 0
+  const hasNext = currentIndex >= 0 && currentIndex < fileList.length - 1
+
+  const isPdf = type === 'pdf' || type === 'pptx'
+  const isPdfMultiPage = isPdf && pdfPageInfo !== null && pdfPageInfo.total > 1
+
+  const handlePrev = useCallback(() => {
+    if (hasPrev && onNavigate) onNavigate(fileList[currentIndex - 1])
+  }, [hasPrev, onNavigate, fileList, currentIndex])
+
+  const handleNext = useCallback(() => {
+    if (hasNext && onNavigate) onNavigate(fileList[currentIndex + 1])
+  }, [hasNext, onNavigate, fileList, currentIndex])
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {})
+    } else {
+      document.exitFullscreen().catch(() => {})
+    }
+  }, [])
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => {
-      document.body.style.overflow = ''
-      window.removeEventListener('keydown', handler)
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {})
+        } else {
+          onClose()
+        }
+        return
+      }
+      if (e.key === 'F11') {
+        e.preventDefault()
+        toggleFullscreen()
+        return
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        if (!isPdfMultiPage) handlePrev()
+        return
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        if (!isPdfMultiPage) handleNext()
+        return
+      }
     }
-  }, [onClose])
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose, toggleFullscreen, handlePrev, handleNext, isPdfMultiPage])
+
+  const handlePdfPageChange = useCallback((current: number, total: number) => {
+    setPdfPageInfo({ current, total })
+  }, [])
 
   const renderContent = () => {
     switch (type) {
@@ -441,7 +514,7 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
             <video src={url} controls autoPlay className="max-w-full max-h-full" style={{ width: 'auto', height: 'auto' }} />
           </div>
         )
-      case 'pdf': return <PdfViewer url={url} />
+      case 'pdf': return <PdfViewer url={url} onPageChange={handlePdfPageChange} />
       case 'text':
       case 'json': return <TextPreview url={url} />
       case 'markdown': return <MarkdownPreview url={url} />
@@ -466,16 +539,55 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
       <div className="flex items-center justify-between px-5 py-3 border-b border-apple-divider/60 flex-shrink-0 bg-white">
-        <div className="flex flex-col min-w-0 pr-4">
-          <p className="text-[14px] font-semibold text-apple-dark truncate">{name}</p>
-          <p className="text-[11px] text-apple-light capitalize">
-            {type === 'unsupported' ? '미지원 형식'
-              : type === 'archive' ? '압축 파일'
-              : type === 'pptx' ? 'PPTX (PDF 변환 미리보기)'
-              : type.toUpperCase()}
-          </p>
+        <div className="flex items-center gap-3 min-w-0">
+          {fileList.length > 1 && (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={handlePrev}
+                disabled={!hasPrev}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="이전 파일 (←)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <span className="text-[11px] text-apple-light tabular-nums">{currentIndex + 1} / {fileList.length}</span>
+              <button
+                onClick={handleNext}
+                disabled={!hasNext}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="다음 파일 (→)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          )}
+          <div className="flex flex-col min-w-0">
+            <p className="text-[14px] font-semibold text-apple-dark truncate">{name}</p>
+            <p className="text-[11px] text-apple-light capitalize">
+              {type === 'unsupported' ? '미지원 형식'
+                : type === 'archive' ? '압축 파일'
+                : type === 'pptx' ? 'PPTX (PDF 변환 미리보기)'
+                : type.toUpperCase()}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={toggleFullscreen}
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors"
+            title={isFullscreen ? '전체화면 종료 (F11)' : '전체화면 (F11)'}>
+            {isFullscreen ? (
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M5.5 1.5v4h-4M9.5 1.5v4h4M5.5 13.5v-4h-4M9.5 13.5v-4h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M1.5 5.5v-4h4M13.5 5.5v-4h-4M1.5 9.5v4h4M13.5 9.5v4h-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
           <a href={storageApi.download(name, folder)} download={name}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -492,6 +604,30 @@ export default function FilePreviewModal({ name, folder, onClose }: Props) {
       </div>
       <div className="flex-1 overflow-hidden relative">
         {renderContent()}
+        {fileList.length > 1 && !isPdfMultiPage && (
+          <>
+            {hasPrev && (
+              <button
+                onClick={handlePrev}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-colors shadow-lg"
+                title="이전 파일 (←)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+            {hasNext && (
+              <button
+                onClick={handleNext}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-colors shadow-lg"
+                title="다음 파일 (→)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M7 4l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+          </>
+        )}
       </div>
     </div>
   )

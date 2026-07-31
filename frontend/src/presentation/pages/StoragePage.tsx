@@ -503,6 +503,8 @@ export default function StoragePage() {
 
   const breadcrumbs = folder ? folder.split('/') : []
 
+  const previewableFiles = (data ?? []).filter(item => !item.is_dir && isPreviewable(item.name)).map(item => item.name)
+
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return
     const list = Array.from(files)
@@ -584,7 +586,13 @@ export default function StoragePage() {
         />
       )}
       {previewTarget && (
-        <FilePreviewModal name={previewTarget} folder={folder} onClose={() => setPreviewTarget(null)} />
+        <FilePreviewModal
+          name={previewTarget}
+          folder={folder}
+          fileList={previewableFiles}
+          onNavigate={setPreviewTarget}
+          onClose={() => setPreviewTarget(null)}
+        />
       )}
       {pendingFiles && (
         <OverwriteConfirmModal
