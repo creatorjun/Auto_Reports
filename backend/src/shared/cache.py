@@ -28,6 +28,7 @@ class LruCache(Generic[K, V]):
         self._last_purge: float = time.monotonic()
         self._lock = asyncio.Lock()
         self._refreshing: set[K] = set()
+        self._refresh_locks: dict[K, asyncio.Lock] = {}
 
     def _fresh_expires_at(self) -> float:
         return time.monotonic() + self._ttl
@@ -71,17 +72,25 @@ class LruCache(Generic[K, V]):
         async with self._lock:
             value = self.get(key)
             stale = self.is_stale(key)
+            already_refreshing = key in self._refreshing
 
         if value is None:
             return None
 
-        if stale and refresh_fn is not None and key not in self._refreshing:
-            self._refreshing.add(key)
-            asyncio.get_event_loop().create_task(
-                self._background_refresh(key, refresh_fn),
-                name=f"cache-refresh-{key}",
-            )
-            logger.debug(f"[cache] stale 감지, 백그라운드 갱신 예약: key={key}")
+        if stale and refresh_fn is not None and not already_refreshing:
+            async with self._lock:
+                if key not in self._refreshing:
+                    self._refreshing.add(key)
+                    should_schedule = True
+                else:
+                    should_schedule = False
+
+            if should_schedule:
+                asyncio.get_event_loop().create_task(
+                    self._background_refresh(key, refresh_fn),
+                    name=f"cache-refresh-{key}",
+                )
+                logger.debug(f"[cache] stale 감지, 백그라운드 갱신 예약: key={key}")
 
         return value
 
@@ -96,7 +105,8 @@ class LruCache(Generic[K, V]):
         except Exception as exc:
             logger.error(f"[cache] 백그라운드 새로고침 오류: key={key} -> {exc}")
         finally:
-            self._refreshing.discard(key)
+            async with self._lock:
+                self._refreshing.discard(key)
 
     async def async_set(self, key: K, value: V) -> None:
         async with self._lock:

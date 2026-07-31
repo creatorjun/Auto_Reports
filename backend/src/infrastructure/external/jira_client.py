@@ -19,7 +19,8 @@ _SLA_RESOLUTION_KEY = "_sla_resolution"
 _TAC_ASSIGNEE_KEY   = "_tac_assignee"
 _QA_ASSIGNEE_KEY    = "_qa_assignee"
 
-_FETCH_PAGE_SIZE = 200
+_FETCH_PAGE_SIZE    = 200
+_PARALLEL_THRESHOLD = 200
 
 
 class JiraClient(JiraPort):
@@ -109,6 +110,29 @@ class JiraClient(JiraPort):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return [], None
 
+    async def _fetch_page_by_start(
+        self,
+        jql: str,
+        fields: list[str] | None,
+        start_at: int,
+        page_size: int,
+    ) -> list[dict[str, Any]]:
+        url = f"{self._base_url}/rest/api/3/search/jql"
+        payload: dict[str, Any] = {
+            "jql": jql,
+            "maxResults": page_size,
+            "startAt": start_at,
+        }
+        if fields:
+            payload["fields"] = fields
+        try:
+            resp = await self._client.post(url, json=payload)
+            resp.raise_for_status()
+            return resp.json().get("issues", [])
+        except httpx.HTTPError as e:
+            logger.error(f"JQL 병렬 페이지 실패 (startAt={start_at}): {jql[:80]}... -> {e}")
+            return []
+
     async def get_issues(
         self,
         jql: str,
@@ -116,23 +140,43 @@ class JiraClient(JiraPort):
         fields: str = "",
     ) -> list[dict[str, Any]]:
         field_list = [f.strip() for f in fields.split(",") if f.strip()] if fields else None
-
-        all_issues: list[dict[str, Any]] = []
-        next_page_token: str | None = None
         page_size = min(_FETCH_PAGE_SIZE, max_results)
 
-        while True:
-            if all_issues:
-                await asyncio.sleep(0.3)
+        first_page, first_token = await self._fetch_page(jql, field_list, None, page_size)
+        logger.info(f"JQL 첫 페이지 수신: {len(first_page)}건, nextPageToken={first_token}")
 
-            page, next_page_token = await self._fetch_page(jql, field_list, next_page_token, page_size)
+        if not first_page or first_token is None or len(first_page) >= max_results:
+            return first_page[:max_results]
+
+        if len(first_page) < _PARALLEL_THRESHOLD:
+            all_issues = list(first_page)
+            next_token: str | None = first_token
+            while next_token and len(all_issues) < max_results:
+                page, next_token = await self._fetch_page(jql, field_list, next_token, page_size)
+                all_issues.extend(page)
+                logger.info(f"JQL 순차 페이지: 수신={len(page)}, 누적={len(all_issues)}")
+                if not page:
+                    break
+            return all_issues[:max_results]
+
+        total = await self.get_issue_count(jql)
+        remaining_start = page_size
+        fetch_count = min(total, max_results)
+        offsets = list(range(remaining_start, fetch_count, page_size))
+
+        logger.info(f"JQL 병렬 페이지 fetch: total={total}, pages={len(offsets)+1}")
+
+        tasks = [
+            self._fetch_page_by_start(jql, field_list, offset, page_size)
+            for offset in offsets
+        ]
+        parallel_pages = await asyncio.gather(*tasks)
+
+        all_issues = list(first_page)
+        for page in parallel_pages:
             all_issues.extend(page)
 
-            logger.info(f"JQL 페이지 수신: 수신={len(page)}, 누적={len(all_issues)}, nextPageToken={next_page_token}")
-
-            if not page or next_page_token is None or len(all_issues) >= max_results:
-                break
-
+        logger.info(f"JQL 병렬 수집 완료: 누적={len(all_issues)}건")
         return all_issues[:max_results]
 
     async def get_issues_with_sla(
