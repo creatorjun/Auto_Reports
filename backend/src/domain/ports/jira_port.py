@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from src.shared.constants import JIRA_MAX_RESULTS_DEFAULT
+from src.shared.constants import JIRA_MAX_RESULT
 
 
 class JiraPort(ABC):
@@ -16,7 +16,7 @@ class JiraPort(ABC):
     async def get_issues(
         self,
         jql: str,
-        max_results: int = JIRA_MAX_RESULTS_DEFAULT,
+        max_results: int = JIRA_MAX_RESULT,
         fields: str = "",
     ) -> list[dict[str, Any]]: ...
 
@@ -24,7 +24,7 @@ class JiraPort(ABC):
     async def get_issues_with_sla(
         self,
         jql: str,
-        max_results: int = 500,
+        max_results: int = JIRA_MAX_RESULT,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]: ...
 
@@ -32,7 +32,7 @@ class JiraPort(ABC):
     async def get_issues_with_assignees(
         self,
         jql: str,
-        max_results: int = 200,
+        max_results: int = JIRA_MAX_RESULT,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]: ...
 
