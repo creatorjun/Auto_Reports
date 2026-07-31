@@ -1,6 +1,6 @@
 # backend/src/infrastructure/persistence/site_models.py
 from datetime import date, datetime
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infrastructure.persistence.models import Base
@@ -25,11 +25,15 @@ class SiteORM(Base):
     created_at:          Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at:          Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    nodes:              Mapped[list["DeploymentNodeORM"]]     = relationship("DeploymentNodeORM",  back_populates="site", cascade="all, delete-orphan", lazy="selectin")
-    solution_package:   Mapped["SolutionPackageORM | None"]   = relationship("SolutionPackageORM", back_populates="site", uselist=False, cascade="all, delete-orphan", lazy="selectin")
-    patch_histories:    Mapped[list["PatchHistoryORM"]]       = relationship("PatchHistoryORM",    back_populates="site", cascade="all, delete-orphan", lazy="selectin")
-    visit_histories:    Mapped[list["VisitHistoryORM"]]       = relationship("VisitHistoryORM",    back_populates="site", cascade="all, delete-orphan", lazy="selectin")
-    access_credentials: Mapped["AccessCredentialsORM | None"] = relationship("AccessCredentialsORM", back_populates="site", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    nodes:              Mapped[list["DeploymentNodeORM"]]     = relationship("DeploymentNodeORM",  back_populates="site", cascade="all, delete-orphan")
+    solution_package:   Mapped["SolutionPackageORM | None"]   = relationship("SolutionPackageORM", back_populates="site", uselist=False, cascade="all, delete-orphan")
+    patch_histories:    Mapped[list["PatchHistoryORM"]]       = relationship("PatchHistoryORM",    back_populates="site", cascade="all, delete-orphan")
+    visit_histories:    Mapped[list["VisitHistoryORM"]]       = relationship("VisitHistoryORM",    back_populates="site", cascade="all, delete-orphan")
+    access_credentials: Mapped["AccessCredentialsORM | None"] = relationship("AccessCredentialsORM", back_populates="site", uselist=False, cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_sites_site_name_lower", func.lower(func.trim(site_name))),
+    )
 
 
 class DeploymentNodeORM(Base):

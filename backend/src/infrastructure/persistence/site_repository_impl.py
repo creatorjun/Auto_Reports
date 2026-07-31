@@ -65,10 +65,10 @@ class SiteRepositoryImpl(SiteRepository):
         return self._to_domain(orm) if orm else None
 
     async def find_by_name(self, site_name: str) -> Optional[Site]:
-        normalized = site_name.strip()
+        normalized = site_name.strip().lower()
         result = await self._session.execute(
             select(SiteORM)
-            .where(func.lower(func.trim(SiteORM.site_name)) == func.lower(normalized))
+            .where(func.lower(func.trim(SiteORM.site_name)) == normalized)
             .options(*self._opts())
         )
         orm = result.scalar_one_or_none()
@@ -108,10 +108,10 @@ class SiteRepositoryImpl(SiteRepository):
         return True
 
     async def search(self, query: str, limit: int = 10) -> list[Site]:
-        normalized = query.strip()
+        normalized = query.strip().lower()
         result = await self._session.execute(
             select(SiteORM)
-            .where(func.lower(SiteORM.site_name).contains(func.lower(normalized)))
+            .where(func.lower(func.trim(SiteORM.site_name)).contains(normalized))
             .options(*self._opts())
             .order_by(SiteORM.site_name)
             .limit(limit)

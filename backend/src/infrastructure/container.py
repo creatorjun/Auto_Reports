@@ -41,9 +41,6 @@ KST = ZoneInfo("Asia/Seoul")
 
 _JIRA_FIELDS_COMMON = "summary,issuetype,status,created,resolutiondate"
 
-_CACHE_FRESH_TTL  = 600.0
-_CACHE_STALE_TTL  = 120.0
-
 
 class Container:
     def __init__(self, settings: Settings):
@@ -66,11 +63,7 @@ class Container:
             sla_threshold_days=settings.sla_threshold_days,
             year_start=settings.year_start,
         )
-        self._report_cache: ReportCachePort = ReportLruCache(
-            maxsize=50,
-            ttl_seconds=_CACHE_FRESH_TTL,
-            stale_ttl_seconds=_CACHE_STALE_TTL,
-        )
+        self._report_cache: ReportCachePort = ReportLruCache(maxsize=50)
 
         self._query_builder = WidgetQueryBuilder(self._query_config)
         self._assembler = ReportAssembler(
