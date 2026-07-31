@@ -225,9 +225,24 @@ function PptxPreview({ name, folder, onPageChange }: { name: string; folder: str
     let objUrl: string | null = null
 
     fetch(url)
-      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.blob() })
+      .then(async res => {
+        if (!res.ok) {
+          let detail = `HTTP ${res.status}`
+          try {
+            const body = await res.json()
+            if (body?.detail) detail = String(body.detail)
+          } catch {
+            try {
+              const text = await res.text()
+              if (text) detail = text.slice(0, 200)
+            } catch {}
+          }
+          throw new Error(detail)
+        }
+        return res.blob()
+      })
       .then(blob => { objUrl = URL.createObjectURL(blob); setPdfUrl(objUrl); setStatus('ready') })
-      .catch((e) => { setErrMsg(e?.message ?? ''); setStatus('error') })
+      .catch((e) => { setErrMsg(e?.message ?? '알 수 없는 오류'); setStatus('error') })
 
     return () => { if (objUrl) URL.revokeObjectURL(objUrl) }
   }, [name, folder])
