@@ -70,9 +70,9 @@ class JiraClient(JiraPort):
                 resp.raise_for_status()
                 count = resp.json().get("count", 0)
             except httpx.HTTPError as e:
-                logger.error(f"JQL 카운트 실패: {jql[:80]}... -> {e}")
+                logger.error(f"JQL \uce74\uc6b4\ud2b8 \uc2e4\ud328: {jql[:80]}... -> {e}")
                 if isinstance(e, httpx.HTTPStatusError):
-                    logger.error(f"응답 상세: {e.response.text[:200]}")
+                    logger.error(f"\uc751\ub2f5 \uc0c1\uc138: {e.response.text[:200]}")
                 count = 0
 
             self._count_cache[jql] = count
@@ -100,13 +100,12 @@ class JiraClient(JiraPort):
             resp = await self._client.post(url, json=payload)
             resp.raise_for_status()
             data = resp.json()
-            is_last: bool = data.get("isLast", True)
-            token: str | None = data.get("nextPageToken") if not is_last else None
+            token: str | None = data.get("nextPageToken") or None
             return data.get("issues", []), token
         except httpx.HTTPError as e:
-            logger.error(f"JQL 페이지 요청 실패 (nextPageToken={next_page_token}): {jql[:80]}... -> {e}")
+            logger.error(f"JQL \ud398\uc774\uc9c0 \uc694\uccad \uc2e4\ud328 (nextPageToken={next_page_token}): {jql[:80]}... -> {e}")
             if isinstance(e, httpx.HTTPStatusError):
-                logger.error(f"응답 상세: {e.response.text[:200]}")
+                logger.error(f"\uc751\ub2f5 \uc0c1\uc138: {e.response.text[:200]}")
             return [], None
 
     async def get_issues(
@@ -127,7 +126,7 @@ class JiraClient(JiraPort):
             page, next_page_token = await self._fetch_page(jql, field_list, next_page_token)
             all_issues.extend(page)
 
-            logger.debug(f"JQL 페이지 수신: 수신={len(page)}, 누적={len(all_issues)}, nextPageToken={next_page_token}")
+            logger.info(f"JQL \ud398\uc774\uc9c0 \uc218\uc2e0: \uc218\uc2e0={len(page)}, \ub204\uc801={len(all_issues)}, nextPageToken={next_page_token}")
 
             if not page or next_page_token is None or len(all_issues) >= max_results:
                 break
@@ -176,7 +175,7 @@ class JiraClient(JiraPort):
             resp.raise_for_status()
             all_fields = resp.json()
         except httpx.HTTPError as e:
-            logger.error(f"field 목록 조회 실패: {e}")
+            logger.error(f"field \ubaa9\ub85d \uc870\ud68c \uc2e4\ud328: {e}")
             return {}
 
         result: dict[str, str] = {}
@@ -191,7 +190,7 @@ class JiraClient(JiraPort):
                 and field_name
             ):
                 result[field_name] = field_id
-                logger.info(f"SLA 필드 발견: '{field_name}' = {field_id}")
+                logger.info(f"SLA \ud544\ub4dc \ubc1c\uacac: '{field_name}' = {field_id}")
 
         if not result:
             for f in all_fields:
@@ -205,10 +204,10 @@ class JiraClient(JiraPort):
                     and field_name
                 ):
                     result[field_name] = field_id
-                    logger.info(f"SLA 필드 (fallback): '{field_name}' = {field_id}")
+                    logger.info(f"SLA \ud544\ub4dc (fallback): '{field_name}' = {field_id}")
 
         if not result:
-            logger.error("SLA 필드를 하나도 발견하지 못했습니다!")
+            logger.error("SLA \ud544\ub4dc\ub97c \ud558\ub098\ub3c4 \ubc1c\uacac\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4!")
 
         self._sla_field_ids_cache = result
         return result
@@ -250,9 +249,9 @@ class JiraClient(JiraPort):
                         "url": f"{self._base_url}/browse/{issue.get('key', '')}",
                     })
             except httpx.HTTPError as e:
-                logger.error(f"Jira 검색 실패: {e}")
+                logger.error(f"Jira \uac80\uc0c9 \uc2e4\ud328: {e}")
         else:
-            logger.error(f"Jira 검색 실패: {jira_resp}")
+            logger.error(f"Jira \uac80\uc0c9 \uc2e4\ud328: {jira_resp}")
 
         if isinstance(confluence_resp, httpx.Response):
             try:
@@ -268,9 +267,9 @@ class JiraClient(JiraPort):
                         "url": f"{self._base_url}/wiki/spaces/{space_key}/pages/{page.get('id', '')}",
                     })
             except httpx.HTTPError as e:
-                logger.warning(f"Confluence 검색 실패 (옵션): {e}")
+                logger.warning(f"Confluence \uac80\uc0c9 \uc2e4\ud328 (\uc635\uc158): {e}")
         else:
-            logger.warning(f"Confluence 검색 실패 (옵션): {confluence_resp}")
+            logger.warning(f"Confluence \uac80\uc0c9 \uc2e4\ud328 (\uc635\uc158): {confluence_resp}")
 
         results.sort(key=lambda x: x["type"])
         return results[:limit]
