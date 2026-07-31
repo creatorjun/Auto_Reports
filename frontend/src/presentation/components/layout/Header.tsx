@@ -1,12 +1,48 @@
 // frontend/src/presentation/components/layout/Header.tsx
+import { useEffect } from 'react'
 import { useReportStore } from '@/app/store/reportStore'
 import { useUiStore } from '@/app/store/uiStore'
+import { useRefreshReport } from '@/infrastructure/hooks/useReport'
 import SearchWidget from '@/presentation/components/common/SearchWidget'
 import RefreshButton from '@/presentation/components/common/RefreshButton'
 
 export default function Header() {
   const { triggerMessage } = useUiStore()
   const { currentReport } = useReportStore()
+  const { isTriggerLoading, setTriggerLoading, setTriggerMessage } = useUiStore()
+
+  const { mutate, isPending } = useRefreshReport({
+    onComplete: (reportId) => {
+      setTriggerLoading(false)
+      setTriggerMessage(`새로고침 완료 (ID: ${reportId})`)
+    },
+    onError: (message) => {
+      setTriggerLoading(false)
+      setTriggerMessage(`새로고침 실패: ${message}`)
+    },
+    onTimeout: () => {
+      setTriggerLoading(false)
+      setTriggerMessage('새로고침이 시간 초과되었습니다.')
+    },
+  })
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!currentReport || isTriggerLoading || isPending) return
+        setTriggerLoading(true)
+        setTriggerMessage(null)
+        mutate({
+          start_date: currentReport.week_start,
+          end_date:   currentReport.week_end,
+        })
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [currentReport, isTriggerLoading, isPending, mutate, setTriggerLoading, setTriggerMessage])
 
   return (
     <header className="bg-white flex-shrink-0 border-b border-apple-divider/60">
