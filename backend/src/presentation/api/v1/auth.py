@@ -38,17 +38,20 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
     )
 
 
+def _is_superadmin(username: str, password: str) -> bool:
+    settings = get_settings()
+    return bool(
+        settings.superadmin_username
+        and username == settings.superadmin_username
+        and password == settings.superadmin_password
+    )
+
+
 def _is_valid_credentials(username: str, password: str) -> bool:
     settings = get_settings()
     if username == settings.admin_username and password == settings.admin_password:
         return True
-    if (
-        settings.superadmin_username
-        and username == settings.superadmin_username
-        and password == settings.superadmin_password
-    ):
-        return True
-    return False
+    return _is_superadmin(username, password)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -61,6 +64,12 @@ async def login(body: LoginRequest, response: Response):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     svc = get_jwt_service()
+
+    if _is_superadmin(body.username, body.password):
+        gen = svc.bump_superadmin_generation()
+        _set_refresh_cookie(response, svc.create_refresh_token(body.username, generation=gen))
+        return TokenResponse(access_token=svc.create_access_token(body.username, generation=gen))
+
     _set_refresh_cookie(response, svc.create_refresh_token(body.username))
     return TokenResponse(access_token=svc.create_access_token(body.username))
 
@@ -79,8 +88,9 @@ async def refresh(response: Response, refresh_token: str = Cookie(default=None, 
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    _set_refresh_cookie(response, svc.create_refresh_token(username))
-    return TokenResponse(access_token=svc.create_access_token(username))
+    gen = svc.current_superadmin_generation() if username == settings.superadmin_username else None
+    _set_refresh_cookie(response, svc.create_refresh_token(username, generation=gen))
+    return TokenResponse(access_token=svc.create_access_token(username, generation=gen))
 
 
 @router.post("/logout")
