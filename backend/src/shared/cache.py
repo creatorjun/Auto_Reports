@@ -95,6 +95,7 @@ class LruCache(Generic[K, V]):
         if refresh_fn is None:
             return None
 
+        should_fetch = False
         async with self._lock:
             value = self.get(key)
             if value is not None:
