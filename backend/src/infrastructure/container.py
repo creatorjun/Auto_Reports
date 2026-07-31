@@ -72,6 +72,17 @@ class Container:
             stale_ttl_seconds=_CACHE_STALE_TTL,
         )
 
+        self._query_builder = WidgetQueryBuilder(self._query_config)
+        self._assembler = ReportAssembler(
+            query_builder=self._query_builder,
+            base_collector_factory=self._base_collector_factory,
+            monthly_collector_factory=self._monthly_collector_factory,
+        )
+        self._analyzer = AiAnalyzer(
+            ai=self._ai,
+            enabled=settings.ai_enabled,
+        )
+
     def jira_port(self) -> JiraPort:
         return self._jira
 
@@ -90,11 +101,11 @@ class Container:
             CollectorEntry(WidgetId.RECENT_ISSUES,       RecentCollector(jira, q)),
         ]
 
-    def _monthly_collector_factory(self, q: ResolvedQueries, now: datetime) -> list[tuple[WidgetId, object]]:
+    def _monthly_collector_factory(self, q: ResolvedQueries, now: datetime) -> list[tuple[list[WidgetId], object]]:
         jira = self._jira
         return [
-            (WidgetId.SLA_INITIAL_RESPONSE, MonthlyCollector(jira, q, now)),
-            (WidgetId.MONTHLY_CREATED,      MonthlyCountCollector(jira, q, now)),
+            ([WidgetId.SLA_INITIAL_RESPONSE, WidgetId.SLA_RESOLUTION_MONTHLY], MonthlyCollector(jira, q, now)),
+            ([WidgetId.MONTHLY_CREATED, WidgetId.MONTHLY_RESOLVED],             MonthlyCountCollector(jira, q, now)),
         ]
 
     async def aclose(self) -> None:
@@ -102,21 +113,10 @@ class Container:
         logger.info("JiraClient 콘넥션 풀 종료")
 
     def generate_report_use_case(self, session: AsyncSession) -> GenerateReportUseCase:
-        repo = ReportRepositoryImpl(session)
-        query_builder = WidgetQueryBuilder(self._query_config)
-        assembler = ReportAssembler(
-            query_builder=query_builder,
-            base_collector_factory=self._base_collector_factory,
-            monthly_collector_factory=self._monthly_collector_factory,
-        )
-        analyzer = AiAnalyzer(
-            ai=self._ai,
-            enabled=self._settings.ai_enabled,
-        )
         return GenerateReportUseCase(
-            assembler=assembler,
-            analyzer=analyzer,
-            repository=repo,
+            assembler=self._assembler,
+            analyzer=self._analyzer,
+            repository=ReportRepositoryImpl(session),
             cache=self._report_cache,
             retention_weeks=self._settings.report_retention_weeks,
         )

@@ -1,5 +1,5 @@
 # backend/src/application/widgets/collector_factory.py
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable
 
@@ -12,6 +12,11 @@ from src.domain.value_objects.widget_id import WidgetId
 class CollectorEntry:
     widget_id: WidgetId
     collector: AbstractWidgetCollector
+    widget_ids: list[WidgetId] = field(default_factory=list)
+
+    def __post_init__(self):
+        if not self.widget_ids:
+            object.__setattr__(self, 'widget_ids', [self.widget_id])
 
 
 BaseCollectorFactory = Callable[[ResolvedQueries, datetime], list[CollectorEntry]]

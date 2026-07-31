@@ -14,7 +14,7 @@ from src.shared.constants import KST
 logger = logging.getLogger(__name__)
 
 BaseCollectorFactory = Callable[[ResolvedQueries, datetime], list[CollectorEntry]]
-MonthlyCollectorFactory = Callable[[ResolvedQueries, datetime], list[tuple[WidgetId, object]]]
+MonthlyCollectorFactory = Callable[[ResolvedQueries, datetime], list[tuple[list[WidgetId], object]]]
 
 
 class ReportAssembler:
@@ -41,23 +41,24 @@ class ReportAssembler:
         entries: list[CollectorEntry] = self._base_factory(q, now)
         monthly_pairs = self._monthly_factory(q, now)
 
-        base_results = await asyncio.gather(*[e.collector.collect() for e in entries])
-        monthly_results_nested = await asyncio.gather(*[collector.collect() for _, collector in monthly_pairs])
+        base_coros = [e.collector.collect() for e in entries]
+        monthly_coros = [collector.collect() for _, collector in monthly_pairs]
+        all_results = await asyncio.gather(*base_coros, *monthly_coros)
+
+        base_results = all_results[:len(entries)]
+        monthly_results_nested = all_results[len(entries):]
 
         widgets: dict[WidgetId, WidgetResult] = {
             e.widget_id: result for e, result in zip(entries, base_results)
         }
-        for (widget_id, _), results in zip(monthly_pairs, monthly_results_nested):
+
+        for (widget_ids, _), results in zip(monthly_pairs, monthly_results_nested):
+            ids = widget_ids if isinstance(widget_ids, list) else [widget_ids]
             if isinstance(results, tuple):
-                for wid, res in zip(
-                    [WidgetId.SLA_INITIAL_RESPONSE, WidgetId.SLA_RESOLUTION_MONTHLY]
-                    if widget_id == WidgetId.SLA_INITIAL_RESPONSE
-                    else [WidgetId.MONTHLY_CREATED, WidgetId.MONTHLY_RESOLVED],
-                    results,
-                ):
+                for wid, res in zip(ids, results):
                     widgets[wid] = res
             else:
-                widgets[widget_id] = results
+                widgets[ids[0]] = results
 
         logger.info("데이터 수집 완료 ✅")
         return NewReport(
