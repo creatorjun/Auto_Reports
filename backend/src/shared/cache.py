@@ -29,6 +29,7 @@ class LruCache(Generic[K, V]):
         self._lock = asyncio.Lock()
         self._refreshing: set[K] = set()
         self._refresh_locks: dict[K, asyncio.Lock] = {}
+        self._inflight: dict[K, asyncio.Future] = {}
 
     def _fresh_expires_at(self) -> float:
         return time.monotonic() + self._ttl
@@ -74,25 +75,61 @@ class LruCache(Generic[K, V]):
             stale = self.is_stale(key)
             already_refreshing = key in self._refreshing
 
-        if value is None:
+        if value is not None:
+            if stale and refresh_fn is not None and not already_refreshing:
+                async with self._lock:
+                    if key not in self._refreshing:
+                        self._refreshing.add(key)
+                        should_schedule = True
+                    else:
+                        should_schedule = False
+
+                if should_schedule:
+                    asyncio.get_event_loop().create_task(
+                        self._background_refresh(key, refresh_fn),
+                        name=f"cache-refresh-{key}",
+                    )
+                    logger.debug(f"[cache] stale 감지, 백그라운드 갱신 예약: key={key}")
+            return value
+
+        if refresh_fn is None:
             return None
 
-        if stale and refresh_fn is not None and not already_refreshing:
+        async with self._lock:
+            value = self.get(key)
+            if value is not None:
+                return value
+
+            if key in self._inflight:
+                fut = self._inflight[key]
+            else:
+                fut = asyncio.get_event_loop().create_future()
+                self._inflight[key] = fut
+                should_fetch = True
+
+        if not should_fetch:
+            logger.debug(f"[cache] inflight 대기: key={key}")
+            try:
+                return await asyncio.shield(fut)
+            except Exception:
+                return None
+
+        try:
+            logger.debug(f"[cache] cache miss, single-flight fetch: key={key}")
+            new_value = await refresh_fn(key)
+            if new_value is not None:
+                await self.async_set(key, new_value)
             async with self._lock:
-                if key not in self._refreshing:
-                    self._refreshing.add(key)
-                    should_schedule = True
-                else:
-                    should_schedule = False
-
-            if should_schedule:
-                asyncio.get_event_loop().create_task(
-                    self._background_refresh(key, refresh_fn),
-                    name=f"cache-refresh-{key}",
-                )
-                logger.debug(f"[cache] stale 감지, 백그라운드 갱신 예약: key={key}")
-
-        return value
+                self._inflight.pop(key, None)
+            fut.set_result(new_value)
+            return new_value
+        except Exception as exc:
+            logger.error(f"[cache] single-flight fetch 오류: key={key} -> {exc}")
+            async with self._lock:
+                self._inflight.pop(key, None)
+            if not fut.done():
+                fut.set_exception(exc)
+            return None
 
     async def _background_refresh(self, key: K, refresh_fn: Callable[[K], Awaitable[Optional[V]]]) -> None:
         try:
@@ -141,6 +178,7 @@ class LruCache(Generic[K, V]):
     def delete(self, key: K) -> None:
         self._store.pop(key, None)
         self._refreshing.discard(key)
+        self._inflight.pop(key, None)
 
     async def async_delete(self, key: K) -> None:
         async with self._lock:
@@ -149,6 +187,7 @@ class LruCache(Generic[K, V]):
     def invalidate_all(self) -> None:
         self._store.clear()
         self._refreshing.clear()
+        self._inflight.clear()
 
     async def async_invalidate_all(self) -> None:
         async with self._lock:
