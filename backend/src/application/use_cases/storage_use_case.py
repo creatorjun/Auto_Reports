@@ -1,5 +1,6 @@
 # backend/src/application/use_cases/storage_use_case.py
 import asyncio
+import logging
 import subprocess
 from pathlib import Path
 
@@ -11,6 +12,8 @@ CONVERTIBLE_EXTENSIONS = {".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt", ".h
 
 STORAGE_LIMIT_BYTES = 2 * 1024 ** 4  # 2TB
 MAX_CHUNK_SIZE = 32 * 1024 * 1024    # 32MB per chunk
+
+_log = logging.getLogger(__name__)
 
 
 class StorageUseCase:
@@ -113,17 +116,24 @@ class StorageUseCase:
         proc = await asyncio.create_subprocess_exec(
             "libreoffice", "--headless", "--convert-to", "pdf",
             "--outdir", out_dir, path,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
         try:
-            await asyncio.wait_for(proc.communicate(), timeout=120)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
         except asyncio.TimeoutError:
             proc.kill()
+            await proc.communicate()
             raise TimeoutError("PDF conversion timed out")
+        if proc.returncode != 0:
+            err_text = stderr.decode(errors="replace").strip() if stderr else ""
+            _log.error("libreoffice conversion failed (rc=%d): %s", proc.returncode, err_text)
+            raise RuntimeError(f"PDF conversion failed (rc={proc.returncode}): {err_text}")
         pdf_path = Path(path).with_suffix(".pdf")
         if not pdf_path.exists():
-            raise RuntimeError("PDF conversion failed")
+            err_text = stderr.decode(errors="replace").strip() if stderr else ""
+            _log.error("libreoffice exited 0 but pdf not found: %s", err_text)
+            raise RuntimeError("PDF conversion failed: output file not found")
         data = pdf_path.read_bytes()
         pdf_path.unlink(missing_ok=True)
         return data
