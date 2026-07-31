@@ -86,24 +86,25 @@ class JiraClient(JiraPort):
         jql: str,
         start_at: int,
         fields: list[str] | None,
-    ) -> list[dict[str, Any]]:
-        url = f"{self._base_url}/rest/api/3/search/jql"
-        payload: dict[str, Any] = {
+    ) -> tuple[list[dict[str, Any]], int]:
+        url = f"{self._base_url}/rest/api/3/search"
+        params: dict[str, Any] = {
             "jql": jql,
             "maxResults": _PAGE_SIZE,
             "startAt": start_at,
         }
         if fields:
-            payload["fields"] = fields
+            params["fields"] = ",".join(fields)
         try:
-            resp = await self._client.post(url, json=payload)
+            resp = await self._client.get(url, params=params)
             resp.raise_for_status()
-            return resp.json().get("issues", [])
+            data = resp.json()
+            return data.get("issues", []), data.get("total", 0)
         except httpx.HTTPError as e:
             logger.error(f"JQL 페이지 요청 실패 (startAt={start_at}): {jql[:80]}... -> {e}")
             if isinstance(e, httpx.HTTPStatusError):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
-            return []
+            return [], 0
 
     async def get_issues(
         self,
@@ -117,21 +118,23 @@ class JiraClient(JiraPort):
         start_at = 0
 
         while True:
-            remaining = max_results - len(all_issues)
-            if remaining <= 0:
-                break
+            if start_at > 0:
+                await asyncio.sleep(0.3)
 
-            page = await self._fetch_page(jql, start_at, field_list)
+            page, total = await self._fetch_page(jql, start_at, field_list)
             all_issues.extend(page)
 
-            logger.debug(f"JQL 페이지 수신: startAt={start_at}, 수신={len(page)}, 누적={len(all_issues)}")
+            logger.debug(f"JQL 페이지 수신: startAt={start_at}, 수신={len(page)}, 누적={len(all_issues)}, 전체={total}")
+
+            if not page or len(all_issues) >= min(max_results, total):
+                break
 
             if len(page) < _PAGE_SIZE:
                 break
 
             start_at += len(page)
 
-        return all_issues
+        return all_issues[:max_results]
 
     async def get_issues_with_sla(
         self,
