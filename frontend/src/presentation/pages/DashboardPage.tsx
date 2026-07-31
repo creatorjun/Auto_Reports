@@ -289,11 +289,12 @@ export default function DashboardPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === 'r') {
         e.preventDefault()
+        e.stopPropagation()
         refetch()
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [refetch])
 
   if (isLoading) return <LoadingSpinner text="보고서 로딩 중..." />
