@@ -19,6 +19,8 @@ _SLA_RESOLUTION_KEY = "_sla_resolution"
 _TAC_ASSIGNEE_KEY   = "_tac_assignee"
 _QA_ASSIGNEE_KEY    = "_qa_assignee"
 
+_PAGE_SIZE = 100
+
 
 class JiraClient(JiraPort):
     def __init__(
@@ -79,29 +81,58 @@ class JiraClient(JiraPort):
     async def get_issue_counts_batch(self, jqls: list[str]) -> list[int]:
         return list(await asyncio.gather(*[self.get_issue_count(jql) for jql in jqls]))
 
+    async def _fetch_page(
+        self,
+        jql: str,
+        start_at: int,
+        fields: list[str] | None,
+    ) -> list[dict[str, Any]]:
+        url = f"{self._base_url}/rest/api/3/search/jql"
+        payload: dict[str, Any] = {
+            "jql": jql,
+            "maxResults": _PAGE_SIZE,
+            "startAt": start_at,
+            "fieldsByKeys": False,
+        }
+        if fields:
+            payload["fields"] = fields
+        try:
+            resp = await self._client.post(url, json=payload)
+            resp.raise_for_status()
+            return resp.json().get("issues", [])
+        except httpx.HTTPError as e:
+            logger.error(f"JQL 페이지 요청 실패 (startAt={start_at}): {jql[:80]}... -> {e}")
+            if isinstance(e, httpx.HTTPStatusError):
+                logger.error(f"응답 상세: {e.response.text[:200]}")
+            return []
+
     async def get_issues(
         self,
         jql: str,
         max_results: int = JIRA_MAX_RESULTS_DEFAULT,
         fields: str = "",
     ) -> list[dict[str, Any]]:
-        url = f"{self._base_url}/rest/api/3/search/jql"
-        payload: dict[str, Any] = {
-            "jql": jql,
-            "maxResults": max_results,
-            "fieldsByKeys": False,
-        }
-        if fields:
-            payload["fields"] = [f.strip() for f in fields.split(",") if f.strip()]
-        try:
-            resp = await self._client.post(url, json=payload)
-            resp.raise_for_status()
-            return resp.json().get("issues", [])
-        except httpx.HTTPError as e:
-            logger.error(f"JQL 검색 실패: {jql[:80]}... -> {e}")
-            if isinstance(e, httpx.HTTPStatusError):
-                logger.error(f"응답 상세: {e.response.text[:200]}")
-            return []
+        field_list = [f.strip() for f in fields.split(",") if f.strip()] if fields else None
+
+        all_issues: list[dict[str, Any]] = []
+        start_at = 0
+
+        while True:
+            remaining = max_results - len(all_issues)
+            if remaining <= 0:
+                break
+
+            page = await self._fetch_page(jql, start_at, field_list)
+            all_issues.extend(page)
+
+            logger.debug(f"JQL 페이지 수신: startAt={start_at}, 수신={len(page)}, 누적={len(all_issues)}")
+
+            if len(page) < _PAGE_SIZE:
+                break
+
+            start_at += len(page)
+
+        return all_issues
 
     async def get_issues_with_sla(
         self,
