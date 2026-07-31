@@ -31,6 +31,16 @@ const tabs = [
     ),
   },
   {
+    to: '/sites',
+    label: '사이트',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" fill="currentColor" fillOpacity="0.08" />
+        <path d="M1.5 8h13M8 1.5a10 6.5 0 0 0 0 13M8 1.5a10 6.5 0 0 1 0 13" stroke="currentColor" strokeWidth="1.2" />
+      </svg>
+    ),
+  },
+  {
     to: '/storage',
     label: '보관함',
     icon: (

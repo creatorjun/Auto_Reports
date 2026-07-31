@@ -30,6 +30,16 @@ const reportLinks = [
     ),
   },
   {
+    to: '/sites',
+    label: '사이트 관리',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" fill="currentColor" fillOpacity="0.08" />
+        <path d="M1.5 8h13M8 1.5a10 6.5 0 0 0 0 13M8 1.5a10 6.5 0 0 1 0 13" stroke="currentColor" strokeWidth="1.2" />
+      </svg>
+    ),
+  },
+  {
     to: '/storage',
     label: '파일 보관함',
     icon: (
@@ -39,16 +49,6 @@ const reportLinks = [
         <rect x="4" y="1.5" width="3" height="3" rx="0.75" fill="currentColor" opacity="0.6" />
         <rect x="9" y="1.5" width="3" height="3" rx="0.75" fill="currentColor" opacity="0.6" />
         <rect x="4" y="9.5" width="8" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
-      </svg>
-    ),
-  },
-  {
-    to: '/sites',
-    label: '사이트 관리',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" fill="currentColor" fillOpacity="0.08" />
-        <path d="M1.5 8h13M8 1.5a10 6.5 0 0 0 0 13M8 1.5a10 6.5 0 0 1 0 13" stroke="currentColor" strokeWidth="1.2" />
       </svg>
     ),
   },
