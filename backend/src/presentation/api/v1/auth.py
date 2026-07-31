@@ -38,13 +38,26 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
     )
 
 
+def _is_valid_credentials(username: str, password: str) -> bool:
+    settings = get_settings()
+    if username == settings.admin_username and password == settings.admin_password:
+        return True
+    if (
+        settings.superadmin_username
+        and username == settings.superadmin_username
+        and password == settings.superadmin_password
+    ):
+        return True
+    return False
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, response: Response):
     settings = get_settings()
     if not settings.login:
         raise HTTPException(status_code=404, detail="Auth not enabled")
 
-    if body.username != settings.admin_username or body.password != settings.admin_password:
+    if not _is_valid_credentials(body.username, body.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     svc = get_jwt_service()
