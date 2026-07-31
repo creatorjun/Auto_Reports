@@ -1,8 +1,10 @@
 // frontend/src/presentation/components/tables/IncompleteIssueModal.tsx
+import { useState } from 'react'
 import { useJira } from '@/app/context/JiraContext'
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import { MODAL_CLS } from '@/shared/ui'
 import IssueModalShell from '@/presentation/components/common/IssueModalShell'
+import { TABLE_PAGE_SIZE } from '@/shared/constants'
 
 export interface IncompleteIssue {
   key: string
@@ -21,6 +23,10 @@ interface Props {
 
 export default function IncompleteIssueModal({ issues, total, onClose }: Props) {
   const { jiraBrowse } = useJira()
+  const [page, setPage] = useState(1)
+
+  const totalPages = Math.ceil(issues.length / TABLE_PAGE_SIZE)
+  const pageItems  = issues.slice((page - 1) * TABLE_PAGE_SIZE, page * TABLE_PAGE_SIZE)
 
   return (
     <IssueModalShell title="미완료 이슈" subtitle={`처리 완료되지 않은 이슈 · 전체 ${total}건 (오래된 순)`} onClose={onClose}>
@@ -34,7 +40,7 @@ export default function IncompleteIssueModal({ issues, total, onClose }: Props) 
             </tr>
           </thead>
           <tbody className="divide-y divide-apple-divider/40">
-            {issues.map((d) => (
+            {pageItems.map((d) => (
               <tr key={d.key} onClick={() => window.open(`${jiraBrowse}/${d.key}`, '_blank', 'noreferrer')} className="hover:bg-apple-gray/50 transition-colors duration-150 cursor-pointer">
                 <td className={MODAL_CLS.keyCell}>{d.key}</td>
                 <td className={MODAL_CLS.bodyCell}>{d.summary}</td>
@@ -48,7 +54,7 @@ export default function IncompleteIssueModal({ issues, total, onClose }: Props) 
         </table>
       </div>
       <div className="md:hidden divide-y divide-apple-divider/40">
-        {issues.map((d) => (
+        {pageItems.map((d) => (
           <div key={d.key} onClick={() => window.open(`${jiraBrowse}/${d.key}`, '_blank', 'noreferrer')} className="py-3 flex flex-col gap-1 cursor-pointer hover:bg-apple-gray/50 rounded-lg px-2 transition-colors">
             <div className="flex items-center justify-between">
               <span className={MODAL_CLS.keyCell}>{d.key}</span>
@@ -61,6 +67,26 @@ export default function IncompleteIssueModal({ issues, total, onClose }: Props) 
           </div>
         ))}
       </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-3 border-t border-apple-divider">
+          <span className="text-ui-sm text-apple-light">
+            {(page - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(page * TABLE_PAGE_SIZE, issues.length)} / {issues.length}건
+          </span>
+          <div className="flex gap-1">
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i + 1)}
+                className={`px-3 py-1 rounded text-ui-sm font-medium transition-colors ${
+                  page === i + 1 ? 'bg-brand-500 text-white' : 'bg-gray-100 text-apple-mid hover:bg-gray-200'
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </IssueModalShell>
   )
 }
