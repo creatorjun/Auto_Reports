@@ -12,6 +12,7 @@ from src.domain.entities.widget_data import (
     ResolvedIssueDetail,
 )
 from src.domain.ports.jira_port import JiraPort
+from src.shared.constants import JIRA_MAX_RESULTS_DEFAULT
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,11 @@ class CreatedVsResolvedCollector(AbstractWidgetCollector):
         created_jql, resolved_jql = self._q.w3_created_vs_resolved()
         created_issues, resolved_issues = await asyncio.gather(
             self._jira.get_issues(
-                created_jql, max_results=200,
+                created_jql, max_results=JIRA_MAX_RESULTS_DEFAULT,
                 fields="summary,issuetype,status,created",
             ),
             self._jira.get_issues(
-                resolved_jql, max_results=200,
+                resolved_jql, max_results=JIRA_MAX_RESULTS_DEFAULT,
                 fields="summary,issuetype,updated",
             ),
         )

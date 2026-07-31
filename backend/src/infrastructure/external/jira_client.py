@@ -7,7 +7,10 @@ import httpx
 
 from src.domain.ports.jira_port import JiraPort
 from src.shared.cache import LruCache
-from src.shared.constants import JIRA_MAX_RESULTS_DEFAULT
+from src.shared.constants import (
+    JIRA_MAX_RESULTS_DEFAULT,
+    JIRA_MAX_RESULTS_LARGE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +188,7 @@ class JiraClient(JiraPort):
     async def get_issues_with_sla(
         self,
         jql: str,
-        max_results: int = 500,
+        max_results: int = JIRA_MAX_RESULTS_LARGE,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]:
         base = "summary,issuetype,status,created,resolutiondate"
@@ -201,7 +204,7 @@ class JiraClient(JiraPort):
     async def get_issues_with_assignees(
         self,
         jql: str,
-        max_results: int = 200,
+        max_results: int = JIRA_MAX_RESULTS_DEFAULT,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]:
         base = "summary,issuetype,status,created,reporter,assignee"
