@@ -1,17 +1,49 @@
 # backend/src/presentation/schemas/site_schema.py
 from __future__ import annotations
 from datetime import date, datetime
+from enum import Enum
 from typing import Optional
 from pydantic import BaseModel
 
-from src.domain.entities.site import (
-    ContractType,
-    DeploymentType,
-    NodeRole,
-    PatchResultStatus,
-    PatchType,
-    SiteStatus,
-)
+
+class ContractType(str, Enum):
+    ANNUAL     = "annual"
+    PERPETUAL  = "perpetual"
+    TRIAL      = "trial"
+    NONE       = "none"
+
+
+class SiteStatus(str, Enum):
+    ACTIVE     = "active"
+    INACTIVE   = "inactive"
+    MAINTENANCE = "maintenance"
+
+
+class NodeRole(str, Enum):
+    MASTER  = "master"
+    WORKER  = "worker"
+    SINGLE  = "single"
+    REPLICA = "replica"
+
+
+class DeploymentType(str, Enum):
+    ON_PREMISE = "on_premise"
+    CLOUD      = "cloud"
+    HYBRID     = "hybrid"
+
+
+class PatchType(str, Enum):
+    HOTFIX   = "hotfix"
+    UPGRADE  = "upgrade"
+    ROLLBACK = "rollback"
+    CONFIG   = "config"
+
+
+class PatchResultStatus(str, Enum):
+    SUCCESS  = "success"
+    FAILURE  = "failure"
+    PARTIAL  = "partial"
+    ROLLBACK = "rollback"
 
 
 class ContactInfoSchema(BaseModel):

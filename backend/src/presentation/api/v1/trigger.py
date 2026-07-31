@@ -9,7 +9,6 @@ from fastapi.responses import StreamingResponse
 
 from src.application.mappers.job_mapper import JobMapper
 from src.application.ports.job_runner_port import JobRunnerPort
-from src.domain.entities.job import JobStatus
 from src.presentation.api.deps import get_job_runner
 from src.presentation.schemas.report_schema import (
     JobStatusSchema,
@@ -108,7 +107,7 @@ async def stream_job_status(
             schema = JobMapper.to_schema(current)
             payload = schema.model_dump()
 
-            if current.status in (JobStatus.DONE, JobStatus.ERROR):
+            if schema.status in ("done", "error"):
                 yield _sse_event("done", payload)
                 break
 
