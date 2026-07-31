@@ -12,10 +12,10 @@ type SortDir = 'asc' | 'desc'
 const DEFAULT_FRACS: Record<ColKey, number> = {
   key:      0.10,
   summary:  0.40,
-  status:   0.15,
+  status:   0.12,
   reporter: 0.15,
   tac:      0.10,
-  elapsed:  0.10,
+  elapsed:  0.13,
 }
 
 interface Props {
