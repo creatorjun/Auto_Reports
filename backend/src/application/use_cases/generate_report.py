@@ -66,16 +66,16 @@ class GenerateReportUseCase:
             return
 
         cutoff = (now - timedelta(weeks=self._retention_weeks)).date()
-        logger.info(f"[도탄 정리] week_start < {cutoff} 인 보고서 삭제 시작 (retention={self._retention_weeks}주)")
+        logger.info(f"[도태 정리] week_start < {cutoff} 인 보고서 삭제 시작 (retention={self._retention_weeks}주)")
 
         try:
             deleted_ids = await self._repository.delete_before(cutoff)
         except Exception as exc:
-            logger.error(f"[도탄 정리] DB 삭제 실패: {exc}")
+            logger.error(f"[도태 정리] DB 삭제 실패: {exc}")
             return
 
         if not deleted_ids:
-            logger.info("[도탄 정리] 삭제 대상 없음")
+            logger.info("[도태 정리] 삭제 대상 없음")
             return
 
         for rid in deleted_ids:
@@ -88,4 +88,4 @@ class GenerateReportUseCase:
         if latest_id in deleted_ids:
             await self._cache.set_latest_id(None)
 
-        logger.info(f"[도탄 정리] {len(deleted_ids)}건 삭제 완료: {deleted_ids}")
+        logger.info(f"[도태 정리] {len(deleted_ids)}건 삭제 완료: {deleted_ids}")

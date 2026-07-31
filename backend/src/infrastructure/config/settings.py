@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
     issue_types: list[str] = ["인시던트", "개선", "CVE", "서비스 요청"]
     active_statuses: list[str] = [
-        "할 일", "이슈 리뷷 중", "연구소 대기 중", "연구소 검토 중",
+        "할 일", "이슈 리뷰 중", "연구소 대기 중", "연구소 검토 중",
         "구현 중", "배포 파일 검토 중", "자료 요청 중", "결과 대기 중",
         "보류 중", "영업본부 검토중"
     ]
