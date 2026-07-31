@@ -51,11 +51,13 @@ const tabs = [
     label: '보관함',
     icon: (
       <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="4" width="14" height="10" rx="1.5" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M1 7h14" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="4" y="1.5" width="3" height="3" rx="0.75" fill="currentColor" opacity="0.6" />
-        <rect x="9" y="1.5" width="3" height="3" rx="0.75" fill="currentColor" opacity="0.6" />
-        <rect x="4" y="9.5" width="8" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
+        <rect x="1" y="3" width="14" height="10" rx="2" fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="1" y="3" width="14" height="4.5" rx="2" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="1" y="8.5" width="14" height="4.5" rx="2" fill="currentColor" fillOpacity="0.08" stroke="currentColor" strokeWidth="1.2" />
+        <circle cx="12" cy="5.2" r="1" fill="currentColor" opacity="0.8" />
+        <circle cx="12" cy="10.8" r="1" fill="currentColor" opacity="0.8" />
+        <rect x="3" y="4.4" width="5" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
+        <rect x="3" y="10" width="5" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
       </svg>
     ),
   },
