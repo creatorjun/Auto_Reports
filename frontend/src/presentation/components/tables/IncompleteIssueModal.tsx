@@ -30,7 +30,7 @@ export default function IncompleteIssueModal({ issues, total, onClose }: Props) 
 
   return (
     <IssueModalShell title="미완료 이슈" subtitle={`처리 완료되지 않은 이슈 · 전체 ${total}건 (오래된 순)`} onClose={onClose}>
-      <div className="hidden md:block overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto pt-2">
         <table className="w-full">
           <thead>
             <tr className="border-b border-apple-divider/60">
