@@ -1,87 +1,16 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { NavLink } from 'react-router-dom'
+import { LayoutDashboard, History, Building2, HardDrive, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
 import TriggerButton from '../common/TriggerButton'
 import { useAuthStore } from '@/app/store/authStore'
 import { useLogout } from '@/infrastructure/hooks/useAuth'
 
 const reportLinks = [
-  {
-    to: '/',
-    label: '대시보드',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.9" />
-        <rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.5" />
-        <rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.5" />
-        <rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.3" />
-      </svg>
-    ),
-  },
-  {
-    to: '/history',
-    label: '보고서 히스토리',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="2" y="2" width="12" height="2" rx="1" fill="currentColor" />
-        <rect x="2" y="6" width="9" height="2" rx="1" fill="currentColor" opacity="0.6" />
-        <rect x="2" y="10" width="11" height="2" rx="1" fill="currentColor" opacity="0.6" />
-        <rect x="2" y="14" width="6" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
-      </svg>
-    ),
-  },
-  {
-    to: '/sites',
-    label: '사이트 관리',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="2" y="4" width="12" height="11" rx="1" fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="4" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
-        <rect x="7" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
-        <rect x="10" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
-        <rect x="4" y="10" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
-        <rect x="10" y="10" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
-        <rect x="6" y="10" width="4" height="5" rx="0.5" fill="currentColor" opacity="0.5" />
-        <path d="M1 4.5L8 1.5L15 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    to: '/storage',
-    label: '파일 보관함',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="3" width="14" height="10" rx="2" fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="1" y="3" width="14" height="4.5" rx="2" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="1" y="8.5" width="14" height="4.5" rx="2" fill="currentColor" fillOpacity="0.08" stroke="currentColor" strokeWidth="1.2" />
-        <circle cx="12" cy="5.2" r="1" fill="currentColor" opacity="0.8" />
-        <circle cx="12" cy="10.8" r="1" fill="currentColor" opacity="0.8" />
-        <rect x="3" y="4.4" width="5" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
-        <rect x="3" y="10" width="5" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
-      </svg>
-    ),
-  },
+  { to: '/',        label: '대시보드',      icon: <LayoutDashboard size={16} /> },
+  { to: '/history', label: '보고서 히스토리', icon: <History        size={16} /> },
+  { to: '/sites',   label: '사이트 관리',    icon: <Building2      size={16} /> },
+  { to: '/storage', label: '파일 보관함',    icon: <HardDrive      size={16} /> },
 ]
-
-function CollapseIcon({ collapsed }: { collapsed: boolean }) {
-  return collapsed ? (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ) : (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function LogoutIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <path d="M5 2H2.5A.5.5 0 0 0 2 2.5v9a.5.5 0 0 0 .5.5H5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      <path d="M9.5 9.5L12 7l-2.5-2.5M12 7H5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 
 interface Props {
   collapsed: boolean
@@ -109,7 +38,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                    transition-all duration-200 mb-2 self-end"
         title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
       >
-        <CollapseIcon collapsed={collapsed} />
+        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
 
       <div className="flex flex-col gap-0.5 flex-1">
@@ -149,7 +78,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                            text-apple-light hover:text-red-500 hover:bg-red-50
                            transition-colors disabled:opacity-40"
               >
-                <LogoutIcon />
+                <LogOut size={14} />
               </button>
             ) : (
               <button
@@ -160,7 +89,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                            text-apple-light hover:text-red-500 hover:bg-red-50
                            transition-colors disabled:opacity-40"
               >
-                <span className="flex-shrink-0"><LogoutIcon /></span>
+                <span className="flex-shrink-0"><LogOut size={14} /></span>
                 <span className="truncate">LOGOUT</span>
               </button>
             )}

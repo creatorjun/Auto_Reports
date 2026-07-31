@@ -1,66 +1,16 @@
 // frontend/src/presentation/components/layout/MobileTabBar.tsx
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { LayoutDashboard, History, Building2, HardDrive, Plus } from 'lucide-react'
 import { useTrigger } from '@/infrastructure/hooks/useTrigger'
 import { useUiStore } from '@/app/store/uiStore'
 import GenerateReportModal from '@/presentation/components/common/GenerateReportModal'
 
 const tabs = [
-  {
-    to: '/',
-    label: '대시보드',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.9" />
-        <rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.5" />
-        <rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.5" />
-        <rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.3" />
-      </svg>
-    ),
-  },
-  {
-    to: '/history',
-    label: '히스토리',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-        <rect x="2" y="2" width="12" height="2" rx="1" fill="currentColor" />
-        <rect x="2" y="6" width="9" height="2" rx="1" fill="currentColor" opacity="0.6" />
-        <rect x="2" y="10" width="11" height="2" rx="1" fill="currentColor" opacity="0.6" />
-        <rect x="2" y="14" width="6" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
-      </svg>
-    ),
-  },
-  {
-    to: '/sites',
-    label: '사이트',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-        <rect x="2" y="4" width="12" height="11" rx="1" fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="4" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
-        <rect x="7" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
-        <rect x="10" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
-        <rect x="4" y="10" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
-        <rect x="10" y="10" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7" />
-        <rect x="6" y="10" width="4" height="5" rx="0.5" fill="currentColor" opacity="0.5" />
-        <path d="M1 4.5L8 1.5L15 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    to: '/storage',
-    label: '보관함',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="3" width="14" height="10" rx="2" fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="1" y="3" width="14" height="4.5" rx="2" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="1" y="8.5" width="14" height="4.5" rx="2" fill="currentColor" fillOpacity="0.08" stroke="currentColor" strokeWidth="1.2" />
-        <circle cx="12" cy="5.2" r="1" fill="currentColor" opacity="0.8" />
-        <circle cx="12" cy="10.8" r="1" fill="currentColor" opacity="0.8" />
-        <rect x="3" y="4.4" width="5" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
-        <rect x="3" y="10" width="5" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
-      </svg>
-    ),
-  },
+  { to: '/',        label: '대시보드', icon: <LayoutDashboard size={20} /> },
+  { to: '/history', label: '히스토리',   icon: <History        size={20} /> },
+  { to: '/sites',   label: '사이트',     icon: <Building2      size={20} /> },
+  { to: '/storage', label: '보관함',     icon: <HardDrive      size={20} /> },
 ]
 
 export default function MobileTabBar() {
@@ -105,10 +55,7 @@ export default function MobileTabBar() {
               <span className="w-4 h-4 border-2 border-brand-600/30 border-t-brand-600 rounded-full animate-spin" />
             </span>
           ) : (
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="1" width="14" height="14" rx="3.5" fill="currentColor" opacity="0.15" />
-              <path d="M8 4v8M4 8h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
+            <Plus size={20} />
           )}
           <span className="text-[10px] font-medium">
             {isTriggerLoading ? '생성 중' : '생성'}
