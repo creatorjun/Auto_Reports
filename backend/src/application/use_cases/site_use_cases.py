@@ -1,5 +1,5 @@
 # backend/src/application/use_cases/site_use_cases.py
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from typing import Optional
 
@@ -51,7 +51,7 @@ class SiteUseCase:
         if not site:
             raise ValueError(f"Site '{site_id}' not found")
         if site.solution_package:
-            package.id = site.solution_package.id
+            package = replace(package, id=site.solution_package.id)
         site.solution_package = package
         return await self._repo.save(site)
 

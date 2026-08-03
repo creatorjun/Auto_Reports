@@ -200,18 +200,18 @@ class SiteSummaryResponse(BaseModel):
 
 class SiteCreateRequest(BaseModel):
     site_name:           str
-    maintenance_company: Optional[str]                     = None
-    customer_info:       Optional[ContactInfoSchema]       = None
-    maintenance_info:    Optional[ContactInfoSchema]       = None
-    contract_start_date: Optional[date]                    = None
-    contract_end_date:   Optional[date]                    = None
-    contract_type:       Optional[ContractType]            = None
-    status:              Optional[SiteStatus]              = None
-    nodes:               list[DeploymentNodeSchema]        = []
-    solution_package:    Optional[SolutionPackageSchema]   = None
-    patch_histories:     list[PatchHistorySchema]          = []
-    visit_histories:     list[VisitHistorySchema]          = []
-    access_credentials:  Optional[AccessCredentialsSchema] = None
+    maintenance_company: Optional[str]                        = None
+    customer_info:       Optional[ContactInfoSchema]          = None
+    maintenance_info:    Optional[ContactInfoSchema]          = None
+    contract_start_date: Optional[date]                       = None
+    contract_end_date:   Optional[date]                       = None
+    contract_type:       Optional[ContractType]               = None
+    status:              Optional[SiteStatus]                 = None
+    nodes:               list[DeploymentNodeCreateRequest]    = []
+    solution_package:    Optional[SolutionPackageUpsertRequest] = None
+    patch_histories:     list[PatchHistoryCreateRequest]      = []
+    visit_histories:     list[VisitHistoryCreateRequest]      = []
+    access_credentials:  Optional[AccessCredentialsSchema]    = None
 
 
 class SiteUpdateRequest(BaseModel):
