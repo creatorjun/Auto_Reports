@@ -156,9 +156,9 @@ type NodeFormValues = z.infer<typeof nodeSchema>
 
 const patchSchema = z.object({
   patch_date:      z.string().optional(),
-  patch_type:      z.string().optional(),
+  patch_type:      z.enum(['정기패치', '긴급패치', '핫픽스']).optional(),
   applied_by:      z.string().optional(),
-  result_status:   z.string().optional(),
+  result_status:   z.enum(['성공', '실패', '롤백']).optional(),
   issue_link:      z.string().optional(),
   patch_file_link: z.string().optional(),
   rollback_date:   z.string().optional(),
@@ -290,9 +290,9 @@ function PatchForm({
     resolver: zodResolver(patchSchema),
     defaultValues: {
       patch_date:      initial?.patch_date      ?? '',
-      patch_type:      initial?.patch_type      ?? '',
+      patch_type:      initial?.patch_type      ?? undefined,
       applied_by:      initial?.applied_by      ?? '',
-      result_status:   initial?.result_status   ?? '',
+      result_status:   initial?.result_status   ?? undefined,
       issue_link:      initial?.issue_link      ?? '',
       patch_file_link: initial?.patch_file_link ?? '',
       rollback_date:   initial?.rollback_date   ?? '',
