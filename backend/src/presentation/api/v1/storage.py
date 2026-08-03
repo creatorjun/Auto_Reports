@@ -77,6 +77,16 @@ def _verify_preview_token(request: Request, token: str | None) -> None:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
+def _make_content_disposition(disposition: str, filename: str) -> str:
+    try:
+        filename.encode("ascii")
+        ascii_name = filename
+    except UnicodeEncodeError:
+        ascii_name = "download"
+    encoded_name = urllib.parse.quote(filename, safe="")
+    return f'{disposition}; filename="{ascii_name}"; filename*=UTF-8\'\'{encoded_name}'
+
+
 @router.get("/quota", response_model=QuotaResponse)
 async def get_quota(
     uc: StorageUseCase = Depends(get_storage_use_case),
@@ -271,12 +281,11 @@ async def preview_file(
         mime = uc.get_mime_type(folder, name)
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="File not found")
-    safe_name = urllib.parse.quote(name, safe="")
     return FileResponse(
         path=path,
         media_type=mime,
         headers={
-            "Content-Disposition": f"inline; filename*=UTF-8''{safe_name}",
+            "Content-Disposition": _make_content_disposition("inline", name),
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "no-cache",
         },
@@ -326,14 +335,14 @@ async def download_file(
     folder, name = _decode(folder), _decode(name)
     try:
         path = uc.get_file_path(folder, name)
+        mime = uc.get_mime_type(folder, name)
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="File not found")
-    safe_name = urllib.parse.quote(name, safe="")
     return FileResponse(
         path=path,
-        media_type="application/octet-stream",
+        media_type=mime,
         headers={
-            "Content-Disposition": f"attachment; filename*=UTF-8''{safe_name}",
+            "Content-Disposition": _make_content_disposition("attachment", name),
             "X-Content-Type-Options": "nosniff",
             "X-Download-Options": "noopen",
             "Cache-Control": "no-store",
