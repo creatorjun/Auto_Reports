@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 _TAC_ASSIGNEE_KEY  = "_tac_assignee"
 _QA_ASSIGNEE_KEY   = "_qa_assignee"
-_COMPANY_FIELD_ID  = "customfield_11023"
+_COMPANY_FIELD_NUM = "11023"
 
 _SD_TIMEOUT = httpx.Timeout(connect=5.0, read=20.0, write=10.0, pool=5.0)
 _SD_HEADERS = {
@@ -149,9 +149,10 @@ class PartnerUseCase:
             return []
         jql = (
             f'project = "{self._project_key}" '
-            f'AND "{_COMPANY_FIELD_ID}" = "{org_name}" '
+            f'AND cf[{_COMPANY_FIELD_NUM}] = "{org_name}" '
             f'ORDER BY created DESC'
         )
+        logger.info(f"[파트너] 회사 이슈 JQL: {jql}")
         return await self._fetch_issues(jql)
 
     async def get_issues_by_member(self, account_id: str) -> list[dict]:
