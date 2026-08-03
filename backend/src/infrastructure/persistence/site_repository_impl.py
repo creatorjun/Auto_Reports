@@ -105,10 +105,11 @@ class SiteRepositoryImpl(SiteRepository):
 
         await self._apply_domain(orm, site)
         await self._session.flush()
-        await self._session.refresh(
-            orm,
-            attribute_names=["nodes", "solution_package", "patch_histories", "visit_histories", "access_credentials"],
+
+        refreshed = await self._session.execute(
+            select(SiteORM).where(SiteORM.id == orm.id).options(*self._opts())
         )
+        orm = refreshed.scalar_one()
         return self._to_domain(orm)
 
     async def delete(self, site_id: int) -> bool:
@@ -257,9 +258,9 @@ class SiteRepositoryImpl(SiteRepository):
     async def _apply_domain(self, orm: SiteORM, site: Site) -> None:
         orm.site_name                   = site.site_name
         orm.maintenance_company         = site.maintenance_company
-        orm.customer_name               = site.customer_contact.name    if site.customer_contact  else None
-        orm.customer_phone              = site.customer_contact.phone   if site.customer_contact  else None
-        orm.customer_email              = site.customer_contact.email   if site.customer_contact  else None
+        orm.customer_name               = site.customer_contact.name    if site.customer_contact    else None
+        orm.customer_phone              = site.customer_contact.phone   if site.customer_contact    else None
+        orm.customer_email              = site.customer_contact.email   if site.customer_contact    else None
         orm.maintenance_name            = site.maintenance_contact.name    if site.maintenance_contact else None
         orm.maintenance_phone           = site.maintenance_contact.phone   if site.maintenance_contact else None
         orm.maintenance_email           = site.maintenance_contact.email   if site.maintenance_contact else None
