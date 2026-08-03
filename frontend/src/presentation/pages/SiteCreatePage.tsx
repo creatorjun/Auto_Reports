@@ -261,7 +261,7 @@ export default function SiteCreatePage() {
             }
           : undefined
 
-      const payload = {
+      const baseFields = {
         site_name:           values.site_name,
         maintenance_company: values.maintenance_company || undefined,
         customer_info:       buildContact(values.customer_name, values.customer_phone, values.customer_email),
@@ -275,15 +275,20 @@ export default function SiteCreatePage() {
         contract_end_date:   values.contract_end_date   || undefined,
         contract_type:       values.contract_type       || undefined,
         status:              values.status              || undefined,
-        nodes:               existing?.nodes            ?? [],
-        patch_histories:     existing?.patch_histories  ?? [],
-        visit_histories:     existing?.visit_histories  ?? [],
         access_credentials:  hasAnyCred ? creds : undefined,
       }
 
-      return isEdit
-        ? siteApi.update(Number(id), payload)
-        : siteApi.create(payload)
+      if (isEdit) {
+        return siteApi.update(Number(id), baseFields)
+      }
+
+      return siteApi.create({
+        ...baseFields,
+        nodes:           [],
+        solution_package: undefined,
+        patch_histories: [],
+        visit_histories: [],
+      })
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['site-detail', String(data.id)] })

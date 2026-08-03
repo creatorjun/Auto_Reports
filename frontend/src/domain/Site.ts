@@ -152,8 +152,21 @@ export interface SiteCreatePayload {
   contract_end_date?: string
   contract_type?: string
   status?: SiteStatus
-  nodes: DeploymentNode[]
-  patch_histories: PatchHistory[]
-  visit_histories: VisitHistory[]
+  nodes: DeploymentNodePayload[]
+  solution_package?: SolutionPackagePayload
+  patch_histories: PatchHistoryPayload[]
+  visit_histories: VisitHistoryPayload[]
+  access_credentials?: AccessCredentials
+}
+
+export interface SiteUpdatePayload {
+  site_name?: string
+  maintenance_company?: string
+  customer_info?: ContactInfo
+  maintenance_info?: ContactInfo
+  contract_start_date?: string
+  contract_end_date?: string
+  contract_type?: string
+  status?: SiteStatus
   access_credentials?: AccessCredentials
 }

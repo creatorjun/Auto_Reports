@@ -4,6 +4,7 @@ import type {
   SiteDetail,
   SiteSummary,
   SiteCreatePayload,
+  SiteUpdatePayload,
   DeploymentNode,
   DeploymentNodePayload,
   PatchHistory,
@@ -33,7 +34,7 @@ export const siteApi = {
     return res.data
   },
 
-  update: async (id: number, payload: Partial<SiteCreatePayload>): Promise<SiteDetail> => {
+  update: async (id: number, payload: SiteUpdatePayload): Promise<SiteDetail> => {
     const res = await client.patch<SiteDetail>(`/sites/${id}`, payload)
     return res.data
   },
