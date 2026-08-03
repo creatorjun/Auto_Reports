@@ -303,14 +303,14 @@ function PatchForm({
   const { mutateAsync, isError } = useMutation({
     mutationFn: (v: PatchFormValues) => {
       const payload = {
-        patch_date:      v.patch_date      || undefined,
-        patch_type:      v.patch_type      || undefined,
-        applied_by:      v.applied_by      || undefined,
-        result_status:   v.result_status   || undefined,
-        issue_link:      v.issue_link      || undefined,
-        patch_file_link: v.patch_file_link || undefined,
-        rollback_date:   v.rollback_date   || undefined,
-        note:            v.note            || undefined,
+        patch_date:      v.patch_date      ? v.patch_date      : undefined,
+        patch_type:      v.patch_type      ? v.patch_type      : undefined,
+        applied_by:      v.applied_by      ? v.applied_by      : undefined,
+        result_status:   v.result_status   ? v.result_status   : undefined,
+        issue_link:      v.issue_link      ? v.issue_link      : undefined,
+        patch_file_link: v.patch_file_link ? v.patch_file_link : undefined,
+        rollback_date:   v.rollback_date   ? v.rollback_date   : undefined,
+        note:            v.note            ? v.note            : undefined,
       }
       return initial?.id
         ? siteApi.updatePatchHistory(siteId, initial.id, payload)
