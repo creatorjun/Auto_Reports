@@ -153,6 +153,41 @@ function MemberPanel({
   )
 }
 
+function IssueRow({ issue }: { issue: PartnerIssue }) {
+  const href = `https://seculayer.atlassian.net/browse/${issue.key}`
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block px-4 py-3 border-b border-apple-divider/50 hover:bg-blue-50 transition-colors cursor-pointer"
+    >
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <span className="text-xs font-mono text-blue-600 flex-shrink-0">
+          {issue.key}
+        </span>
+        <ElapsedBadge days={issue.elapsed_days} />
+      </div>
+      <p className="text-sm text-apple-dark leading-snug mb-1.5 line-clamp-2">
+        {issue.summary}
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={[
+          'text-xs px-2 py-0.5 rounded-full font-medium',
+          STAGE_COLOR[issue.stage_index] ?? 'bg-gray-100 text-gray-500',
+        ].join(' ')}>
+          {issue.status}
+        </span>
+        <span className="text-xs text-apple-light">{issue.type}</span>
+        {issue.tac_team && issue.tac_team !== '미지정' && (
+          <span className="text-xs text-apple-light">담당: {issue.tac_team}</span>
+        )}
+      </div>
+      <p className="text-xs text-apple-light mt-1">{issue.created}</p>
+    </a>
+  )
+}
+
 function IssuePanel({
   orgId,
   accountId,
@@ -197,38 +232,7 @@ function IssuePanel({
       <PanelHeader title={label} count={issues.length} loading={isLoading} />
       <div className="flex-1 overflow-y-auto">
         {issues.map((issue) => (
-          <div
-            key={issue.key}
-            className="px-4 py-3 border-b border-apple-divider/50 hover:bg-apple-gray transition-colors"
-          >
-            <div className="flex items-start justify-between gap-2 mb-1">
-              <a
-                href={`https://seculayer.atlassian.net/browse/${issue.key}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-mono text-blue-600 hover:underline flex-shrink-0"
-              >
-                {issue.key}
-              </a>
-              <ElapsedBadge days={issue.elapsed_days} />
-            </div>
-            <p className="text-sm text-apple-dark leading-snug mb-1.5 line-clamp-2">
-              {issue.summary}
-            </p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={[
-                'text-xs px-2 py-0.5 rounded-full font-medium',
-                STAGE_COLOR[issue.stage_index] ?? 'bg-gray-100 text-gray-500',
-              ].join(' ')}>
-                {issue.status}
-              </span>
-              <span className="text-xs text-apple-light">{issue.type}</span>
-              {issue.tac_team && issue.tac_team !== '미지정' && (
-                <span className="text-xs text-apple-light">담당: {issue.tac_team}</span>
-              )}
-            </div>
-            <p className="text-xs text-apple-light mt-1">{issue.created}</p>
-          </div>
+          <IssueRow key={issue.key} issue={issue} />
         ))}
         {!isLoading && issues.length === 0 && (
           <p className="px-4 py-8 text-sm text-apple-light text-center">이슈 없음</p>
