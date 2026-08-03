@@ -4,6 +4,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import Layout from '@/presentation/components/layout/Layout'
 import ProtectedRoute from '@/presentation/components/auth/ProtectedRoute'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
+import LazyErrorBoundary from '@/presentation/components/common/LazyErrorBoundary'
 
 const DashboardPage      = lazy(() => import('@/presentation/pages/DashboardPage'))
 const HistoryPage        = lazy(() => import('@/presentation/pages/HistoryPage'))
@@ -16,11 +17,14 @@ const SiteDetailPage     = lazy(() => import('@/presentation/pages/SiteDetailPag
 
 const Fallback = () => <LoadingSpinner text="페이지 로딩 중..." />
 
+const Wrap = ({ children }: { children: React.ReactNode }) => (
+  <LazyErrorBoundary>
+    <Suspense fallback={<Fallback />}>{children}</Suspense>
+  </LazyErrorBoundary>
+)
+
 export const router = createBrowserRouter([
-  {
-    path: '/login',
-    element: <Suspense fallback={<Fallback />}><LoginPage /></Suspense>,
-  },
+  { path: '/login', element: <Wrap><LoginPage /></Wrap> },
   {
     path: '/',
     element: (
@@ -29,16 +33,16 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true,              element: <Suspense fallback={<Fallback />}><DashboardPage /></Suspense> },
-      { path: 'history',          element: <Suspense fallback={<Fallback />}><HistoryPage /></Suspense> },
-      { path: 'reports/:id',      element: <Suspense fallback={<Fallback />}><DashboardPage /></Suspense> },
-      { path: 'storage',          element: <Suspense fallback={<Fallback />}><StoragePage /></Suspense> },
-      { path: 'storage/preview',  element: <Suspense fallback={<Fallback />}><StoragePreviewPage /></Suspense> },
-      { path: 'sites',            element: <Suspense fallback={<Fallback />}><SiteManagementPage /></Suspense> },
-      { path: 'sites/new',        element: <Suspense fallback={<Fallback />}><SiteCreatePage /></Suspense> },
-      { path: 'sites/:id',        element: <Suspense fallback={<Fallback />}><SiteDetailPage /></Suspense> },
-      { path: 'sites/:id/edit',   element: <Suspense fallback={<Fallback />}><SiteCreatePage /></Suspense> },
-    ]
+      { index: true,             element: <Wrap><DashboardPage /></Wrap> },
+      { path: 'history',         element: <Wrap><HistoryPage /></Wrap> },
+      { path: 'reports/:id',     element: <Wrap><DashboardPage /></Wrap> },
+      { path: 'storage',         element: <Wrap><StoragePage /></Wrap> },
+      { path: 'storage/preview', element: <Wrap><StoragePreviewPage /></Wrap> },
+      { path: 'sites',           element: <Wrap><SiteManagementPage /></Wrap> },
+      { path: 'sites/new',       element: <Wrap><SiteCreatePage /></Wrap> },
+      { path: 'sites/:id',       element: <Wrap><SiteDetailPage /></Wrap> },
+      { path: 'sites/:id/edit',  element: <Wrap><SiteCreatePage /></Wrap> },
+    ],
   },
   { path: '*', element: <Navigate to="/login" replace /> },
 ])
