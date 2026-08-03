@@ -10,9 +10,7 @@ logger = logging.getLogger(__name__)
 _TAC_ASSIGNEE_KEY = "_tac_assignee"
 _QA_ASSIGNEE_KEY  = "_qa_assignee"
 
-_ORG_FIELD_ID      = "customfield_10010"
-_PARTNER_FIELD_ID  = "customfield_10303"
-_ORG_NAME_FIELD_ID = "customfield_10388"
+_ORG_FIELD_ID = "customfield_10204"
 
 
 def _display_name(value: object) -> str:
@@ -63,18 +61,18 @@ class PartnerUseCase:
         tac_assignee_fid: str,
         qa_assignee_fid: str,
     ):
-        self._jira            = jira
-        self._project_key     = project_key
+        self._jira             = jira
+        self._project_key      = project_key
         self._tac_assignee_fid = tac_assignee_fid
         self._qa_assignee_fid  = qa_assignee_fid
 
     async def get_organizations(self) -> list[dict]:
         jql = (
             f'project = "{self._project_key}" '
-            f'AND "파트너사" is not EMPTY '
+            f'AND "{_ORG_FIELD_ID}" is not EMPTY '
             f'ORDER BY created DESC'
         )
-        fields_str = f"reporter,{_PARTNER_FIELD_ID},{_ORG_NAME_FIELD_ID}"
+        fields_str = f"reporter,{_ORG_FIELD_ID}"
         issues = await self._jira.get_issues(
             jql, max_results=JIRA_MAX_RESULT, fields=fields_str
         )
@@ -82,34 +80,27 @@ class PartnerUseCase:
         org_map: dict[str, dict] = {}
         for issue in issues:
             f = issue.get("fields") or {}
+            orgs = f.get(_ORG_FIELD_ID) or []
+            if not isinstance(orgs, list):
+                orgs = [orgs]
 
-            partners = f.get(_PARTNER_FIELD_ID) or []
-            if isinstance(partners, dict):
-                partners = [partners]
+            reporter     = f.get("reporter") or {}
+            account_id   = reporter.get("accountId", "")
+            display_name = reporter.get("displayName", "")
 
-            org_name_raw = f.get(_ORG_NAME_FIELD_ID, "")
-            org_name = ""
-            if isinstance(org_name_raw, str):
-                org_name = org_name_raw
-            elif isinstance(org_name_raw, dict):
-                org_name = org_name_raw.get("value") or org_name_raw.get("name") or ""
-
-            for p in partners:
-                if not isinstance(p, dict):
+            for org in orgs:
+                if not isinstance(org, dict):
                     continue
-                pid   = str(p.get("objectId") or p.get("id") or "")
-                pname = p.get("name") or org_name or pid
-                if not pid:
+                org_id   = str(org.get("id", ""))
+                org_name = org.get("name", "")
+                if not org_id:
                     continue
 
-                if pid not in org_map:
-                    org_map[pid] = {"id": pid, "name": pname, "_members": {}}
+                if org_id not in org_map:
+                    org_map[org_id] = {"id": org_id, "name": org_name, "_members": {}}
 
-                reporter = f.get("reporter") or {}
-                account_id = reporter.get("accountId", "")
-                display    = reporter.get("displayName", "")
-                if account_id and account_id not in org_map[pid]["_members"]:
-                    org_map[pid]["_members"][account_id] = display
+                if account_id and account_id not in org_map[org_id]["_members"]:
+                    org_map[org_id]["_members"][account_id] = display_name
 
         result = []
         for org in sorted(org_map.values(), key=lambda x: x["name"]):
@@ -122,10 +113,10 @@ class PartnerUseCase:
         logger.info(f"[파트너 관리] 조직 {len(result)}개 수집")
         return result
 
-    async def get_issues_by_org(self, org_name: str) -> list[dict]:
+    async def get_issues_by_org(self, org_id: str) -> list[dict]:
         jql = (
             f'project = "{self._project_key}" '
-            f'AND "회사명" = "{org_name}" '
+            f'AND "{_ORG_FIELD_ID}" = "{org_id}" '
             f'ORDER BY created DESC'
         )
         return await self._fetch_issues(jql)
@@ -153,5 +144,5 @@ class PartnerUseCase:
 
         now_ts = datetime.now()
         result = [_build_issue(i, now_ts) for i in issues]
-        logger.info(f"[파트너 이슈] JQL={jql[:60]} → {len(result)}건")
+        logger.info(f"[파트너 이슈] JQL={jql[:80]} → {len(result)}건")
         return result
