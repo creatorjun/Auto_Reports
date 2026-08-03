@@ -1,15 +1,16 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, History, Building2, HardDrive, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
+import { LayoutDashboard, History, Building2, HardDrive, Users, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
 import TriggerButton from '../common/TriggerButton'
 import { useAuthStore } from '@/app/store/authStore'
 import { useLogout } from '@/infrastructure/hooks/useAuth'
 
 const reportLinks = [
-  { to: '/',        label: '대시보드',      icon: <LayoutDashboard size={16} /> },
-  { to: '/history', label: '보고서 히스토리', icon: <History        size={16} /> },
-  { to: '/sites',   label: '사이트 관리',    icon: <Building2      size={16} /> },
-  { to: '/storage', label: '파일 보관함',    icon: <HardDrive      size={16} /> },
+  { to: '/',         label: '대시보드',      icon: <LayoutDashboard size={16} /> },
+  { to: '/history',  label: '보고서 히스토리', icon: <History         size={16} /> },
+  { to: '/partners', label: '파트너 관리',    icon: <Users           size={16} /> },
+  { to: '/sites',    label: '사이트 관리',    icon: <Building2       size={16} /> },
+  { to: '/storage',  label: '파일 보관함',    icon: <HardDrive       size={16} /> },
 ]
 
 interface Props {

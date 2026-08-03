@@ -6,14 +6,15 @@ import ProtectedRoute from '@/presentation/components/auth/ProtectedRoute'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import LazyErrorBoundary from '@/presentation/components/common/LazyErrorBoundary'
 
-const DashboardPage      = lazy(() => import('@/presentation/pages/DashboardPage'))
-const HistoryPage        = lazy(() => import('@/presentation/pages/HistoryPage'))
-const StoragePage        = lazy(() => import('@/presentation/pages/StoragePage'))
-const StoragePreviewPage = lazy(() => import('@/presentation/pages/StoragePreviewPage'))
-const LoginPage          = lazy(() => import('@/presentation/pages/LoginPage'))
-const SiteManagementPage = lazy(() => import('@/presentation/pages/SiteManagementPage'))
-const SiteCreatePage     = lazy(() => import('@/presentation/pages/SiteCreatePage'))
-const SiteDetailPage     = lazy(() => import('@/presentation/pages/SiteDetailPage'))
+const DashboardPage          = lazy(() => import('@/presentation/pages/DashboardPage'))
+const HistoryPage            = lazy(() => import('@/presentation/pages/HistoryPage'))
+const StoragePage            = lazy(() => import('@/presentation/pages/StoragePage'))
+const StoragePreviewPage     = lazy(() => import('@/presentation/pages/StoragePreviewPage'))
+const LoginPage              = lazy(() => import('@/presentation/pages/LoginPage'))
+const SiteManagementPage     = lazy(() => import('@/presentation/pages/SiteManagementPage'))
+const SiteCreatePage         = lazy(() => import('@/presentation/pages/SiteCreatePage'))
+const SiteDetailPage         = lazy(() => import('@/presentation/pages/SiteDetailPage'))
+const PartnerManagementPage  = lazy(() => import('@/presentation/pages/PartnerManagementPage'))
 
 const Fallback = () => <LoadingSpinner text="페이지 로딩 중..." />
 
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { index: true,             element: <Wrap><DashboardPage /></Wrap> },
       { path: 'history',         element: <Wrap><HistoryPage /></Wrap> },
       { path: 'reports/:id',     element: <Wrap><DashboardPage /></Wrap> },
+      { path: 'partners',        element: <Wrap><PartnerManagementPage /></Wrap> },
       { path: 'storage',         element: <Wrap><StoragePage /></Wrap> },
       { path: 'storage/preview', element: <Wrap><StoragePreviewPage /></Wrap> },
       { path: 'sites',           element: <Wrap><SiteManagementPage /></Wrap> },
