@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/layout/Header.tsx
-import { useEffect } from 'react'
+import { useEffect, useCallback } from 'react'
 import { useReportStore } from '@/app/store/reportStore'
 import { useUiStore } from '@/app/store/uiStore'
 import { useRefreshReport } from '@/infrastructure/hooks/useReport'
@@ -26,23 +26,25 @@ export default function Header() {
     },
   })
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'r') {
-        e.preventDefault()
-        e.stopPropagation()
-        if (!currentReport || isTriggerLoading || isPending) return
-        setTriggerLoading(true)
-        setTriggerMessage(null)
-        mutate({
-          start_date: currentReport.week_start,
-          end_date:   currentReport.week_end,
-        })
-      }
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key === 'r') {
+      e.preventDefault()
+      e.stopPropagation()
+      e.stopImmediatePropagation()
+      if (!currentReport || isTriggerLoading || isPending) return
+      setTriggerLoading(true)
+      setTriggerMessage(null)
+      mutate({
+        start_date: currentReport.week_start,
+        end_date:   currentReport.week_end,
+      })
     }
+  }, [currentReport, isTriggerLoading, isPending, mutate, setTriggerLoading, setTriggerMessage])
+
+  useEffect(() => {
     window.addEventListener('keydown', handleKeyDown, true)
     return () => window.removeEventListener('keydown', handleKeyDown, true)
-  }, [currentReport, isTriggerLoading, isPending, mutate, setTriggerLoading, setTriggerMessage])
+  }, [handleKeyDown])
 
   return (
     <header className="bg-white flex-shrink-0 border-b border-apple-divider/60">
