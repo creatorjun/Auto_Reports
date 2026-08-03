@@ -24,19 +24,19 @@ async def get_organizations(request: Request):
 @router.get("/issues", response_model=PartnerIssuesResponse)
 async def get_partner_issues(
     request:    Request,
-    org_name:   str | None = None,
+    org_id:     str | None = None,
     account_id: str | None = None,
 ):
-    if not org_name and not account_id:
+    if not org_id and not account_id:
         raise HTTPException(
             status_code=422,
-            detail="org_name 또는 account_id 중 하나는 필수입니다.",
+            detail="org_id 또는 account_id 중 하나는 필수입니다.",
         )
 
     use_case = _get_use_case(request)
 
-    if org_name:
-        issues = await use_case.get_issues_by_org(org_name)
+    if org_id:
+        issues = await use_case.get_issues_by_org(org_id)
     else:
         issues = await use_case.get_issues_by_member(account_id)  # type: ignore[arg-type]
 
