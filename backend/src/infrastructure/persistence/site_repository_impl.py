@@ -103,7 +103,7 @@ class SiteRepositoryImpl(SiteRepository):
             orm = SiteORM()
             self._session.add(orm)
 
-        self._apply_domain(orm, site)
+        await self._apply_domain(orm, site)
         await self._session.flush()
         await self._session.refresh(
             orm,
@@ -254,7 +254,7 @@ class SiteRepositoryImpl(SiteRepository):
             note=orm.note,
         )
 
-    def _apply_domain(self, orm: SiteORM, site: Site) -> None:
+    async def _apply_domain(self, orm: SiteORM, site: Site) -> None:
         orm.site_name                   = site.site_name
         orm.maintenance_company         = site.maintenance_company
         orm.customer_name               = site.customer_contact.name    if site.customer_contact  else None
@@ -272,7 +272,7 @@ class SiteRepositoryImpl(SiteRepository):
         incoming_node_ids = {n.id for n in site.nodes if n.id is not None}
         for n in list(orm.nodes or []):
             if n.id not in incoming_node_ids:
-                self._session.delete(n)
+                await self._session.delete(n)
         for n in site.nodes:
             node_orm = next((x for x in (orm.nodes or []) if x.id == n.id), None) if n.id else None
             if node_orm is None:
@@ -297,6 +297,7 @@ class SiteRepositoryImpl(SiteRepository):
             if pkg is None:
                 pkg = SolutionPackageORM(site=orm)
                 orm.solution_package = pkg
+                self._session.add(pkg)
             pkg.version              = site.solution_package.version
             pkg.installer_filename   = site.solution_package.installer_filename
             pkg.license_capacity_gb  = site.solution_package.license_capacity_gb
@@ -306,13 +307,13 @@ class SiteRepositoryImpl(SiteRepository):
             pkg.installed_at         = site.solution_package.installed_at
             pkg.updated_at           = site.solution_package.updated_at
         elif orm.solution_package is not None:
-            self._session.delete(orm.solution_package)
+            await self._session.delete(orm.solution_package)
             orm.solution_package = None
 
         incoming_patch_ids = {p.id for p in site.patch_histories if p.id is not None}
         for p in list(orm.patch_histories or []):
             if p.id not in incoming_patch_ids:
-                self._session.delete(p)
+                await self._session.delete(p)
         for p in site.patch_histories:
             patch_orm = next((x for x in (orm.patch_histories or []) if x.id == p.id), None) if p.id else None
             if patch_orm is None:
@@ -332,7 +333,7 @@ class SiteRepositoryImpl(SiteRepository):
         incoming_visit_ids = {v.id for v in site.visit_histories if v.id is not None}
         for v in list(orm.visit_histories or []):
             if v.id not in incoming_visit_ids:
-                self._session.delete(v)
+                await self._session.delete(v)
         for v in site.visit_histories:
             visit_orm = next((x for x in (orm.visit_histories or []) if x.id == v.id), None) if v.id else None
             if visit_orm is None:
@@ -351,6 +352,7 @@ class SiteRepositoryImpl(SiteRepository):
             if creds is None:
                 creds = AccessCredentialsORM(site=orm)
                 orm.access_credentials = creds
+                self._session.add(creds)
             creds.cli_username = site.access_credentials.cli.username if site.access_credentials.cli else None
             creds.cli_password = site.access_credentials.cli.password if site.access_credentials.cli else None
             creds.cli_ip       = site.access_credentials.cli.ip       if site.access_credentials.cli else None
@@ -369,5 +371,5 @@ class SiteRepositoryImpl(SiteRepository):
             creds.vpn_port     = site.access_credentials.vpn.port     if site.access_credentials.vpn else None
             creds.note         = site.access_credentials.note
         elif orm.access_credentials is not None:
-            self._session.delete(orm.access_credentials)
+            await self._session.delete(orm.access_credentials)
             orm.access_credentials = None
