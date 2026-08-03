@@ -1,13 +1,15 @@
 // frontend/src/domain/Site.ts
 export type SiteStatus = 'installing' | 'active' | 'inactive' | 'expired' | 'maintenance'
 
-export interface SiteSummary {
-  id: number
-  site_name: string
-  customer_name?: string
-  status?: SiteStatus
-  contract_end_date?: string
-}
+export type ContractType = '정식라이센스' | '임시라이센스'
+
+export type DeploymentType = '올인원' | '분리구성'
+
+export type NodeRole = 'AllInOne' | 'Analyzer' | 'Collector'
+
+export type PatchType = '정기패치' | '긴급패치' | '핫픽스'
+
+export type PatchResultStatus = '성공' | '실패' | '롤백'
 
 export interface ContactInfo {
   name?: string
@@ -30,8 +32,6 @@ export interface AccessCredentials {
   vpn?: Credential
   note?: string
 }
-
-export type NodeRole = 'AllInOne' | 'Analyzer' | 'Collector'
 
 export interface DeploymentNode {
   id?: number
@@ -67,7 +67,7 @@ export interface SolutionPackage {
   version?: string
   installer_filename?: string
   license_capacity_gb?: number
-  deployment_type?: string
+  deployment_type?: DeploymentType
   license_key?: string
   license_expire_date?: string
   installed_at?: string
@@ -78,7 +78,7 @@ export interface SolutionPackagePayload {
   version?: string
   installer_filename?: string
   license_capacity_gb?: number
-  deployment_type?: string
+  deployment_type?: DeploymentType
   license_key?: string
   license_expire_date?: string
   installed_at?: string
@@ -89,18 +89,18 @@ export interface PatchHistory {
   issue_link?: string
   patch_date?: string
   patch_file_link?: string
-  patch_type?: string
+  patch_type?: PatchType
   applied_by?: string
-  result_status?: string
+  result_status?: PatchResultStatus
   rollback_date?: string
   note?: string
 }
 
 export interface PatchHistoryPayload {
   patch_date?: string
-  patch_type?: string
+  patch_type?: PatchType
   applied_by?: string
-  result_status?: string
+  result_status?: PatchResultStatus
   issue_link?: string
   patch_file_link?: string
   rollback_date?: string
@@ -124,6 +124,14 @@ export interface VisitHistoryPayload {
   action_content?: string
 }
 
+export interface SiteSummary {
+  id: number
+  site_name: string
+  customer_name?: string
+  status?: SiteStatus
+  contract_end_date?: string
+}
+
 export interface SiteDetail {
   id: number
   site_name: string
@@ -132,7 +140,7 @@ export interface SiteDetail {
   maintenance_info?: ContactInfo
   contract_start_date?: string
   contract_end_date?: string
-  contract_type?: string
+  contract_type?: ContractType
   status?: SiteStatus
   created_at: string
   updated_at: string
@@ -150,7 +158,7 @@ export interface SiteCreatePayload {
   maintenance_info?: ContactInfo
   contract_start_date?: string
   contract_end_date?: string
-  contract_type?: string
+  contract_type?: ContractType
   status?: SiteStatus
   nodes: DeploymentNodePayload[]
   solution_package?: SolutionPackagePayload
@@ -166,7 +174,7 @@ export interface SiteUpdatePayload {
   maintenance_info?: ContactInfo
   contract_start_date?: string
   contract_end_date?: string
-  contract_type?: string
+  contract_type?: ContractType
   status?: SiteStatus
   access_credentials?: AccessCredentials
 }
