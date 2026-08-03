@@ -1,6 +1,7 @@
 # backend/src/infrastructure/persistence/site_repository_impl.py
 from typing import Optional
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +34,18 @@ from src.infrastructure.persistence.site_models import (
 )
 
 _GET_ALL_LIMIT = 500
+
+
+def _safe_enum(enum_cls: type[StrEnum], value):
+    if value is None:
+        return None
+    try:
+        return enum_cls(value)
+    except ValueError:
+        for member in enum_cls:
+            if member.name.lower() == str(value).lower():
+                return member
+        return None
 
 
 class SiteRepositoryImpl(SiteRepository):
@@ -169,8 +182,8 @@ class SiteRepositoryImpl(SiteRepository):
             ),
             contract_start_date=orm.contract_start_date,
             contract_end_date=orm.contract_end_date,
-            contract_type=ContractType(orm.contract_type) if orm.contract_type else None,
-            status=SiteStatus(orm.status) if orm.status else None,
+            contract_type=_safe_enum(ContractType, orm.contract_type),
+            status=_safe_enum(SiteStatus, orm.status),
             created_at=orm.created_at,
             updated_at=orm.updated_at,
             nodes=[self._node_to_domain(n) for n in (orm.nodes or [])],
@@ -184,7 +197,7 @@ class SiteRepositoryImpl(SiteRepository):
         return DeploymentNode(
             id=orm.id,
             hostname=orm.hostname,
-            role=NodeRole(orm.role) if orm.role else None,
+            role=_safe_enum(NodeRole, orm.role),
             cpu_cores=orm.cpu_cores,
             cpu_threads=orm.cpu_threads,
             memory_total_gb=orm.memory_total_gb,
@@ -202,7 +215,7 @@ class SiteRepositoryImpl(SiteRepository):
             version=orm.version,
             installer_filename=orm.installer_filename,
             license_capacity_gb=orm.license_capacity_gb,
-            deployment_type=DeploymentType(orm.deployment_type) if orm.deployment_type else None,
+            deployment_type=_safe_enum(DeploymentType, orm.deployment_type),
             license_key=orm.license_key,
             license_expire_date=orm.license_expire_date,
             installed_at=orm.installed_at,
@@ -215,9 +228,9 @@ class SiteRepositoryImpl(SiteRepository):
             issue_link=orm.issue_link,
             patch_date=orm.patch_date,
             patch_file_link=orm.patch_file_link,
-            patch_type=PatchType(orm.patch_type) if orm.patch_type else None,
+            patch_type=_safe_enum(PatchType, orm.patch_type),
             applied_by=orm.applied_by,
-            result_status=PatchResultStatus(orm.result_status) if orm.result_status else None,
+            result_status=_safe_enum(PatchResultStatus, orm.result_status),
             rollback_date=orm.rollback_date,
             note=orm.note,
         )
