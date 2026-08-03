@@ -293,9 +293,26 @@ async def update_site(
     existing = await use_case.get_by_id(site_id)
     if existing is None:
         raise HTTPException(status_code=404, detail="Site not found")
-    updates = req.model_dump(exclude_unset=True)
-    for key, value in updates.items():
-        setattr(existing, key, value)
+
+    if req.site_name is not None:
+        existing.site_name = req.site_name
+    if req.maintenance_company is not None:
+        existing.maintenance_company = req.maintenance_company
+    if req.customer_info is not None:
+        existing.customer_contact = _contact_from_schema(req.customer_info)
+    if req.maintenance_info is not None:
+        existing.maintenance_contact = _contact_from_schema(req.maintenance_info)
+    if req.contract_start_date is not None:
+        existing.contract_start_date = req.contract_start_date
+    if req.contract_end_date is not None:
+        existing.contract_end_date = req.contract_end_date
+    if req.contract_type is not None:
+        existing.contract_type = req.contract_type
+    if req.status is not None:
+        existing.status = req.status
+    if req.access_credentials is not None:
+        existing.access_credentials = _creds_from_schema(req.access_credentials)
+
     site = await use_case.update(existing)
     return _to_response(site)
 
