@@ -34,7 +34,7 @@ export const siteApi = {
   },
 
   update: async (id: number, payload: Partial<SiteCreatePayload>): Promise<SiteDetail> => {
-    const res = await client.put<SiteDetail>(`/sites/${id}`, payload)
+    const res = await client.patch<SiteDetail>(`/sites/${id}`, payload)
     return res.data
   },
 
@@ -44,7 +44,7 @@ export const siteApi = {
   },
 
   updateNode: async (siteId: number, nodeId: number, payload: DeploymentNodePayload): Promise<DeploymentNode> => {
-    const res = await client.put<DeploymentNode>(`/sites/${siteId}/nodes/${nodeId}`, payload)
+    const res = await client.patch<DeploymentNode>(`/sites/${siteId}/nodes/${nodeId}`, payload)
     return res.data
   },
 
@@ -53,30 +53,30 @@ export const siteApi = {
   },
 
   addPatchHistory: async (siteId: number, payload: PatchHistoryPayload): Promise<PatchHistory> => {
-    const res = await client.post<PatchHistory>(`/sites/${siteId}/patch_histories`, payload)
+    const res = await client.post<PatchHistory>(`/sites/${siteId}/patch-histories`, payload)
     return res.data
   },
 
   updatePatchHistory: async (siteId: number, patchId: number, payload: PatchHistoryPayload): Promise<PatchHistory> => {
-    const res = await client.put<PatchHistory>(`/sites/${siteId}/patch_histories/${patchId}`, payload)
+    const res = await client.patch<PatchHistory>(`/sites/${siteId}/patch-histories/${patchId}`, payload)
     return res.data
   },
 
   deletePatchHistory: async (siteId: number, patchId: number): Promise<void> => {
-    await client.delete(`/sites/${siteId}/patch_histories/${patchId}`)
+    await client.delete(`/sites/${siteId}/patch-histories/${patchId}`)
   },
 
   addVisitHistory: async (siteId: number, payload: VisitHistoryPayload): Promise<VisitHistory> => {
-    const res = await client.post<VisitHistory>(`/sites/${siteId}/visit_histories`, payload)
+    const res = await client.post<VisitHistory>(`/sites/${siteId}/visit-histories`, payload)
     return res.data
   },
 
   updateVisitHistory: async (siteId: number, visitId: number, payload: VisitHistoryPayload): Promise<VisitHistory> => {
-    const res = await client.put<VisitHistory>(`/sites/${siteId}/visit_histories/${visitId}`, payload)
+    const res = await client.patch<VisitHistory>(`/sites/${siteId}/visit-histories/${visitId}`, payload)
     return res.data
   },
 
   deleteVisitHistory: async (siteId: number, visitId: number): Promise<void> => {
-    await client.delete(`/sites/${siteId}/visit_histories/${visitId}`)
+    await client.delete(`/sites/${siteId}/visit-histories/${visitId}`)
   },
 }
