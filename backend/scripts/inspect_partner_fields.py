@@ -67,28 +67,33 @@ async def fetch_organizations(client: httpx.AsyncClient) -> list[dict]:
 
 async def main() -> None:
     async with httpx.AsyncClient(auth=AUTH, headers=HEADERS, timeout=30.0) as client:
-        key, fields, names, all_fields, orgs = await asyncio.gather(
-            *[
-                fetch_latest_issue(client),
-                fetch_all_fields(client),
-                fetch_organizations(client),
-            ],
+        issue_result, all_fields, orgs = await asyncio.gather(
+            fetch_latest_issue(client),
+            fetch_all_fields(client),
+            fetch_organizations(client),
             return_exceptions=True,
         )
 
-    if isinstance(key, BaseException):
+    if isinstance(issue_result, BaseException):
+        print(f"[WARN] 이슈 조회 실패: {issue_result}")
         key, fields, names = "ERROR", {}, {}
+    else:
+        key, fields, names = issue_result
+
     if isinstance(all_fields, BaseException):
+        print(f"[WARN] field 메타 조회 실패: {all_fields}")
         all_fields = []
+
     if isinstance(orgs, BaseException):
+        print(f"[WARN] 조직 목록 조회 실패: {orgs}")
         orgs = []
 
     # 1. 이슈 내 커스텀 필드 전체 (non-null)
     custom_from_issue = [
         {
-            "field_id":    fid,
-            "field_name":  names.get(fid, fid),
-            "value":       val,
+            "field_id":   fid,
+            "field_name": names.get(fid, fid),
+            "value":      val,
         }
         for fid, val in sorted(fields.items())
         if fid.startswith("customfield_") and val is not None
@@ -112,12 +117,8 @@ async def main() -> None:
         nl = name.lower()
         return any(k in nl for k in KEYWORDS)
 
-    partner_candidates_issue = [
-        c for c in custom_from_issue if has_keyword(c["field_name"])
-    ]
-    partner_candidates_meta = [
-        c for c in custom_from_meta if has_keyword(c["field_name"])
-    ]
+    partner_candidates_issue = [c for c in custom_from_issue if has_keyword(c["field_name"])]
+    partner_candidates_meta  = [c for c in custom_from_meta  if has_keyword(c["field_name"])]
 
     result = {
         "sampled_issue_key": key,
@@ -132,9 +133,10 @@ async def main() -> None:
     OUT_PATH.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"\n=== 샘플 이슈: {key} ===")
+
     print(f"\n[Service Desk 조직 목록] {len(orgs)}개")
     for o in orgs:
-        print(f"  id={o.get('id'):>4}  name={o.get('name')}")
+        print(f"  id={str(o.get('id')):>4}  name={o.get('name')}")
 
     print(f"\n[파트너/조직 관련 커스텀 필드 — 이슈 내 non-null] {len(partner_candidates_issue)}개")
     for c in partner_candidates_issue:
