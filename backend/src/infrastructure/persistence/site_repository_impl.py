@@ -178,7 +178,7 @@ class SiteRepositoryImpl(SiteRepository):
                 name=orm.maintenance_name,
                 phone=orm.maintenance_phone,
                 email=orm.maintenance_email,
-                company=orm.maintenance_company,
+                company=orm.maintenance_contact_company,
             ),
             contract_start_date=orm.contract_start_date,
             contract_end_date=orm.contract_end_date,
@@ -257,12 +257,13 @@ class SiteRepositoryImpl(SiteRepository):
     def _apply_domain(self, orm: SiteORM, site: Site) -> None:
         orm.site_name                   = site.site_name
         orm.maintenance_company         = site.maintenance_company
-        orm.customer_name               = site.customer_contact.name  if site.customer_contact  else None
-        orm.customer_phone              = site.customer_contact.phone if site.customer_contact  else None
-        orm.customer_email              = site.customer_contact.email if site.customer_contact  else None
-        orm.maintenance_name            = site.maintenance_contact.name  if site.maintenance_contact else None
-        orm.maintenance_phone           = site.maintenance_contact.phone if site.maintenance_contact else None
-        orm.maintenance_email           = site.maintenance_contact.email if site.maintenance_contact else None
+        orm.customer_name               = site.customer_contact.name    if site.customer_contact  else None
+        orm.customer_phone              = site.customer_contact.phone   if site.customer_contact  else None
+        orm.customer_email              = site.customer_contact.email   if site.customer_contact  else None
+        orm.maintenance_name            = site.maintenance_contact.name    if site.maintenance_contact else None
+        orm.maintenance_phone           = site.maintenance_contact.phone   if site.maintenance_contact else None
+        orm.maintenance_email           = site.maintenance_contact.email   if site.maintenance_contact else None
+        orm.maintenance_contact_company = site.maintenance_contact.company if site.maintenance_contact else None
         orm.contract_start_date         = site.contract_start_date
         orm.contract_end_date           = site.contract_end_date
         orm.contract_type               = site.contract_type.value if site.contract_type else None
