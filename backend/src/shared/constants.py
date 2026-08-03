@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 KST = ZoneInfo("Asia/Seoul")
 
-JIRA_MAX_RESULT = 500
+JIRA_MAX_RESULT = 5000
 
 SUMMARY_TRUNCATE_LEN       = 60
 SUMMARY_TRUNCATE_SHORT_LEN = 30
