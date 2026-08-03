@@ -5,7 +5,7 @@ export type ContractType = '정식라이센스' | '임시라이센스'
 
 export type DeploymentType = '올인원' | '분리구성'
 
-export type NodeRole = 'AllInOne' | 'Analyzer' | 'Collector'
+export type NodeRole = 'AllInOne' | 'Analyzer' | 'Collector' | 'Proxy'
 
 export type PatchType = '정기패치' | '긴급패치' | '핫픽스'
 

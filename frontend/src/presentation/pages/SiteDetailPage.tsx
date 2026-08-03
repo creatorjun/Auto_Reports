@@ -142,7 +142,7 @@ function CardActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () =>
 
 const nodeSchema = z.object({
   hostname:        z.string().optional(),
-  role:            z.enum(['AllInOne', 'Analyzer', 'Collector']).optional(),
+  role:            z.enum(['AllInOne', 'Analyzer', 'Collector', 'Proxy']).optional(),
   ip_address:      z.string().optional(),
   os_type:         z.string().optional(),
   os_version:      z.string().optional(),
@@ -233,6 +233,7 @@ function NodeForm({
             <option value="AllInOne">AllInOne</option>
             <option value="Analyzer">Analyzer</option>
             <option value="Collector">Collector</option>
+            <option value="Proxy">Proxy</option>
           </select>
         </div>
         <div className="flex flex-col gap-1">
@@ -241,7 +242,7 @@ function NodeForm({
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-apple-light">OS 유형</label>
-          <input {...register('os_type')} className={inputCls} placeholder="Ubuntu" />
+          <input {...register('os_type')} className={inputCls} placeholder="Oracle Linux" />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-apple-light">OS 버전</label>

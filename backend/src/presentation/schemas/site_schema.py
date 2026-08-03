@@ -28,6 +28,7 @@ class NodeRole(str, Enum):
     ALL_IN_ONE = "AllInOne"
     ANALYZER   = "Analyzer"
     COLLECTOR  = "Collector"
+    PROXY      = "Proxy"
 
 
 class PatchType(str, Enum):
