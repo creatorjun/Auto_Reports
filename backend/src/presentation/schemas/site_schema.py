@@ -6,44 +6,40 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class ContractType(str, Enum):
-    ANNUAL     = "annual"
-    PERPETUAL  = "perpetual"
-    TRIAL      = "trial"
-    NONE       = "none"
-
-
 class SiteStatus(str, Enum):
-    ACTIVE     = "active"
-    INACTIVE   = "inactive"
+    INSTALLING  = "installing"
+    ACTIVE      = "active"
+    INACTIVE    = "inactive"
+    EXPIRED     = "expired"
     MAINTENANCE = "maintenance"
 
 
-class NodeRole(str, Enum):
-    MASTER  = "master"
-    WORKER  = "worker"
-    SINGLE  = "single"
-    REPLICA = "replica"
+class ContractType(str, Enum):
+    OFFICIAL  = "정식라이센스"
+    TEMPORARY = "임시라이센스"
 
 
 class DeploymentType(str, Enum):
-    ON_PREMISE = "on_premise"
-    CLOUD      = "cloud"
-    HYBRID     = "hybrid"
+    ALL_IN_ONE = "올인원"
+    SEPARATED  = "분리구성"
+
+
+class NodeRole(str, Enum):
+    ALL_IN_ONE = "AllInOne"
+    ANALYZER   = "Analyzer"
+    COLLECTOR  = "Collector"
 
 
 class PatchType(str, Enum):
-    HOTFIX   = "hotfix"
-    UPGRADE  = "upgrade"
-    ROLLBACK = "rollback"
-    CONFIG   = "config"
+    REGULAR   = "정기패치"
+    EMERGENCY = "긴급패치"
+    HOTFIX    = "핫픽스"
 
 
 class PatchResultStatus(str, Enum):
-    SUCCESS  = "success"
-    FAILURE  = "failure"
-    PARTIAL  = "partial"
-    ROLLBACK = "rollback"
+    SUCCESS     = "성공"
+    FAILED      = "실패"
+    ROLLED_BACK = "롤백"
 
 
 class ContactInfoSchema(BaseModel):
