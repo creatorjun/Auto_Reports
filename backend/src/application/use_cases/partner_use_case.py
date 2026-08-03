@@ -9,10 +9,9 @@ from src.shared.constants import JIRA_MAX_RESULT, STAGE_MAP, SUMMARY_TRUNCATE_LE
 
 logger = logging.getLogger(__name__)
 
-_TAC_ASSIGNEE_KEY = "_tac_assignee"
-_QA_ASSIGNEE_KEY  = "_qa_assignee"
-
-_ORG_FIELD_ID = "customfield_10204"
+_TAC_ASSIGNEE_KEY  = "_tac_assignee"
+_QA_ASSIGNEE_KEY   = "_qa_assignee"
+_COMPANY_FIELD_ID  = "customfield_11023"
 
 _SD_TIMEOUT = httpx.Timeout(connect=5.0, read=20.0, write=10.0, pool=5.0)
 _SD_HEADERS = {
@@ -82,6 +81,7 @@ class PartnerUseCase:
             headers=_SD_HEADERS,
             timeout=_SD_TIMEOUT,
         )
+        self._org_name_cache: dict[str, str] = {}
 
     async def get_organizations(self) -> list[dict]:
         results, start = [], 0
@@ -93,11 +93,12 @@ class PartnerUseCase:
             resp.raise_for_status()
             data   = resp.json()
             values = data.get("values", [])
-            results.extend(
-                {"id": str(v["id"]), "name": v["name"]}
-                for v in values
-                if v.get("id") and v.get("name")
-            )
+            for v in values:
+                if v.get("id") and v.get("name"):
+                    oid  = str(v["id"])
+                    name = v["name"]
+                    results.append({"id": oid, "name": name})
+                    self._org_name_cache[oid] = name
             if data.get("isLastPage", True):
                 break
             start += len(values)
@@ -105,6 +106,15 @@ class PartnerUseCase:
         results.sort(key=lambda x: x["name"])
         logger.info(f"[파트너] 조직 {len(results)}개")
         return results
+
+    async def _resolve_org_name(self, org_id: str) -> str:
+        if org_id in self._org_name_cache:
+            return self._org_name_cache[org_id]
+        resp = await self._sd_client.get(f"/rest/servicedeskapi/organization/{org_id}")
+        resp.raise_for_status()
+        name = resp.json().get("name", "")
+        self._org_name_cache[org_id] = name
+        return name
 
     async def get_members(self, org_id: str) -> list[dict]:
         results, start = [], 0
@@ -133,9 +143,13 @@ class PartnerUseCase:
         return results
 
     async def get_issues_by_org(self, org_id: str) -> list[dict]:
+        org_name = await self._resolve_org_name(org_id)
+        if not org_name:
+            logger.warning(f"[파트너] org_id={org_id} 이름 불명 → 빈 결과 반환")
+            return []
         jql = (
             f'project = "{self._project_key}" '
-            f'AND "{_ORG_FIELD_ID}" = "{org_id}" '
+            f'AND "{_COMPANY_FIELD_ID}" = "{org_name}" '
             f'ORDER BY created DESC'
         )
         return await self._fetch_issues(jql)
