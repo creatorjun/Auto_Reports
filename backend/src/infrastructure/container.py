@@ -11,6 +11,7 @@ from src.application.services.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
+from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.ports.jira_port import JiraPort
@@ -58,6 +59,12 @@ class Container:
         self._storage_use_case = StorageUseCase(
             LocalStorageAdapter(settings.storage_dir)
         )
+        self._partner_use_case = PartnerUseCase(
+            jira=self._jira,
+            project_key=settings.project_key,
+            tac_assignee_fid=settings.jira_tac_assignee_field_id,
+            qa_assignee_fid=settings.jira_qa_assignee_field_id,
+        )
 
     @property
     def login_enabled(self) -> bool:
@@ -97,6 +104,9 @@ class Container:
 
     def jira_port(self) -> JiraPort:
         return self._jira
+
+    def partner_use_case(self) -> PartnerUseCase:
+        return self._partner_use_case
 
     async def aclose(self) -> None:
         await self._jira.aclose()
