@@ -2,19 +2,24 @@
 from pydantic import BaseModel
 
 
-class PartnerMemberSchema(BaseModel):
-    account_id: str
-    display_name: str
-
-
 class PartnerOrgSchema(BaseModel):
     id: str
     name: str
-    members: list[PartnerMemberSchema]
 
 
 class PartnerOrgsResponse(BaseModel):
     organizations: list[PartnerOrgSchema]
+
+
+class PartnerMemberSchema(BaseModel):
+    account_id: str
+    display_name: str
+    email: str
+
+
+class PartnerMembersResponse(BaseModel):
+    org_id: str
+    members: list[PartnerMemberSchema]
 
 
 class RecentIssueSchema(BaseModel):

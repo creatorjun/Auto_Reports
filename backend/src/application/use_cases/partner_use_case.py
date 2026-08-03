@@ -2,6 +2,8 @@
 import logging
 from datetime import datetime
 
+import httpx
+
 from src.domain.ports.jira_port import JiraPort
 from src.shared.constants import JIRA_MAX_RESULT, STAGE_MAP, SUMMARY_TRUNCATE_LEN
 
@@ -11,6 +13,12 @@ _TAC_ASSIGNEE_KEY = "_tac_assignee"
 _QA_ASSIGNEE_KEY  = "_qa_assignee"
 
 _ORG_FIELD_ID = "customfield_10204"
+
+_SD_TIMEOUT = httpx.Timeout(connect=5.0, read=20.0, write=10.0, pool=5.0)
+_SD_HEADERS = {
+    "Accept": "application/json",
+    "X-ExperimentalApi": "opt-in",
+}
 
 
 def _display_name(value: object) -> str:
@@ -60,58 +68,69 @@ class PartnerUseCase:
         project_key: str,
         tac_assignee_fid: str,
         qa_assignee_fid: str,
+        jira_base_url: str,
+        jira_email: str,
+        jira_api_token: str,
     ):
         self._jira             = jira
         self._project_key      = project_key
         self._tac_assignee_fid = tac_assignee_fid
         self._qa_assignee_fid  = qa_assignee_fid
+        self._sd_client = httpx.AsyncClient(
+            base_url=jira_base_url.rstrip("/"),
+            auth=(jira_email, jira_api_token),
+            headers=_SD_HEADERS,
+            timeout=_SD_TIMEOUT,
+        )
 
     async def get_organizations(self) -> list[dict]:
-        jql = (
-            f'project = "{self._project_key}" '
-            f'AND "{_ORG_FIELD_ID}" is not EMPTY '
-            f'ORDER BY created DESC'
-        )
-        fields_str = f"reporter,{_ORG_FIELD_ID}"
-        issues = await self._jira.get_issues(
-            jql, max_results=JIRA_MAX_RESULT, fields=fields_str
-        )
+        results, start = [], 0
+        while True:
+            resp = await self._sd_client.get(
+                "/rest/servicedeskapi/organization",
+                params={"start": start, "limit": 50},
+            )
+            resp.raise_for_status()
+            data   = resp.json()
+            values = data.get("values", [])
+            results.extend(
+                {"id": str(v["id"]), "name": v["name"]}
+                for v in values
+                if v.get("id") and v.get("name")
+            )
+            if data.get("isLastPage", True):
+                break
+            start += len(values)
 
-        org_map: dict[str, dict] = {}
-        for issue in issues:
-            f = issue.get("fields") or {}
-            orgs = f.get(_ORG_FIELD_ID) or []
-            if not isinstance(orgs, list):
-                orgs = [orgs]
+        results.sort(key=lambda x: x["name"])
+        logger.info(f"[파트너] 조직 {len(results)}개")
+        return results
 
-            reporter     = f.get("reporter") or {}
-            account_id   = reporter.get("accountId", "")
-            display_name = reporter.get("displayName", "")
+    async def get_members(self, org_id: str) -> list[dict]:
+        results, start = [], 0
+        while True:
+            resp = await self._sd_client.get(
+                f"/rest/servicedeskapi/organization/{org_id}/user",
+                params={"start": start, "limit": 50},
+            )
+            resp.raise_for_status()
+            data   = resp.json()
+            values = data.get("values", [])
+            results.extend(
+                {
+                    "account_id":   v.get("accountId", ""),
+                    "display_name": v.get("displayName", ""),
+                    "email":        v.get("emailAddress", ""),
+                }
+                for v in values
+            )
+            if data.get("isLastPage", True):
+                break
+            start += len(values)
 
-            for org in orgs:
-                if not isinstance(org, dict):
-                    continue
-                org_id   = str(org.get("id", ""))
-                org_name = org.get("name", "")
-                if not org_id:
-                    continue
-
-                if org_id not in org_map:
-                    org_map[org_id] = {"id": org_id, "name": org_name, "_members": {}}
-
-                if account_id and account_id not in org_map[org_id]["_members"]:
-                    org_map[org_id]["_members"][account_id] = display_name
-
-        result = []
-        for org in sorted(org_map.values(), key=lambda x: x["name"]):
-            members = [
-                {"account_id": aid, "display_name": dname}
-                for aid, dname in sorted(org["_members"].items(), key=lambda x: x[1])
-            ]
-            result.append({"id": org["id"], "name": org["name"], "members": members})
-
-        logger.info(f"[파트너 관리] 조직 {len(result)}개 수집")
-        return result
+        results.sort(key=lambda x: x["display_name"])
+        logger.info(f"[파트너] org_id={org_id} 멤버 {len(results)}명")
+        return results
 
     async def get_issues_by_org(self, org_id: str) -> list[dict]:
         jql = (
@@ -146,3 +165,6 @@ class PartnerUseCase:
         result = [_build_issue(i, now_ts) for i in issues]
         logger.info(f"[파트너 이슈] JQL={jql[:80]} → {len(result)}건")
         return result
+
+    async def aclose(self) -> None:
+        await self._sd_client.aclose()

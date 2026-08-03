@@ -64,6 +64,9 @@ class Container:
             project_key=settings.project_key,
             tac_assignee_fid=settings.jira_tac_assignee_field_id,
             qa_assignee_fid=settings.jira_qa_assignee_field_id,
+            jira_base_url=settings.jira_base_url,
+            jira_email=settings.jira_email,
+            jira_api_token=settings.jira_api_token,
         )
 
     @property
@@ -110,7 +113,8 @@ class Container:
 
     async def aclose(self) -> None:
         await self._jira.aclose()
-        logger.info("JiraClient \ucf58\ub125\uc158 \ud480 \uc885\ub8cc")
+        await self._partner_use_case.aclose()
+        logger.info("JiraClient 커넥션 풀 종료")
 
     def generate_report_use_case(self, session: AsyncSession) -> GenerateReportUseCase:
         return GenerateReportUseCase(
