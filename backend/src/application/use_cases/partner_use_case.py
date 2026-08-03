@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 _TAC_ASSIGNEE_KEY  = "_tac_assignee"
 _QA_ASSIGNEE_KEY   = "_qa_assignee"
-_COMPANY_FIELD_ID  = "customfield_11023"
 
 _SD_TIMEOUT = httpx.Timeout(connect=5.0, read=20.0, write=10.0, pool=5.0)
 _SD_HEADERS = {
@@ -143,15 +142,24 @@ class PartnerUseCase:
         return results
 
     async def get_issues_by_org(self, org_id: str) -> list[dict]:
-        org_name = await self._resolve_org_name(org_id)
-        if not org_name:
-            logger.warning(f"[파트너] org_id={org_id} 이름 불명 → 빈 결과 반환")
+        members = await self.get_members(org_id)
+        if not members:
+            org_name = await self._resolve_org_name(org_id)
+            logger.info(f"[파트너 이슈] org_id={org_id} ({org_name}) 멤버 없음 → 0건")
             return []
+
+        account_ids = [m["account_id"] for m in members if m["account_id"]]
+        if not account_ids:
+            return []
+
+        ids_str  = ", ".join(f'"{aid}"' for aid in account_ids)
+        org_name = await self._resolve_org_name(org_id)
         jql = (
             f'project = "{self._project_key}" '
-            f'AND "{_COMPANY_FIELD_ID}" = "{org_name}" '
+            f'AND reporter IN ({ids_str}) '
             f'ORDER BY created DESC'
         )
+        logger.info(f"[파트너 이슈] org={org_name}({org_id}) 멤버={len(account_ids)}명 → reporter IN 방식")
         return await self._fetch_issues(jql)
 
     async def get_issues_by_member(self, account_id: str) -> list[dict]:
