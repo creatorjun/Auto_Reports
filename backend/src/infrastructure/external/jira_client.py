@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from src.domain.ports.jira_port import JiraPort
+from src.domain.ports.service_desk_port import ServiceDeskPort
 from src.shared.cache import LruCache
 from src.shared.constants import (
     JIRA_MAX_RESULT
@@ -16,6 +17,12 @@ logger = logging.getLogger(__name__)
 SLA_SCHEMA_TYPE = "sd-servicelevelagreement"
 _JIRA_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0)
 _JIRA_LIMITS  = httpx.Limits(max_connections=30, max_keepalive_connections=15)
+
+_SD_TIMEOUT = httpx.Timeout(connect=5.0, read=20.0, write=10.0, pool=5.0)
+_SD_HEADERS = {
+    "Accept": "application/json",
+    "X-ExperimentalApi": "opt-in",
+}
 
 _SLA_INITIAL_KEY    = "_sla_initial"
 _SLA_RESOLUTION_KEY = "_sla_resolution"
@@ -28,8 +35,12 @@ _COUNT_CACHE_MAXSIZE  = 256
 _COUNT_CACHE_TTL      = 600.0
 _COUNT_CACHE_STALE    = 120.0
 
+_ISSUES_CACHE_MAXSIZE = 128
+_ISSUES_CACHE_TTL     = 300.0
+_ISSUES_CACHE_STALE   = 60.0
 
-class JiraClient(JiraPort):
+
+class JiraClient(JiraPort, ServiceDeskPort):
     def __init__(
         self,
         base_url: str,
@@ -50,6 +61,12 @@ class JiraClient(JiraPort):
             timeout=_JIRA_TIMEOUT,
             limits=_JIRA_LIMITS,
         )
+        self._sd_client = httpx.AsyncClient(
+            base_url=self._base_url,
+            auth=(email, api_token),
+            headers=_SD_HEADERS,
+            timeout=_SD_TIMEOUT,
+        )
         self._sla_field_ids_cache: dict[str, str] | None = None
         self._sla_initial_fid    = sla_initial_response_field_id
         self._sla_resolution_fid = sla_resolution_field_id
@@ -61,6 +78,12 @@ class JiraClient(JiraPort):
             ttl_seconds=_COUNT_CACHE_TTL,
             stale_ttl_seconds=_COUNT_CACHE_STALE,
         )
+        self._issues_cache: LruCache[str, list[dict[str, Any]]] = LruCache(
+            maxsize=_ISSUES_CACHE_MAXSIZE,
+            ttl_seconds=_ISSUES_CACHE_TTL,
+            stale_ttl_seconds=_ISSUES_CACHE_STALE,
+        )
+        self._org_name_cache: dict[str, str] = {}
 
     async def get_issue_count(self, jql: str) -> int:
         cached = await self._count_cache.async_get(jql)
@@ -113,12 +136,21 @@ class JiraClient(JiraPort):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return [], None
 
+    def _issues_cache_key(self, jql: str, max_results: int, fields: str) -> str:
+        return f"{jql}|{max_results}|{fields}"
+
     async def get_issues(
         self,
         jql: str,
         max_results: int = JIRA_MAX_RESULT,
         fields: str = "",
     ) -> list[dict[str, Any]]:
+        cache_key = self._issues_cache_key(jql, max_results, fields)
+        cached = await self._issues_cache.async_get(cache_key)
+        if cached is not None:
+            logger.debug(f"[cache-hit] issues: {jql[:60]}")
+            return cached
+
         field_list = [f.strip() for f in fields.split(",") if f.strip()] if fields else None
         page_size = min(_FETCH_PAGE_SIZE, max_results)
 
@@ -126,13 +158,17 @@ class JiraClient(JiraPort):
         logger.info(f"JQL 첫 페이지 수신: {len(first_page)}건, nextPageToken={first_token is not None}")
 
         if not first_page:
+            await self._issues_cache.async_set(cache_key, [])
             return []
 
         if len(first_page) >= max_results:
-            return first_page[:max_results]
+            result = first_page[:max_results]
+            await self._issues_cache.async_set(cache_key, result)
+            return result
 
         if first_token is None:
             logger.info(f"JQL 단일 페이지 완료: {len(first_page)}건 (nextPageToken 없음)")
+            await self._issues_cache.async_set(cache_key, first_page)
             return first_page
 
         all_issues = list(first_page)
@@ -145,7 +181,9 @@ class JiraClient(JiraPort):
                 break
 
         logger.info(f"JQL 수집 완료: 총={len(all_issues)}건")
-        return all_issues[:max_results]
+        result = all_issues[:max_results]
+        await self._issues_cache.async_set(cache_key, result)
+        return result
 
     async def get_issues_with_sla(
         self,
@@ -288,5 +326,63 @@ class JiraClient(JiraPort):
         results.sort(key=lambda x: x["type"])
         return results[:limit]
 
+    async def get_organizations(self) -> list[dict]:
+        results, start = [], 0
+        while True:
+            resp = await self._sd_client.get(
+                "/rest/servicedeskapi/organization",
+                params={"start": start, "limit": 50},
+            )
+            resp.raise_for_status()
+            data   = resp.json()
+            values = data.get("values", [])
+            for v in values:
+                if v.get("id") and v.get("name"):
+                    oid  = str(v["id"])
+                    name = v["name"]
+                    results.append({"id": oid, "name": name})
+                    self._org_name_cache[oid] = name
+            if data.get("isLastPage", True):
+                break
+            start += len(values)
+        results.sort(key=lambda x: x["name"])
+        logger.info(f"[파트너] 조직 {len(results)}개")
+        return results
+
+    async def resolve_org_name(self, org_id: str) -> str:
+        if org_id in self._org_name_cache:
+            return self._org_name_cache[org_id]
+        resp = await self._sd_client.get(f"/rest/servicedeskapi/organization/{org_id}")
+        resp.raise_for_status()
+        name = resp.json().get("name", "")
+        self._org_name_cache[org_id] = name
+        return name
+
+    async def get_members(self, org_id: str) -> list[dict]:
+        results, start = [], 0
+        while True:
+            resp = await self._sd_client.get(
+                f"/rest/servicedeskapi/organization/{org_id}/user",
+                params={"start": start, "limit": 50},
+            )
+            resp.raise_for_status()
+            data   = resp.json()
+            values = data.get("values", [])
+            results.extend(
+                {
+                    "account_id":   v.get("accountId", ""),
+                    "display_name": v.get("displayName", ""),
+                    "email":        v.get("emailAddress", ""),
+                }
+                for v in values
+            )
+            if data.get("isLastPage", True):
+                break
+            start += len(values)
+        results.sort(key=lambda x: x["display_name"])
+        logger.info(f"[파트너] org_id={org_id} 멤버 {len(results)}명")
+        return results
+
     async def aclose(self) -> None:
         await self._client.aclose()
+        await self._sd_client.aclose()

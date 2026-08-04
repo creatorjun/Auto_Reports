@@ -1,9 +1,12 @@
 # backend/src/infrastructure/config/settings.py
 import datetime
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_KST = ZoneInfo("Asia/Seoul")
 
 
 class Settings(BaseSettings):
@@ -54,7 +57,7 @@ class Settings(BaseSettings):
 
     @property
     def year_start(self) -> int:
-        return datetime.date.today().year
+        return datetime.datetime.now(_KST).year
 
     @property
     def database_url(self) -> str:

@@ -15,7 +15,9 @@ from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.ports.jira_port import JiraPort
+from src.domain.ports.service_desk_port import ServiceDeskPort
 from src.infrastructure.config.settings import Settings
+from src.infrastructure.external.jira_client import JiraClient
 from src.infrastructure.factories.ai_factory import AiFactory
 from src.infrastructure.factories.jira_factory import JiraFactory
 from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
@@ -34,7 +36,7 @@ KST = ZoneInfo("Asia/Seoul")
 class Container:
     def __init__(self, settings: Settings):
         self._settings = settings
-        self._jira: JiraPort = JiraFactory.create(settings)
+        self._jira: JiraClient = JiraFactory.create(settings)
         self._ai = AiFactory.create(settings)
         self._collector_factory = WidgetCollectorFactory(self._jira)
         self._query_config = QueryConfig(
@@ -62,12 +64,10 @@ class Container:
         )
         self._partner_use_case = PartnerUseCase(
             jira=self._jira,
+            service_desk=self._jira,
             project_key=settings.project_key,
             tac_assignee_fid=settings.jira_tac_assignee_field_id,
             qa_assignee_fid=settings.jira_qa_assignee_field_id,
-            jira_base_url=settings.jira_base_url,
-            jira_email=settings.jira_email,
-            jira_api_token=settings.jira_api_token,
         )
         self._credential_encryptor: CredentialEncryptor | None = (
             CredentialEncryptor(settings.credential_encryption_key)
@@ -120,12 +120,14 @@ class Container:
     def jira_port(self) -> JiraPort:
         return self._jira
 
+    def service_desk_port(self) -> ServiceDeskPort:
+        return self._jira
+
     def partner_use_case(self) -> PartnerUseCase:
         return self._partner_use_case
 
     async def aclose(self) -> None:
         await self._jira.aclose()
-        await self._partner_use_case.aclose()
         logger.info("JiraClient 커넥션 풀 종료")
 
     def generate_report_use_case(self, session: AsyncSession) -> GenerateReportUseCase:
