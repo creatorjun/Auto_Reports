@@ -1,9 +1,9 @@
 # backend/src/application/use_cases/site_use_cases.py
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from src.domain.entities.site import DeploymentNode, PatchHistory, Site, SolutionPackage, VisitHistory
+from src.domain.entities.site import DeploymentNode, PatchHistory, Site, VisitHistory
 from src.domain.repositories.site_repository import SiteRepository
 
 
@@ -45,15 +45,6 @@ class SiteUseCase:
     async def get_recent(self, limit: int = 5) -> list[SiteSummaryDTO]:
         sites = await self._repo.get_recent(limit)
         return [self._to_summary_dto(s) for s in sites]
-
-    async def upsert_solution_package(self, site_id: int, package: SolutionPackage) -> Site:
-        site = await self._repo.get_by_id(site_id)
-        if not site:
-            raise ValueError(f"Site '{site_id}' not found")
-        if site.solution_package:
-            package = replace(package, id=site.solution_package.id)
-        site.solution_package = package
-        return await self._repo.save(site)
 
     async def add_node(self, site_id: int, node: DeploymentNode) -> Site:
         site = await self._repo.get_by_id(site_id)
