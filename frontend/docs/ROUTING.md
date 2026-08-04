@@ -1,0 +1,62 @@
+# frontend/docs/ROUTING.md
+
+# 라우팅 구조
+
+## 라우트 테이블
+
+| 경로 | 컴포넌트 | 인증 | 설명 |
+|------|----------|------|------|
+| `/login` | `LoginPage` | 불필요 | 로그인 |
+| `/` | `DashboardPage` | 필요 | 최신 보고서 대시보드 |
+| `/history` | `HistoryPage` | 필요 | 보고서 목록 |
+| `/reports/:id` | `DashboardPage` | 필요 | 특정 보고서 대시보드 |
+| `/partners` | `PartnerManagementPage` | 필요 | 파트너 관리 |
+| `/storage` | `StoragePage` | 필요 | 파일 스토리지 |
+| `/storage/preview` | `StoragePreviewPage` | 필요 | 파일 미리보기 |
+| `/sites` | `SiteManagementPage` | 필요 | 사이트 목록 |
+| `/sites/new` | `SiteCreatePage` | 필요 | 사이트 생성 |
+| `/sites/:id` | `SiteDetailPage` | 필요 | 사이트 상세 |
+| `/sites/:id/edit` | `SiteCreatePage` | 필요 | 사이트 수정 |
+| `*` | — | — | `/login` 리디렉션 |
+
+## 인증 가드 (`ProtectedRoute`)
+
+```tsx
+// accessToken 없을 시 /login으로 Navigate (replace)
+export default function ProtectedRoute({ children }) {
+  const { accessToken } = useAuthStore()
+  if (!accessToken) return <Navigate to="/login" replace />
+  return children
+}
+```
+
+## Code Splitting (Lazy Loading)
+
+모든 페이지 컴포넌트는 `React.lazy()` 로 동적 임포트됩니다.  
+`LazyErrorBoundary` + `Suspense` 조합으로 로드 실패·로딩 상태를 처리합니다.
+
+```tsx
+const Wrap = ({ children }) => (
+  <LazyErrorBoundary>
+    <Suspense fallback={<LoadingSpinner text="페이지 로딩 중..." />}>
+      {children}
+    </Suspense>
+  </LazyErrorBoundary>
+)
+```
+
+## 중첩 라우트 구조
+
+```
+/ (ProtectedRoute → Layout)
+├── index           → DashboardPage
+├── history         → HistoryPage
+├── reports/:id     → DashboardPage
+├── partners        → PartnerManagementPage
+├── storage         → StoragePage
+├── storage/preview → StoragePreviewPage
+├── sites           → SiteManagementPage
+├── sites/new       → SiteCreatePage
+├── sites/:id       → SiteDetailPage
+└── sites/:id/edit  → SiteCreatePage
+```
