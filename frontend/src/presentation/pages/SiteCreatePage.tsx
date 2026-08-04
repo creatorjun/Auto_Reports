@@ -156,10 +156,11 @@ function CredentialRow({
           <div className="relative">
             <input
               {...register(passwordKey)}
-              type={showPw ? 'text' : 'password'}
+              type="text"
               className={inputCls + ' pr-9'}
               placeholder="password"
-              autoComplete="new-password"
+              autoComplete="off"
+              style={showPw ? undefined : { WebkitTextSecurity: 'disc' } as React.CSSProperties}
             />
             <button
               type="button"
@@ -331,7 +332,7 @@ export default function SiteCreatePage() {
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit(v => mutateAsync(v))} className="flex flex-col gap-8">
+      <form onSubmit={handleSubmit(v => mutateAsync(v))} className="flex flex-col gap-8" autoComplete="off">
         <section>
           <SectionTitle>기본 정보 <span className="text-red-400">*</span></SectionTitle>
           <div className="grid grid-cols-2 gap-4">
