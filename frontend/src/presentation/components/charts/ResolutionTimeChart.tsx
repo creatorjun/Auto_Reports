@@ -32,23 +32,33 @@ function SortIcon({ dir }: { dir: SortDir | null }) {
 }
 
 function ResizeHandle({ onDrag, tableWidth }: { onDrag: (frac: number) => void; tableWidth: React.RefObject<number> }) {
-  const dragging = useRef(false)
-  const lastX    = useRef(0)
+  const dragging  = useRef(false)
+  const hasMoved  = useRef(false)
+  const lastX     = useRef(0)
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault(); e.stopPropagation()
-    dragging.current = true; lastX.current = e.clientX
+    dragging.current = true; hasMoved.current = false; lastX.current = e.clientX
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
   }, [])
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragging.current) return
     const dx = e.clientX - lastX.current; lastX.current = e.clientX
+    if (dx !== 0) hasMoved.current = true
     onDrag(dx / (tableWidth.current || 1))
   }, [onDrag, tableWidth])
   const onPointerUp = useCallback(() => { dragging.current = false }, [])
+  const onClickCapture = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+  }, [])
   return (
-    <span onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
+    <span
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onClick={onClickCapture}
       className="absolute right-0 top-0 h-full w-[6px] cursor-col-resize select-none flex items-center justify-center group z-10"
-      title="드래그하여 너비 조절">
+      title="드래그하여 너비 조절"
+    >
       <span className="w-[2px] h-4 rounded bg-apple-divider group-hover:bg-brand-500 transition-colors" />
     </span>
   )
