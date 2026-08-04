@@ -3,8 +3,6 @@ export type SiteStatus = 'installing' | 'active' | 'inactive' | 'expired' | 'mai
 
 export type ContractType = '정식라이센스' | '임시라이센스'
 
-export type DeploymentType = '올인원' | '분리구성'
-
 export type NodeRole = 'AllInOne' | 'Analyzer' | 'Collector' | 'Proxy'
 
 export type PatchType = '정기패치' | '긴급패치' | '핫픽스'
@@ -60,28 +58,6 @@ export interface DeploymentNodePayload {
   ip_address?: string
   disk_free_gb?: number
   disk_updated_at?: string
-}
-
-export interface SolutionPackage {
-  id?: number
-  version?: string
-  installer_filename?: string
-  license_capacity_gb?: number
-  deployment_type?: DeploymentType
-  license_key?: string
-  license_expire_date?: string
-  installed_at?: string
-  updated_at?: string
-}
-
-export interface SolutionPackagePayload {
-  version?: string
-  installer_filename?: string
-  license_capacity_gb?: number
-  deployment_type?: DeploymentType
-  license_key?: string
-  license_expire_date?: string
-  installed_at?: string
 }
 
 export interface PatchHistory {
@@ -145,7 +121,6 @@ export interface SiteDetail {
   created_at: string
   updated_at: string
   nodes: DeploymentNode[]
-  solution_package?: SolutionPackage
   patch_histories: PatchHistory[]
   visit_histories: VisitHistory[]
   access_credentials?: AccessCredentials
@@ -161,7 +136,6 @@ export interface SiteCreatePayload {
   contract_type?: ContractType
   status?: SiteStatus
   nodes: DeploymentNodePayload[]
-  solution_package?: SolutionPackagePayload
   patch_histories: PatchHistoryPayload[]
   visit_histories: VisitHistoryPayload[]
   access_credentials?: AccessCredentials
