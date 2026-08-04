@@ -27,7 +27,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       })
   }, [])
 
-  const { data, isLoading, isError } = useMe({ enabled: !!accessToken })
+  const { data, isLoading, isError } = useMe()
 
   useEffect(() => {
     if (data) setLoginRequired(data.login_required)
