@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/tables/SlaOverdueModal.tsx
 import { useEffect } from 'react'
-import { statusBadge } from './statusBadge'
+import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 
 const JIRA_BASE = 'https://seculayer.atlassian.net/browse'
 
@@ -76,7 +76,7 @@ export default function SlaOverdueModal({ issues, total, onClose }: Props) {
                     <td className="py-2.5 text-[12px] text-apple-dark/80 max-w-xs truncate pr-4">{d.summary}</td>
                     <td className="py-2.5 text-[12px] text-apple-light whitespace-nowrap pr-4">{d.type}</td>
                     <td className="py-2.5 text-[12px] text-apple-light tabular-nums whitespace-nowrap pr-4">{d.created}</td>
-                    <td className="py-2.5 whitespace-nowrap pr-4">{statusBadge(d.resp_status)}</td>
+                    <td className="py-2.5 whitespace-nowrap pr-4"><StatusBadge status={d.resp_status} /></td>
                     <td className="py-2.5 text-[12px] tabular-nums whitespace-nowrap">
                       <span className="font-semibold text-red-500">+{d.over_h}h</span>
                     </td>
@@ -107,7 +107,7 @@ export default function SlaOverdueModal({ issues, total, onClose }: Props) {
                   <span>·</span>
                   <span>{d.created}</span>
                   <span>·</span>
-                  {statusBadge(d.resp_status)}
+                  <StatusBadge status={d.resp_status} />
                 </div>
               </div>
             ))}
