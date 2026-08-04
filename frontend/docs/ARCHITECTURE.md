@@ -41,11 +41,21 @@
 ### App (`src/app/`)
 - **router.tsx**: React Router v6 라우트 정의
 - **store/**: Zustand 전역 상태 슬라이스
-- **context/**: React Context (JiraContext)
+- **context/**: React Context (JiraContext / JiraProvider)
 
 ### Shared (`src/shared/`)
 - 모든 레이어에서 자유롭게 참조 가능한 상수·유틸·UI 클래스 토큰
 - 비즈니스 로직 포함 **금지**
+
+## 엔트리포인트 구조
+
+```
+src/main.tsx
+  └─ QueryClientProvider  ← TanStack Query 전역 설정 (retry:2, staleTime:5분)
+       └─ App.tsx
+            └─ RouterProvider  ← React Router v6
+                 └─ router.tsx (lazy + ProtectedRoute + Layout)
+```
 
 ## 데이터 흐름
 
@@ -79,6 +89,6 @@
   → useJobStream.start(job_id)
     → SSE EventSource 연결 우선 시도
     → SSE 불가 시 Exponential Backoff 폴링으로 폴백
-  → status 이벤트마다 UI 업데이트
+  → status 이벤트마다 UI 업데이트 (uiStore.triggerMessage)
   → done 이벤트 → report_id로 보고서 조회
 ```

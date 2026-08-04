@@ -14,17 +14,17 @@ frontend/
 ├── postcss.config.js
 ├── docs/                             # ← 현재 문서 폴더
 └── src/
-    ├── main.tsx                      # React 앱 마운트 엔트리
+    ├── main.tsx                      # QueryClientProvider + React 앱 마운트 엔트리
     │
     ├── app/                          # 앱 레벨 설정
-    │   ├── App.tsx                   # QueryClientProvider + RouterProvider 조합
+    │   ├── App.tsx                   # RouterProvider 단독 포함
     │   ├── router.tsx                # 전체 라우트 정의 (lazy + ProtectedRoute)
     │   ├── context/
-    │   │   └── JiraContext.tsx       # jiraBaseUrl 전역 Context
+    │   │   └── JiraContext.tsx       # JiraProvider / useJira() — jiraBase·jiraBrowse 제공
     │   └── store/
     │       ├── authStore.ts          # 인증 상태 (Zustand + persist)
-    │       ├── reportStore.ts        # 선택된 보고서 ID 상태
-    │       └── uiStore.ts            # 사이드바 열림/닫힘 상태
+    │       ├── reportStore.ts        # selectedReportId + currentReport 상태
+    │       └── uiStore.ts            # isTriggerLoading + triggerMessage 상태
     │
     ├── domain/                       # 순수 타입 레이어
     │   ├── Config.ts                 # AppConfig (jira_base_url)
@@ -46,7 +46,7 @@ frontend/
     │   │   └── storageApi.ts         # 파일 목록·업로드·다운로드·삭제·미리보기
     │   └── hooks/
     │       ├── useAuth.ts            # useMe, useLogin, useLogout
-    │       ├── useConfig.ts          # useAppConfig
+    │       ├── useConfig.ts          # useConfig → AppConfig (staleTime: Infinity)
     │       ├── useJobStream.ts       # SSE + Exp. Backoff 폴링 잡 모니터
     │       ├── useReport.ts          # useLatestReport, useReportById, useAllReports, useTriggerReport, useDeleteReport
     │       ├── useStorage.ts         # 스토리지 CRUD 훅 세트
@@ -87,7 +87,7 @@ frontend/
     │   │   │   ├── TrendLineChart.tsx           # 이슈 트렌드 라인 차트
     │   │   │   └── TypeBarChart.tsx             # 이슈 유형별 바 차트
     │   │   ├── tables/
-    │   │   │   ├── statusBadge.tsx              # 이슈 상태 뱃지 (tables 전용)
+    │   │   │   ├── statusBadge.tsx              # 이슈 상태 뱃지 (tables 전용, 소문자 시작)
     │   │   │   ├── DataRequestModal.tsx         # 자료요청 이슈 모달
     │   │   │   ├── IncompleteIssueModal.tsx     # 미완료 이슈 모달
     │   │   │   ├── IssueReviewModal.tsx         # 이슈리뷰 모달
