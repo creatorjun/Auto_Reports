@@ -13,14 +13,12 @@ from src.domain.entities.site import (
     ContractType,
     Credential,
     DeploymentNode,
-    DeploymentType,
     NodeRole,
     PatchHistory,
     PatchResultStatus,
     PatchType,
     Site,
     SiteStatus,
-    SolutionPackage,
     VisitHistory,
 )
 from src.domain.repositories.site_repository import SiteRepository
@@ -29,7 +27,6 @@ from src.infrastructure.persistence.site_models import (
     DeploymentNodeORM,
     PatchHistoryORM,
     SiteORM,
-    SolutionPackageORM,
     VisitHistoryORM,
 )
 
@@ -55,7 +52,6 @@ class SiteRepositoryImpl(SiteRepository):
     def _opts(self):
         return [
             selectinload(SiteORM.nodes),
-            selectinload(SiteORM.solution_package),
             selectinload(SiteORM.patch_histories),
             selectinload(SiteORM.visit_histories),
             selectinload(SiteORM.access_credentials),
@@ -188,7 +184,6 @@ class SiteRepositoryImpl(SiteRepository):
             created_at=orm.created_at,
             updated_at=orm.updated_at,
             nodes=[self._node_to_domain(n) for n in (orm.nodes or [])],
-            solution_package=self._pkg_to_domain(orm.solution_package) if orm.solution_package else None,
             patch_histories=[self._patch_to_domain(p) for p in (orm.patch_histories or [])],
             visit_histories=[self._visit_to_domain(v) for v in (orm.visit_histories or [])],
             access_credentials=self._creds_to_domain(orm.access_credentials) if orm.access_credentials else None,
@@ -208,19 +203,6 @@ class SiteRepositoryImpl(SiteRepository):
             ip_address=orm.ip_address,
             disk_free_gb=orm.disk_free_gb,
             disk_updated_at=orm.disk_updated_at,
-        )
-
-    def _pkg_to_domain(self, orm: SolutionPackageORM) -> SolutionPackage:
-        return SolutionPackage(
-            id=orm.id,
-            version=orm.version,
-            installer_filename=orm.installer_filename,
-            license_capacity_gb=orm.license_capacity_gb,
-            deployment_type=_safe_enum(DeploymentType, orm.deployment_type),
-            license_key=orm.license_key,
-            license_expire_date=orm.license_expire_date,
-            installed_at=orm.installed_at,
-            updated_at=orm.updated_at,
         )
 
     def _patch_to_domain(self, orm: PatchHistoryORM) -> PatchHistory:
@@ -292,24 +274,6 @@ class SiteRepositoryImpl(SiteRepository):
             node_orm.ip_address      = n.ip_address
             node_orm.disk_free_gb    = n.disk_free_gb
             node_orm.disk_updated_at = n.disk_updated_at
-
-        if site.solution_package:
-            pkg = orm.solution_package
-            if pkg is None:
-                pkg = SolutionPackageORM(site=orm)
-                orm.solution_package = pkg
-                self._session.add(pkg)
-            pkg.version              = site.solution_package.version
-            pkg.installer_filename   = site.solution_package.installer_filename
-            pkg.license_capacity_gb  = site.solution_package.license_capacity_gb
-            pkg.deployment_type      = site.solution_package.deployment_type.value if site.solution_package.deployment_type else None
-            pkg.license_key          = site.solution_package.license_key
-            pkg.license_expire_date  = site.solution_package.license_expire_date
-            pkg.installed_at         = site.solution_package.installed_at
-            pkg.updated_at           = site.solution_package.updated_at
-        elif orm.solution_package is not None:
-            await self._session.delete(orm.solution_package)
-            orm.solution_package = None
 
         incoming_patch_ids = {p.id for p in site.patch_histories if p.id is not None}
         for p in list(orm.patch_histories or []):
