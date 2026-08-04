@@ -235,18 +235,25 @@ export default function SiteCreatePage() {
     mutationFn: (values: FormValues) => {
       const buildCred = (
         u?: string, p?: string, ip?: string, port?: string,
-      ) => u ? {
-        username: u,
-        password: p ?? '',
-        ip:       ip   || undefined,
-        port:     port || undefined,
-      } : undefined
+        existingCred?: { username?: string; password?: string; ip?: string; port?: string },
+      ) => {
+        const hasAnyField = u || p || ip || port
+        if (!hasAnyField && !existingCred) return undefined
+        return {
+          username: u || existingCred?.username || undefined,
+          password: p || existingCred?.password || undefined,
+          ip:       ip   || existingCred?.ip   || undefined,
+          port:     port || existingCred?.port || undefined,
+        }
+      }
+
+      const ec = existing?.access_credentials
 
       const creds = {
-        cli:  buildCred(values.cli_username,  values.cli_password,  values.cli_ip,  values.cli_port),
-        web:  buildCred(values.web_username,  values.web_password,  values.web_ip,  values.web_port),
-        db:   buildCred(values.db_username,   values.db_password,   values.db_ip,   values.db_port),
-        vpn:  buildCred(values.vpn_username,  values.vpn_password,  values.vpn_ip,  values.vpn_port),
+        cli:  buildCred(values.cli_username,  values.cli_password,  values.cli_ip,  values.cli_port,  ec?.cli),
+        web:  buildCred(values.web_username,  values.web_password,  values.web_ip,  values.web_port,  ec?.web),
+        db:   buildCred(values.db_username,   values.db_password,   values.db_ip,   values.db_port,   ec?.db),
+        vpn:  buildCred(values.vpn_username,  values.vpn_password,  values.vpn_ip,  values.vpn_port,  ec?.vpn),
         note: values.access_note || undefined,
       }
       const hasAnyCred = creds.cli || creds.web || creds.db || creds.vpn || creds.note
@@ -326,33 +333,44 @@ export default function SiteCreatePage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Field label="사이트명 *" error={errors.site_name?.message}>
-                <input {...register('site_name')} className={inputCls} placeholder="사이트명" />
+                <input {...register('site_name')} className={inputCls} placeholder="사이트명을 입력하세요" />
               </Field>
             </div>
-            <Field label="상태 (선택)" error={(errors.status as { message?: string })?.message}>
+            <Field label="상태">
               <select {...register('status')} className={selectCls}>
-                <option value="">— 미입력 —</option>
-                <option value="installing">구축중</option>
-                <option value="active">운영 중</option>
+                <option value="">선택 안함</option>
+                <option value="installing">설치중</option>
+                <option value="active">운영중</option>
                 <option value="inactive">비활성</option>
                 <option value="expired">만료</option>
-                <option value="maintenance">유지보수</option>
+                <option value="maintenance">점검중</option>
               </select>
             </Field>
-            <Field label="라이센스 (선택)" error={(errors.contract_type as { message?: string })?.message}>
+            <Field label="계약 유형">
               <select {...register('contract_type')} className={selectCls}>
-                <option value="">— 미입력 —</option>
+                <option value="">선택 안함</option>
                 <option value="정식라이센스">정식라이센스</option>
                 <option value="임시라이센스">임시라이센스</option>
               </select>
             </Field>
+            <Field label="계약 시작일">
+              <input {...register('contract_start_date')} type="date" className={inputCls} />
+            </Field>
+            <Field label="계약 종료일">
+              <input {...register('contract_end_date')} type="date" className={inputCls} />
+            </Field>
+            <div className="col-span-2">
+              <Field label="유지보수 업체">
+                <input {...register('maintenance_company')} className={inputCls} placeholder="업체명" />
+              </Field>
+            </div>
           </div>
         </section>
 
         <section>
-          <SectionTitle>고객 정보 (선택)</SectionTitle>
+          <SectionTitle>고객 담당자</SectionTitle>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="담당자명">
+            <Field label="이름">
               <input {...register('customer_name')} className={inputCls} placeholder="홍길동" />
             </Field>
             <Field label="연락처">
@@ -360,109 +378,100 @@ export default function SiteCreatePage() {
             </Field>
             <div className="col-span-2">
               <Field label="이메일" error={errors.customer_email?.message}>
-                <input {...register('customer_email')} className={inputCls} placeholder="example@email.com" />
+                <input {...register('customer_email')} className={inputCls} placeholder="email@example.com" />
               </Field>
             </div>
           </div>
         </section>
 
         <section>
-          <SectionTitle>유지보수 (선택)</SectionTitle>
+          <SectionTitle>유지보수 담당자</SectionTitle>
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Field label="유지보수 업체">
-                <input {...register('maintenance_company')} className={inputCls} placeholder="업체명" />
-              </Field>
-            </div>
-            <Field label="담당자명">
-              <input {...register('maintenance_name')} className={inputCls} placeholder="담당자명" />
+            <Field label="이름">
+              <input {...register('maintenance_name')} className={inputCls} placeholder="홍길동" />
             </Field>
             <Field label="연락처">
               <PhoneInput name="maintenance_phone" register={register} setValue={setValue} />
             </Field>
-            <div className="col-span-2">
-              <Field label="소속">
-                <input {...register('maintenance_contact_company')} className={inputCls} placeholder="소속 회사 / 부서" />
-              </Field>
-            </div>
-            <div className="col-span-2">
-              <Field label="이메일" error={errors.maintenance_email?.message}>
-                <input {...register('maintenance_email')} className={inputCls} placeholder="example@email.com" />
-              </Field>
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <SectionTitle>계약 기간 (선택)</SectionTitle>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="계약 시작일">
-              <input type="date" {...register('contract_start_date')} className={inputCls} />
+            <Field label="이메일" error={errors.maintenance_email?.message}>
+              <input {...register('maintenance_email')} className={inputCls} placeholder="email@example.com" />
             </Field>
-            <Field label="계약 종료일">
-              <input type="date" {...register('contract_end_date')} className={inputCls} />
+            <Field label="소속 업체">
+              <input {...register('maintenance_contact_company')} className={inputCls} placeholder="업체명" />
             </Field>
           </div>
         </section>
 
         <section>
-          <SectionTitle>접속 정보 (선택)</SectionTitle>
-          <div className="flex flex-col gap-3">
+          <SectionTitle>접속 정보</SectionTitle>
+          <div className="flex flex-col gap-4">
             <CredentialRow
               label="CLI"
-              usernameKey="cli_username" passwordKey="cli_password"
-              ipKey="cli_ip" portKey="cli_port"
-              register={register} errors={errors}
+              usernameKey="cli_username"
+              passwordKey="cli_password"
+              ipKey="cli_ip"
+              portKey="cli_port"
+              register={register}
+              errors={errors}
             />
             <CredentialRow
-              label="WEB"
-              usernameKey="web_username" passwordKey="web_password"
-              ipKey="web_ip" portKey="web_port"
-              register={register} errors={errors}
+              label="Web"
+              usernameKey="web_username"
+              passwordKey="web_password"
+              ipKey="web_ip"
+              portKey="web_port"
+              register={register}
+              errors={errors}
             />
             <CredentialRow
               label="DB"
-              usernameKey="db_username" passwordKey="db_password"
-              ipKey="db_ip" portKey="db_port"
-              register={register} errors={errors}
+              usernameKey="db_username"
+              passwordKey="db_password"
+              ipKey="db_ip"
+              portKey="db_port"
+              register={register}
+              errors={errors}
             />
             <CredentialRow
               label="VPN"
-              usernameKey="vpn_username" passwordKey="vpn_password"
-              ipKey="vpn_ip" portKey="vpn_port"
-              register={register} errors={errors}
+              usernameKey="vpn_username"
+              passwordKey="vpn_password"
+              ipKey="vpn_ip"
+              portKey="vpn_port"
+              register={register}
+              errors={errors}
             />
-            <Field label="기타 사항">
+            <Field label="비고">
               <textarea
                 {...register('access_note')}
                 className={inputCls + ' resize-none'}
                 rows={3}
-                placeholder="추가 접속 정보 및 참고사항..."
+                placeholder="추가 접속 정보나 메모를 입력하세요"
               />
             </Field>
           </div>
         </section>
 
         {isError && (
-          <p className="text-sm text-red-500">
+          <p className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-3">
             {extractErrorMessage(error)}
           </p>
         )}
 
-        <div className="flex gap-3 justify-end">
+        <div className="flex gap-3 justify-end pt-2">
           <button
             type="button"
             onClick={() => navigate(isEdit ? `/sites/${id}` : '/sites')}
-            className="px-5 py-2 rounded-xl text-sm text-apple-light border border-apple-divider hover:bg-apple-gray transition-colors"
+            className="px-5 py-2 text-sm rounded-xl border border-apple-divider text-apple-dark hover:bg-apple-bg transition-colors"
           >
             취소
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-5 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="px-5 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
           >
-            {isSubmitting ? '저장 중...' : isEdit ? '수정 완료' : '사이트 등록'}
+            {isSubmitting ? '저장 중...' : isEdit ? '수정 완료' : '등록'}
           </button>
         </div>
       </form>
