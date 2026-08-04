@@ -34,10 +34,7 @@ export default function Header() {
       if (!currentReport || isTriggerLoading || isPending) return
       setTriggerLoading(true)
       setTriggerMessage(null)
-      mutate({
-        start_date: currentReport.week_start,
-        end_date:   currentReport.week_end,
-      })
+      mutate()
     }
   }, [currentReport, isTriggerLoading, isPending, mutate, setTriggerLoading, setTriggerMessage])
 

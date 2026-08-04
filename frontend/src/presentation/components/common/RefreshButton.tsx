@@ -29,17 +29,14 @@ export default function RefreshButton() {
   function handleRefresh() {
     setTriggerLoading(true)
     setTriggerMessage(null)
-    mutate({
-      start_date: currentReport!.week_start,
-      end_date:   currentReport!.week_end,
-    })
+    mutate()
   }
 
   return (
     <button
       onClick={handleRefresh}
       disabled={isDisabled}
-      title={`${currentReport.week_start} ~ ${currentReport.week_end} 재조회`}
+      title="최근 7일 기준 새 보고서 생성"
       className="inline-flex items-center justify-center gap-1.5
                  min-w-[88px] h-[28px] px-3
                  rounded-lg border border-apple-divider
