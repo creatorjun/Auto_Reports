@@ -1,6 +1,7 @@
 // frontend/src/infrastructure/api/storageApi.ts
 import client from './client'
 import type { StorageItem } from '@/domain/Storage'
+import { useAuthStore } from '@/app/store/authStore'
 
 export interface StorageQuota {
   used: number
@@ -16,11 +17,7 @@ export interface ChunkInitResponse {
 const CHUNK_SIZE = 8 * 1024 * 1024  // 8MB per chunk
 
 function getAccessToken(): string | null {
-  try {
-    return JSON.parse(localStorage.getItem('auth-storage') ?? '{}')?.state?.accessToken ?? null
-  } catch {
-    return null
-  }
+  return useAuthStore.getState().accessToken
 }
 
 export const storageApi = {
