@@ -23,7 +23,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      partialize: (s) => ({ accessToken: s.accessToken, username: s.username }),
+      partialize: (s) => ({ username: s.username }),
     }
   )
 )
