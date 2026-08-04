@@ -27,7 +27,6 @@ class SiteORM(Base):
     updated_at:                  Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     nodes:              Mapped[list["DeploymentNodeORM"]]     = relationship("DeploymentNodeORM",  back_populates="site", cascade="all, delete-orphan")
-    solution_package:   Mapped["SolutionPackageORM | None"]   = relationship("SolutionPackageORM", back_populates="site", uselist=False, cascade="all, delete-orphan")
     patch_histories:    Mapped[list["PatchHistoryORM"]]       = relationship("PatchHistoryORM",    back_populates="site", cascade="all, delete-orphan")
     visit_histories:    Mapped[list["VisitHistoryORM"]]       = relationship("VisitHistoryORM",    back_populates="site", cascade="all, delete-orphan")
     access_credentials: Mapped["AccessCredentialsORM | None"] = relationship("AccessCredentialsORM", back_populates="site", uselist=False, cascade="all, delete-orphan")
@@ -55,23 +54,6 @@ class DeploymentNodeORM(Base):
     disk_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     site: Mapped["SiteORM"] = relationship("SiteORM", back_populates="nodes")
-
-
-class SolutionPackageORM(Base):
-    __tablename__ = "solution_packages"
-
-    id:                  Mapped[int]            = mapped_column(Integer, primary_key=True, autoincrement=True)
-    site_id:             Mapped[int]            = mapped_column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, unique=True)
-    version:             Mapped[str | None]     = mapped_column(String, nullable=True)
-    installer_filename:  Mapped[str | None]     = mapped_column(String, nullable=True)
-    license_capacity_gb: Mapped[float | None]   = mapped_column(Float, nullable=True)
-    deployment_type:     Mapped[str | None]     = mapped_column(String, nullable=True)
-    license_key:         Mapped[str | None]     = mapped_column(String, nullable=True)
-    license_expire_date: Mapped[date | None]    = mapped_column(Date, nullable=True)
-    installed_at:        Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    updated_at:          Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-    site: Mapped["SiteORM"] = relationship("SiteORM", back_populates="solution_package")
 
 
 class PatchHistoryORM(Base):
