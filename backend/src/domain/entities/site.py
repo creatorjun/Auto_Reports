@@ -19,11 +19,6 @@ class ContractType(StrEnum):
     TEMPORARY = "\uc784\uc2dc\ub77c\uc774\uc13c\uc2a4"
 
 
-class DeploymentType(StrEnum):
-    ALL_IN_ONE = "\uc62c\uc778\uc6d0"
-    SEPARATED  = "\ubd84\ub9ac\uad6c\uc131"
-
-
 class NodeRole(StrEnum):
     ALL_IN_ONE = "AllInOne"
     ANALYZER   = "Analyzer"
@@ -89,19 +84,6 @@ class DeploymentNode:
 
 
 @dataclass(frozen=True)
-class SolutionPackage:
-    id:                  Optional[int]           = None
-    version:             Optional[str]            = None
-    installer_filename:  Optional[str]            = None
-    license_capacity_gb: Optional[float]          = None
-    deployment_type:     Optional[DeploymentType] = None
-    license_key:         Optional[str]            = None
-    license_expire_date: Optional[date]           = None
-    installed_at:        Optional[datetime]       = None
-    updated_at:          Optional[datetime]       = None
-
-
-@dataclass(frozen=True)
 class PatchHistory:
     id:              Optional[int]               = None
     issue_link:      Optional[str]               = None
@@ -136,7 +118,6 @@ class Site:
     contract_type:       Optional[ContractType]      = None
     status:              Optional[SiteStatus]        = None
     nodes:               list[DeploymentNode]        = field(default_factory=list)
-    solution_package:    Optional[SolutionPackage]   = None
     patch_histories:     list[PatchHistory]          = field(default_factory=list)
     visit_histories:     list[VisitHistory]          = field(default_factory=list)
     access_credentials:  Optional[AccessCredentials] = None
