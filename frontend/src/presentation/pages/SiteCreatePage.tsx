@@ -241,13 +241,15 @@ export default function SiteCreatePage() {
         const resolvedUsername = u || existingCred?.username
         const resolvedPassword = p || existingCred?.password
         if (!resolvedUsername || !resolvedPassword) return undefined
-        return {
+        const cred: Credential = {
           username: resolvedUsername,
           password: resolvedPassword,
           ip:       ip   || existingCred?.ip   || undefined,
           port:     port || existingCred?.port || undefined,
         }
+        return cred
       }
+
 
       const ec = existing?.access_credentials
 
