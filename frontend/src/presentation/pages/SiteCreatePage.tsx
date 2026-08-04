@@ -285,7 +285,6 @@ export default function SiteCreatePage() {
       return siteApi.create({
         ...baseFields,
         nodes:           [],
-        solution_package: undefined,
         patch_histories: [],
         visit_histories: [],
       })
