@@ -25,7 +25,8 @@ const Wrap = ({ children }: { children: React.ReactNode }) => (
 )
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <Wrap><LoginPage /></Wrap> },
+  { path: '/login',           element: <Wrap><LoginPage /></Wrap> },
+  { path: '/storage/preview', element: <Wrap><StoragePreviewPage /></Wrap> },
   {
     path: '/',
     element: (
@@ -34,16 +35,15 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true,             element: <Wrap><DashboardPage /></Wrap> },
-      { path: 'history',         element: <Wrap><HistoryPage /></Wrap> },
-      { path: 'reports/:id',     element: <Wrap><DashboardPage /></Wrap> },
-      { path: 'partners',        element: <Wrap><PartnerManagementPage /></Wrap> },
-      { path: 'storage',         element: <Wrap><StoragePage /></Wrap> },
-      { path: 'storage/preview', element: <Wrap><StoragePreviewPage /></Wrap> },
-      { path: 'sites',           element: <Wrap><SiteManagementPage /></Wrap> },
-      { path: 'sites/new',       element: <Wrap><SiteCreatePage /></Wrap> },
-      { path: 'sites/:id',       element: <Wrap><SiteDetailPage /></Wrap> },
-      { path: 'sites/:id/edit',  element: <Wrap><SiteCreatePage /></Wrap> },
+      { index: true,            element: <Wrap><DashboardPage /></Wrap> },
+      { path: 'history',        element: <Wrap><HistoryPage /></Wrap> },
+      { path: 'reports/:id',    element: <Wrap><DashboardPage /></Wrap> },
+      { path: 'partners',       element: <Wrap><PartnerManagementPage /></Wrap> },
+      { path: 'storage',        element: <Wrap><StoragePage /></Wrap> },
+      { path: 'sites',          element: <Wrap><SiteManagementPage /></Wrap> },
+      { path: 'sites/new',      element: <Wrap><SiteCreatePage /></Wrap> },
+      { path: 'sites/:id',      element: <Wrap><SiteDetailPage /></Wrap> },
+      { path: 'sites/:id/edit', element: <Wrap><SiteCreatePage /></Wrap> },
     ],
   },
   { path: '*', element: <Navigate to="/login" replace /> },
