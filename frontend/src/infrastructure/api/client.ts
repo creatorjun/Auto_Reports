@@ -18,7 +18,21 @@ client.interceptors.request.use((config) => {
 })
 
 let isRefreshing = false
-let refreshQueue: Array<(token: string) => void> = []
+let isLoggingOut = false
+let refreshQueue: Array<() => void> = []
+
+function flushQueue() {
+  refreshQueue.forEach((cb) => cb())
+  refreshQueue = []
+}
+
+function redirectToLogin() {
+  if (isLoggingOut) return
+  isLoggingOut = true
+  flushQueue()
+  useAuthStore.getState().clearAuth()
+  window.location.href = '/login'
+}
 
 client.interceptors.response.use(
   (res) => res,
@@ -27,6 +41,10 @@ client.interceptors.response.use(
     const status = err.response?.status
     const url: string = original?.url ?? ''
 
+    if (isLoggingOut) {
+      return new Promise(() => {})
+    }
+
     const shouldSkip = SKIP_REFRESH_URLS.some((u) => url.includes(u))
 
     if (status === 401 && !original._retry && !shouldSkip) {
@@ -34,7 +52,8 @@ client.interceptors.response.use(
 
       if (isRefreshing) {
         return new Promise((resolve) => {
-          refreshQueue.push((token) => {
+          refreshQueue.push(() => {
+            const token = useAuthStore.getState().accessToken
             original.headers.Authorization = `Bearer ${token}`
             resolve(client(original))
           })
@@ -46,14 +65,11 @@ client.interceptors.response.use(
         const res = await client.post<{ access_token: string }>('/auth/refresh')
         const newToken = res.data.access_token
         useAuthStore.getState().setAuth(newToken, useAuthStore.getState().username ?? '')
-        refreshQueue.forEach((cb) => cb(newToken))
-        refreshQueue = []
+        flushQueue()
         original.headers.Authorization = `Bearer ${newToken}`
         return client(original)
       } catch {
-        refreshQueue = []
-        useAuthStore.getState().clearAuth()
-        window.location.href = '/login'
+        redirectToLogin()
         return new Promise(() => {})
       } finally {
         isRefreshing = false
