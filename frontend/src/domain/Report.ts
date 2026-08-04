@@ -1,3 +1,4 @@
+// frontend/src/domain/Report.ts
 export interface AiAnalysis {
   summary: string
   risks: string[]
