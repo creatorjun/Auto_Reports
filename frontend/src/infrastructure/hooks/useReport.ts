@@ -105,7 +105,7 @@ export const useRefreshReport = (callbacks?: RefreshCallbacks) => {
   }
 
   return useMutation({
-    mutationFn: (params?: TriggerParams) => reportApi.trigger(params),
+    mutationFn: (params?: TriggerParams | void) => reportApi.trigger(params ?? undefined),
     onSuccess: (data) => startPolling(data.job_id),
     onError: (err) => {
       stopPolling()
