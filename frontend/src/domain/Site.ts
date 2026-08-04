@@ -31,21 +31,6 @@ export interface AccessCredentials {
   note?: string
 }
 
-export interface DeploymentNode {
-  id?: number
-  hostname?: string
-  role?: NodeRole
-  cpu_cores?: number
-  cpu_threads?: number
-  memory_total_gb?: number
-  disk_total_gb?: number
-  os_type?: string
-  os_version?: string
-  ip_address?: string
-  disk_free_gb?: number
-  disk_updated_at?: string
-}
-
 export interface DeploymentNodePayload {
   hostname?: string
   role?: NodeRole
@@ -60,16 +45,8 @@ export interface DeploymentNodePayload {
   disk_updated_at?: string
 }
 
-export interface PatchHistory {
+export interface DeploymentNode extends DeploymentNodePayload {
   id?: number
-  issue_link?: string
-  patch_date?: string
-  patch_file_link?: string
-  patch_type?: PatchType
-  applied_by?: string
-  result_status?: PatchResultStatus
-  rollback_date?: string
-  note?: string
 }
 
 export interface PatchHistoryPayload {
@@ -83,13 +60,8 @@ export interface PatchHistoryPayload {
   note?: string
 }
 
-export interface VisitHistory {
+export interface PatchHistory extends PatchHistoryPayload {
   id?: number
-  visit_datetime?: string
-  engineer_name?: string
-  engineer_phone?: string
-  request_content?: string
-  action_content?: string
 }
 
 export interface VisitHistoryPayload {
@@ -98,6 +70,10 @@ export interface VisitHistoryPayload {
   engineer_phone?: string
   request_content?: string
   action_content?: string
+}
+
+export interface VisitHistory extends VisitHistoryPayload {
+  id?: number
 }
 
 export interface SiteSummary {
