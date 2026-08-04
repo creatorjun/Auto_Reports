@@ -22,12 +22,12 @@ class MeResponse(BaseModel):
     login_required: bool
 
 
-def _set_refresh_cookie(response: Response, token: str, expire_days: int) -> None:
+def _set_refresh_cookie(response: Response, token: str, expire_days: int, secure: bool) -> None:
     response.set_cookie(
         key=REFRESH_COOKIE,
         value=token,
         httponly=True,
-        secure=False,
+        secure=secure,
         samesite="lax",
         max_age=expire_days * 86400,
         path="/api/v1/auth",
@@ -44,13 +44,14 @@ async def login(body: LoginRequest, request: Request, response: Response):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     svc = container.jwt_service()
+    secure = container.cookie_secure
 
     if container.is_superadmin(body.username, body.password):
         gen = svc.bump_superadmin_generation()
-        _set_refresh_cookie(response, svc.create_refresh_token(body.username, generation=gen), container.jwt_refresh_expire_days)
+        _set_refresh_cookie(response, svc.create_refresh_token(body.username, generation=gen), container.jwt_refresh_expire_days, secure)
         return TokenResponse(access_token=svc.create_access_token(body.username, generation=gen))
 
-    _set_refresh_cookie(response, svc.create_refresh_token(body.username), container.jwt_refresh_expire_days)
+    _set_refresh_cookie(response, svc.create_refresh_token(body.username), container.jwt_refresh_expire_days, secure)
     return TokenResponse(access_token=svc.create_access_token(body.username))
 
 
@@ -69,7 +70,7 @@ async def refresh(request: Request, response: Response, refresh_token: str = Coo
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     gen = svc.current_superadmin_generation() if username == container.superadmin_username else None
-    _set_refresh_cookie(response, svc.create_refresh_token(username, generation=gen), container.jwt_refresh_expire_days)
+    _set_refresh_cookie(response, svc.create_refresh_token(username, generation=gen), container.jwt_refresh_expire_days, container.cookie_secure)
     return TokenResponse(access_token=svc.create_access_token(username, generation=gen))
 
 

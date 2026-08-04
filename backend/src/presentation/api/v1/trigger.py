@@ -1,5 +1,6 @@
 # backend/src/presentation/api/v1/trigger.py
 import json
+import time
 import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -92,10 +93,15 @@ async def stream_job_status(
         raise HTTPException(status_code=404, detail="존재하지 않는 job_id입니다.")
 
     async def event_generator():
-        elapsed   = 0.0
-        keepalive = 0.0
+        start_time    = time.monotonic()
+        last_keepalive = time.monotonic()
 
-        while elapsed < _SSE_TIMEOUT_SECONDS:
+        while True:
+            elapsed = time.monotonic() - start_time
+            if elapsed >= _SSE_TIMEOUT_SECONDS:
+                yield _sse_event("timeout", {"error": "job timed out"})
+                break
+
             if await request.is_disconnected():
                 break
 
@@ -114,14 +120,10 @@ async def stream_job_status(
             yield _sse_event("status", payload)
 
             await job_runner.wait_for_update(job_id, timeout=_SSE_WAIT_TIMEOUT)
-            elapsed   += _SSE_WAIT_TIMEOUT
-            keepalive += _SSE_WAIT_TIMEOUT
 
-            if keepalive >= _SSE_KEEPALIVE_EVERY:
+            if time.monotonic() - last_keepalive >= _SSE_KEEPALIVE_EVERY:
                 yield ": keepalive\n\n"
-                keepalive = 0.0
-        else:
-            yield _sse_event("timeout", {"error": "job timed out"})
+                last_keepalive = time.monotonic()
 
     return StreamingResponse(
         event_generator(),

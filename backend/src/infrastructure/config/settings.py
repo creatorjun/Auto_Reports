@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(default="please-set-JWT_SECRET-in-env", alias="JWT_SECRET", validation_alias="JWT_SECRET")
     jwt_access_expire_minutes: int = 30
     jwt_refresh_expire_days: int = 7
+    cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE", validation_alias="COOKIE_SECURE")
     storage_dir: str = "/app/storage"
     credential_encryption_key: str = Field(default="", alias="CREDENTIAL_ENCRYPTION_KEY", validation_alias="CREDENTIAL_ENCRYPTION_KEY")
 

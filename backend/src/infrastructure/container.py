@@ -80,6 +80,10 @@ class Container:
         return self._settings.login
 
     @property
+    def cookie_secure(self) -> bool:
+        return self._settings.cookie_secure
+
+    @property
     def jira_base_url(self) -> str:
         return self._settings.jira_base_url
 
