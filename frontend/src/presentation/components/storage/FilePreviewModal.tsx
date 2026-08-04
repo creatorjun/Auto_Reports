@@ -6,6 +6,7 @@ import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github.css'
 import '@/presentation/styles/markdown.css'
 import { storageApi } from '@/infrastructure/api/storageApi'
+import { useAuthStore } from '@/app/store/authStore'
 
 type PreviewType =
   | 'image' | 'video' | 'pdf'
@@ -217,9 +218,7 @@ function PptxPreview({ name, folder, onPageChange }: { name: string; folder: str
 
   useEffect(() => {
     const p = new URLSearchParams({ name, ...(folder ? { folder } : {}) })
-    const token = localStorage.getItem('auth-storage')
-      ? JSON.parse(localStorage.getItem('auth-storage') ?? '{}')?.state?.accessToken
-      : null
+    const token = useAuthStore.getState().accessToken
     if (token) p.set('_t', token)
     const url = `/api/v1/storage/preview-converted?${p.toString()}`
     let objUrl: string | null = null
