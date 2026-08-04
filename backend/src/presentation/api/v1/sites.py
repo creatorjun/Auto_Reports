@@ -9,7 +9,6 @@ from src.domain.entities.site import (
     DeploymentNode,
     PatchHistory,
     Site,
-    SolutionPackage,
     VisitHistory,
 )
 from src.presentation.api.v1.deps import get_site_use_case
@@ -20,7 +19,6 @@ from src.presentation.schemas.site_schema import (
     DeploymentNodeSchema,
     DeploymentNodeCreateRequest,
     DeploymentNodeUpdateRequest,
-    DeploymentType,
     NodeRole,
     PatchHistorySchema,
     PatchHistoryCreateRequest,
@@ -29,8 +27,6 @@ from src.presentation.schemas.site_schema import (
     SiteResponse,
     SiteSummaryResponse,
     SiteUpdateRequest,
-    SolutionPackageSchema,
-    SolutionPackageUpsertRequest,
     VisitHistorySchema,
     VisitHistoryCreateRequest,
     VisitHistoryUpdateRequest,
@@ -92,22 +88,6 @@ def _node_to_schema(n: DeploymentNode) -> DeploymentNodeSchema:
     )
 
 
-def _pkg_to_schema(pkg: SolutionPackage | None) -> SolutionPackageSchema | None:
-    if pkg is None:
-        return None
-    return SolutionPackageSchema(
-        id=pkg.id,
-        version=pkg.version,
-        installer_filename=pkg.installer_filename,
-        license_capacity_gb=pkg.license_capacity_gb,
-        deployment_type=pkg.deployment_type.value if pkg.deployment_type else None,
-        license_key=pkg.license_key,
-        license_expire_date=pkg.license_expire_date,
-        installed_at=pkg.installed_at,
-        updated_at=pkg.updated_at,
-    )
-
-
 def _to_domain(req: SiteCreateRequest) -> Site:
     return Site(
         site_name=req.site_name,
@@ -134,19 +114,6 @@ def _to_domain(req: SiteCreateRequest) -> Site:
             )
             for n in req.nodes
         ],
-        solution_package=(
-            SolutionPackage(
-                version=req.solution_package.version,
-                installer_filename=req.solution_package.installer_filename,
-                license_capacity_gb=req.solution_package.license_capacity_gb,
-                deployment_type=DeploymentType(req.solution_package.deployment_type) if req.solution_package.deployment_type else None,
-                license_key=req.solution_package.license_key,
-                license_expire_date=req.solution_package.license_expire_date,
-                installed_at=req.solution_package.installed_at,
-                updated_at=req.solution_package.updated_at,
-            )
-            if req.solution_package else None
-        ),
         patch_histories=[
             PatchHistory(
                 issue_link=p.issue_link,
@@ -188,7 +155,6 @@ def _to_response(site: Site) -> SiteResponse:
         created_at=site.created_at,
         updated_at=site.updated_at,
         nodes=[_node_to_schema(n) for n in site.nodes],
-        solution_package=_pkg_to_schema(site.solution_package),
         patch_histories=[
             PatchHistorySchema(
                 id=p.id,
@@ -388,25 +354,6 @@ async def delete_node(
     if len(site.nodes) == before:
         raise HTTPException(status_code=404, detail="Node not found")
     await use_case.update(site)
-
-
-@router.put("/{site_id}/solution-package", response_model=SolutionPackageSchema)
-async def upsert_solution_package(
-    site_id: int,
-    req: SolutionPackageUpsertRequest,
-    use_case: SiteUseCase = Depends(get_site_use_case),
-):
-    pkg = SolutionPackage(
-        version=req.version,
-        installer_filename=req.installer_filename,
-        license_capacity_gb=req.license_capacity_gb,
-        deployment_type=DeploymentType(req.deployment_type) if req.deployment_type else None,
-        license_key=req.license_key,
-        license_expire_date=req.license_expire_date,
-        installed_at=req.installed_at,
-    )
-    site = await use_case.upsert_solution_package(site_id, pkg)
-    return _pkg_to_schema(site.solution_package)
 
 
 @router.post("/{site_id}/patch-histories", response_model=PatchHistorySchema, status_code=201)
