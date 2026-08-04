@@ -15,6 +15,14 @@ export interface ChunkInitResponse {
 
 const CHUNK_SIZE = 8 * 1024 * 1024  // 8MB per chunk
 
+function getAccessToken(): string | null {
+  try {
+    return JSON.parse(localStorage.getItem('auth-storage') ?? '{}')?.state?.accessToken ?? null
+  } catch {
+    return null
+  }
+}
+
 export const storageApi = {
   list: async (folder = ''): Promise<StorageItem[]> => {
     const res = await client.get<StorageItem[]>('/storage/items', { params: { folder } })
@@ -107,16 +115,16 @@ export const storageApi = {
   },
 
   preview: (name: string, folder = ''): string => {
-    const token = localStorage.getItem('auth-storage')
-      ? JSON.parse(localStorage.getItem('auth-storage') ?? '{}')?.state?.accessToken
-      : null
+    const token = getAccessToken()
     const p = new URLSearchParams({ name, ...(folder ? { folder } : {}) })
     if (token) p.set('_t', token)
     return `/api/v1/storage/preview?${p.toString()}`
   },
 
   download: (name: string, folder = ''): string => {
+    const token = getAccessToken()
     const p = new URLSearchParams({ name, ...(folder ? { folder } : {}) })
+    if (token) p.set('_t', token)
     return `/api/v1/storage/download?${p.toString()}`
   },
 
