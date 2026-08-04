@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { siteApi } from '@/infrastructure/api/siteApi'
+import type { Credential } from '@/domain/Site'
 
 const emptyToUndefined = (val: unknown) => (val === '' ? undefined : val)
 
@@ -235,13 +236,14 @@ export default function SiteCreatePage() {
     mutationFn: (values: FormValues) => {
       const buildCred = (
         u?: string, p?: string, ip?: string, port?: string,
-        existingCred?: { username?: string; password?: string; ip?: string; port?: string },
-      ) => {
-        const hasAnyField = u || p || ip || port
-        if (!hasAnyField && !existingCred) return undefined
+        existingCred?: Credential,
+      ): Credential | undefined => {
+        const resolvedUsername = u || existingCred?.username
+        const resolvedPassword = p || existingCred?.password
+        if (!resolvedUsername || !resolvedPassword) return undefined
         return {
-          username: u || existingCred?.username || undefined,
-          password: p || existingCred?.password || undefined,
+          username: resolvedUsername,
+          password: resolvedPassword,
           ip:       ip   || existingCred?.ip   || undefined,
           port:     port || existingCred?.port || undefined,
         }
