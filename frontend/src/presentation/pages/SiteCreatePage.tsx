@@ -150,7 +150,7 @@ function CredentialRow({
       <p className="text-xs font-semibold text-blue-600">{label}</p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="ID" error={(errors[usernameKey] as { message?: string })?.message}>
-          <input {...register(usernameKey)} className={inputCls} placeholder="username" />
+          <input {...register(usernameKey)} className={inputCls} placeholder="username" autoComplete="off" />
         </Field>
         <Field label="PW" error={(errors[passwordKey] as { message?: string })?.message}>
           <div className="relative">
@@ -159,6 +159,7 @@ function CredentialRow({
               type={showPw ? 'text' : 'password'}
               className={inputCls + ' pr-9'}
               placeholder="password"
+              autoComplete="new-password"
             />
             <button
               type="button"
@@ -249,7 +250,6 @@ export default function SiteCreatePage() {
         }
         return cred
       }
-
 
       const ec = existing?.access_credentials
 
@@ -357,41 +357,37 @@ export default function SiteCreatePage() {
                 <option value="임시라이센스">임시라이센스</option>
               </select>
             </Field>
+            <Field label="유지보수 업체">
+              <input {...register('maintenance_company')} className={inputCls} placeholder="업체명" />
+            </Field>
             <Field label="계약 시작일">
               <input {...register('contract_start_date')} type="date" className={inputCls} />
             </Field>
             <Field label="계약 종료일">
               <input {...register('contract_end_date')} type="date" className={inputCls} />
             </Field>
-            <div className="col-span-2">
-              <Field label="유지보수 업체">
-                <input {...register('maintenance_company')} className={inputCls} placeholder="업체명" />
-              </Field>
-            </div>
           </div>
         </section>
 
         <section>
-          <SectionTitle>고객 담당자</SectionTitle>
+          <SectionTitle>고객 정보</SectionTitle>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="이름">
+            <Field label="담당자명">
               <input {...register('customer_name')} className={inputCls} placeholder="홍길동" />
             </Field>
             <Field label="연락처">
               <PhoneInput name="customer_phone" register={register} setValue={setValue} />
             </Field>
-            <div className="col-span-2">
-              <Field label="이메일" error={errors.customer_email?.message}>
-                <input {...register('customer_email')} className={inputCls} placeholder="email@example.com" />
-              </Field>
-            </div>
+            <Field label="이메일" error={errors.customer_email?.message}>
+              <input {...register('customer_email')} className={inputCls} placeholder="email@example.com" />
+            </Field>
           </div>
         </section>
 
         <section>
           <SectionTitle>유지보수 담당자</SectionTitle>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="이름">
+            <Field label="담당자명">
               <input {...register('maintenance_name')} className={inputCls} placeholder="홍길동" />
             </Field>
             <Field label="연락처">
