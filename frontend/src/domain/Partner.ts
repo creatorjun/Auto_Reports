@@ -1,4 +1,6 @@
 // frontend/src/domain/Partner.ts
+import type { BaseIssue } from './Issue'
+
 export interface PartnerOrg {
   id: string
   name: string
@@ -10,14 +12,4 @@ export interface PartnerMember {
   email: string
 }
 
-export interface PartnerIssue {
-  key: string
-  summary: string
-  type: string
-  status: string
-  stage_index: number
-  created: string
-  elapsed_days: number
-  reporter: string
-  tac_team: string
-}
+export type PartnerIssue = BaseIssue
