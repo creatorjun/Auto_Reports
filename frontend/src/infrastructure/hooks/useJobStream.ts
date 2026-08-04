@@ -23,11 +23,16 @@ function nextDelay(attempt: number): number {
 }
 
 export function useJobStream(callbacks: JobStreamCallbacks) {
-  const esRef      = useRef<EventSource | null>(null)
-  const timerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const attemptRef = useRef(0)
-  const elapsedRef = useRef(0)
-  const activeRef  = useRef(false)
+  const esRef          = useRef<EventSource | null>(null)
+  const timerRef       = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const attemptRef     = useRef(0)
+  const elapsedRef     = useRef(0)
+  const activeRef      = useRef(false)
+  const callbacksRef   = useRef(callbacks)
+
+  useEffect(() => {
+    callbacksRef.current = callbacks
+  })
 
   const stop = useCallback(() => {
     activeRef.current = false
@@ -47,22 +52,22 @@ export function useJobStream(callbacks: JobStreamCallbacks) {
 
       if (elapsedRef.current >= TIMEOUT_MS) {
         stop()
-        callbacks.onTimeout()
+        callbacksRef.current.onTimeout()
         return
       }
 
       try {
         const status = await reportApi.getJobStatus(jobId)
-        callbacks.onStatus?.(status)
+        callbacksRef.current.onStatus?.(status)
 
         if (status.status === 'done') {
           stop()
-          callbacks.onComplete(status.report_id)
+          callbacksRef.current.onComplete(status.report_id)
           return
         }
         if (status.status === 'error') {
           stop()
-          callbacks.onError(status.error ?? '알 수 없는 오류')
+          callbacksRef.current.onError(status.error ?? '알 수 없는 오류')
           return
         }
 
@@ -73,12 +78,12 @@ export function useJobStream(callbacks: JobStreamCallbacks) {
         timerRef.current = setTimeout(tick, delay)
       } catch {
         stop()
-        callbacks.onError('상태 확인 중 오류가 발생했습니다.')
+        callbacksRef.current.onError('상태 확인 중 오류가 발생했습니다.')
       }
     }
 
     tick()
-  }, [callbacks, stop])
+  }, [stop])
 
   const startSSE = useCallback((jobId: string) => {
     const token = useAuthStore.getState().accessToken
@@ -95,7 +100,7 @@ export function useJobStream(callbacks: JobStreamCallbacks) {
     es.addEventListener('status', (e: MessageEvent) => {
       try {
         const data: JobStatus = JSON.parse(e.data)
-        callbacks.onStatus?.(data)
+        callbacksRef.current.onStatus?.(data)
       } catch { /* ignore parse error */ }
     })
 
@@ -104,19 +109,19 @@ export function useJobStream(callbacks: JobStreamCallbacks) {
         const data: JobStatus = JSON.parse(e.data)
         stop()
         if (data.status === 'error') {
-          callbacks.onError(data.error ?? '알 수 없는 오류')
+          callbacksRef.current.onError(data.error ?? '알 수 없는 오류')
         } else {
-          callbacks.onComplete(data.report_id)
+          callbacksRef.current.onComplete(data.report_id)
         }
       } catch {
         stop()
-        callbacks.onError('스트림 데이터 파싱 오류')
+        callbacksRef.current.onError('스트림 데이터 파싱 오류')
       }
     })
 
     es.addEventListener('timeout', () => {
       stop()
-      callbacks.onTimeout()
+      callbacksRef.current.onTimeout()
     })
 
     es.addEventListener('error', () => {
@@ -124,7 +129,7 @@ export function useJobStream(callbacks: JobStreamCallbacks) {
       esRef.current = null
       startExpBackoffPoll(jobId)
     })
-  }, [callbacks, startExpBackoffPoll, stop])
+  }, [startExpBackoffPoll, stop])
 
   const start = useCallback((jobId: string) => {
     stop()

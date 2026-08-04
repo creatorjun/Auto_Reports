@@ -5,7 +5,7 @@ import { useAuthStore } from '@/app/store/authStore'
 const SKIP_REFRESH_URLS = ['/auth/refresh', '/auth/login', '/auth/me']
 
 const client = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,

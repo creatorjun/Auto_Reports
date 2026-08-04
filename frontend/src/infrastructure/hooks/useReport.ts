@@ -3,12 +3,13 @@ import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { reportApi } from '@/infrastructure/api/reportApi'
+import { QUERY_KEYS } from '@/shared/queryKeys'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
 import type { TriggerParams } from '@/domain/Job'
 
 export const useLatestReport = () =>
   useQuery<ReportDetail | null>({
-    queryKey: ['reports', 'latest'],
+    queryKey: QUERY_KEYS.latestReport(),
     queryFn: reportApi.getLatest,
     staleTime: 1000 * 60 * 5,
     refetchInterval: 1000 * 60 * 10,
@@ -17,7 +18,7 @@ export const useLatestReport = () =>
 
 export const useReportById = (id: number) =>
   useQuery<ReportDetail>({
-    queryKey: ['reports', id],
+    queryKey: QUERY_KEYS.reportById(id),
     queryFn: () => reportApi.getById(id),
     enabled: !!id,
     staleTime: 1000 * 60 * 5,
@@ -25,7 +26,7 @@ export const useReportById = (id: number) =>
 
 export const useAllReports = (page = 0, pageSize = 20) =>
   useQuery<ReportSummary[]>({
-    queryKey: ['reports', 'list', page, pageSize],
+    queryKey: QUERY_KEYS.allReports(page, pageSize),
     queryFn: () => reportApi.getAll(pageSize, page * pageSize),
     placeholderData: (prev) => prev,
     staleTime: 1000 * 60 * 2,
@@ -36,7 +37,7 @@ export const useDeleteReport = () => {
   return useMutation({
     mutationFn: (id: number) => reportApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.allReportsBase() })
     },
   })
 }
@@ -90,7 +91,7 @@ export const useRefreshReport = (callbacks?: RefreshCallbacks) => {
         const status = await reportApi.getJobStatus(jobId)
         if (status.status === 'done') {
           stopPolling()
-          await queryClient.invalidateQueries({ queryKey: ['reports'] })
+          await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.allReportsBase() })
           callbacks?.onComplete(status.report_id)
         } else if (status.status === 'error') {
           stopPolling()
