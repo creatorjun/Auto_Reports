@@ -19,11 +19,6 @@ class ContractType(str, Enum):
     TEMPORARY = "임시라이센스"
 
 
-class DeploymentType(str, Enum):
-    ALL_IN_ONE = "올인원"
-    SEPARATED  = "분리구성"
-
-
 class NodeRole(str, Enum):
     ALL_IN_ONE = "AllInOne"
     ANALYZER   = "Analyzer"
@@ -108,28 +103,6 @@ class DeploymentNodeUpdateRequest(BaseModel):
     disk_updated_at: Optional[datetime] = None
 
 
-class SolutionPackageSchema(BaseModel):
-    id:                  Optional[int]            = None
-    version:             Optional[str]            = None
-    installer_filename:  Optional[str]            = None
-    license_capacity_gb: Optional[float]          = None
-    deployment_type:     Optional[DeploymentType] = None
-    license_key:         Optional[str]            = None
-    license_expire_date: Optional[date]           = None
-    installed_at:        Optional[datetime]       = None
-    updated_at:          Optional[datetime]       = None
-
-
-class SolutionPackageUpsertRequest(BaseModel):
-    version:             Optional[str]            = None
-    installer_filename:  Optional[str]            = None
-    license_capacity_gb: Optional[float]          = None
-    deployment_type:     Optional[DeploymentType] = None
-    license_key:         Optional[str]            = None
-    license_expire_date: Optional[date]           = None
-    installed_at:        Optional[datetime]       = None
-
-
 class PatchHistorySchema(BaseModel):
     id:              Optional[int]               = None
     issue_link:      Optional[str]               = None
@@ -209,7 +182,6 @@ class SiteCreateRequest(BaseModel):
     contract_type:       Optional[ContractType]               = None
     status:              Optional[SiteStatus]                 = None
     nodes:               list[DeploymentNodeCreateRequest]    = []
-    solution_package:    Optional[SolutionPackageUpsertRequest] = None
     patch_histories:     list[PatchHistoryCreateRequest]      = []
     visit_histories:     list[VisitHistoryCreateRequest]      = []
     access_credentials:  Optional[AccessCredentialsSchema]    = None
@@ -240,7 +212,6 @@ class SiteResponse(BaseModel):
     created_at:          datetime
     updated_at:          datetime
     nodes:               list[DeploymentNodeSchema]        = []
-    solution_package:    Optional[SolutionPackageSchema]   = None
     patch_histories:     list[PatchHistorySchema]          = []
     visit_histories:     list[VisitHistorySchema]          = []
     access_credentials:  Optional[AccessCredentialsSchema] = None
