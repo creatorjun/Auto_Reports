@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     jwt_access_expire_minutes: int = 30
     jwt_refresh_expire_days: int = 7
     storage_dir: str = "/app/storage"
+    credential_encryption_key: str = Field(default="", alias="CREDENTIAL_ENCRYPTION_KEY", validation_alias="CREDENTIAL_ENCRYPTION_KEY")
 
     @property
     def year_start(self) -> int:

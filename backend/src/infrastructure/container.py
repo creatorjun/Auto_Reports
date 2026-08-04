@@ -22,6 +22,7 @@ from src.infrastructure.factories.widget_collector_factory import WidgetCollecto
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
 from src.infrastructure.report_cache import ReportLruCache
+from src.infrastructure.security.credential_encryptor import CredentialEncryptor
 from src.infrastructure.security.jwt_service import JwtService
 from src.infrastructure.storage.local_storage import LocalStorageAdapter
 
@@ -68,6 +69,11 @@ class Container:
             jira_email=settings.jira_email,
             jira_api_token=settings.jira_api_token,
         )
+        self._credential_encryptor: CredentialEncryptor | None = (
+            CredentialEncryptor(settings.credential_encryption_key)
+            if settings.credential_encryption_key
+            else None
+        )
 
     @property
     def login_enabled(self) -> bool:
@@ -86,6 +92,8 @@ class Container:
         return self._settings.jwt_refresh_expire_days
 
     def is_valid_credentials(self, username: str, password: str) -> bool:
+        if not password:
+            return False
         s = self._settings
         if username == s.admin_username and password == s.admin_password:
             return True
@@ -130,5 +138,5 @@ class Container:
         return GetReportUseCase(repo, cache=self._report_cache)
 
     def site_use_case(self, session: AsyncSession) -> SiteUseCase:
-        repo = SiteRepositoryImpl(session)
+        repo = SiteRepositoryImpl(session, self._credential_encryptor)
         return SiteUseCase(repo)
