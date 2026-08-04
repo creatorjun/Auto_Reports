@@ -554,27 +554,6 @@ function SiteHardwareInfo({ site }: { site: SiteDetail }) {
   )
 }
 
-function SiteSolutionInfo({ site }: { site: SiteDetail }) {
-  const pkg = site.solution_package
-  return (
-    <Section title="솔루션 패키지" defaultOpen={false}>
-      {!pkg ? (
-        <p className="text-sm text-apple-light">등록된 솔루션 정보가 없습니다</p>
-      ) : (
-        <>
-          <Row label="버전" value={pkg.version} />
-          <Row label="인스톨러" value={pkg.installer_filename} />
-          <Row label="배포 유형" value={pkg.deployment_type} />
-          <Row label="라이센스 용량" value={pkg.license_capacity_gb != null ? `${pkg.license_capacity_gb} GB` : undefined} />
-          <Row label="라이센스 키" value={pkg.license_key} />
-          <Row label="라이센스 만료" value={pkg.license_expire_date} />
-          <Row label="설치일" value={pkg.installed_at?.slice(0, 10)} />
-        </>
-      )}
-    </Section>
-  )
-}
-
 function SiteAccessInfo({ site }: { site: SiteDetail }) {
   const creds = site.access_credentials
   return (
@@ -774,7 +753,6 @@ export default function SiteDetailPage() {
         <SiteBasicInfo site={site} />
         <SiteContactInfo site={site} />
         <SiteHardwareInfo site={site} />
-        <SiteSolutionInfo site={site} />
         <SiteAccessInfo site={site} />
         <SitePatchHistory site={site} />
         <SiteVisitHistory site={site} />
