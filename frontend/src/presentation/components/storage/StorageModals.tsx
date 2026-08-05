@@ -7,7 +7,7 @@ import type { DuplicateFile, FileProgress } from '@/infrastructure/hooks/useStor
 import type { StorageItem } from '@/domain/Storage'
 import { FolderIcon, FileIcon, EyeIcon, TrashIcon, DownloadIcon } from './StorageIcons'
 import { formatBytes, isPreviewable } from './StorageUtils'
-import { CopyLinkButton, CopyLinkButtonMobile } from './StorageUtils'
+import { CopyLinkButton, CopyLinkButtonMobile } from './StorageCopyLinkButton'
 
 export function QuotaBar({ used, limit, available, percent }: { used: number; limit: number; available: number; percent: number }) {
   const isWarning = percent >= 80
