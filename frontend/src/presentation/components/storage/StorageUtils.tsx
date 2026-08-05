@@ -4,7 +4,7 @@ import { LinkIcon } from './StorageIcons'
 
 export function isPreviewable(name: string): boolean {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'pdf', 'mp4', 'webm', 'mp3', 'wav', 'txt', 'md'].includes(ext)
+  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'pdf', 'mp4', 'webm', 'mp3', 'wav', 'txt', 'md', 'xlsx', 'xls', 'docx', 'doc', 'pptx', 'ppt'].includes(ext)
 }
 
 export function formatBytes(bytes: number): string {
