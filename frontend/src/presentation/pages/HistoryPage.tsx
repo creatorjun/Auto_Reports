@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useAllReports, useDeleteReport } from '@/infrastructure/hooks/useReport'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import HistoryDeleteConfirmModal from '@/presentation/components/history/HistoryDeleteConfirmModal'
-import { ReportRow, MobileReportRow } from '@/presentation/components/history/HistoryReportTable'
+import { HistoryReportTable } from '@/presentation/components/tables/HistoryReportTable'
 
 const PAGE_SIZE = 20
 
@@ -44,32 +44,13 @@ export default function HistoryPage() {
       </div>
 
       <div className="bg-white border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-apple-divider bg-apple-gray/40">
-                <th className="px-6 py-3 3xl:px-8 text-left text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wide">ID</th>
-                <th className="px-6 py-3 3xl:px-8 text-left text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wide">기간</th>
-                <th className="px-6 py-3 3xl:px-8 text-left text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wide">생성일</th>
-                <th className="px-6 py-3 3xl:px-8 text-left text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wide">상태</th>
-                <th className="px-6 py-3 3xl:px-8 text-right text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wide">액션</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-apple-divider/40">
-              {(data ?? []).map((r) => (
-                <ReportRow key={r.id} r={r} onDelete={setConfirmId} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="md:hidden divide-y divide-apple-divider/40">
-          {(data ?? []).map((r) => (
-            <MobileReportRow key={r.id} r={r} onDelete={setConfirmId} />
-          ))}
-        </div>
-
-        {!data?.length && <p className="text-center text-[13px] text-apple-light py-16">보고서가 없습니다.</p>}
+        <HistoryReportTable
+          data={data ?? []}
+          onDelete={setConfirmId}
+        />
+        {!data?.length && (
+          <p className="text-center text-[13px] text-apple-light py-16">보고서가 없습니다.</p>
+        )}
       </div>
 
       {(hasPrev || hasNext) && (
