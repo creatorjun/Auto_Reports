@@ -5,7 +5,8 @@ import { ko } from 'date-fns/locale'
 import { storageApi } from '@/infrastructure/api/storageApi'
 import type { StorageItem } from '@/domain/Storage'
 import { FolderIcon, FileIcon, EyeIcon, DownloadIcon, TrashIcon } from './StorageIcons'
-import { formatBytes, isPreviewable, CopyLinkButton, CopyLinkButtonMobile } from './StorageUtils'
+import { formatBytes, isPreviewable } from './StorageUtils'
+import { CopyLinkButton, CopyLinkButtonMobile } from './StorageCopyLinkButton'
 
 export function CreateFolderRow({ onConfirm, onCancel }: { onConfirm: (name: string) => void; onCancel: () => void }) {
   const [value, setValue] = useState('')
