@@ -1,8 +1,8 @@
 // frontend/src/presentation/components/partner/PartnerMemberPanel.tsx
 import { useQuery } from '@tanstack/react-query'
 import { partnerApi } from '@/infrastructure/api/partnerApi'
-import type { PartnerMember } from '@/domain/Partner'
 import PartnerPanelHeader from './PartnerPanelHeader'
+import type { PartnerMember } from '@/domain/Partner'
 
 export default function PartnerMemberPanel({
   orgId,
@@ -17,8 +17,8 @@ export default function PartnerMemberPanel({
 }) {
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['partner-members', orgId],
-    queryFn:  () => partnerApi.getMembers(orgId!),
-    enabled:  !!orgId,
+    queryFn: () => partnerApi.getMembers(orgId!),
+    enabled: !!orgId,
     staleTime: 5 * 60_000,
   })
 

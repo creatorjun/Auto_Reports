@@ -15,10 +15,6 @@ export default function PartnerManagementPage() {
     setSelectedMember(null)
   }
 
-  const handleSelectMember = (member: PartnerMember | null) => {
-    setSelectedMember(member)
-  }
-
   const issueLabel = selectedMember
     ? `${selectedMember.display_name} 이슈`
     : selectedOrg
@@ -40,7 +36,7 @@ export default function PartnerManagementPage() {
             orgId={selectedOrg?.id ?? null}
             orgName={selectedOrg?.name ?? ''}
             selectedAccountId={selectedMember?.account_id ?? null}
-            onSelect={handleSelectMember}
+            onSelect={setSelectedMember}
           />
         </div>
         <div className="bg-white border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
