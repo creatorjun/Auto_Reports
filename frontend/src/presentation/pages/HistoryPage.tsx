@@ -40,7 +40,7 @@ export default function HistoryPage() {
     <div className="flex flex-col gap-6 px-6 py-6 max-w-5xl mx-auto w-full">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-apple-dark">보고서 히스토리</h1>
-        {isFetching && <LoadingSpinner size="sm" />}
+        {isFetching && <LoadingSpinner />}
       </div>
 
       <div className="bg-white border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
