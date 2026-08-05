@@ -62,7 +62,7 @@ export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
   })
 
   return (
-    <Section title="하드웨어" badge={site.deployment_nodes?.length ?? 0} defaultOpen={false}>
+    <Section title="하드웨어" badge={site.nodes?.length ?? 0} defaultOpen={false}>
       <div className="flex justify-end mb-4">
         <AddBtn
           onClick={() => {
@@ -82,11 +82,11 @@ export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
           onCancel={() => setShowAddForm(false)}
         />
       )}
-      {!site.deployment_nodes || site.deployment_nodes.length === 0 ? (
+      {!site.nodes || site.nodes.length === 0 ? (
         <p className="text-sm text-apple-light">등록된 하드웨어가 없습니다</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {site.deployment_nodes.map((node, i) => (
+          {site.nodes.map((node, i) => (
             <div key={node.id ?? i}>
               {editTarget === node.id ? (
                 <NodeForm
