@@ -1,16 +1,20 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
 import { lazy, Suspense, useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import type { LucideIcon } from 'lucide-react'
 import { BarChart2, ShieldAlert, Activity, Pin } from 'lucide-react'
 import { useLatestReport, useReportById } from '@/infrastructure/hooks/useReport'
 import { useReportStore } from '@/app/store/reportStore'
+import { useDashboardData } from '@/infrastructure/hooks/useDashboardData'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import SummaryCard, { SUMMARY_ICONS } from '@/presentation/components/cards/SummaryCard'
 import AiSummaryCard from '@/presentation/components/cards/AiSummaryCard'
+import SectionTitle from '@/presentation/components/common/SectionTitle'
+import { ModalFallback, ChartFallback } from '@/presentation/components/common/DashboardFallbacks'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/shared/constants'
 import type { ReportDetail } from '@/domain/Report'
-import type { RecentIssue } from '@/domain/Issue'
+import type { ViolationEntry } from '@/presentation/components/charts/SlaDonutChart'
+import type { SlaDelayIssue } from '@/presentation/components/charts/ReasonPieChart'
+import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
 
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
 const ReasonPieChart      = lazy(() => import('@/presentation/components/charts/ReasonPieChart'))
@@ -29,139 +33,31 @@ const IncompleteIssueModal = lazy(() => import('@/presentation/components/tables
 const SlaViolationModal   = lazy(() => import('@/presentation/components/tables/SlaViolationModal'))
 const SlaDelayModal       = lazy(() => import('@/presentation/components/tables/SlaDelayModal'))
 
-import type { ViolationEntry } from '@/presentation/components/charts/SlaDonutChart'
-import type { SlaDelayIssue } from '@/presentation/components/charts/ReasonPieChart'
-import type { MonthlyEntry } from '@/presentation/components/charts/SlaMonthlyLineChart'
-import type { MonthlyCountEntry } from '@/presentation/components/charts/MonthlyCountChart'
-import type { CreatedIssue } from '@/presentation/components/tables/WeeklyCreatedModal'
-import type { ResolvedIssue } from '@/presentation/components/tables/WeeklyResolvedModal'
-import type { ReviewIssue } from '@/presentation/components/tables/IssueReviewModal'
-import type { DataRequestIssue } from '@/presentation/components/tables/DataRequestModal'
-import type { ResultPendingIssue } from '@/presentation/components/tables/ResultPendingModal'
-import type { IncompleteIssue } from '@/presentation/components/tables/IncompleteIssueModal'
-import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
-
-const ModalFallback = () => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 flex items-center justify-center">
-      <LoadingSpinner text="로딩 중..." />
-    </div>
-  </div>
-)
-
-const ChartFallback = () => (
-  <div className="flex items-center justify-center h-40 rounded-xl bg-gray-50">
-    <LoadingSpinner text="" />
-  </div>
-)
-
-function SectionTitle({ icon: Icon, title, subtitle }: { icon: LucideIcon; title: string; subtitle?: string }) {
-  return (
-    <div className="flex items-center gap-2 px-1 mb-1">
-      <Icon size={15} className="text-brand-500 flex-shrink-0" />
-      <span className="text-ui-sm font-semibold text-apple-primary">{title}</span>
-      {subtitle && <span className="text-ui-xs text-apple-light">{subtitle}</span>}
-    </div>
-  )
-}
-
-interface W9Data {
-  initial_response_violations?: number
-  resolution_violations?: number
-  violation_distribution?: ViolationEntry[]
-}
-
-interface W10Data {
-  by_status?: Record<string, number>
-  by_status_details?: Record<string, SlaDelayIssue[]>
-}
-
-interface ResolutionTypeEntry {
-  avg_days: number
-  avg_hours: number
-  count: number
-}
-
-function getData<T>(widget: { data: Record<string, unknown> | null } | undefined): T | null {
-  return (widget?.data ?? null) as T | null
-}
-
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
-  const [showWeeklyCreated,   setShowWeeklyCreated]   = useState(false)
-  const [showWeeklyResolved,  setShowWeeklyResolved]  = useState(false)
-  const [showIssueReview,     setShowIssueReview]     = useState(false)
-  const [showDataRequest,     setShowDataRequest]     = useState(false)
-  const [showResultPending,   setShowResultPending]   = useState(false)
-  const [showIncomplete,      setShowIncomplete]      = useState(false)
-  const [slaViolationEntry,   setSlaViolationEntry]   = useState<ViolationEntry | null>(null)
-  const [slaDelayEntry,       setSlaDelayEntry]       = useState<{ status: string; issues: SlaDelayIssue[] } | null>(null)
+  const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
+  const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
+  const [showIssueReview,    setShowIssueReview]    = useState(false)
+  const [showDataRequest,    setShowDataRequest]    = useState(false)
+  const [showResultPending,  setShowResultPending]  = useState(false)
+  const [showIncomplete,     setShowIncomplete]     = useState(false)
+  const [slaViolationEntry,  setSlaViolationEntry]  = useState<ViolationEntry | null>(null)
+  const [slaDelayEntry,      setSlaDelayEntry]      = useState<{ status: string; issues: SlaDelayIssue[] } | null>(null)
 
   useEffect(() => {
     setCurrentReport(report)
     return () => setCurrentReport(null)
   }, [report, setCurrentReport])
 
+  const { weekly, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report)
+  const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange } = weekly
+  const { w7Monthly, w8Monthly, hasW7, hasW8 } = slaMonthly
+  const { w13Monthly, w14Monthly, hasW13, hasW14 } = monthlyCount
+  const { w9Total, w9Distribution } = slaDonut
+  const { w10ByStatus, w10ByStatusDetails } = slaDelay
+  const { recentIssues, incompleteIssues, incompleteTotal } = recentAndIncomplete
+  const { reviewIssues, dataRequestIssues, resultPendingIssues } = statusIssues
   const w = report.widgets
-
-  const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange } = useMemo(() => {
-    const w3Data = getData<{ created: number; resolved: number; created_details: CreatedIssue[]; resolved_details: ResolvedIssue[] }>(w.w3)
-    return {
-      w3Created:      w3Data?.created          ?? 0,
-      w3Resolved:     w3Data?.resolved         ?? 0,
-      weeklyCreated:  w3Data?.created_details  ?? [],
-      weeklyResolved: w3Data?.resolved_details ?? [],
-      dateRange: report.week_start && report.week_end ? { start: report.week_start, end: report.week_end } : undefined,
-    }
-  }, [w.w3, report.week_start, report.week_end])
-
-  const { w7Monthly, w8Monthly, hasW7, hasW8 } = useMemo(() => {
-    const w7Data = getData<{ monthly: MonthlyEntry[] }>(w.w7)
-    const w8Data = getData<{ monthly: MonthlyEntry[] }>(w.w8)
-    const w7Monthly = w7Data?.monthly ?? []
-    const w8Monthly = w8Data?.monthly ?? []
-    return { w7Monthly, w8Monthly, hasW7: w7Monthly.some((e) => e.total > 0), hasW8: w8Monthly.some((e) => e.total > 0) }
-  }, [w.w7, w.w8])
-
-  const { w13Monthly, w14Monthly, hasW13, hasW14 } = useMemo(() => {
-    const w13Data = getData<{ monthly: MonthlyCountEntry[] }>(w.w13)
-    const w14Data = getData<{ monthly: MonthlyCountEntry[] }>(w.w14)
-    const w13Monthly = w13Data?.monthly ?? []
-    const w14Monthly = w14Data?.monthly ?? []
-    return { w13Monthly, w14Monthly, hasW13: w13Monthly.some((e) => e.count > 0), hasW14: w14Monthly.some((e) => e.count > 0) }
-  }, [w.w13, w.w14])
-
-  const { w9Total, w9Distribution } = useMemo(() => {
-    const w9Data = getData<W9Data>(w.w9)
-    return { w9Total: w.w9?.total ?? 0, w9Distribution: w9Data?.violation_distribution ?? [] }
-  }, [w.w9])
-
-  const { w10ByStatus, w10ByStatusDetails } = useMemo(() => {
-    const w10Data = getData<W10Data>(w.w10)
-    return {
-      w10ByStatus:        w10Data?.by_status         ?? {},
-      w10ByStatusDetails: w10Data?.by_status_details ?? {},
-    }
-  }, [w.w10])
-
-  const w11ByType = useMemo(() => {
-    const w11Data = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w.w11)
-    return w11Data?.by_type ?? {}
-  }, [w.w11])
-
-  const { recentIssues, incompleteIssues, incompleteTotal } = useMemo(() => {
-    const w12Data = getData<{ issue_details: RecentIssue[] }>(w.w12)
-    const recentIssues = (w12Data?.issue_details ?? []).map((i) => ({ ...i, reporter: i.reporter ?? '미지정', tac_team: i.tac_team ?? '미지정' }))
-    const incompleteIssues: IncompleteIssue[] = recentIssues.map((i) => ({ key: i.key, summary: i.summary, type: i.type, status: i.status, created: i.created, elapsed_days: i.elapsed_days }))
-    return { recentIssues, incompleteIssues, incompleteTotal: incompleteIssues.length }
-  }, [w.w12])
-
-  const { reviewIssues, dataRequestIssues, resultPendingIssues } = useMemo(() => {
-    const w4Data = getData<{ issue_details: ReviewIssue[] }>(w.w4)
-    const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w.w5)
-    const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w.w6)
-    return { reviewIssues: w4Data?.issue_details ?? [], dataRequestIssues: w5Data?.issue_details ?? [], resultPendingIssues: w6Data?.issue_details ?? [] }
-  }, [w.w4, w.w5, w.w6])
 
   const slaModalIssues: SlaViolationIssue[] = useMemo(() => {
     if (!slaViolationEntry) return []
@@ -289,7 +185,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
             />
           </Suspense>
           <Suspense fallback={<ChartFallback />}>
-            <TypeBarChart byType={w11ByType} />
+            <TypeBarChart byType={resolutionByType} />
           </Suspense>
         </div>
       </div>
