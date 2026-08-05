@@ -1,187 +1,15 @@
 // frontend/src/presentation/pages/SiteCreatePage.tsx
-import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { siteApi } from '@/infrastructure/api/siteApi'
 import type { Credential } from '@/domain/Site'
-
-const emptyToUndefined = (val: unknown) => (val === '' ? undefined : val)
-
-const schema = z.object({
-  site_name:               z.string().min(1, '사이트명을 입력하세요'),
-  status:                  z.preprocess(emptyToUndefined, z.enum(['installing', 'active', 'inactive', 'expired', 'maintenance']).optional()),
-  contract_type:           z.preprocess(emptyToUndefined, z.enum(['정식라이센스', '임시라이센스']).optional()),
-  maintenance_company:     z.string().optional(),
-  customer_name:           z.string().optional(),
-  customer_phone:          z.string().optional(),
-  customer_email:          z.string().email('올바른 이메일').or(z.literal('')).optional(),
-  maintenance_name:        z.string().optional(),
-  maintenance_phone:       z.string().optional(),
-  maintenance_email:       z.string().email('올바른 이메일').or(z.literal('')).optional(),
-  maintenance_contact_company: z.string().optional(),
-  contract_start_date:     z.preprocess(emptyToUndefined, z.string().optional()),
-  contract_end_date:       z.preprocess(emptyToUndefined, z.string().optional()),
-  cli_username:            z.string().optional(),
-  cli_password:            z.string().optional(),
-  cli_ip:                  z.string().optional(),
-  cli_port:                z.string().optional(),
-  web_username:            z.string().optional(),
-  web_password:            z.string().optional(),
-  web_ip:                  z.string().optional(),
-  web_port:                z.string().optional(),
-  db_username:             z.string().optional(),
-  db_password:             z.string().optional(),
-  db_ip:                   z.string().optional(),
-  db_port:                 z.string().optional(),
-  vpn_username:            z.string().optional(),
-  vpn_password:            z.string().optional(),
-  vpn_ip:                  z.string().optional(),
-  vpn_port:                z.string().optional(),
-  access_note:             z.string().optional(),
-})
-
-type FormValues = z.infer<typeof schema>
-
-type ApiError = {
-  response?: {
-    data?: {
-      detail?: string | Array<{ msg: string; loc: (string | number)[] }>
-    }
-  }
-}
-
-function extractErrorMessage(error: unknown): string {
-  const detail = (error as ApiError)?.response?.data?.detail
-  if (!detail) return '저장 중 오류가 발생했습니다'
-  if (typeof detail === 'string') return detail
-  if (Array.isArray(detail)) {
-    return detail.map((e) => `${e.loc.slice(-1)[0]}: ${e.msg}`).join(' / ')
-  }
-  return '저장 중 오류가 발생했습니다'
-}
-
-function formatPhone(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 11)
-  if (digits.length < 4) return digits
-  if (digits.length < 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`
-  if (digits.length < 11) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
-  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
-}
-
-function EyeIcon({ open }: { open: boolean }) {
-  return open ? (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M2 2l12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  ) : (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  )
-}
-
-function Field({
-  label, error, children,
-}: {
-  label: string; error?: string; children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-apple-light">{label}</label>
-      {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
-    </div>
-  )
-}
-
-const inputCls = 'w-full border border-apple-divider rounded-xl px-3 py-2 text-sm text-apple-dark bg-white outline-none focus:ring-2 focus:ring-blue-500/30 transition'
-const selectCls = inputCls + ' cursor-pointer'
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="text-sm font-semibold text-apple-dark border-b border-apple-divider pb-1.5 mb-4">
-      {children}
-    </h2>
-  )
-}
-
-function PhoneInput({
-  name, register, setValue, placeholder = '010-0000-0000',
-}: {
-  name: 'customer_phone' | 'maintenance_phone'
-  register: ReturnType<typeof useForm<FormValues>>['register']
-  setValue: ReturnType<typeof useForm<FormValues>>['setValue']
-  placeholder?: string
-}) {
-  const { onChange, ...rest } = register(name)
-  return (
-    <input
-      {...rest}
-      className={inputCls}
-      placeholder={placeholder}
-      inputMode="numeric"
-      onChange={(e) => {
-        setValue(name, formatPhone(e.target.value), { shouldValidate: true })
-      }}
-    />
-  )
-}
-
-function CredentialRow({
-  label, usernameKey, passwordKey, ipKey, portKey, register, errors,
-}: {
-  label: string
-  usernameKey: keyof FormValues
-  passwordKey: keyof FormValues
-  ipKey: keyof FormValues
-  portKey: keyof FormValues
-  register: ReturnType<typeof useForm<FormValues>>['register']
-  errors: ReturnType<typeof useForm<FormValues>>['formState']['errors']
-}) {
-  const [showPw, setShowPw] = useState(false)
-  return (
-    <div className="rounded-xl border border-apple-divider/60 px-4 py-3 flex flex-col gap-3">
-      <p className="text-xs font-semibold text-blue-600">{label}</p>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="ID" error={(errors[usernameKey] as { message?: string })?.message}>
-          <input {...register(usernameKey)} className={inputCls} placeholder="username" autoComplete="off" />
-        </Field>
-        <Field label="PW" error={(errors[passwordKey] as { message?: string })?.message}>
-          <div className="relative">
-            <input
-              {...register(passwordKey)}
-              type="text"
-              className={inputCls + ' pr-9'}
-              placeholder="password"
-              autoComplete="off"
-              style={showPw ? undefined : { WebkitTextSecurity: 'disc' } as React.CSSProperties}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPw(v => !v)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-apple-light hover:text-apple-dark transition-colors"
-              tabIndex={-1}
-            >
-              <EyeIcon open={showPw} />
-            </button>
-          </div>
-        </Field>
-        <Field label="IP(URL)" error={(errors[ipKey] as { message?: string })?.message}>
-          <input {...register(ipKey)} className={inputCls} placeholder="192.168.0.1 또는 https://..." />
-        </Field>
-        <Field label="Port" error={(errors[portKey] as { message?: string })?.message}>
-          <input {...register(portKey)} className={inputCls} placeholder="22" inputMode="numeric" />
-        </Field>
-      </div>
-    </div>
-  )
-}
+import {
+  schema, type FormValues,
+  extractErrorMessage, inputCls, selectCls,
+  Field, SectionTitle, PhoneInput, CredentialRow,
+} from '@/presentation/components/site/create/SiteCreateFormHelpers'
 
 export default function SiteCreatePage() {
   const navigate = useNavigate()
@@ -243,17 +71,15 @@ export default function SiteCreatePage() {
         const resolvedUsername = u || existingCred?.username
         const resolvedPassword = p || existingCred?.password
         if (!resolvedUsername || !resolvedPassword) return undefined
-        const cred: Credential = {
+        return {
           username: resolvedUsername,
           password: resolvedPassword,
-          ip:       ip   || existingCred?.ip   || undefined,
-          port:     port || existingCred?.port || undefined,
+          ip:   ip   || existingCred?.ip   || undefined,
+          port: port || existingCred?.port || undefined,
         }
-        return cred
       }
 
       const ec = existing?.access_credentials
-
       const creds = {
         cli:  buildCred(values.cli_username,  values.cli_password,  values.cli_ip,  values.cli_port,  ec?.cli),
         web:  buildCred(values.web_username,  values.web_password,  values.web_ip,  values.web_port,  ec?.web),
@@ -265,24 +91,14 @@ export default function SiteCreatePage() {
 
       const buildContact = (name?: string, phone?: string, email?: string, company?: string) =>
         name || phone || email || company
-          ? {
-              name:    name    || undefined,
-              phone:   phone   || undefined,
-              email:   email   || undefined,
-              company: company || undefined,
-            }
+          ? { name: name || undefined, phone: phone || undefined, email: email || undefined, company: company || undefined }
           : undefined
 
       const baseFields = {
         site_name:           values.site_name,
         maintenance_company: values.maintenance_company || undefined,
         customer_info:       buildContact(values.customer_name, values.customer_phone, values.customer_email),
-        maintenance_info:    buildContact(
-          values.maintenance_name,
-          values.maintenance_phone,
-          values.maintenance_email,
-          values.maintenance_contact_company,
-        ),
+        maintenance_info:    buildContact(values.maintenance_name, values.maintenance_phone, values.maintenance_email, values.maintenance_contact_company),
         contract_start_date: values.contract_start_date || undefined,
         contract_end_date:   values.contract_end_date   || undefined,
         contract_type:       values.contract_type       || undefined,
@@ -290,16 +106,8 @@ export default function SiteCreatePage() {
         access_credentials:  hasAnyCred ? creds : undefined,
       }
 
-      if (isEdit) {
-        return siteApi.update(Number(id), baseFields)
-      }
-
-      return siteApi.create({
-        ...baseFields,
-        nodes:           [],
-        patch_histories: [],
-        visit_histories: [],
-      })
+      if (isEdit) return siteApi.update(Number(id), baseFields)
+      return siteApi.create({ ...baseFields, nodes: [], patch_histories: [], visit_histories: [] })
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['site-detail', String(data.id)] })
@@ -406,49 +214,12 @@ export default function SiteCreatePage() {
         <section>
           <SectionTitle>접속 정보</SectionTitle>
           <div className="flex flex-col gap-4">
-            <CredentialRow
-              label="CLI"
-              usernameKey="cli_username"
-              passwordKey="cli_password"
-              ipKey="cli_ip"
-              portKey="cli_port"
-              register={register}
-              errors={errors}
-            />
-            <CredentialRow
-              label="Web"
-              usernameKey="web_username"
-              passwordKey="web_password"
-              ipKey="web_ip"
-              portKey="web_port"
-              register={register}
-              errors={errors}
-            />
-            <CredentialRow
-              label="DB"
-              usernameKey="db_username"
-              passwordKey="db_password"
-              ipKey="db_ip"
-              portKey="db_port"
-              register={register}
-              errors={errors}
-            />
-            <CredentialRow
-              label="VPN"
-              usernameKey="vpn_username"
-              passwordKey="vpn_password"
-              ipKey="vpn_ip"
-              portKey="vpn_port"
-              register={register}
-              errors={errors}
-            />
+            <CredentialRow label="CLI" usernameKey="cli_username" passwordKey="cli_password" ipKey="cli_ip" portKey="cli_port" register={register} errors={errors} />
+            <CredentialRow label="Web" usernameKey="web_username" passwordKey="web_password" ipKey="web_ip" portKey="web_port" register={register} errors={errors} />
+            <CredentialRow label="DB"  usernameKey="db_username"  passwordKey="db_password"  ipKey="db_ip"  portKey="db_port"  register={register} errors={errors} />
+            <CredentialRow label="VPN" usernameKey="vpn_username" passwordKey="vpn_password" ipKey="vpn_ip" portKey="vpn_port" register={register} errors={errors} />
             <Field label="비고">
-              <textarea
-                {...register('access_note')}
-                className={inputCls + ' resize-none'}
-                rows={3}
-                placeholder="추가 접속 정보나 메모를 입력하세요"
-              />
+              <textarea {...register('access_note')} className={inputCls + ' resize-none'} rows={3} placeholder="추가 접속 정보나 메모를 입력하세요" />
             </Field>
           </div>
         </section>
