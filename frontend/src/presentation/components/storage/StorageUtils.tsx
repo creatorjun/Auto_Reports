@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { LinkIcon } from './StorageIcons'
 
-const PREVIEWABLE_EXTS = new Set([
+export const PREVIEWABLE_EXTS = new Set([
   'png','jpg','jpeg','gif','webp','svg','bmp','ico',
   'mp4','webm','ogg','mov',
   'pdf',
@@ -61,11 +61,9 @@ export function CopyLinkButton({ name, folder }: { name: string; folder: string 
     }
   }
   return (
-    <button
-      onClick={handleCopy}
+    <button onClick={handleCopy}
       className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-apple-light hover:text-brand-600 hover:bg-brand-50"
-      title="링크 복사"
-    >
+      title="링크 복사">
       {copied
         ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="#22c55e" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         : <LinkIcon />}
@@ -86,11 +84,9 @@ export function CopyLinkButtonMobile({ name, folder }: { name: string; folder: s
     }
   }
   return (
-    <button
-      onClick={handleCopy}
+    <button onClick={handleCopy}
       className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors text-apple-light hover:text-brand-600 hover:bg-brand-50"
-      title="링크 복사"
-    >
+      title="링크 복사">
       {copied
         ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="#22c55e" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         : <LinkIcon />}
