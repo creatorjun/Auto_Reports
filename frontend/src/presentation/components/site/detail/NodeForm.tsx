@@ -149,7 +149,7 @@ export default function NodeForm({
             placeholder="120"
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="col-span-2 flex flex-col gap-1">
           <label className="text-xs font-medium text-apple-light">패키지</label>
           <input {...register('pkg_version')} className={inputCls} placeholder="v1.0.0" />
         </div>
