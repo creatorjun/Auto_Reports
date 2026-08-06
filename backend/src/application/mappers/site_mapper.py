@@ -71,6 +71,7 @@ def node_to_schema(n: DeploymentNode) -> DeploymentNodeSchema:
         ip_address=n.ip_address,
         disk_free_gb=n.disk_free_gb,
         disk_updated_at=n.disk_updated_at,
+        pkg_version=n.pkg_version,
     )
 
 

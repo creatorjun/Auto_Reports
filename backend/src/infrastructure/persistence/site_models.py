@@ -52,6 +52,7 @@ class DeploymentNodeORM(Base):
     ip_address:      Mapped[str | None]      = mapped_column(String, nullable=True)
     disk_free_gb:    Mapped[int | None]      = mapped_column(Integer, nullable=True)
     disk_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    pkg_version:     Mapped[str | None]      = mapped_column(String, nullable=True)
 
     site: Mapped["SiteORM"] = relationship("SiteORM", back_populates="nodes")
 

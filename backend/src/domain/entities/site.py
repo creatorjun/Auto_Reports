@@ -15,8 +15,8 @@ class SiteStatus(StrEnum):
 
 
 class ContractType(StrEnum):
-    OFFICIAL  = "\uc815\uc2dd\ub77c\uc774\uc13c\uc2a4"
-    TEMPORARY = "\uc784\uc2dc\ub77c\uc774\uc13c\uc2a4"
+    OFFICIAL  = "정식라이센스"
+    TEMPORARY = "임시라이센스"
 
 
 class NodeRole(StrEnum):
@@ -27,15 +27,15 @@ class NodeRole(StrEnum):
 
 
 class PatchType(StrEnum):
-    REGULAR   = "\uc815\uae30\ud328\uce58"
-    EMERGENCY = "\uae34\uae09\ud328\uce58"
-    HOTFIX    = "\ud56f\ud53d\uc2a4"
+    REGULAR   = "정기패치"
+    EMERGENCY = "긴급패치"
+    HOTFIX    = "핫픽스"
 
 
 class PatchResultStatus(StrEnum):
-    SUCCESS     = "\uc131\uacf5"
-    FAILED      = "\uc2e4\ud328"
-    ROLLED_BACK = "\ub864\ubc31"
+    SUCCESS     = "성공"
+    FAILED      = "실패"
+    ROLLED_BACK = "롤백"
 
 
 def _utc_now() -> datetime:
@@ -81,6 +81,7 @@ class DeploymentNode:
     ip_address:      Optional[str]      = None
     disk_free_gb:    Optional[int]      = None
     disk_updated_at: Optional[datetime] = None
+    pkg_version:     Optional[str]      = None
 
 
 @dataclass(frozen=True)

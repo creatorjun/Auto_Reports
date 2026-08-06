@@ -18,6 +18,7 @@ const nodeSchema = z.object({
   memory_total_gb: z.coerce.number().int().positive().optional().or(z.literal('')),
   disk_total_gb:   z.coerce.number().int().positive().optional().or(z.literal('')),
   disk_free_gb:    z.coerce.number().int().positive().optional().or(z.literal('')),
+  pkg_version:     z.string().optional(),
 })
 type NodeFormValues = z.infer<typeof nodeSchema>
 
@@ -49,6 +50,7 @@ export default function NodeForm({
       memory_total_gb: initial?.memory_total_gb ?? '',
       disk_total_gb:   initial?.disk_total_gb   ?? '',
       disk_free_gb:    initial?.disk_free_gb    ?? '',
+      pkg_version:     initial?.pkg_version     ?? '',
     },
   })
 
@@ -65,6 +67,7 @@ export default function NodeForm({
         memory_total_gb: v.memory_total_gb !== '' ? Number(v.memory_total_gb) : undefined,
         disk_total_gb:   v.disk_total_gb   !== '' ? Number(v.disk_total_gb)   : undefined,
         disk_free_gb:    v.disk_free_gb    !== '' ? Number(v.disk_free_gb)    : undefined,
+        pkg_version:     v.pkg_version     || undefined,
       }
       return initial?.id
         ? siteApi.updateNode(siteId, initial.id, payload)
@@ -145,6 +148,10 @@ export default function NodeForm({
             className={inputCls}
             placeholder="120"
           />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-apple-light">패키지</label>
+          <input {...register('pkg_version')} className={inputCls} placeholder="v1.0.0" />
         </div>
       </div>
       {isError && <p className="text-xs text-red-500">저장 중 오류가 발생했습니다</p>}

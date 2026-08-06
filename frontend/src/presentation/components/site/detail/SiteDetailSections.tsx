@@ -127,6 +127,7 @@ export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
                   <Row label="RAM (GB)"     value={node.memory_total_gb} />
                   <Row label="디스크 전체"   value={node.disk_total_gb} />
                   <Row label="디스크 여유"   value={node.disk_free_gb} />
+                  <Row label="패키지"        value={node.pkg_version} />
                 </div>
               )}
             </div>

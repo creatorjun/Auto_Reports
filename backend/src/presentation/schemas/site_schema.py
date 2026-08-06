@@ -73,6 +73,7 @@ class DeploymentNodeSchema(BaseModel):
     ip_address:      Optional[str]      = None
     disk_free_gb:    Optional[int]      = None
     disk_updated_at: Optional[datetime] = None
+    pkg_version:     Optional[str]      = None
 
 
 class DeploymentNodeCreateRequest(BaseModel):
@@ -87,6 +88,7 @@ class DeploymentNodeCreateRequest(BaseModel):
     ip_address:      Optional[str]      = None
     disk_free_gb:    Optional[int]      = None
     disk_updated_at: Optional[datetime] = None
+    pkg_version:     Optional[str]      = None
 
 
 class DeploymentNodeUpdateRequest(BaseModel):
@@ -101,6 +103,7 @@ class DeploymentNodeUpdateRequest(BaseModel):
     ip_address:      Optional[str]      = None
     disk_free_gb:    Optional[int]      = None
     disk_updated_at: Optional[datetime] = None
+    pkg_version:     Optional[str]      = None
 
 
 class PatchHistorySchema(BaseModel):

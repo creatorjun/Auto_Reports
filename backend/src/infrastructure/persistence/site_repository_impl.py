@@ -215,6 +215,7 @@ class SiteRepositoryImpl(SiteRepository):
             ip_address=orm.ip_address,
             disk_free_gb=orm.disk_free_gb,
             disk_updated_at=orm.disk_updated_at,
+            pkg_version=orm.pkg_version,
         )
 
     def _patch_to_domain(self, orm: PatchHistoryORM) -> PatchHistory:
@@ -306,6 +307,7 @@ class SiteRepositoryImpl(SiteRepository):
             node_orm.ip_address      = n.ip_address
             node_orm.disk_free_gb    = n.disk_free_gb
             node_orm.disk_updated_at = n.disk_updated_at
+            node_orm.pkg_version     = n.pkg_version
 
         incoming_patch_ids = {p.id for p in site.patch_histories if p.id is not None}
         for p in list(orm.patch_histories or []):

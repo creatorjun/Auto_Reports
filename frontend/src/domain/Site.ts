@@ -43,6 +43,7 @@ export interface DeploymentNodePayload {
   ip_address?: string
   disk_free_gb?: number
   disk_updated_at?: string
+  pkg_version?: string
 }
 
 export interface DeploymentNode extends DeploymentNodePayload {
