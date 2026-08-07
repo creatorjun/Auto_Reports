@@ -14,7 +14,7 @@ TODO_STATUSES = {"\ud560 \uc77c", "\uc7ac\uc624\ud508"}
 
 
 def extract_todo_issues(widgets: dict) -> list[dict]:
-    recent_result = widgets.get(WidgetId.RECENT)
+    recent_result = widgets.get(WidgetId.RECENT_ISSUES)
     if recent_result is None:
         return []
     data = recent_result.data
