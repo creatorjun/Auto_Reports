@@ -19,7 +19,7 @@ class SmtpEmailClient(EmailPort):
         password: str,
         from_addr: str,
         use_tls: bool = False,
-        start_tls: bool = True,
+        start_tls: bool = False,
     ) -> None:
         self._host = host
         self._port = port
@@ -28,6 +28,7 @@ class SmtpEmailClient(EmailPort):
         self._from_addr = from_addr
         self._use_tls = use_tls
         self._start_tls = start_tls
+        self._use_auth = bool(username and password)
 
     async def send(self, to: list[str], subject: str, body: str) -> None:
         msg = MIMEMultipart("alternative")
@@ -36,13 +37,15 @@ class SmtpEmailClient(EmailPort):
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "html", "utf-8"))
 
-        await aiosmtplib.send(
-            msg,
+        send_kwargs: dict = dict(
             hostname=self._host,
             port=self._port,
-            username=self._username,
-            password=self._password,
             use_tls=self._use_tls,
             start_tls=self._start_tls,
         )
+        if self._use_auth:
+            send_kwargs["username"] = self._username
+            send_kwargs["password"] = self._password
+
+        await aiosmtplib.send(msg, **send_kwargs)
         logger.info(f"[메일 발송] to={to} subject={subject!r}")

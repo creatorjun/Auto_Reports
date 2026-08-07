@@ -24,19 +24,21 @@ except ImportError:
     raise
 
 SMTP_HOST      = os.getenv("SMTP_HOST", "")
-SMTP_PORT      = int(os.getenv("SMTP_PORT", "587"))
+SMTP_PORT      = int(os.getenv("SMTP_PORT", "25"))
 SMTP_USER      = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD  = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM      = os.getenv("SMTP_FROM") or SMTP_USER
 SMTP_USE_TLS   = os.getenv("SMTP_USE_TLS", "false").lower() == "true"
-SMTP_START_TLS = os.getenv("SMTP_START_TLS", "true").lower() == "true"
+SMTP_START_TLS = os.getenv("SMTP_START_TLS", "false").lower() == "true"
 NOTIFY_TO_RAW  = os.getenv("NOTIFY_TODO_TO", "")
 
-import json, re
+import json
 try:
     NOTIFY_TO: list[str] = json.loads(NOTIFY_TO_RAW) if NOTIFY_TO_RAW.strip().startswith("[") else [NOTIFY_TO_RAW]
 except Exception:
     NOTIFY_TO = [NOTIFY_TO_RAW]
+
+USE_AUTH = bool(SMTP_USER and SMTP_PASSWORD)
 
 SUBJECT = "[TAC] SMTP 메일 테스트"
 BODY = """
@@ -46,13 +48,15 @@ BODY = """
 <table style='border-collapse:collapse;font-size:14px;'>
   <tr><td style='padding:4px 12px;color:#6b7280;'>SMTP_HOST</td><td style='padding:4px 12px;'>{host}</td></tr>
   <tr><td style='padding:4px 12px;color:#6b7280;'>SMTP_PORT</td><td style='padding:4px 12px;'>{port}</td></tr>
-  <tr><td style='padding:4px 12px;color:#6b7280;'>SMTP_USER</td><td style='padding:4px 12px;'>{user}</td></tr>
+  <tr><td style='padding:4px 12px;color:#6b7280;'>SMTP_FROM</td><td style='padding:4px 12px;'>{from_addr}</td></tr>
+  <tr><td style='padding:4px 12px;color:#6b7280;'>AUTH</td><td style='padding:4px 12px;'>{auth}</td></tr>
   <tr><td style='padding:4px 12px;color:#6b7280;'>USE_TLS</td><td style='padding:4px 12px;'>{use_tls}</td></tr>
   <tr><td style='padding:4px 12px;color:#6b7280;'>START_TLS</td><td style='padding:4px 12px;'>{start_tls}</td></tr>
 </table>
 </body></html>
 """.format(
-    host=SMTP_HOST, port=SMTP_PORT, user=SMTP_USER,
+    host=SMTP_HOST, port=SMTP_PORT, from_addr=SMTP_FROM,
+    auth="인증 없음 (relay)" if not USE_AUTH else SMTP_USER,
     use_tls=SMTP_USE_TLS, start_tls=SMTP_START_TLS,
 )
 
@@ -61,10 +65,10 @@ async def main() -> None:
     print("\n=== SMTP 설정 ===")
     print(f"  SMTP_HOST      : {SMTP_HOST!r}")
     print(f"  SMTP_PORT      : {SMTP_PORT}")
-    print(f"  SMTP_USER      : {SMTP_USER!r}")
     print(f"  SMTP_FROM      : {SMTP_FROM!r}")
     print(f"  SMTP_USE_TLS   : {SMTP_USE_TLS}")
     print(f"  SMTP_START_TLS : {SMTP_START_TLS}")
+    print(f"  AUTH           : {'yes (' + SMTP_USER + ')' if USE_AUTH else 'no (relay 모드)'}")
     print(f"  NOTIFY_TO      : {NOTIFY_TO}")
 
     if not SMTP_HOST:
@@ -80,17 +84,19 @@ async def main() -> None:
     msg["Subject"] = SUBJECT
     msg.attach(MIMEText(BODY, "html", "utf-8"))
 
+    send_kwargs: dict = dict(
+        hostname=SMTP_HOST,
+        port=SMTP_PORT,
+        use_tls=SMTP_USE_TLS,
+        start_tls=SMTP_START_TLS,
+    )
+    if USE_AUTH:
+        send_kwargs["username"] = SMTP_USER
+        send_kwargs["password"] = SMTP_PASSWORD
+
     print(f"\n[INFO] 메일 발송 시도 → {NOTIFY_TO} ...")
     try:
-        response = await aiosmtplib.send(
-            msg,
-            hostname=SMTP_HOST,
-            port=SMTP_PORT,
-            username=SMTP_USER,
-            password=SMTP_PASSWORD,
-            use_tls=SMTP_USE_TLS,
-            start_tls=SMTP_START_TLS,
-        )
+        response = await aiosmtplib.send(msg, **send_kwargs)
         print(f"[SUCCESS] 메일 발송 성공 \u2705")
         print(f"  SMTP 응답: {response}")
     except aiosmtplib.SMTPException as e:
