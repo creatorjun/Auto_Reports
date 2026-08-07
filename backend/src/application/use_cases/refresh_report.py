@@ -5,8 +5,7 @@ from typing import Optional
 
 from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.report_assembler import ReportAssembler
-from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase, _TODO_STATUSES
-from src.domain.entities.widget_data import RecentIssueWidgetData
+from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase, extract_todo_issues
 from src.domain.repositories.report_repository import ReportRepository
 from src.shared.constants import KST
 
@@ -59,33 +58,9 @@ class RefreshReportUseCase:
         if self._notify is None:
             return
 
-        todo_issues = self._extract_todo_issues(new_report.widgets)
+        todo_issues = extract_todo_issues(new_report.widgets)
         if todo_issues:
             try:
                 await self._notify.execute(todo_issues)
             except Exception as exc:
                 logger.error(f"[RefreshReport] \uba54\uc77c \ubc1c\uc1a1 \uc2e4\ud328: {exc}")
-
-    @staticmethod
-    def _extract_todo_issues(widgets: dict) -> list[dict]:
-        from src.domain.value_objects.widget_id import WidgetId
-        recent_result = widgets.get(WidgetId.RECENT)
-        if recent_result is None:
-            return []
-        data = recent_result.data
-        if not isinstance(data, RecentIssueWidgetData):
-            return []
-        todo = [
-            {
-                "key": detail.key,
-                "fields": {
-                    "summary": detail.summary,
-                    "issuetype": {"name": detail.type},
-                    "created": detail.created,
-                    "status": {"name": detail.status},
-                },
-            }
-            for detail in data.issue_details
-            if detail.status in _TODO_STATUSES
-        ]
-        return todo

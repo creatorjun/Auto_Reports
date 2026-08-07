@@ -160,6 +160,7 @@ class Container:
             repository=ReportRepositoryImpl(session),
             cache=self._report_cache,
             retention_weeks=self._settings.report_retention_weeks,
+            notify=self._notify_todo_use_case,
         )
 
     def get_report_use_case(self, session: AsyncSession) -> GetReportUseCase:
