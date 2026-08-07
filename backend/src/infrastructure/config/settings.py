@@ -61,9 +61,12 @@ class Settings(BaseSettings):
     smtp_password: str = Field(default="", alias="SMTP_PASSWORD", validation_alias="SMTP_PASSWORD")
     smtp_from: str = Field(default="", alias="SMTP_FROM", validation_alias="SMTP_FROM")
     smtp_use_tls: bool = Field(default=False, alias="SMTP_USE_TLS", validation_alias="SMTP_USE_TLS")
-    smtp_start_tls: bool = Field(default=True, alias="SMTP_START_TLS", validation_alias="SMTP_START_TLS")
+    smtp_start_tls: bool = Field(default=False, alias="SMTP_START_TLS", validation_alias="SMTP_START_TLS")
     notify_todo_enabled: bool = Field(default=False, alias="NOTIFY_TODO_ENABLED", validation_alias="NOTIFY_TODO_ENABLED")
     notify_todo_to: list[str] = Field(default=[], alias="NOTIFY_TODO_TO", validation_alias="NOTIFY_TODO_TO")
+    notify_tac_enabled: bool = Field(default=False, alias="NOTIFY_TAC_ENABLED", validation_alias="NOTIFY_TAC_ENABLED")
+    notify_tac_to: list[str] = Field(default=[], alias="NOTIFY_TAC", validation_alias="NOTIFY_TAC")
+    notify_tac_keyword: str = Field(default="\uc624\uacbd\uc11d", alias="NOTIFY_TAC_KEYWORD", validation_alias="NOTIFY_TAC_KEYWORD")
 
     refresh_report_enabled: bool = Field(default=True, alias="REFRESH_REPORT_ENABLED", validation_alias="REFRESH_REPORT_ENABLED")
     refresh_report_interval_minutes: int = Field(default=5, alias="REFRESH_REPORT_INTERVAL_MINUTES", validation_alias="REFRESH_REPORT_INTERVAL_MINUTES")

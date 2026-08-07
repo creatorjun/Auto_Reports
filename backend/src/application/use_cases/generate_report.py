@@ -6,6 +6,7 @@ from typing import Optional
 
 from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.report_assembler import ReportAssembler
+from src.application.use_cases.notify_tac_assigned import NotifyTacAssignedUseCase
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase, extract_todo_issues
 from src.domain.entities.report import Report
 from src.domain.ports.report_analyzer_port import ReportAnalyzerPort
@@ -26,6 +27,7 @@ class GenerateReportUseCase:
         cache: ReportCachePort,
         retention_weeks: int = 52,
         notify: Optional[NotifyTodoIssuesUseCase] = None,
+        notify_tac: Optional[NotifyTacAssignedUseCase] = None,
     ):
         self._assembler = assembler
         self._analyzer = analyzer
@@ -33,6 +35,7 @@ class GenerateReportUseCase:
         self._cache = cache
         self._retention_weeks = retention_weeks
         self._notify = notify
+        self._notify_tac = notify_tac
 
     async def execute(
         self,
@@ -69,7 +72,13 @@ class GenerateReportUseCase:
                 try:
                     await self._notify.execute(todo_issues)
                 except Exception as exc:
-                    logger.error(f"[GenerateReport] \uba54\uc77c \ubc1c\uc1a1 \uc2e4\ud328: {exc}")
+                    logger.error(f"[GenerateReport] \ud560\uc77c \uba54\uc77c \uc2e4\ud328: {exc}")
+
+        if self._notify_tac is not None:
+            try:
+                await self._notify_tac.execute(new_report.widgets)
+            except Exception as exc:
+                logger.error(f"[GenerateReport] TAC \ub2f4\ub2f9\uc790 \uba54\uc77c \uc2e4\ud328: {exc}")
 
         return saved
 

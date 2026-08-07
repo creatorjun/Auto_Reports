@@ -5,6 +5,7 @@ from typing import Optional
 
 from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.report_assembler import ReportAssembler
+from src.application.use_cases.notify_tac_assigned import NotifyTacAssignedUseCase
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase, extract_todo_issues
 from src.domain.repositories.report_repository import ReportRepository
 from src.shared.constants import KST
@@ -19,11 +20,13 @@ class RefreshReportUseCase:
         repository: ReportRepository,
         cache: ReportCachePort,
         notify: Optional[NotifyTodoIssuesUseCase] = None,
+        notify_tac: Optional[NotifyTacAssignedUseCase] = None,
     ):
         self._assembler = assembler
         self._repository = repository
         self._cache = cache
         self._notify = notify
+        self._notify_tac = notify_tac
 
     async def execute(self) -> None:
         latest = await self._repository.find_latest()
@@ -55,12 +58,16 @@ class RefreshReportUseCase:
         await self._cache.set_latest_id(updated.id)
         logger.info(f"[RefreshReport] \ubcf4\uace0\uc11c ID={updated.id} \uac31\uc2e0 \uc644\ub8cc ({now.strftime('%H:%M:%S')})")
 
-        if self._notify is None:
-            return
+        if self._notify is not None:
+            todo_issues = extract_todo_issues(new_report.widgets)
+            if todo_issues:
+                try:
+                    await self._notify.execute(todo_issues)
+                except Exception as exc:
+                    logger.error(f"[RefreshReport] \ud560\uc77c \uba54\uc77c \uc2e4\ud328: {exc}")
 
-        todo_issues = extract_todo_issues(new_report.widgets)
-        if todo_issues:
+        if self._notify_tac is not None:
             try:
-                await self._notify.execute(todo_issues)
+                await self._notify_tac.execute(new_report.widgets)
             except Exception as exc:
-                logger.error(f"[RefreshReport] \uba54\uc77c \ubc1c\uc1a1 \uc2e4\ud328: {exc}")
+                logger.error(f"[RefreshReport] TAC \ub2f4\ub2f9\uc790 \uba54\uc77c \uc2e4\ud328: {exc}")

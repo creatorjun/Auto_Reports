@@ -11,6 +11,7 @@ from src.application.services.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
+from src.application.use_cases.notify_tac_assigned import NotifyTacAssignedUseCase
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase
 from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.refresh_report import RefreshReportUseCase
@@ -78,8 +79,8 @@ class Container:
             else None
         )
 
-        self._notify_todo_use_case: NotifyTodoIssuesUseCase | None = None
-        if settings.notify_todo_enabled and settings.smtp_host and settings.notify_todo_to:
+        smtp_client: SmtpEmailClient | None = None
+        if settings.smtp_host:
             smtp_client = SmtpEmailClient(
                 host=settings.smtp_host,
                 port=settings.smtp_port,
@@ -89,6 +90,9 @@ class Container:
                 use_tls=settings.smtp_use_tls,
                 start_tls=settings.smtp_start_tls,
             )
+
+        self._notify_todo_use_case: NotifyTodoIssuesUseCase | None = None
+        if smtp_client and settings.notify_todo_enabled and settings.notify_todo_to:
             self._notify_todo_use_case = NotifyTodoIssuesUseCase(
                 email=smtp_client,
                 notify_to=settings.notify_todo_to,
@@ -97,6 +101,18 @@ class Container:
             logger.info(f"\ud560\uc77c \uc54c\ub9bc \ud65c\uc131\ud654: {settings.notify_todo_to}")
         else:
             logger.info("\ud560\uc77c \uc54c\ub9bc \ube44\ud65c\uc131\ud654 (NOTIFY_TODO_ENABLED=false \ub610\ub294 SMTP \ubbf8\uc124\uc815)")
+
+        self._notify_tac_use_case: NotifyTacAssignedUseCase | None = None
+        if smtp_client and settings.notify_tac_enabled and settings.notify_tac_to:
+            self._notify_tac_use_case = NotifyTacAssignedUseCase(
+                email=smtp_client,
+                notify_to=settings.notify_tac_to,
+                jira_base_url=settings.jira_base_url,
+                keyword=settings.notify_tac_keyword,
+            )
+            logger.info(f"TAC \ub2f4\ub2f9\uc790 \uc54c\ub9bc \ud65c\uc131\ud654: keyword={settings.notify_tac_keyword!r} to={settings.notify_tac_to}")
+        else:
+            logger.info("TAC \ub2f4\ub2f9\uc790 \uc54c\ub9bc \ube44\ud65c\uc131\ud654 (NOTIFY_TAC_ENABLED=false \ub610\ub294 SMTP \ubbf8\uc124\uc815)")
 
     @property
     def login_enabled(self) -> bool:
@@ -161,6 +177,7 @@ class Container:
             cache=self._report_cache,
             retention_weeks=self._settings.report_retention_weeks,
             notify=self._notify_todo_use_case,
+            notify_tac=self._notify_tac_use_case,
         )
 
     def get_report_use_case(self, session: AsyncSession) -> GetReportUseCase:
@@ -173,6 +190,7 @@ class Container:
             repository=ReportRepositoryImpl(session),
             cache=self._report_cache,
             notify=self._notify_todo_use_case,
+            notify_tac=self._notify_tac_use_case,
         )
 
     def site_use_case(self, session: AsyncSession) -> SiteUseCase:
