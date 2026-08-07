@@ -30,17 +30,17 @@ class Settings(BaseSettings):
     jira_tac_assignee_field_id: str = "customfield_10859"
     jira_qa_assignee_field_id: str = "customfield_12222"
     cors_origins: list[str] = ["*"]
-    issue_types: list[str] = ["인시던트", "개선", "CVE", "서비스 요청"]
+    issue_types: list[str] = ["\uc778\uc2dc\ub358\ud2b8", "\uac1c\uc120", "CVE", "\uc11c\ube44\uc2a4 \uc694\uccad"]
     active_statuses: list[str] = [
-        "할 일", "이슈 리뷰 중", "연구소 대기 중", "연구소 검토 중",
-        "구현 중", "배포 파일 검토 중", "자료 요청 중", "결과 대기 중",
-        "보류 중", "영업본부 검토중"
+        "\ud560 \uc77c", "\uc774\uc288 \ub9ac\ubdf0 \uc911", "\uc5f0\uad6c\uc18c \ub300\uae30 \uc911", "\uc5f0\uad6c\uc18c \uac80\ud1a0 \uc911",
+        "\uad6c\ud604 \uc911", "\ubc30\ud3ec \ud30c\uc77c \uac80\ud1a0 \uc911", "\uc790\ub8cc \uc694\uccad \uc911", "\uacb0\uacfc \ub300\uae30 \uc911",
+        "\ubcf4\ub958 \uc911", "\uc601\uc5c5\ubcf8\ubd80 \uac80\ud1a0\uc911"
     ]
-    closed_statuses: list[str] = ["Closed", "반려됨", "중복 이슈", "취소됨"]
+    closed_statuses: list[str] = ["Closed", "\ubc18\ub824\ub428", "\uc911\ubcf5 \uc774\uc288", "\ucde8\uc18c\ub428"]
 
     report_retention_weeks: int = Field(
         default=52,
-        description="보고서 DB 보존 기간(주). 0이면 자동 삭제 비활성화.",
+        description="\ubcf4\uace0\uc11c DB \ubcf4\uc874 \uae30\uac04(\uc8fc). 0\uc774\uba74 \uc790\ub3d9 \uc0ad\uc81c \ube44\ud65c\uc131\ud654.",
     )
 
     login: bool = Field(default=False, alias="LOGIN", validation_alias="LOGIN")
@@ -63,7 +63,6 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = Field(default=False, alias="SMTP_USE_TLS", validation_alias="SMTP_USE_TLS")
     smtp_start_tls: bool = Field(default=True, alias="SMTP_START_TLS", validation_alias="SMTP_START_TLS")
     notify_todo_enabled: bool = Field(default=False, alias="NOTIFY_TODO_ENABLED", validation_alias="NOTIFY_TODO_ENABLED")
-    notify_todo_cron: str = Field(default="0 9 * * 1-5", alias="NOTIFY_TODO_CRON", validation_alias="NOTIFY_TODO_CRON")
     notify_todo_to: list[str] = Field(default=[], alias="NOTIFY_TODO_TO", validation_alias="NOTIFY_TODO_TO")
 
     refresh_report_enabled: bool = Field(default=True, alias="REFRESH_REPORT_ENABLED", validation_alias="REFRESH_REPORT_ENABLED")

@@ -27,13 +27,13 @@ def create_app(settings: Settings) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         init_db(settings.database_url)
-        logger.info("DB 엔진 초기화 ✅")
+        logger.info("DB \uc5d4\uc9c4 \ucd08\uae30\ud654 \u2705")
 
         if db_module.AsyncSessionLocal is None:
-            raise RuntimeError("DB가 초기화되지 않았습니다.")
+            raise RuntimeError("DB\uac00 \ucd08\uae30\ud654\ub418\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4.")
 
         get_audit_logger()
-        logger.info("Audit 로거 초기화 ✅")
+        logger.info("Audit \ub85c\uac70 \ucd08\uae30\ud654 \u2705")
 
         container = Container(settings)
 
@@ -47,9 +47,6 @@ def create_app(settings: Settings) -> FastAPI:
         app.state.container = container
         app.state.job_runner = job_runner
 
-        notify_use_case = container.notify_todo_use_case()
-        notify_fn = notify_use_case.execute if notify_use_case is not None else None
-
         async def _refresh_fn() -> None:
             async with db_module.AsyncSessionLocal() as session:
                 uc = container.refresh_report_use_case(session)
@@ -60,8 +57,6 @@ def create_app(settings: Settings) -> FastAPI:
             schedule_cron=settings.schedule_cron,
             tz=settings.tz,
             generate_fn=job_runner.run_scheduled_job,
-            notify_cron=settings.notify_todo_cron if notify_fn else None,
-            notify_fn=notify_fn,
             refresh_interval_minutes=(
                 settings.refresh_report_interval_minutes
                 if settings.refresh_report_enabled
@@ -70,14 +65,14 @@ def create_app(settings: Settings) -> FastAPI:
             refresh_fn=_refresh_fn if settings.refresh_report_enabled else None,
         )
         scheduler.start()
-        logger.info("TAC Auto Reports 서비스 시작 ✅")
+        logger.info("TAC Auto Reports \uc11c\ube44\uc2a4 \uc2dc\uc791 \u2705")
 
         yield
 
         scheduler.shutdown()
         await container.aclose()
         await close_db()
-        logger.info("TAC Auto Reports 서비스 종료")
+        logger.info("TAC Auto Reports \uc11c\ube44\uc2a4 \uc885\ub8cc")
 
     application = FastAPI(
         title="TAC Auto Reports API",

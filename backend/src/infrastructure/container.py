@@ -90,17 +90,13 @@ class Container:
                 start_tls=settings.smtp_start_tls,
             )
             self._notify_todo_use_case = NotifyTodoIssuesUseCase(
-                jira=self._jira,
                 email=smtp_client,
-                project_key=settings.project_key,
-                issue_types=settings.issue_types,
-                closed_statuses=settings.closed_statuses,
                 notify_to=settings.notify_todo_to,
                 jira_base_url=settings.jira_base_url,
             )
-            logger.info(f"할일 알림 활성화: {settings.notify_todo_to}")
+            logger.info(f"\ud560\uc77c \uc54c\ub9bc \ud65c\uc131\ud654: {settings.notify_todo_to}")
         else:
-            logger.info("할일 알림 비활성화 (NOTIFY_TODO_ENABLED=false 또는 SMTP 미설정)")
+            logger.info("\ud560\uc77c \uc54c\ub9bc \ube44\ud65c\uc131\ud654 (NOTIFY_TODO_ENABLED=false \ub610\ub294 SMTP \ubbf8\uc124\uc815)")
 
     @property
     def login_enabled(self) -> bool:
@@ -153,12 +149,9 @@ class Container:
     def partner_use_case(self) -> PartnerUseCase:
         return self._partner_use_case
 
-    def notify_todo_use_case(self) -> NotifyTodoIssuesUseCase | None:
-        return self._notify_todo_use_case
-
     async def aclose(self) -> None:
         await self._jira.aclose()
-        logger.info("JiraClient 커넥션 풀 종료")
+        logger.info("JiraClient \ucee4\ub125\uc158 \ud480 \uc885\ub8cc")
 
     def generate_report_use_case(self, session: AsyncSession) -> GenerateReportUseCase:
         return GenerateReportUseCase(
@@ -178,6 +171,7 @@ class Container:
             assembler=self._assembler,
             repository=ReportRepositoryImpl(session),
             cache=self._report_cache,
+            notify=self._notify_todo_use_case,
         )
 
     def site_use_case(self, session: AsyncSession) -> SiteUseCase:
