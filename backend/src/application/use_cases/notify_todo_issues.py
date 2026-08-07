@@ -84,12 +84,32 @@ class NotifyTodoIssuesUseCase:
         self._email = email
         self._notify_to = notify_to
         self._jira_base_url = jira_base_url
+        self._notified_keys: set[str] = set()
+
+    def clear_resolved(self, current_todo_keys: set[str]) -> None:
+        resolved = self._notified_keys - current_todo_keys
+        if resolved:
+            logger.info(f"[NotifyTodoIssues] \ud574\uc18c\ub41c \uc774\uc288 \uc13c\ud2f8\ub10c \uc81c\uac70: {resolved}")
+            self._notified_keys -= resolved
 
     async def execute(self, todo_issues: list[dict]) -> None:
         if not todo_issues:
             return
-        keys_str = ", ".join(i.get("key", "") for i in todo_issues)
+
+        current_keys = {i.get("key", "") for i in todo_issues}
+
+        self.clear_resolved(current_keys)
+
+        new_issues = [i for i in todo_issues if i.get("key", "") not in self._notified_keys]
+
+        if not new_issues:
+            logger.info(f"[NotifyTodoIssues] \uc2e0\uaddc \ud560\uc77c \uc5c6\uc74c (\uc774\ubbf8 \uc54c\ub9bc {len(self._notified_keys)}\uac74 \uc81c\uc678)")
+            return
+
+        keys_str = ", ".join(i.get("key", "") for i in new_issues)
         subject = f"[TAC] \ud560\uc77c \uc774\uc288: {keys_str}"
-        body = _build_html(todo_issues, self._jira_base_url)
-        logger.info(f"[NotifyTodoIssues] {len(todo_issues)}\uac74 \uba54\uc77c \ubc1c\uc1a1 \u2192 {self._notify_to}")
+        body = _build_html(new_issues, self._jira_base_url)
+        logger.info(f"[NotifyTodoIssues] \uc2e0\uaddc {len(new_issues)}\uac74 \uba54\uc77c \ubc1c\uc1a1 \u2192 {self._notify_to} (\uc81c\uc678: {self._notified_keys or '\uc5c6\uc74c'})")
         await self._email.send(to=self._notify_to, subject=subject, body=body)
+
+        self._notified_keys.update(i.get("key", "") for i in new_issues)
