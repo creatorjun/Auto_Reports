@@ -97,19 +97,20 @@ class NotifyTodoIssuesUseCase:
             return
 
         current_keys = {i.get("key", "") for i in todo_issues}
-
         self.clear_resolved(current_keys)
 
         new_issues = [i for i in todo_issues if i.get("key", "") not in self._notified_keys]
 
         if not new_issues:
-            logger.info(f"[NotifyTodoIssues] \uc2e0\uaddc \ud560\uc77c \uc5c6\uc74c (\uc774\ubbf8 \uc54c\ub9bc {len(self._notified_keys)}\uac74 \uc81c\uc678)")
+            excluded = str(self._notified_keys) if self._notified_keys else "없음"
+            logger.info(f"[NotifyTodoIssues] 신규 할일 없음 (이미 알림 {len(self._notified_keys)}건 제외: {excluded})")
             return
 
         keys_str = ", ".join(i.get("key", "") for i in new_issues)
         subject = f"[TAC] \ud560\uc77c \uc774\uc288: {keys_str}"
         body = _build_html(new_issues, self._jira_base_url)
-        logger.info(f"[NotifyTodoIssues] \uc2e0\uaddc {len(new_issues)}\uac74 \uba54\uc77c \ubc1c\uc1a1 \u2192 {self._notify_to} (\uc81c\uc678: {self._notified_keys or '\uc5c6\uc74c'})")
+        excluded_str = str(self._notified_keys) if self._notified_keys else "없음"
+        logger.info(f"[NotifyTodoIssues] 신규 {len(new_issues)}건 메일 발송 → {self._notify_to} (제외: {excluded_str})")
         await self._email.send(to=self._notify_to, subject=subject, body=body)
 
         self._notified_keys.update(i.get("key", "") for i in new_issues)
