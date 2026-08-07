@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     notify_todo_cron: str = Field(default="0 9 * * 1-5", alias="NOTIFY_TODO_CRON", validation_alias="NOTIFY_TODO_CRON")
     notify_todo_to: list[str] = Field(default=[], alias="NOTIFY_TODO_TO", validation_alias="NOTIFY_TODO_TO")
 
+    refresh_report_enabled: bool = Field(default=True, alias="REFRESH_REPORT_ENABLED", validation_alias="REFRESH_REPORT_ENABLED")
+    refresh_report_interval_minutes: int = Field(default=5, alias="REFRESH_REPORT_INTERVAL_MINUTES", validation_alias="REFRESH_REPORT_INTERVAL_MINUTES")
+
     @property
     def year_start(self) -> int:
         return datetime.datetime.now(_KST).year

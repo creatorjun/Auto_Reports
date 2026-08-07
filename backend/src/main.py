@@ -50,12 +50,24 @@ def create_app(settings: Settings) -> FastAPI:
         notify_use_case = container.notify_todo_use_case()
         notify_fn = notify_use_case.execute if notify_use_case is not None else None
 
+        async def _refresh_fn() -> None:
+            async with db_module.AsyncSessionLocal() as session:
+                uc = container.refresh_report_use_case(session)
+                await uc.execute()
+                await session.commit()
+
         scheduler = create_scheduler(
             schedule_cron=settings.schedule_cron,
             tz=settings.tz,
             generate_fn=job_runner.run_scheduled_job,
             notify_cron=settings.notify_todo_cron if notify_fn else None,
             notify_fn=notify_fn,
+            refresh_interval_minutes=(
+                settings.refresh_report_interval_minutes
+                if settings.refresh_report_enabled
+                else None
+            ),
+            refresh_fn=_refresh_fn if settings.refresh_report_enabled else None,
         )
         scheduler.start()
         logger.info("TAC Auto Reports 서비스 시작 ✅")

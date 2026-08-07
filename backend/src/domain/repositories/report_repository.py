@@ -32,3 +32,6 @@ class ReportRepository(ABC):
 
     @abstractmethod
     async def count_all(self) -> int: ...
+
+    @abstractmethod
+    async def update_widgets(self, report_id: int, report: NewReport) -> Report: ...

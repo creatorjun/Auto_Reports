@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, desc, func, select
+from sqlalchemy import delete, desc, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.report import NewReport, Report
@@ -87,6 +87,23 @@ class ReportRepositoryImpl(ReportRepository):
     async def count_all(self) -> int:
         result = await self._session.execute(select(func.count()).select_from(ReportORM))
         return result.scalar_one()
+
+    async def update_widgets(self, report_id: int, report: NewReport) -> Report:
+        widgets_dict = {k: serialize_widget(v) for k, v in report.widgets.items()}
+        await self._session.execute(
+            update(ReportORM)
+            .where(ReportORM.id == report_id)
+            .values(
+                widgets=widgets_dict,
+                report_date=report.report_date,
+            )
+        )
+        await self._session.flush()
+        result = await self._session.execute(
+            select(ReportORM).where(ReportORM.id == report_id)
+        )
+        orm = result.scalar_one()
+        return self._to_entity(orm)
 
     @staticmethod
     def _to_kst(dt: datetime) -> datetime:

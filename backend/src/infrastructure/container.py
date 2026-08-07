@@ -13,6 +13,7 @@ from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase
 from src.application.use_cases.partner_use_case import PartnerUseCase
+from src.application.use_cases.refresh_report import RefreshReportUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.ports.jira_port import JiraPort
@@ -171,6 +172,13 @@ class Container:
     def get_report_use_case(self, session: AsyncSession) -> GetReportUseCase:
         repo = ReportRepositoryImpl(session)
         return GetReportUseCase(repo, cache=self._report_cache)
+
+    def refresh_report_use_case(self, session: AsyncSession) -> RefreshReportUseCase:
+        return RefreshReportUseCase(
+            assembler=self._assembler,
+            repository=ReportRepositoryImpl(session),
+            cache=self._report_cache,
+        )
 
     def site_use_case(self, session: AsyncSession) -> SiteUseCase:
         repo = SiteRepositoryImpl(session, self._credential_encryptor)
