@@ -11,6 +11,7 @@ from src.application.services.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
+from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase
 from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
@@ -18,6 +19,7 @@ from src.domain.ports.jira_port import JiraPort
 from src.domain.ports.service_desk_port import ServiceDeskPort
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.jira_client import JiraClient
+from src.infrastructure.external.smtp_email_client import SmtpEmailClient
 from src.infrastructure.factories.ai_factory import AiFactory
 from src.infrastructure.factories.jira_factory import JiraFactory
 from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
@@ -75,6 +77,30 @@ class Container:
             else None
         )
 
+        self._notify_todo_use_case: NotifyTodoIssuesUseCase | None = None
+        if settings.notify_todo_enabled and settings.smtp_host and settings.notify_todo_to:
+            smtp_client = SmtpEmailClient(
+                host=settings.smtp_host,
+                port=settings.smtp_port,
+                username=settings.smtp_user,
+                password=settings.smtp_password,
+                from_addr=settings.smtp_from or settings.smtp_user,
+                use_tls=settings.smtp_use_tls,
+                start_tls=settings.smtp_start_tls,
+            )
+            self._notify_todo_use_case = NotifyTodoIssuesUseCase(
+                jira=self._jira,
+                email=smtp_client,
+                project_key=settings.project_key,
+                issue_types=settings.issue_types,
+                closed_statuses=settings.closed_statuses,
+                notify_to=settings.notify_todo_to,
+                jira_base_url=settings.jira_base_url,
+            )
+            logger.info(f"할일 알림 활성화: {settings.notify_todo_to}")
+        else:
+            logger.info("할일 알림 비활성화 (NOTIFY_TODO_ENABLED=false 또는 SMTP 미설정)")
+
     @property
     def login_enabled(self) -> bool:
         return self._settings.login
@@ -125,6 +151,9 @@ class Container:
 
     def partner_use_case(self) -> PartnerUseCase:
         return self._partner_use_case
+
+    def notify_todo_use_case(self) -> NotifyTodoIssuesUseCase | None:
+        return self._notify_todo_use_case
 
     async def aclose(self) -> None:
         await self._jira.aclose()

@@ -47,10 +47,15 @@ def create_app(settings: Settings) -> FastAPI:
         app.state.container = container
         app.state.job_runner = job_runner
 
+        notify_use_case = container.notify_todo_use_case()
+        notify_fn = notify_use_case.execute if notify_use_case is not None else None
+
         scheduler = create_scheduler(
             schedule_cron=settings.schedule_cron,
             tz=settings.tz,
             generate_fn=job_runner.run_scheduled_job,
+            notify_cron=settings.notify_todo_cron if notify_fn else None,
+            notify_fn=notify_fn,
         )
         scheduler.start()
         logger.info("TAC Auto Reports 서비스 시작 ✅")

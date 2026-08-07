@@ -55,6 +55,17 @@ class Settings(BaseSettings):
     storage_dir: str = "/app/storage"
     credential_encryption_key: str = Field(default="", alias="CREDENTIAL_ENCRYPTION_KEY", validation_alias="CREDENTIAL_ENCRYPTION_KEY")
 
+    smtp_host: str = Field(default="", alias="SMTP_HOST", validation_alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT", validation_alias="SMTP_PORT")
+    smtp_user: str = Field(default="", alias="SMTP_USER", validation_alias="SMTP_USER")
+    smtp_password: str = Field(default="", alias="SMTP_PASSWORD", validation_alias="SMTP_PASSWORD")
+    smtp_from: str = Field(default="", alias="SMTP_FROM", validation_alias="SMTP_FROM")
+    smtp_use_tls: bool = Field(default=False, alias="SMTP_USE_TLS", validation_alias="SMTP_USE_TLS")
+    smtp_start_tls: bool = Field(default=True, alias="SMTP_START_TLS", validation_alias="SMTP_START_TLS")
+    notify_todo_enabled: bool = Field(default=False, alias="NOTIFY_TODO_ENABLED", validation_alias="NOTIFY_TODO_ENABLED")
+    notify_todo_cron: str = Field(default="0 9 * * 1-5", alias="NOTIFY_TODO_CRON", validation_alias="NOTIFY_TODO_CRON")
+    notify_todo_to: list[str] = Field(default=[], alias="NOTIFY_TODO_TO", validation_alias="NOTIFY_TODO_TO")
+
     @property
     def year_start(self) -> int:
         return datetime.datetime.now(_KST).year
