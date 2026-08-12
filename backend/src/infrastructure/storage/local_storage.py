@@ -7,12 +7,10 @@ from datetime import datetime, timezone
 from functools import lru_cache
 
 import aiofiles
-from fastapi import UploadFile
-
-from src.domain.ports.storage_port import StorageEntry, StoragePort
+from src.application.ports.storage_port import AsyncBinaryReader, StorageEntry, StoragePort
 from src.infrastructure.config.settings import get_settings
 
-CHUNK_SIZE = 1024 * 1024  # 1MB
+CHUNK_SIZE = 1024 * 1024
 _TEMP_PREFIX = ".chunked_"
 
 
@@ -96,7 +94,7 @@ class LocalStorageAdapter(StoragePort):
             is_dir=False,
         )
 
-    async def save_file_streaming(self, folder: str, filename: str, upload: UploadFile) -> StorageEntry:
+    async def save_file_streaming(self, folder: str, filename: str, upload: AsyncBinaryReader) -> StorageEntry:
         dest = self._resolve(folder, filename)
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         path_lock = await self._get_path_lock(dest)

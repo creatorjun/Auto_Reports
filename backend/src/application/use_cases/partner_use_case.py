@@ -2,9 +2,9 @@
 import logging
 from datetime import datetime
 
-from src.domain.ports.jira_port import JiraPort
-from src.domain.ports.service_desk_port import ServiceDeskPort
-from src.shared.constants import JIRA_MAX_RESULT, STAGE_MAP, SUMMARY_TRUNCATE_LEN
+from src.application.ports.jira_port import JiraPort
+from src.application.ports.service_desk_port import ServiceDeskPort
+from src.domain.constants import JIRA_MAX_RESULT, STAGE_MAP, SUMMARY_TRUNCATE_LEN
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +119,3 @@ class PartnerUseCase:
         result = [_build_issue(i, now_ts) for i in issues]
         logger.info(f"[파트너 이슈] JQL={jql[:80]} → {len(result)}건")
         return result
-
-    async def aclose(self) -> None:
-        await self._service_desk.aclose()

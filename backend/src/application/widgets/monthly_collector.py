@@ -8,8 +8,8 @@ from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import MonthlyEntry, SlaMonthlyWidgetData
-from src.domain.ports.jira_port import JiraPort
-from src.shared.constants import JIRA_MAX_RESULT
+from src.application.ports.jira_port import JiraPort
+from src.domain.constants import JIRA_MAX_RESULT
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,6 @@ _SLA_RESOLUTION_KEY = "_sla_resolution"
 
 
 class MonthlyCollector(AbstractWidgetCollector):
-    """w7(최초응답 SLA) 및 w8(해결시간 SLA) 월별 데이터 수집."""
-
     MONTHS_BACK = 6
 
     def __init__(self, jira: JiraPort, q: ResolvedQueries, now: datetime):
@@ -27,7 +25,7 @@ class MonthlyCollector(AbstractWidgetCollector):
         self._q = q
         self._now = now
 
-    async def collect(self) -> Tuple[WidgetResult, WidgetResult]:  # type: ignore[override]
+    async def collect(self) -> Tuple[WidgetResult, WidgetResult]:
         year, month = self._now.year, self._now.month
         months: list[tuple[int, int]] = []
         for _ in range(self.MONTHS_BACK):

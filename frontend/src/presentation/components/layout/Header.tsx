@@ -1,8 +1,8 @@
 // frontend/src/presentation/components/layout/Header.tsx
 import { useEffect, useCallback } from 'react'
-import { useReportStore } from '@/app/store/reportStore'
-import { useUiStore } from '@/app/store/uiStore'
-import { useRefreshReport } from '@/infrastructure/hooks/useReport'
+import { useReportStore } from '@/presentation/state/reportStore'
+import { useUiStore } from '@/presentation/state/uiStore'
+import { useRefreshReport } from '@/presentation/hooks/useReport'
 import SearchWidget from '@/presentation/components/common/SearchWidget'
 import RefreshButton from '@/presentation/components/common/RefreshButton'
 
@@ -45,7 +45,6 @@ export default function Header() {
 
   return (
     <header className="bg-white flex-shrink-0 border-b border-apple-divider/60">
-      {/* 모바일 */}
       <div className="md:hidden flex flex-col">
         <div className="flex items-center justify-center px-4 pt-3 pb-1">
           <div className="flex items-center gap-2">
@@ -78,7 +77,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* 데스크탑 */}
       <div className="hidden md:flex h-14 3xl:h-16 items-center justify-between px-4">
         <div className="w-[28rem] 3xl:w-[32rem] flex items-center gap-3 overflow-hidden">
           {currentReport && (

@@ -9,9 +9,9 @@ from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.notify_tac_assigned import NotifyTacAssignedUseCase
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase, extract_todo_issues
 from src.domain.entities.report import Report
-from src.domain.ports.report_analyzer_port import ReportAnalyzerPort
-from src.domain.repositories.report_repository import ReportRepository
-from src.shared.constants import KST
+from src.application.ports.report_analyzer_port import ReportAnalyzerPort
+from src.application.ports.report_repository import ReportRepository
+from src.domain.constants import KST
 
 logger = logging.getLogger(__name__)
 

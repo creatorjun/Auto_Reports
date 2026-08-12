@@ -1,16 +1,8 @@
 // frontend/src/presentation/components/tables/DataRequestModal.tsx
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import IssueTableModal, { type ColumnDef } from '@/presentation/components/common/IssueTableModal'
-import { MODAL_CLS } from '@/shared/ui'
-
-export interface DataRequestIssue {
-  key: string
-  summary: string
-  type: string
-  status: string
-  created: string
-  elapsed_days: number
-}
+import { MODAL_CLS } from '@/presentation/config/ui'
+import type { DataRequestIssue } from '@/domain/Dashboard'
 
 interface Props {
   issues: DataRequestIssue[]

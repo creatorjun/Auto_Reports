@@ -1,41 +1,16 @@
 # backend/src/presentation/schemas/site_schema.py
 from __future__ import annotations
 from datetime import date, datetime
-from enum import Enum
 from typing import Optional
 from pydantic import BaseModel
 
-
-class SiteStatus(str, Enum):
-    INSTALLING  = "installing"
-    ACTIVE      = "active"
-    INACTIVE    = "inactive"
-    EXPIRED     = "expired"
-    MAINTENANCE = "maintenance"
-
-
-class ContractType(str, Enum):
-    OFFICIAL  = "정식라이센스"
-    TEMPORARY = "임시라이센스"
-
-
-class NodeRole(str, Enum):
-    ALL_IN_ONE = "AllInOne"
-    ANALYZER   = "Analyzer"
-    COLLECTOR  = "Collector"
-    PROXY      = "Proxy"
-
-
-class PatchType(str, Enum):
-    REGULAR   = "정기패치"
-    EMERGENCY = "긴급패치"
-    HOTFIX    = "핫픽스"
-
-
-class PatchResultStatus(str, Enum):
-    SUCCESS     = "성공"
-    FAILED      = "실패"
-    ROLLED_BACK = "롤백"
+from src.domain.entities.site import (
+    ContractType,
+    NodeRole,
+    PatchResultStatus,
+    PatchType,
+    SiteStatus,
+)
 
 
 class ContactInfoSchema(BaseModel):

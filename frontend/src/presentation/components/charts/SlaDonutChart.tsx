@@ -1,22 +1,8 @@
 // frontend/src/presentation/components/charts/SlaDonutChart.tsx
 import { memo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/shared/constants'
-
-export interface SlaViolationIssueForChart {
-  key: string
-  summary: string
-  type: string
-  status: string
-  created: string
-}
-
-export interface ViolationEntry {
-  stage: string
-  count: number
-  rate: number
-  issue_details?: SlaViolationIssueForChart[]
-}
+import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
+import type { ViolationEntry } from '@/domain/Dashboard'
 
 const STAGE_COLORS: Record<string, string> = {
   '최초 응답 SLA': '#f59e0b',

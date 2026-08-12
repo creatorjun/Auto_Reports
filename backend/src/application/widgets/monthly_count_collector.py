@@ -7,7 +7,7 @@ from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import MonthlyCountEntry, MonthlyCountWidgetData
-from src.domain.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraPort
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class MonthlyCountCollector(AbstractWidgetCollector):
         self._q = q
         self._now = now
 
-    async def collect(self) -> Tuple[WidgetResult, WidgetResult]:  # type: ignore[override]
+    async def collect(self) -> Tuple[WidgetResult, WidgetResult]:
         year, month = self._now.year, self._now.month
         months: list[tuple[int, int]] = []
         for _ in range(self.MONTHS_BACK):

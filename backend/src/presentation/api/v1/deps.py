@@ -1,12 +1,13 @@
 # backend/src/presentation/api/v1/deps.py
+from collections.abc import AsyncIterator
+
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.infrastructure.persistence.database import get_db_session
+from src.application.services.auth_service import AuthService
 from src.application.use_cases.get_report import GetReportUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
-from src.application.use_cases.storage_use_case import StorageUseCase
+from src.presentation.api.deps import ApiServices, get_api_services, get_auth
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -14,33 +15,28 @@ _bearer = HTTPBearer(auto_error=False)
 async def require_auth(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
+    auth: AuthService = Depends(get_auth),
 ) -> str:
-    container = request.app.state.container
-    if not container.login_enabled:
+    if not auth.enabled:
         return "guest"
-    if credentials is None:
+    token = credentials.credentials if credentials else request.query_params.get("token")
+    if token is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        return container.jwt_service().decode_access_token(credentials.credentials)
+        return auth.decode_access_token(token)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
-def get_storage_use_case(request: Request) -> StorageUseCase:
-    return request.app.state.container.storage_use_case()
-
-
 async def get_get_use_case(
-    request: Request,
-    session: AsyncSession = Depends(get_db_session),
-) -> GetReportUseCase:
-    container = request.app.state.container
-    return container.get_report_use_case(session)
+    services: ApiServices = Depends(get_api_services),
+) -> AsyncIterator[GetReportUseCase]:
+    async with services.get_report() as use_case:
+        yield use_case
 
 
 async def get_site_use_case(
-    request: Request,
-    session: AsyncSession = Depends(get_db_session),
-) -> SiteUseCase:
-    container = request.app.state.container
-    return container.site_use_case(session)
+    services: ApiServices = Depends(get_api_services),
+) -> AsyncIterator[SiteUseCase]:
+    async with services.get_site() as use_case:
+        yield use_case

@@ -21,7 +21,7 @@ from src.domain.entities.site import (
     SiteStatus,
     VisitHistory,
 )
-from src.domain.repositories.site_repository import SiteRepository
+from src.application.ports.site_repository import SiteRepository
 from src.infrastructure.persistence.site_models import (
     AccessCredentialsORM,
     DeploymentNodeORM,

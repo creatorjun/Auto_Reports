@@ -1,4 +1,7 @@
 # backend/src/infrastructure/persistence/database.py
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -6,32 +9,28 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-_engine: AsyncEngine | None = None
-AsyncSessionLocal: async_sessionmaker[AsyncSession] | None = None
+class Database:
+    def __init__(self, database_url: str) -> None:
+        self._engine: AsyncEngine = create_async_engine(
+            database_url,
+            echo=False,
+            pool_pre_ping=True,
+        )
+        self.session_factory = async_sessionmaker(
+            bind=self._engine,
+            expire_on_commit=False,
+            autoflush=False,
+        )
 
+    @asynccontextmanager
+    async def session(self) -> AsyncIterator[AsyncSession]:
+        async with self.session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
-def init_db(database_url: str) -> None:
-    global _engine, AsyncSessionLocal
-    _engine = create_async_engine(database_url, echo=False, pool_pre_ping=True)
-    AsyncSessionLocal = async_sessionmaker(
-        bind=_engine,
-        expire_on_commit=False,
-        autoflush=False,
-    )
-
-
-async def get_db_session():
-    if AsyncSessionLocal is None:
-        raise RuntimeError("DB가 초기화되지 않았습니다.")
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-
-
-async def close_db() -> None:
-    if _engine is not None:
-        await _engine.dispose()
+    async def aclose(self) -> None:
+        await self._engine.dispose()

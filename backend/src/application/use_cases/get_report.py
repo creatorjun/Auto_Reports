@@ -4,7 +4,7 @@ from typing import Optional
 
 from src.application.ports.report_cache_port import ReportCachePort
 from src.domain.entities.report import Report
-from src.domain.repositories.report_repository import ReportRepository
+from src.application.ports.report_repository import ReportRepository
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/site/detail/SiteDetailSections.tsx
 import { useState } from 'react'
 import { useQueryClient, useMutation } from '@tanstack/react-query'
-import { siteApi } from '@/infrastructure/api/siteApi'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import type { SiteDetail, PatchHistory, VisitHistory } from '@/domain/Site'
 import { Section, Row, CredRow, AddBtn, CardActions } from './SiteDetailShared'
 import NodeForm from './NodeForm'
@@ -51,13 +51,14 @@ export function SiteContactInfo({ site }: { site: SiteDetail }) {
 }
 
 export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
+  const { sites } = useApplicationServices()
   const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
   const [editTarget, setEditTarget] = useState<number | null>(null)
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['site-detail', String(site.id)] })
   const { mutate: deleteNode } = useMutation({
-    mutationFn: (nodeId: number) => siteApi.deleteNode(site.id, nodeId),
+    mutationFn: (nodeId: number) => sites.deleteNode(site.id, nodeId),
     onSuccess: invalidate,
   })
 
@@ -165,13 +166,14 @@ export function SiteAccessInfo({ site }: { site: SiteDetail }) {
 }
 
 export function SitePatchHistory({ site }: { site: SiteDetail }) {
+  const { sites } = useApplicationServices()
   const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
   const [editTarget, setEditTarget] = useState<PatchHistory | null>(null)
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['site-detail', String(site.id)] })
   const { mutate: deletePatch } = useMutation({
-    mutationFn: (patchId: number) => siteApi.deletePatchHistory(site.id, patchId),
+    mutationFn: (patchId: number) => sites.deletePatchHistory(site.id, patchId),
     onSuccess: invalidate,
   })
 
@@ -248,13 +250,14 @@ export function SitePatchHistory({ site }: { site: SiteDetail }) {
 }
 
 export function SiteVisitHistory({ site }: { site: SiteDetail }) {
+  const { sites } = useApplicationServices()
   const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
   const [editTarget, setEditTarget] = useState<VisitHistory | null>(null)
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['site-detail', String(site.id)] })
   const { mutate: deleteVisit } = useMutation({
-    mutationFn: (visitId: number) => siteApi.deleteVisitHistory(site.id, visitId),
+    mutationFn: (visitId: number) => sites.deleteVisitHistory(site.id, visitId),
     onSuccess: invalidate,
   })
 

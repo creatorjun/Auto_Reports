@@ -3,9 +3,9 @@ import logging
 from datetime import datetime
 
 from src.domain.entities.widget_data import RecentIssueWidgetData
-from src.domain.ports.email_port import EmailPort
+from src.application.ports.email_port import EmailPort
 from src.domain.value_objects.widget_id import WidgetId
-from src.shared.constants import KST
+from src.domain.constants import KST
 
 logger = logging.getLogger(__name__)
 

@@ -5,24 +5,23 @@ import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from src.application.mappers.job_mapper import JobMapper
+from src.application.ports.audit_port import AuditPort
+from src.presentation.mappers.job_mapper import JobMapper
 from src.application.ports.job_runner_port import JobRunnerPort
-from src.presentation.api.deps import get_job_runner
+from src.presentation.api.deps import get_audit, get_job_runner
 from src.presentation.schemas.report_schema import (
     JobStatusSchema,
     TriggerAcceptedSchema,
     TriggerRequest,
 )
-from src.shared.audit_helper import get_client_ip
-from src.shared.audit_logger import get_audit_logger
+from src.presentation.http.client_ip import get_client_ip
 
 router = APIRouter(prefix="/trigger", tags=["trigger"])
 
 KST = ZoneInfo("Asia/Seoul")
-_audit = get_audit_logger()
 
 _SSE_WAIT_TIMEOUT    = 30.0
 _SSE_TIMEOUT_SECONDS = 300
@@ -33,15 +32,9 @@ _SSE_KEEPALIVE_EVERY = 15.0
 async def trigger_report(
     request: Request,
     body: TriggerRequest = TriggerRequest(),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     job_runner: JobRunnerPort = Depends(get_job_runner),
+    audit: AuditPort = Depends(get_audit),
 ):
-    if job_runner.is_running:
-        raise HTTPException(
-            status_code=409,
-            detail=f"이미 실행 중인 보고서 생성 작업이 있습니다. (job_id={job_runner.current_job_id()})",
-        )
-
     start_dt: datetime | None = None
     end_dt: datetime | None = None
 
@@ -53,17 +46,15 @@ async def trigger_report(
         )
 
     job_id = str(uuid.uuid4())
-    await job_runner.save_pending(job_id)
+    await job_runner.submit(job_id, start_dt, end_dt)
 
     ip = get_client_ip(request)
-    _audit.audit(
-        "REPORT_TRIGGER | ip=%s | job_id=%s | start=%s | end=%s",
-        ip, job_id,
-        body.start_date or "auto",
-        body.end_date or "auto",
-    )
-    background_tasks.add_task(
-        job_runner.execute_in_background, job_id, start_dt, end_dt
+    audit.record(
+        "REPORT_TRIGGER",
+        ip=ip,
+        job_id=job_id,
+        start=body.start_date or "auto",
+        end=body.end_date or "auto",
     )
     return TriggerAcceptedSchema(
         job_id=job_id,
@@ -119,7 +110,11 @@ async def stream_job_status(
 
             yield _sse_event("status", payload)
 
-            await job_runner.wait_for_update(job_id, timeout=_SSE_WAIT_TIMEOUT)
+            await job_runner.wait_for_update(
+                job_id,
+                current.status,
+                timeout=_SSE_WAIT_TIMEOUT,
+            )
 
             if time.monotonic() - last_keepalive >= _SSE_KEEPALIVE_EVERY:
                 yield ": keepalive\n\n"

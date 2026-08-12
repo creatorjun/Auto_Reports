@@ -1,10 +1,10 @@
 // frontend/src/presentation/components/common/IssueTableModal.tsx
 import { useState } from 'react'
-import { useJira } from '@/app/context/JiraContext'
-import { MODAL_CLS } from '@/shared/ui'
-import { TABLE_PAGE_SIZE } from '@/shared/constants'
+import { useJira } from '@/presentation/context/JiraContext'
+import { MODAL_CLS } from '@/presentation/config/ui'
+import { TABLE_PAGE_SIZE } from '@/presentation/config/constants'
 import IssueModalShell from '@/presentation/components/common/IssueModalShell'
-import type { ModalSize } from '@/shared/ui'
+import type { ModalSize } from '@/presentation/config/ui'
 import type { ReactNode } from 'react'
 
 export interface ColumnDef<T> {

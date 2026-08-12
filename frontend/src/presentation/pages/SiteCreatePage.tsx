@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { siteApi } from '@/infrastructure/api/siteApi'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import type { Credential } from '@/domain/Site'
 import {
   schema, type FormValues,
@@ -12,6 +12,7 @@ import {
 } from '@/presentation/components/site/create/SiteCreateFormHelpers'
 
 export default function SiteCreatePage() {
+  const { sites } = useApplicationServices()
   const navigate = useNavigate()
   const { id } = useParams<{ id?: string }>()
   const isEdit = !!id
@@ -19,7 +20,7 @@ export default function SiteCreatePage() {
 
   const { data: existing, isLoading } = useQuery({
     queryKey: ['site-detail', id],
-    queryFn: () => siteApi.getById(id!),
+    queryFn: () => sites.getById(id!),
     enabled: isEdit,
   })
 
@@ -106,8 +107,8 @@ export default function SiteCreatePage() {
         access_credentials:  hasAnyCred ? creds : undefined,
       }
 
-      if (isEdit) return siteApi.update(Number(id), baseFields)
-      return siteApi.create({ ...baseFields, nodes: [], patch_histories: [], visit_histories: [] })
+      if (isEdit) return sites.update(Number(id), baseFields)
+      return sites.create({ ...baseFields, nodes: [], patch_histories: [], visit_histories: [] })
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['site-detail', String(data.id)] })

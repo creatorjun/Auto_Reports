@@ -1,3 +1,4 @@
+// frontend/src/presentation/components/common/ErrorBoundary.tsx
 import { Component, ReactNode } from 'react'
 
 interface Props { children: ReactNode }

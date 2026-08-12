@@ -1,17 +1,17 @@
 # backend/src/infrastructure/security/jwt_service.py
 from datetime import datetime, timedelta, timezone
-from functools import lru_cache
 from threading import Lock
 
 from jose import JWTError, jwt
 
-from src.infrastructure.config.settings import Settings, get_settings
+from src.application.ports.token_service_port import TokenServicePort
+from src.infrastructure.config.settings import Settings
 
 ACCESS_TOKEN_TYPE = "access"
 REFRESH_TOKEN_TYPE = "refresh"
 
 
-class JwtService:
+class JwtService(TokenServicePort):
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._superadmin_generation: int = 0
@@ -70,8 +70,3 @@ class JwtService:
             return subject
         except (JWTError, ValueError, KeyError) as e:
             raise ValueError("Invalid or expired token") from e
-
-
-@lru_cache
-def get_jwt_service() -> JwtService:
-    return JwtService(get_settings())

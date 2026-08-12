@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/partner/PartnerOrgPanel.tsx
 import { useQuery } from '@tanstack/react-query'
-import { partnerApi } from '@/infrastructure/api/partnerApi'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import PartnerPanelHeader from './PartnerPanelHeader'
 import type { PartnerOrg } from '@/domain/Partner'
 
@@ -11,9 +11,10 @@ export default function PartnerOrgPanel({
   selectedOrgId: string | null
   onSelect: (org: PartnerOrg) => void
 }) {
+  const { partners } = useApplicationServices()
   const { data: orgs = [], isLoading } = useQuery({
     queryKey: ['partner-orgs'],
-    queryFn: partnerApi.getOrganizations,
+    queryFn: partners.getOrganizations,
     staleTime: 5 * 60_000,
   })
 

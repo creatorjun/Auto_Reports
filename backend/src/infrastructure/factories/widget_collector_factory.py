@@ -14,7 +14,7 @@ from src.application.widgets.monthly_count_collector import MonthlyCountCollecto
 from src.application.widgets.recent_collector import RecentCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
 from src.application.widgets.sla_delay_collector import SlaDelayCollector
-from src.domain.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraPort
 from src.domain.value_objects.widget_id import WidgetId
 
 

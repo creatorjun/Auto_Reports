@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/charts/TypeBarChart.tsx
 import { memo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
-import { PIE_COLORS, CHART_HEIGHT, CHART_TICK_FONT_SIZE, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/shared/constants'
+import { PIE_COLORS, CHART_HEIGHT, CHART_TICK_FONT_SIZE, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
 
 interface ResolutionTypeEntry {
   avg_days: number

@@ -4,9 +4,11 @@ __pycache__/
 *.pyo
 .pytest_cache/
 reports/
+backend/logs/
 *.json
 .DS_Store
 node_modules/
+.pnpm-store/
 frontend/dist/
 venv/
 *.egg-info/

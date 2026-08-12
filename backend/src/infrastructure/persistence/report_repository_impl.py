@@ -8,7 +8,7 @@ from sqlalchemy import delete, desc, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.report import NewReport, Report
-from src.domain.repositories.report_repository import ReportRepository
+from src.application.ports.report_repository import ReportRepository
 from src.domain.value_objects.ai_analysis import AiAnalysis
 from src.infrastructure.persistence.models import ReportORM
 from src.infrastructure.persistence.widget_serializer import deserialize_widget, serialize_widget

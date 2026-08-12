@@ -1,5 +1,5 @@
 # backend/src/infrastructure/factories/ai_factory.py
-from src.domain.ports.ai_port import AiPort
+from src.application.ports.ai_port import AiPort
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.gemini_client import GeminiClient
 

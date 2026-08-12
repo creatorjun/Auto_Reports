@@ -14,8 +14,8 @@ from src.domain.entities.widget_data import (
     SlaMetVsViolatedWidgetData,
     SlaViolationIssueDetail,
 )
-from src.domain.ports.jira_port import JiraPort
-from src.shared.constants import (
+from src.application.ports.jira_port import JiraPort
+from src.domain.constants import (
     JIRA_MAX_RESULT,
     SUMMARY_TRUNCATE_LEN,
 )

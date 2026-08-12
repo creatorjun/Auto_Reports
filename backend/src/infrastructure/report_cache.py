@@ -3,7 +3,7 @@ from typing import Awaitable, Callable, Optional
 
 from src.application.ports.report_cache_port import ReportCachePort
 from src.domain.entities.report import Report
-from src.shared.cache import LruCache
+from src.infrastructure.cache.lru_cache import LruCache
 
 _FRESH_TTL   = 600.0
 _STALE_TTL   = 120.0
@@ -35,3 +35,6 @@ class ReportLruCache(ReportCachePort):
 
     async def delete(self, report_id: int) -> None:
         await self._cache.async_delete(report_id)
+
+    async def aclose(self) -> None:
+        await self._cache.aclose()

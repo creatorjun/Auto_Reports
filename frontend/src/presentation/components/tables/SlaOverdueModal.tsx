@@ -32,7 +32,6 @@ export default function SlaOverdueModal({ issues, total, onClose }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col">
-        {/* 헤더 */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-apple-divider/60">
           <div>
             <h2 className="text-[15px] font-semibold text-apple-dark">SLA 초과 이슈 상세</h2>
@@ -46,9 +45,7 @@ export default function SlaOverdueModal({ issues, total, onClose }: Props) {
           </button>
         </div>
 
-        {/* 테이블 영역 */}
         <div className="overflow-y-auto flex-1 px-6 py-4">
-          {/* PC 테이블 */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -86,7 +83,6 @@ export default function SlaOverdueModal({ issues, total, onClose }: Props) {
             </table>
           </div>
 
-          {/* 모바일 카드 */}
           <div className="md:hidden divide-y divide-apple-divider/40">
             {issues.map((d) => (
               <div key={d.key} className="py-3 flex flex-col gap-1">
@@ -114,7 +110,6 @@ export default function SlaOverdueModal({ issues, total, onClose }: Props) {
           </div>
         </div>
 
-        {/* 푸터 */}
         <div className="px-6 py-3 border-t border-apple-divider/60 flex justify-end">
           <button
             onClick={onClose}

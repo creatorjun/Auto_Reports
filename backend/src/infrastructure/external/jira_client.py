@@ -5,12 +5,10 @@ from typing import Any
 
 import httpx
 
-from src.domain.ports.jira_port import JiraPort
-from src.domain.ports.service_desk_port import ServiceDeskPort
-from src.shared.cache import LruCache
-from src.shared.constants import (
-    JIRA_MAX_RESULT
-)
+from src.application.ports.jira_port import JiraPort
+from src.application.ports.service_desk_port import ServiceDeskPort
+from src.domain.constants import JIRA_MAX_RESULT
+from src.infrastructure.cache.lru_cache import LruCache
 
 logger = logging.getLogger(__name__)
 
@@ -384,5 +382,9 @@ class JiraClient(JiraPort, ServiceDeskPort):
         return results
 
     async def aclose(self) -> None:
+        await asyncio.gather(
+            self._count_cache.aclose(),
+            self._issues_cache.aclose(),
+        )
         await self._client.aclose()
         await self._sd_client.aclose()

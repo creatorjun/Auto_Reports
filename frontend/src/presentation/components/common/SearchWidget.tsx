@@ -1,7 +1,8 @@
 // frontend/src/presentation/components/common/SearchWidget.tsx
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { fetchSearchResults, fetchJiraBaseUrl, SearchResult } from '@/infrastructure/api/searchApi'
-import { DEFAULT_JIRA_BASE_URL } from '@/shared/constants'
+import type { SearchResult } from '@/domain/Search'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
+import { DEFAULT_JIRA_BASE_URL } from '@/presentation/config/constants'
 
 const JIRA_COLOR    = 'bg-blue-100 text-blue-700'
 const CONFLUENCE_COLOR = 'bg-purple-100 text-purple-700'
@@ -169,6 +170,7 @@ function SearchModal({
 }
 
 export default function SearchWidget() {
+  const { search } = useApplicationServices()
   const [query,         setQuery]         = useState('')
   const [suggestions,   setSuggestions]   = useState<SearchResult[]>([])
   const [isDropdownOpen,setIsDropdownOpen]= useState(false)
@@ -182,13 +184,13 @@ export default function SearchWidget() {
   const jiraBaseUrlRef = useRef(DEFAULT_JIRA_BASE_URL)
 
   useEffect(() => {
-    fetchJiraBaseUrl()
+    search.getJiraBaseUrl()
       .then((url) => {
         setJiraBaseUrl(url)
         jiraBaseUrlRef.current = url
       })
       .catch(() => {})
-  }, [])
+  }, [search])
 
   const prependDirectIfNeeded = useCallback(
     (q: string, items: SearchResult[]): SearchResult[] => {
@@ -204,7 +206,7 @@ export default function SearchWidget() {
       abortRef.current = new AbortController()
       setIsLoading(true)
       try {
-        const results = await fetchSearchResults(q, 5, abortRef.current.signal)
+        const results = await search.search(q, 5, abortRef.current.signal)
         const merged  = prependDirectIfNeeded(q, results)
         setSuggestions(merged)
         setIsDropdownOpen(merged.length > 0)
@@ -218,7 +220,7 @@ export default function SearchWidget() {
         setIsLoading(false)
       }
     },
-    [prependDirectIfNeeded],
+    [prependDirectIfNeeded, search],
   )
 
   useEffect(() => {
@@ -238,7 +240,7 @@ export default function SearchWidget() {
       setModalQuery(q)
       setIsLoading(true)
       try {
-        const results = await fetchSearchResults(q, 5)
+        const results = await search.search(q, 5)
         setModalResults(prependDirectIfNeeded(q, results))
       } catch {
         setModalResults(prependDirectIfNeeded(q, []))
@@ -246,7 +248,7 @@ export default function SearchWidget() {
         setIsLoading(false)
       }
     },
-    [prependDirectIfNeeded],
+    [prependDirectIfNeeded, search],
   )
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

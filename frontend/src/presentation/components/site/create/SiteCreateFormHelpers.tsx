@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { RequestError } from '@/application/errors/RequestError'
 
 const emptyToUndefined = (val: unknown) => (val === '' ? undefined : val)
 
@@ -40,16 +41,8 @@ export const schema = z.object({
 
 export type FormValues = z.infer<typeof schema>
 
-export type ApiError = {
-  response?: {
-    data?: {
-      detail?: string | Array<{ msg: string; loc: (string | number)[] }>
-    }
-  }
-}
-
 export function extractErrorMessage(error: unknown): string {
-  const detail = (error as ApiError)?.response?.data?.detail
+  const detail = error instanceof RequestError ? error.detail : null
   if (!detail) return '저장 중 오류가 발생했습니다'
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail)) {

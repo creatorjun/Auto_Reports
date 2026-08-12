@@ -9,7 +9,7 @@ from src.application.widgets.collector_factory import CollectorEntry
 from src.domain.entities.report import NewReport
 from src.domain.entities.widget import WidgetResult
 from src.domain.value_objects.widget_id import WidgetId
-from src.shared.constants import KST
+from src.domain.constants import KST
 
 logger = logging.getLogger(__name__)
 

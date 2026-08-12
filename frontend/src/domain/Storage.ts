@@ -7,3 +7,10 @@ export interface StorageItem {
 }
 
 export type StorageFile = StorageItem
+
+export interface StorageQuota {
+  used: number
+  limit: number
+  available: number
+  percent: number
+}

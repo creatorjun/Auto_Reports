@@ -1,16 +1,8 @@
 // frontend/src/presentation/components/tables/IssueReviewModal.tsx
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import IssueTableModal, { type ColumnDef } from '@/presentation/components/common/IssueTableModal'
-import { MODAL_CLS } from '@/shared/ui'
-
-export interface ReviewIssue {
-  key: string
-  summary: string
-  type: string
-  status: string
-  created: string
-  elapsed_days: number
-}
+import { MODAL_CLS } from '@/presentation/config/ui'
+import type { ReviewIssue } from '@/domain/Dashboard'
 
 interface Props {
   issues: ReviewIssue[]

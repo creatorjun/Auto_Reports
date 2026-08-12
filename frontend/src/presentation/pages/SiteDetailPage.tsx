@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/SiteDetailPage.tsx
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { siteApi } from '@/infrastructure/api/siteApi'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import { STATUS_LABEL, STATUS_COLOR } from '@/presentation/components/site/detail/SiteDetailShared'
 import {
   SiteBasicInfo,
@@ -13,12 +13,13 @@ import {
 } from '@/presentation/components/site/detail/SiteDetailSections'
 
 export default function SiteDetailPage() {
+  const { sites } = useApplicationServices()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
   const { data: site, isLoading, isError } = useQuery({
     queryKey: ['site-detail', id],
-    queryFn: () => siteApi.getById(id!),
+    queryFn: () => sites.getById(id!),
     enabled: !!id,
     retry: 1,
   })

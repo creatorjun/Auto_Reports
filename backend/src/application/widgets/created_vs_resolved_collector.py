@@ -11,15 +11,13 @@ from src.domain.entities.widget_data import (
     CreatedResolvedIssueDetail,
     ResolvedIssueDetail,
 )
-from src.domain.ports.jira_port import JiraPort
-from src.shared.constants import JIRA_MAX_RESULT
+from src.application.ports.jira_port import JiraPort
+from src.domain.constants import JIRA_MAX_RESULT
 
 logger = logging.getLogger(__name__)
 
 
 class CreatedVsResolvedCollector(AbstractWidgetCollector):
-    """w3: 주간 생성 vs 해결 수 및 이슈 상세."""
-
     def __init__(self, jira: JiraPort, q: ResolvedQueries):
         self._jira = jira
         self._q = q

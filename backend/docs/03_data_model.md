@@ -1,205 +1,57 @@
-# backend/docs/03_data_model.md
-
 # Data Model
 
-## 데이터베이스: PostgreSQL (asyncpg)
+PostgreSQL과 SQLAlchemy async ORM을 사용합니다. 영속성 모델은 `src/infrastructure/persistence`, 프레임워크 독립 모델은 `src/domain`에 있습니다.
 
----
+## Tables
 
-## ORM 모델 (`src/infrastructure/persistence/`)
+### reports
 
-### reports 테이블
+| Column | Type | 설명 |
+|--------|------|------|
+| id | integer PK | 자동 증가 ID |
+| week_start, week_end | date | 보고 범위 |
+| report_date | varchar | 표시용 보고서 날짜 |
+| widgets | jsonb | widget serializer 결과 |
+| ai_analysis | jsonb nullable | AI 요약, 위험, 권고, sentiment |
+| created_at | timestamptz | 생성 시각, index |
 
-```sql
-CREATE TABLE reports (
-    id          SERIAL PRIMARY KEY,
-    week_start  DATE NOT NULL,
-    week_end    DATE NOT NULL,
-    report_date VARCHAR NOT NULL,
-    widgets     JSONB NOT NULL,
-    ai_analysis JSONB,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX ix_reports_created_at ON reports (created_at);
-```
+### jobs
 
-| 컬럼 | 타입 | 설명 |
-|------|------|------|
-| id | SERIAL PK | 자동 증가 ID |
-| week_start | DATE | 보고서 대상 주의 시작일 |
-| week_end | DATE | 보고서 대상 주의 종료일 |
-| report_date | VARCHAR | 보고서 생성일 문자열 (표시용) |
-| widgets | JSONB | 위젯 데이터 직렬화 (widget_serializer.py 참조) |
-| ai_analysis | JSONB | Gemini AI 분석 결과 (nullable) |
-| created_at | TIMESTAMPTZ | 생성 시각 (인덱스됨) |
+| Column | Type | 설명 |
+|--------|------|------|
+| job_id | varchar PK | UUID |
+| status | varchar | pending, running, done, error |
+| report_id | integer nullable | 완료 보고서 ID |
+| error | varchar nullable | 실패 또는 취소 메시지 |
+| created_at, updated_at | timestamptz | 상태 수명 |
 
----
+### sites
 
-### jobs 테이블
+사이트 기본 정보, 계약 날짜·유형·상태, 고객과 유지보수 담당자의 이름·전화·메일·회사 정보를 nullable column으로 저장합니다. `site_name`은 필수이며 trim/lower expression index가 있습니다.
 
-```sql
-CREATE TABLE jobs (
-    job_id     VARCHAR PRIMARY KEY,
-    status     VARCHAR NOT NULL,
-    report_id  INTEGER,
-    error      VARCHAR,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
+### deployment_nodes
 
-| 컬럼 | 타입 | 설명 |
-|------|------|------|
-| job_id | VARCHAR PK | UUID 문자열 |
-| status | VARCHAR | pending / running / done / error |
-| report_id | INTEGER | 완료 시 연결된 reports.id (nullable) |
-| error | VARCHAR | 오류 메시지 (nullable) |
-| created_at | TIMESTAMPTZ | 잡 생성 시각 |
-| updated_at | TIMESTAMPTZ | 마지막 상태 변경 시각 |
+site_id 외래키와 hostname, role, CPU core/thread, memory/disk 용량, OS, IP, disk 여유·갱신 시각, `pkg_version`을 저장합니다. 사이트 삭제 시 cascade됩니다.
 
----
+### patch_histories와 visit_histories
 
-### sites 테이블
+패치 이력은 Jira·파일 링크, 일자, 유형, 적용자, 결과, 롤백, 비고를 저장합니다. 방문 이력은 방문 일시, 엔지니어 연락처, 요청과 조치 내용을 저장합니다. 두 테이블 모두 site_id cascade 외래키를 사용합니다.
 
-| 컬럼 | 타입 | 설명 |
-|------|------|------|
-| id | SERIAL PK | |
-| site_name | VARCHAR NOT NULL | 사이트명 |
-| maintenance_company | VARCHAR | 유지보수 회사명 |
-| customer_contact | JSONB | 고객 담당자 (ContactInfo) |
-| maintenance_contact | JSONB | 유지보수 담당자 (ContactInfo) |
-| contract_start_date | DATE | 계약 시작일 |
-| contract_end_date | DATE | 계약 종료일 |
-| contract_type | VARCHAR | 계약 유형 Enum |
-| status | VARCHAR | 사이트 상태 Enum |
-| created_at | TIMESTAMPTZ | |
-| updated_at | TIMESTAMPTZ | |
+### access_credentials
 
----
+사이트와 1:1이며 CLI, Web, DB, VPN별 username, password, IP, port와 note를 저장합니다. `CREDENTIAL_ENCRYPTION_KEY`가 설정되면 repository adapter가 각 문자열을 Fernet으로 암호화한 뒤 저장하고 조회 시 복호화합니다. 키가 없으면 호환성을 위해 평문 저장되므로 운영 환경에서는 반드시 키를 설정해야 합니다.
 
-### deployment_nodes 테이블
+## Domain aggregate
 
-| 컬럼 | 타입 | 설명 |
-|------|------|------|
-| id | SERIAL PK | |
-| site_id | INTEGER FK → sites.id | |
-| hostname | VARCHAR NOT NULL | |
-| role | VARCHAR | NodeRole Enum (master/worker/db/etc.) |
-| cpu_cores | INTEGER | |
-| cpu_threads | INTEGER | |
-| memory_total_gb | FLOAT | |
-| disk_total_gb | FLOAT | |
-| os_type | VARCHAR | |
-| os_version | VARCHAR | |
-| ip_address | VARCHAR | |
-| disk_free_gb | FLOAT | |
-| disk_updated_at | TIMESTAMPTZ | 디스크 정보 마지막 수집 시각 |
+`Site`는 `DeploymentNode`, `PatchHistory`, `VisitHistory`, `AccessCredentials`를 소유합니다. 하위 dataclass는 frozen이며 Application 유스케이스가 새 값으로 교체한 뒤 aggregate를 저장합니다. ORM relationship은 `delete-orphan` cascade로 aggregate 저장 정책을 구현합니다.
 
----
+`Report`는 `WidgetResult` map과 선택적 `AiAnalysis`를 가집니다. JSONB 변환은 `widget_serializer.py` adapter의 책임이고 Domain 모델은 JSONB나 SQLAlchemy를 알지 못합니다.
 
-### patch_histories 테이블
+## Migration
 
-| 컬럼 | 타입 | 설명 |
-|------|------|------|
-| id | SERIAL PK | |
-| site_id | INTEGER FK → sites.id | |
-| issue_link | VARCHAR | Jira 이슈 링크 |
-| patch_date | DATE | 패치 적용일 |
-| patch_file_link | VARCHAR | 패치 파일 링크 |
-| patch_type | VARCHAR | PatchType Enum |
-| applied_by | VARCHAR | 적용자 |
-| result_status | VARCHAR | ResultStatus Enum |
-| rollback_date | DATE | 롤백일 (nullable) |
-| note | TEXT | 비고 |
-
----
-
-### visit_histories 테이블
-
-| 컬럼 | 타입 | 설명 |
-|------|------|------|
-| id | SERIAL PK | |
-| site_id | INTEGER FK → sites.id | |
-| visit_datetime | TIMESTAMPTZ | 방문 일시 |
-| engineer_name | VARCHAR | 엔지니어 이름 |
-| engineer_phone | VARCHAR | 엔지니어 연락처 |
-| request_content | TEXT | 요청 내용 |
-| action_content | TEXT | 조치 내용 |
-
----
-
-## 도메인 엔티티 구조 (Domain Entities)
-
-### Site
-
-```python
-@dataclass
-class Site:
-    id: int | None
-    site_name: str
-    maintenance_company: str | None
-    customer_contact: ContactInfo | None
-    maintenance_contact: ContactInfo | None
-    contract_start_date: date | None
-    contract_end_date: date | None
-    contract_type: ContractType | None
-    status: SiteStatus | None
-    nodes: list[DeploymentNode]
-    patch_histories: list[PatchHistory]
-    visit_histories: list[VisitHistory]
-    access_credentials: AccessCredentials | None
-    created_at: datetime | None
-    updated_at: datetime | None
-```
-
-### AccessCredentials
-
-```python
-@dataclass
-class AccessCredentials:
-    cli: Credential | None   # SSH 접속 정보
-    web: Credential | None   # 웹 관리 콘솔
-    db: Credential | None    # 데이터베이스
-    vpn: Credential | None   # VPN
-    note: str | None
-
-@dataclass
-class Credential:
-    username: str | None
-    password: str | None
-    ip: str | None
-    port: int | None
-```
-
-**주의**: `access_credentials`는 DB에 암호화 없이 JSONB로 저장됩니다.  
-운영 환경에서는 반드시 DB 암호화 또는 별도 시크릿 관리 도입을 권장합니다.
-
----
-
-## JSONB 위젯 데이터 구조 (widgets 컬럼)
-
-`widget_serializer.py`가 담당하며 아래 키를 가진 딕셔너리로 직렬화됩니다.
-
-```json
-{
-  "count": { ... },
-  "created_vs_resolved": { ... },
-  "monthly": { ... },
-  "monthly_count": { ... },
-  "recent": { ... },
-  "resolution": { ... },
-  "sla_delay": { ... }
-}
-```
-
----
-
-## Alembic 마이그레이션
-
-마이그레이션 파일은 `backend/alembic/versions/`에 위치합니다.  
-새 모델 변경 시:
+마이그레이션은 `backend/alembic/versions`에 있습니다.
 
 ```bash
-alembic revision --autogenerate -m "description"
+cd backend
 alembic upgrade head
 ```

@@ -1,20 +1,6 @@
 // frontend/src/infrastructure/api/authApi.ts
 import client from './client'
-
-export interface TokenResponse {
-  access_token: string
-  token_type: string
-}
-
-export interface MeResponse {
-  username: string
-  login_required: boolean
-}
-
-export interface LoginRequest {
-  username: string
-  password: string
-}
+import type { LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
 
 export const authApi = {
   login: async ({ username, password }: LoginRequest): Promise<TokenResponse> => {

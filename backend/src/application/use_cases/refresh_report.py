@@ -7,8 +7,8 @@ from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.notify_tac_assigned import NotifyTacAssignedUseCase
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase, extract_todo_issues
-from src.domain.repositories.report_repository import ReportRepository
-from src.shared.constants import KST
+from src.application.ports.report_repository import ReportRepository
+from src.domain.constants import KST
 
 logger = logging.getLogger(__name__)
 

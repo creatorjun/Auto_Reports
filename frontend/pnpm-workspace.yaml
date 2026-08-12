@@ -1,0 +1,3 @@
+# frontend/pnpm-workspace.yaml
+allowBuilds:
+  esbuild: true

@@ -1,4 +1,5 @@
-.PHONY: up down build logs migrate ps restart
+# Makefile
+.PHONY: up down build logs migrate ps restart trigger
 
 up:
 	docker compose up -d
@@ -21,6 +22,5 @@ migrate:
 ps:
 	docker compose ps
 
-# 즉시 보고서 생성 (테스트)
 trigger:
 	curl -s -X POST http://localhost/api/v1/trigger/ | python3 -m json.tool

@@ -24,3 +24,6 @@ class ReportCachePort(ABC):
 
     @abstractmethod
     async def delete(self, report_id: int) -> None: ...
+
+    @abstractmethod
+    async def aclose(self) -> None: ...

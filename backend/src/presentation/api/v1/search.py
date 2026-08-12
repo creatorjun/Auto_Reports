@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
-from src.domain.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraPort
 from src.presentation.api.deps import get_jira
 
 router = APIRouter(prefix="/search", tags=["search"])

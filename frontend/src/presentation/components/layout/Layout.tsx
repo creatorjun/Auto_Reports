@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/Layout.tsx
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { JiraProvider } from '@/app/context/JiraContext'
+import { JiraProvider } from '@/presentation/context/JiraContext'
 import Header from './Header'
 import Sidebar from './Sidebar'
 import MobileTabBar from './MobileTabBar'

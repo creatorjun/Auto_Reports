@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/common/GenerateReportModal.tsx
 import { useEffect, useState } from 'react'
-import { useTrigger } from '@/infrastructure/hooks/useTrigger'
-import { useUiStore } from '@/app/store/uiStore'
+import { useTrigger } from '@/presentation/hooks/useTrigger'
+import { useUiStore } from '@/presentation/state/uiStore'
 
 interface Props {
   onClose: () => void

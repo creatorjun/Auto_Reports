@@ -7,7 +7,7 @@ from typing import Optional
 from google import genai
 from google.genai import types
 
-from src.domain.ports.ai_port import AiPort
+from src.application.ports.ai_port import AiPort
 from src.domain.value_objects.ai_analysis import AiAnalysis
 
 logger = logging.getLogger(__name__)

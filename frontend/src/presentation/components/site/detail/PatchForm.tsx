@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { siteApi } from '@/infrastructure/api/siteApi'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import type { PatchHistory } from '@/domain/Site'
 import { inputCls } from './SiteDetailShared'
 
@@ -30,6 +30,7 @@ export default function PatchForm({
   onSuccess: () => void
   onCancel: () => void
 }) {
+  const { sites } = useApplicationServices()
   const {
     register,
     handleSubmit,
@@ -61,8 +62,8 @@ export default function PatchForm({
         note:            v.note            ? v.note            : undefined,
       }
       return initial?.id
-        ? siteApi.updatePatchHistory(siteId, initial.id, payload)
-        : siteApi.addPatchHistory(siteId, payload)
+        ? sites.updatePatchHistory(siteId, initial.id, payload)
+        : sites.addPatchHistory(siteId, payload)
     },
     onSuccess,
   })

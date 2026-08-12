@@ -1,16 +1,8 @@
 // frontend/src/infrastructure/api/searchApi.ts
 import client from './client'
+import type { SearchResult } from '@/domain/Search'
 
-export interface SearchResult {
-  type: 'jira' | 'confluence'
-  key: string
-  title: string
-  status: string
-  issue_type: string
-  url: string
-}
-
-export async function fetchSearchResults(
+async function fetchSearchResults(
   query: string,
   limit = 5,
   signal?: AbortSignal,
@@ -22,7 +14,12 @@ export async function fetchSearchResults(
   return data
 }
 
-export async function fetchJiraBaseUrl(): Promise<string> {
+async function fetchJiraBaseUrl(): Promise<string> {
   const { data } = await client.get<{ jira_base_url: string }>('/config')
   return data.jira_base_url.replace(/\/$/, '')
+}
+
+export const searchApi = {
+  search: fetchSearchResults,
+  getJiraBaseUrl: fetchJiraBaseUrl,
 }

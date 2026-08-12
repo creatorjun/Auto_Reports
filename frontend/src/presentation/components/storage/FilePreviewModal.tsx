@@ -5,8 +5,9 @@ import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github.css'
 import '@/presentation/styles/markdown.css'
-import { storageApi } from '@/infrastructure/api/storageApi'
-import { useAuthStore } from '@/app/store/authStore'
+import { useAuthStore } from '@/presentation/state/authStore'
+import type { StorageGateway } from '@/application/ports/ApplicationServices'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 
 type PreviewType =
   | 'image' | 'video' | 'pdf'
@@ -211,7 +212,7 @@ function PdfViewer({ url, onPageChange }: PdfViewerProps) {
   )
 }
 
-function PptxPreview({ name, folder, onPageChange }: { name: string; folder: string; onPageChange?: (page: number, total: number) => void }) {
+function PptxPreview({ name, folder, storage, onPageChange }: { name: string; folder: string; storage: StorageGateway; onPageChange?: (page: number, total: number) => void }) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [errMsg, setErrMsg] = useState('')
@@ -264,7 +265,7 @@ function PptxPreview({ name, folder, onPageChange }: { name: string; folder: str
           <p className="text-[14px] font-medium text-white">변환 실패</p>
           <p className="text-[12px] text-white/60 mt-1">{errMsg || '서버에서 PDF 변환에 실패했습니다.'}</p>
         </div>
-        <a href={storageApi.download(name, folder)} download={name}
+        <a href={storage.download(name, folder)} download={name}
           className="px-4 py-2 rounded-xl text-[13px] font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
           다운로드
         </a>
@@ -444,14 +445,14 @@ function DocxPreview({ url }: { url: string }) {
   )
 }
 
-function ArchivePreview({ name, folder }: { name: string; folder: string }) {
+function ArchivePreview({ name, folder, storage }: { name: string; folder: string; storage: StorageGateway }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 h-full bg-black/60 px-6">
       <div className="text-center">
         <p className="text-[15px] font-semibold text-white">{name}</p>
         <p className="text-[12px] text-white/60 mt-1 leading-relaxed">압축 파일은 브라우저에서 직접 열 수 없습니다.<br />다운로드 후 압축을 해제하세요.</p>
       </div>
-      <a href={storageApi.download(name, folder)} download={name}
+      <a href={storage.download(name, folder)} download={name}
         className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
         다운로드
       </a>
@@ -468,8 +469,9 @@ interface Props {
 }
 
 export default function FilePreviewModal({ name, folder, fileList = [], onNavigate, onClose }: Props) {
+  const { storage } = useApplicationServices()
   const type = detectType(name)
-  const url = storageApi.preview(name, folder)
+  const url = storage.preview(name, folder)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [pdfPageInfo, setPdfPageInfo] = useState<{ current: number; total: number } | null>(null)
 
@@ -566,13 +568,13 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
       case 'csv': return <CsvPreview url={url} />
       case 'xlsx': return <XlsxPreview url={url} />
       case 'docx': return <DocxPreview url={url} />
-      case 'pptx': return <PptxPreview name={name} folder={folder} onPageChange={handlePdfPageChange} />
-      case 'archive': return <ArchivePreview name={name} folder={folder} />
+      case 'pptx': return <PptxPreview name={name} folder={folder} storage={storage} onPageChange={handlePdfPageChange} />
+      case 'archive': return <ArchivePreview name={name} folder={folder} storage={storage} />
       default:
         return (
           <div className="flex flex-col items-center justify-center gap-3 h-full bg-black/60">
             <p className="text-[13px] text-white/60">미리보기를 지원하지 않는 형식입니다.</p>
-            <a href={storageApi.download(name, folder)} download={name}
+            <a href={storage.download(name, folder)} download={name}
               className="px-4 py-2 rounded-xl text-[13px] font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
               다운로드
             </a>
@@ -633,7 +635,7 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
               </svg>
             )}
           </button>
-          <a href={storageApi.download(name, folder)} download={name}
+          <a href={storage.download(name, folder)} download={name}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <path d="M7 2v7M4 6.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />

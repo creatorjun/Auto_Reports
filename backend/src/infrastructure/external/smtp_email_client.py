@@ -5,7 +5,7 @@ from email.mime.text import MIMEText
 
 import aiosmtplib
 
-from src.domain.ports.email_port import EmailPort
+from src.application.ports.email_port import EmailPort
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/common/RefreshButton.tsx
-import { useReportStore } from '@/app/store/reportStore'
-import { useUiStore } from '@/app/store/uiStore'
-import { useRefreshReport } from '@/infrastructure/hooks/useReport'
+import { useReportStore } from '@/presentation/state/reportStore'
+import { useUiStore } from '@/presentation/state/uiStore'
+import { useRefreshReport } from '@/presentation/hooks/useReport'
 
 export default function RefreshButton() {
   const { currentReport } = useReportStore()

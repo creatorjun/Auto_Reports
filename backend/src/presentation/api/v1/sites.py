@@ -1,7 +1,7 @@
 # backend/src/presentation/api/v1/sites.py
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from src.application.mappers.site_mapper import (
+from src.presentation.mappers.site_mapper import (
     contact_from_schema,
     creds_from_schema,
     node_to_schema,
@@ -13,6 +13,7 @@ from src.application.mappers.site_mapper import (
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.domain.entities.site import (
     DeploymentNode,
+    NodeRole,
     PatchHistory,
     VisitHistory,
 )
@@ -20,7 +21,6 @@ from src.presentation.api.v1.deps import get_site_use_case
 from src.presentation.schemas.site_schema import (
     DeploymentNodeCreateRequest,
     DeploymentNodeUpdateRequest,
-    NodeRole,
     PatchHistoryCreateRequest,
     PatchHistoryUpdateRequest,
     SiteCreateRequest,
@@ -141,30 +141,27 @@ async def update_site(
     req: SiteUpdateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    existing = await use_case.get_by_id(site_id)
-    if existing is None:
-        raise HTTPException(status_code=404, detail="Site not found")
-
+    updates: dict[str, object] = {}
     if req.site_name is not None:
-        existing.site_name = req.site_name
+        updates["site_name"] = req.site_name
     if req.maintenance_company is not None:
-        existing.maintenance_company = req.maintenance_company
+        updates["maintenance_company"] = req.maintenance_company
     if req.customer_info is not None:
-        existing.customer_contact = contact_from_schema(req.customer_info)
+        updates["customer_contact"] = contact_from_schema(req.customer_info)
     if req.maintenance_info is not None:
-        existing.maintenance_contact = contact_from_schema(req.maintenance_info)
+        updates["maintenance_contact"] = contact_from_schema(req.maintenance_info)
     if req.contract_start_date is not None:
-        existing.contract_start_date = req.contract_start_date
+        updates["contract_start_date"] = req.contract_start_date
     if req.contract_end_date is not None:
-        existing.contract_end_date = req.contract_end_date
+        updates["contract_end_date"] = req.contract_end_date
     if req.contract_type is not None:
-        existing.contract_type = req.contract_type
+        updates["contract_type"] = req.contract_type
     if req.status is not None:
-        existing.status = req.status
+        updates["status"] = req.status
     if req.access_credentials is not None:
-        existing.access_credentials = creds_from_schema(req.access_credentials)
+        updates["access_credentials"] = creds_from_schema(req.access_credentials)
 
-    site = await use_case.update(existing)
+    site = await use_case.update_fields(site_id, updates)
     return site_to_response(site)
 
 
@@ -208,16 +205,8 @@ async def update_node(
     req: DeploymentNodeUpdateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    site = await use_case.get_by_id(site_id)
-    if site is None:
-        raise HTTPException(status_code=404, detail="Site not found")
-    node = next((n for n in site.nodes if n.id == node_id), None)
-    if node is None:
-        raise HTTPException(status_code=404, detail="Node not found")
     updates = req.model_dump(exclude_unset=True)
-    for key, value in updates.items():
-        setattr(node, key, value)
-    updated_site = await use_case.update(site)
+    updated_site = await use_case.update_node(site_id, node_id, updates)
     return site_to_response(updated_site)
 
 
@@ -227,14 +216,7 @@ async def delete_node(
     node_id: int,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    site = await use_case.get_by_id(site_id)
-    if site is None:
-        raise HTTPException(status_code=404, detail="Site not found")
-    before = len(site.nodes)
-    site.nodes = [n for n in site.nodes if n.id != node_id]
-    if len(site.nodes) == before:
-        raise HTTPException(status_code=404, detail="Node not found")
-    await use_case.update(site)
+    await use_case.delete_node(site_id, node_id)
 
 
 @router.post("/{site_id}/patch-histories", response_model=SiteResponse, status_code=201)
@@ -264,16 +246,8 @@ async def update_patch_history(
     req: PatchHistoryUpdateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    site = await use_case.get_by_id(site_id)
-    if site is None:
-        raise HTTPException(status_code=404, detail="Site not found")
-    ph = next((p for p in site.patch_histories if p.id == ph_id), None)
-    if ph is None:
-        raise HTTPException(status_code=404, detail="PatchHistory not found")
     updates = req.model_dump(exclude_unset=True)
-    for key, value in updates.items():
-        setattr(ph, key, value)
-    updated_site = await use_case.update(site)
+    updated_site = await use_case.update_patch_history(site_id, ph_id, updates)
     return site_to_response(updated_site)
 
 
@@ -283,14 +257,7 @@ async def delete_patch_history(
     ph_id: int,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    site = await use_case.get_by_id(site_id)
-    if site is None:
-        raise HTTPException(status_code=404, detail="Site not found")
-    before = len(site.patch_histories)
-    site.patch_histories = [p for p in site.patch_histories if p.id != ph_id]
-    if len(site.patch_histories) == before:
-        raise HTTPException(status_code=404, detail="PatchHistory not found")
-    await use_case.update(site)
+    await use_case.delete_patch_history(site_id, ph_id)
 
 
 @router.post("/{site_id}/visit-histories", response_model=SiteResponse, status_code=201)
@@ -317,16 +284,8 @@ async def update_visit_history(
     req: VisitHistoryUpdateRequest,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    site = await use_case.get_by_id(site_id)
-    if site is None:
-        raise HTTPException(status_code=404, detail="Site not found")
-    vh = next((v for v in site.visit_histories if v.id == vh_id), None)
-    if vh is None:
-        raise HTTPException(status_code=404, detail="VisitHistory not found")
     updates = req.model_dump(exclude_unset=True)
-    for key, value in updates.items():
-        setattr(vh, key, value)
-    updated_site = await use_case.update(site)
+    updated_site = await use_case.update_visit_history(site_id, vh_id, updates)
     return site_to_response(updated_site)
 
 
@@ -336,11 +295,4 @@ async def delete_visit_history(
     vh_id: int,
     use_case: SiteUseCase = Depends(get_site_use_case),
 ):
-    site = await use_case.get_by_id(site_id)
-    if site is None:
-        raise HTTPException(status_code=404, detail="Site not found")
-    before = len(site.visit_histories)
-    site.visit_histories = [v for v in site.visit_histories if v.id != vh_id]
-    if len(site.visit_histories) == before:
-        raise HTTPException(status_code=404, detail="VisitHistory not found")
-    await use_case.update(site)
+    await use_case.delete_visit_history(site_id, vh_id)

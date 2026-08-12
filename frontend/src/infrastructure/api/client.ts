@@ -1,6 +1,7 @@
 // frontend/src/infrastructure/api/client.ts
 import axios from 'axios'
-import { useAuthStore } from '@/app/store/authStore'
+import { RequestError } from '@/application/errors/RequestError'
+import type { AuthSessionPort } from '@/application/ports/AuthSessionPort'
 
 const SKIP_REFRESH_URLS = ['/auth/refresh', '/auth/login', '/auth/me']
 
@@ -11,27 +12,43 @@ const client = axios.create({
   withCredentials: true,
 })
 
+let authSession: AuthSessionPort | null = null
+
+export function configureHttpClient(session: AuthSessionPort): void {
+  authSession = session
+}
+
+export function getAccessToken(): string | null {
+  return authSession?.getAccessToken() ?? null
+}
+
 client.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken
+  const token = getAccessToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-let isRefreshing = false
 let isLoggingOut = false
-let refreshQueue: Array<() => void> = []
+let refreshPromise: Promise<string> | null = null
 
-function flushQueue() {
-  refreshQueue.forEach((cb) => cb())
-  refreshQueue = []
+function toRequestError(error: unknown): RequestError {
+  if (error instanceof RequestError) return error
+  if (!axios.isAxiosError(error)) return new RequestError(null, null)
+  return new RequestError(error.response?.status ?? null, error.response?.data?.detail)
 }
 
 function redirectToLogin() {
   if (isLoggingOut) return
   isLoggingOut = true
-  flushQueue()
-  useAuthStore.getState().clearAuth()
-  window.location.href = '/login'
+  authSession?.clearAuth()
+  authSession?.redirectToLogin()
+}
+
+async function refreshAccessToken(): Promise<string> {
+  const res = await client.post<{ access_token: string }>('/auth/refresh')
+  const token = res.data.access_token
+  authSession?.setAuth(token, authSession.getUsername() ?? '')
+  return token
 }
 
 client.interceptors.response.use(
@@ -41,42 +58,29 @@ client.interceptors.response.use(
     const status = err.response?.status
     const url: string = original?.url ?? ''
 
-    if (isLoggingOut) {
-      return new Promise(() => {})
-    }
+    if (isLoggingOut) return Promise.reject(toRequestError(err))
 
     const shouldSkip = SKIP_REFRESH_URLS.some((u) => url.includes(u))
 
     if (status === 401 && !original._retry && !shouldSkip) {
       original._retry = true
 
-      if (isRefreshing) {
-        return new Promise((resolve) => {
-          refreshQueue.push(() => {
-            const token = useAuthStore.getState().accessToken
-            original.headers.Authorization = `Bearer ${token}`
-            resolve(client(original))
-          })
-        })
-      }
-
-      isRefreshing = true
       try {
-        const res = await client.post<{ access_token: string }>('/auth/refresh')
-        const newToken = res.data.access_token
-        useAuthStore.getState().setAuth(newToken, useAuthStore.getState().username ?? '')
-        flushQueue()
+        if (refreshPromise === null) {
+          refreshPromise = refreshAccessToken().finally(() => {
+            refreshPromise = null
+          })
+        }
+        const newToken = await refreshPromise
         original.headers.Authorization = `Bearer ${newToken}`
         return client(original)
-      } catch {
+      } catch (refreshError) {
         redirectToLogin()
-        return new Promise(() => {})
-      } finally {
-        isRefreshing = false
+        return Promise.reject(toRequestError(refreshError))
       }
     }
 
-    return Promise.reject(err)
+    return Promise.reject(toRequestError(err))
   }
 )
 

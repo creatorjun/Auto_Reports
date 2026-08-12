@@ -1,6 +1,6 @@
 // frontend/src/presentation/pages/HistoryPage.tsx
 import { useState } from 'react'
-import { useAllReports, useDeleteReport } from '@/infrastructure/hooks/useReport'
+import { useAllReports, useDeleteReport } from '@/presentation/hooks/useReport'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import HistoryDeleteConfirmModal from '@/presentation/components/history/HistoryDeleteConfirmModal'
 import { HistoryReportTable } from '@/presentation/components/tables/HistoryReportTable'

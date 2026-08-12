@@ -1,8 +1,8 @@
 // frontend/src/presentation/components/tables/SlaDelayModal.tsx
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import IssueTableModal, { type ColumnDef } from '@/presentation/components/common/IssueTableModal'
-import { MODAL_CLS } from '@/shared/ui'
-import type { SlaDelayIssue } from '@/presentation/components/charts/ReasonPieChart'
+import { MODAL_CLS } from '@/presentation/config/ui'
+import type { SlaDelayIssue } from '@/domain/Dashboard'
 
 interface Props {
   status: string

@@ -6,15 +6,13 @@ from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import ResolutionTypeEntry, ResolutionTypeWidgetData
-from src.domain.ports.jira_port import JiraPort
-from src.shared.constants import JIRA_MAX_RESULT
+from src.application.ports.jira_port import JiraPort
+from src.domain.constants import JIRA_MAX_RESULT
 
 logger = logging.getLogger(__name__)
 
 
 class ResolutionCollector(AbstractWidgetCollector):
-    """w11: 유형별 평균 처리일."""
-
     def __init__(self, jira: JiraPort, q: ResolvedQueries):
         self._jira = jira
         self._q = q

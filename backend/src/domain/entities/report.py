@@ -9,7 +9,6 @@ from src.domain.value_objects.ai_analysis import AiAnalysis
 
 @dataclass(frozen=True)
 class NewReport:
-    """DB 저장 전 상태의 보고서. id가 없다."""
     week_start: date
     week_end: date
     report_date: str
@@ -19,6 +18,5 @@ class NewReport:
 
 @dataclass(frozen=True)
 class Report(NewReport):
-    """DB 저장 완료 후 식별자를 가진 보고서."""
     id: int = 0
     created_at: Optional[datetime] = None

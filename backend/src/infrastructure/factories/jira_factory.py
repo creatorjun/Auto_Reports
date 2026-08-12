@@ -1,5 +1,5 @@
 # backend/src/infrastructure/factories/jira_factory.py
-from src.domain.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraPort
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.jira_client import JiraClient
 

@@ -1,107 +1,17 @@
-# frontend/docs/STATE.md
+# Frontend State
 
-# 전역 상태 관리
+| 상태 | 위치 | 소유 도구 |
+|------|------|-----------|
+| 서버 응답과 캐시 | `presentation/hooks` | TanStack Query |
+| 인증 세션 | `presentation/state/authStore.ts` | Zustand persist |
+| 선택·현재 보고서 | `presentation/state/reportStore.ts` | Zustand |
+| 트리거 표시 상태 | `presentation/state/uiStore.ts` | Zustand |
+| Jira 링크 설정 | `presentation/context/JiraContext.tsx` | React Context |
+| Application gateway | `presentation/context/ApplicationServicesContext.tsx` | React Context |
+| 폼·모달 상태 | 각 component | React state/form |
 
-## 상태 관리 전략
+`authStore`는 `AuthSessionPort`에 필요한 token 조회, 설정, 제거 동작을 제공합니다. Infrastructure는 이 store를 import하지 않으며 `main.tsx`가 adapter를 구성합니다.
 
-| 구분 | 도구 | 용도 |
-|------|------|------|
-| 서버 상태 | TanStack Query v5 | API 데이터 페칭·캐싱·동기화 |
-| 클라이언트 전역 상태 | Zustand v4 | 인증 정보, UI 상태, 선택된 보고서 |
-| 컴포넌트 로컬 상태 | `useState` / `useReducer` | 폼, 모달 열림/닫힘 등 |
+현재 access token은 `localStorage`에 persist됩니다. 내부망 운영에서도 CSP와 XSS 방어가 필요하며, 노출 범위가 커지면 메모리 기반 access token과 HttpOnly refresh cookie 조합으로 전환합니다.
 
----
-
-## authStore (`src/app/store/authStore.ts`)
-
-```ts
-interface AuthState {
-  accessToken:   string | null
-  username:      string | null
-  loginRequired: boolean
-
-  setAuth(token: string, username: string): void
-  setLoginRequired(v: boolean): void
-  clearAuth(): void
-}
-```
-
-- `persist` 미들웨어 사용 → `localStorage['auth-storage']` 에 `{ accessToken, username }` 저장
-- `partialize`: `loginRequired` 는 persist 제외
-- `clearAuth()`: 로그아웃 또는 토큰 재발급 실패 시 호출
-- 초기값: `loginRequired: true` (기본 로그인 필요)
-
-**주의**: `accessToken` 이 localStorage 에 저장됩니다. XSS 위험 고려 시 HttpOnly 쿠키 전환을 검토하세요. ([REFACTORING_NOTES.md](./REFACTORING_NOTES.md) 참조)
-
----
-
-## reportStore (`src/app/store/reportStore.ts`)
-
-```ts
-interface ReportStore {
-  selectedReportId: number | null
-  setSelectedReportId(id: number | null): void
-  currentReport: ReportDetail | null
-  setCurrentReport(r: ReportDetail | null): void
-}
-```
-
-- `selectedReportId`: HistoryPage에서 보고서 선택 → DashboardPage에서 해당 보고서 표시
-- `currentReport`: 현재 화면에 렌더링 중인 보고서 전체 데이터 캐시
-- persist 없음 (세션 내 임시 상태)
-
----
-
-## uiStore (`src/app/store/uiStore.ts`)
-
-```ts
-interface UiStore {
-  isTriggerLoading: boolean
-  setTriggerLoading(v: boolean): void
-  triggerMessage: string | null
-  setTriggerMessage(msg: string | null): void
-}
-```
-
-- `isTriggerLoading`: 보고서 생성 잡 실행 중 여부 (Header TriggerButton 스피너 제어)
-- `triggerMessage`: 잡 완료/오류 메시지 (UI 피드백)
-- persist 없음
-
-> **참고**: Sidebar 열림/닫힘은 별도 `uiStore` 없이 각 레이아웃 컴포넌트 로컬 상태로 관리됩니다.
-
----
-
-## JiraContext (`src/app/context/JiraContext.tsx`)
-
-```ts
-interface JiraContextValue {
-  jiraBase:   string   // 예: 'https://seculayer.atlassian.net'
-  jiraBrowse: string   // 예: 'https://seculayer.atlassian.net/browse'
-}
-
-// 사용
-const { jiraBase, jiraBrowse } = useJira()
-```
-
-- `JiraProvider` 로 감싸진 트리에서 `useJira()` 훅으로 값 소비
-- `useConfig()` 로 서버에서 `jira_base_url` 조회 후 `useMemo` 로 `jiraBase` / `jiraBrowse` 파생
-- 이슈 키 클릭 시 `${jiraBrowse}/${key}` 로 링크 생성
-
----
-
-## TanStack Query 설정
-
-`src/main.tsx` 에서 `QueryClient` 생성 후 `QueryClientProvider` 로 전달:
-
-```ts
-new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry:     2,
-      staleTime: 5 * 60 * 1000,   // 5분
-    }
-  }
-})
-```
-
-> `App.tsx` 는 `RouterProvider` 만 포함하며, `QueryClientProvider` 래핑은 `main.tsx` 에서 담당합니다.
+Query key는 `presentation/config/queryKeys.ts`에서 중앙 관리합니다. UI 상태는 API 응답 모델과 섞지 않습니다.

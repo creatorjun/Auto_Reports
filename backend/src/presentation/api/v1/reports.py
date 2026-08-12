@@ -3,15 +3,15 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from src.application.mappers.report_mapper import ReportMapper
+from src.application.ports.audit_port import AuditPort
+from src.presentation.mappers.report_mapper import ReportMapper
 from src.application.use_cases.get_report import GetReportUseCase
+from src.presentation.api.deps import get_audit
 from src.presentation.api.v1.deps import get_get_use_case
 from src.presentation.schemas.report_schema import ReportDetailSchema, ReportSummarySchema
-from src.shared.audit_helper import get_client_ip
-from src.shared.audit_logger import get_audit_logger
+from src.presentation.http.client_ip import get_client_ip
 
 router = APIRouter(prefix="/reports", tags=["reports"])
-_audit = get_audit_logger()
 
 
 @router.get("/", response_model=list[ReportSummarySchema])
@@ -48,9 +48,10 @@ async def delete_report(
     report_id: int,
     request: Request,
     use_case: GetReportUseCase = Depends(get_get_use_case),
+    audit: AuditPort = Depends(get_audit),
 ):
     deleted = await use_case.delete(report_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Report not found")
     ip = get_client_ip(request)
-    _audit.audit("REPORT_DELETE | ip=%s | report_id=%d", ip, report_id)
+    audit.record("REPORT_DELETE", ip=ip, report_id=report_id)

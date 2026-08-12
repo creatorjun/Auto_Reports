@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { siteApi } from '@/infrastructure/api/siteApi'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import type { VisitHistory } from '@/domain/Site'
 import { inputCls, formatPhone } from './SiteDetailShared'
 
@@ -27,6 +27,7 @@ export default function VisitForm({
   onSuccess: () => void
   onCancel: () => void
 }) {
+  const { sites } = useApplicationServices()
   const {
     register,
     handleSubmit,
@@ -53,8 +54,8 @@ export default function VisitForm({
         action_content:  v.action_content  || undefined,
       }
       return initial?.id
-        ? siteApi.updateVisitHistory(siteId, initial.id, payload)
-        : siteApi.addVisitHistory(siteId, payload)
+        ? sites.updateVisitHistory(siteId, initial.id, payload)
+        : sites.addVisitHistory(siteId, payload)
     },
     onSuccess,
   })

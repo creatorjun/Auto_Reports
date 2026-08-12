@@ -2,7 +2,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { siteApi } from '@/infrastructure/api/siteApi'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import type { SiteSummary } from '@/domain/Site'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -29,6 +29,7 @@ function useDebounce(value: string, delay: number) {
 }
 
 export default function SiteManagementPage() {
+  const { sites } = useApplicationServices()
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
@@ -38,14 +39,14 @@ export default function SiteManagementPage() {
 
   const { data: searchResults = [], isLoading: isSearching } = useQuery({
     queryKey: ['site-search', debouncedQuery],
-    queryFn: () => siteApi.search(debouncedQuery),
+    queryFn: () => sites.search(debouncedQuery),
     enabled: debouncedQuery.trim().length >= 1,
     staleTime: 0,
   })
 
   const { data: recentSites = [] } = useQuery({
     queryKey: ['site-recent'],
-    queryFn: () => siteApi.getRecent(5),
+    queryFn: () => sites.getRecent(5),
     staleTime: 60_000,
   })
 

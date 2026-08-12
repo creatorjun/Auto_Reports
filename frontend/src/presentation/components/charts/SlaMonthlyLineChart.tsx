@@ -4,22 +4,14 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
-import { CHART_COLORS } from '@/shared/ui'
+import { CHART_COLORS } from '@/presentation/config/ui'
 import {
   SLA_TARGET_RATE, CHART_HEIGHT, CHART_TICK_FONT_SIZE,
   CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR,
   CHART_STROKE_WIDTH, CHART_DOT_RADIUS, CHART_ACTIVE_DOT_RADIUS,
   CHART_GRADIENT_STOP_START, CHART_GRADIENT_STOP_END,
-} from '@/shared/constants'
-
-export interface MonthlyEntry {
-  month: string
-  year: number
-  month_num: number
-  rate: number
-  met: number
-  total: number
-}
+} from '@/presentation/config/constants'
+import type { MonthlyEntry } from '@/domain/Dashboard'
 
 interface Props {
   title: string

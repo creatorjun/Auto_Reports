@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
-from src.shared.constants import AI_OVERDUE_DETAIL_LIMIT, SUMMARY_TRUNCATE_SHORT_LEN
+from src.domain.constants import AI_OVERDUE_DETAIL_LIMIT, SUMMARY_TRUNCATE_SHORT_LEN
 
 
 @runtime_checkable

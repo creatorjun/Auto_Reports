@@ -88,7 +88,6 @@ async def main() -> None:
         print(f"[WARN] 조직 목록 조회 실패: {orgs}")
         orgs = []
 
-    # 1. 이슈 내 커스텀 필드 전체 (non-null)
     custom_from_issue = [
         {
             "field_id":   fid,
@@ -99,7 +98,6 @@ async def main() -> None:
         if fid.startswith("customfield_") and val is not None
     ]
 
-    # 2. /rest/api/3/field 에서 customfield_* 전체
     custom_from_meta = [
         {
             "field_id":   f["id"],
@@ -111,7 +109,6 @@ async def main() -> None:
         if f["id"].startswith("customfield_")
     ]
 
-    # 3. 파트너/조직/회사 관련 키워드 필터
     KEYWORDS = ["파트너", "조직", "회사", "기관", "partner", "org", "company", "organization"]
     def has_keyword(name: str) -> bool:
         nl = name.lower()

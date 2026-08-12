@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/common/IssueModalShell.tsx
 import { useEffect, type ReactNode } from 'react'
-import { MODAL_CLS, type ModalSize } from '@/shared/ui'
+import { MODAL_CLS, type ModalSize } from '@/presentation/config/ui'
 
 interface Props {
   title: string

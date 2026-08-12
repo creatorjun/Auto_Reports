@@ -1,8 +1,8 @@
 // frontend/src/presentation/pages/LoginPage.tsx
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { useLogin } from '@/infrastructure/hooks/useAuth'
-import { useAuthStore } from '@/app/store/authStore'
+import { useLogin } from '@/presentation/hooks/useAuth'
+import { useAuthStore } from '@/presentation/state/authStore'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')

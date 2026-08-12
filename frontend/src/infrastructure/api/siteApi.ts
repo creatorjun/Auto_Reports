@@ -5,11 +5,8 @@ import type {
   SiteSummary,
   SiteCreatePayload,
   SiteUpdatePayload,
-  DeploymentNode,
   DeploymentNodePayload,
-  PatchHistory,
   PatchHistoryPayload,
-  VisitHistory,
   VisitHistoryPayload,
 } from '@/domain/Site'
 
@@ -39,13 +36,13 @@ export const siteApi = {
     return res.data
   },
 
-  addNode: async (siteId: number, payload: DeploymentNodePayload): Promise<DeploymentNode> => {
-    const res = await client.post<DeploymentNode>(`/sites/${siteId}/nodes`, payload)
+  addNode: async (siteId: number, payload: DeploymentNodePayload): Promise<SiteDetail> => {
+    const res = await client.post<SiteDetail>(`/sites/${siteId}/nodes`, payload)
     return res.data
   },
 
-  updateNode: async (siteId: number, nodeId: number, payload: DeploymentNodePayload): Promise<DeploymentNode> => {
-    const res = await client.patch<DeploymentNode>(`/sites/${siteId}/nodes/${nodeId}`, payload)
+  updateNode: async (siteId: number, nodeId: number, payload: DeploymentNodePayload): Promise<SiteDetail> => {
+    const res = await client.patch<SiteDetail>(`/sites/${siteId}/nodes/${nodeId}`, payload)
     return res.data
   },
 
@@ -53,13 +50,13 @@ export const siteApi = {
     await client.delete(`/sites/${siteId}/nodes/${nodeId}`)
   },
 
-  addPatchHistory: async (siteId: number, payload: PatchHistoryPayload): Promise<PatchHistory> => {
-    const res = await client.post<PatchHistory>(`/sites/${siteId}/patch-histories`, payload)
+  addPatchHistory: async (siteId: number, payload: PatchHistoryPayload): Promise<SiteDetail> => {
+    const res = await client.post<SiteDetail>(`/sites/${siteId}/patch-histories`, payload)
     return res.data
   },
 
-  updatePatchHistory: async (siteId: number, patchId: number, payload: PatchHistoryPayload): Promise<PatchHistory> => {
-    const res = await client.patch<PatchHistory>(`/sites/${siteId}/patch-histories/${patchId}`, payload)
+  updatePatchHistory: async (siteId: number, patchId: number, payload: PatchHistoryPayload): Promise<SiteDetail> => {
+    const res = await client.patch<SiteDetail>(`/sites/${siteId}/patch-histories/${patchId}`, payload)
     return res.data
   },
 
@@ -67,13 +64,13 @@ export const siteApi = {
     await client.delete(`/sites/${siteId}/patch-histories/${patchId}`)
   },
 
-  addVisitHistory: async (siteId: number, payload: VisitHistoryPayload): Promise<VisitHistory> => {
-    const res = await client.post<VisitHistory>(`/sites/${siteId}/visit-histories`, payload)
+  addVisitHistory: async (siteId: number, payload: VisitHistoryPayload): Promise<SiteDetail> => {
+    const res = await client.post<SiteDetail>(`/sites/${siteId}/visit-histories`, payload)
     return res.data
   },
 
-  updateVisitHistory: async (siteId: number, visitId: number, payload: VisitHistoryPayload): Promise<VisitHistory> => {
-    const res = await client.patch<VisitHistory>(`/sites/${siteId}/visit-histories/${visitId}`, payload)
+  updateVisitHistory: async (siteId: number, visitId: number, payload: VisitHistoryPayload): Promise<SiteDetail> => {
+    const res = await client.patch<SiteDetail>(`/sites/${siteId}/visit-histories/${visitId}`, payload)
     return res.data
   },
 

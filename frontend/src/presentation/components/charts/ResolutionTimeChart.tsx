@@ -1,8 +1,8 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
 import { useState, useRef, useCallback, useMemo } from 'react'
-import { useJira } from '@/app/context/JiraContext'
-import { STATUS_STYLE } from '@/shared/ui'
-import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC } from '@/shared/constants'
+import { useJira } from '@/presentation/context/JiraContext'
+import { STATUS_STYLE } from '@/presentation/config/ui'
+import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC } from '@/presentation/config/constants'
 import type { RecentIssue } from '@/domain/Issue'
 
 const COLS = ['key', 'summary', 'status', 'reporter', 'tac', 'elapsed'] as const

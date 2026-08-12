@@ -12,7 +12,7 @@
 | `/reports/:id` | `DashboardPage` | 필요 | 특정 보고서 대시보드 |
 | `/partners` | `PartnerManagementPage` | 필요 | 파트너 관리 |
 | `/storage` | `StoragePage` | 필요 | 파일 스토리지 |
-| `/storage/preview` | `StoragePreviewPage` | 필요 | 파일 미리보기 |
+| `/storage/preview` | `StoragePreviewPage` | route guard 없음 | token URL 기반 파일 미리보기 |
 | `/sites` | `SiteManagementPage` | 필요 | 사이트 목록 |
 | `/sites/new` | `SiteCreatePage` | 필요 | 사이트 생성 |
 | `/sites/:id` | `SiteDetailPage` | 필요 | 사이트 상세 |
@@ -54,9 +54,10 @@ const Wrap = ({ children }) => (
 ├── reports/:id     → DashboardPage
 ├── partners        → PartnerManagementPage
 ├── storage         → StoragePage
-├── storage/preview → StoragePreviewPage
 ├── sites           → SiteManagementPage
 ├── sites/new       → SiteCreatePage
 ├── sites/:id       → SiteDetailPage
 └── sites/:id/edit  → SiteCreatePage
 ```
+
+`/login`과 `/storage/preview`는 protected layout 밖의 독립 route이고 나머지는 `ProtectedRoute → Layout` 아래의 중첩 route입니다.

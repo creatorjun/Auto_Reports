@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { siteApi } from '@/infrastructure/api/siteApi'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import type { DeploymentNode } from '@/domain/Site'
 import { inputCls } from './SiteDetailShared'
 
@@ -33,6 +33,7 @@ export default function NodeForm({
   onSuccess: () => void
   onCancel: () => void
 }) {
+  const { sites } = useApplicationServices()
   const {
     register,
     handleSubmit,
@@ -70,8 +71,8 @@ export default function NodeForm({
         pkg_version:     v.pkg_version     || undefined,
       }
       return initial?.id
-        ? siteApi.updateNode(siteId, initial.id, payload)
-        : siteApi.addNode(siteId, payload)
+        ? sites.updateNode(siteId, initial.id, payload)
+        : sites.addNode(siteId, payload)
     },
     onSuccess,
   })

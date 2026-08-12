@@ -3,11 +3,11 @@ import logging
 from typing import Optional
 
 from src.domain.entities.report import NewReport
-from src.domain.ports.ai_port import AiPort
-from src.domain.ports.report_analyzer_port import ReportAnalyzerPort
+from src.application.ports.ai_port import AiPort
+from src.application.ports.report_analyzer_port import ReportAnalyzerPort
 from src.domain.value_objects.ai_analysis import AiAnalysis
 from src.domain.value_objects.widget_id import WidgetId
-from src.shared.constants import AI_OVERDUE_DETAIL_LIMIT
+from src.domain.constants import AI_OVERDUE_DETAIL_LIMIT
 
 logger = logging.getLogger(__name__)
 

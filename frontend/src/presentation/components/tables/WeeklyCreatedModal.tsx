@@ -1,15 +1,8 @@
 // frontend/src/presentation/components/tables/WeeklyCreatedModal.tsx
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import IssueTableModal, { type ColumnDef } from '@/presentation/components/common/IssueTableModal'
-import { MODAL_CLS } from '@/shared/ui'
-
-export interface CreatedIssue {
-  key: string
-  summary: string
-  type: string
-  status: string
-  created: string
-}
+import { MODAL_CLS } from '@/presentation/config/ui'
+import type { CreatedIssue } from '@/domain/Dashboard'
 
 interface Props {
   issues: CreatedIssue[]

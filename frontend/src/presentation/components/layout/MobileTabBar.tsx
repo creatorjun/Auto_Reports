@@ -2,9 +2,9 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, History, Building2, HardDrive, Plus } from 'lucide-react'
-import { useTrigger } from '@/infrastructure/hooks/useTrigger'
-import { useUiStore } from '@/app/store/uiStore'
-import GenerateReportModal from '@/presentation/components/common/GenerateReportModal'
+import { useTrigger } from '@/presentation/hooks/useTrigger'
+import { useUiStore } from '@/presentation/state/uiStore'
+import LazyGenerateReportModal from '@/presentation/components/common/LazyGenerateReportModal'
 
 const tabs = [
   { to: '/',        label: '대시보드', icon: <LayoutDashboard size={20} /> },
@@ -63,7 +63,7 @@ export default function MobileTabBar() {
         </button>
       </nav>
 
-      {showModal && <GenerateReportModal onClose={() => setShowModal(false)} />}
+      {showModal && <LazyGenerateReportModal onClose={() => setShowModal(false)} />}
     </>
   )
 }

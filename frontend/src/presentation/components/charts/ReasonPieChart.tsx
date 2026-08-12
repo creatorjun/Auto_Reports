@@ -3,15 +3,8 @@ import { memo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { TooltipProps } from 'recharts'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
-import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/shared/constants'
-
-export interface SlaDelayIssue {
-  key: string
-  summary: string
-  type: string
-  status: string
-  created: string
-}
+import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
+import type { SlaDelayIssue } from '@/domain/Dashboard'
 
 const REASON_COLORS = [...PIE_COLORS, '#10b981', '#f97316'] as const
 

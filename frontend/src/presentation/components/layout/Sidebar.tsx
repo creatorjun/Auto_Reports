@@ -2,8 +2,8 @@
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, History, Building2, HardDrive, Users, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
 import TriggerButton from '../common/TriggerButton'
-import { useAuthStore } from '@/app/store/authStore'
-import { useLogout } from '@/infrastructure/hooks/useAuth'
+import { useAuthStore } from '@/presentation/state/authStore'
+import { useLogout } from '@/presentation/hooks/useAuth'
 
 const reportLinks = [
   { to: '/',         label: '대시보드',      icon: <LayoutDashboard size={16} /> },

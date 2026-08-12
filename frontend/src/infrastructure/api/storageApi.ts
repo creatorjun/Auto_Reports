@@ -1,24 +1,12 @@
 // frontend/src/infrastructure/api/storageApi.ts
-import client from './client'
-import type { StorageItem } from '@/domain/Storage'
-import { useAuthStore } from '@/app/store/authStore'
-
-export interface StorageQuota {
-  used: number
-  limit: number
-  available: number
-  percent: number
-}
+import client, { getAccessToken } from './client'
+import type { StorageItem, StorageQuota } from '@/domain/Storage'
 
 export interface ChunkInitResponse {
   upload_id: string
 }
 
-const CHUNK_SIZE = 8 * 1024 * 1024  // 8MB per chunk
-
-function getAccessToken(): string | null {
-  return useAuthStore.getState().accessToken
-}
+const CHUNK_SIZE = 8 * 1024 * 1024
 
 export const storageApi = {
   list: async (folder = ''): Promise<StorageItem[]> => {

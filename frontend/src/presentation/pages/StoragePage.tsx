@@ -9,7 +9,7 @@ import {
   useUploadFiles,
   QuotaExceededError,
   type DuplicateFile,
-} from '@/infrastructure/hooks/useStorage'
+} from '@/presentation/hooks/useStorage'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import FilePreviewModal from '@/presentation/components/storage/FilePreviewModal'
 import {

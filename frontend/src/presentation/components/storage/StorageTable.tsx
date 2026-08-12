@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { storageApi } from '@/infrastructure/api/storageApi'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import type { StorageItem } from '@/domain/Storage'
 import { FolderIcon, FileIcon, EyeIcon, DownloadIcon, TrashIcon } from './StorageIcons'
 import { formatBytes, isPreviewable } from './StorageUtils'
@@ -53,6 +53,7 @@ export function ItemRow({ item, folder, onEnterDir, onPreview, onDeleteFile, onD
   onEnterDir: (name: string) => void; onPreview: (name: string) => void
   onDeleteFile: (name: string) => void; onDeleteDir: (name: string) => void
 }) {
+  const { storage } = useApplicationServices()
   const formattedDate = format(new Date(item.uploaded_at), 'MM/dd HH:mm', { locale: ko })
   const canPreview = !item.is_dir && isPreviewable(item.name)
   return (
@@ -77,7 +78,7 @@ export function ItemRow({ item, folder, onEnterDir, onPreview, onDeleteFile, onD
         <div className="flex items-center justify-end gap-1.5">
           {canPreview && <button onClick={() => onPreview(item.name)} className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors" title="미리보기"><EyeIcon /></button>}
           {!item.is_dir && <CopyLinkButton name={item.name} folder={folder} />}
-          {!item.is_dir && <a href={storageApi.download(item.name, folder)} download={item.name} className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors" title="다운로드"><DownloadIcon /></a>}
+          {!item.is_dir && <a href={storage.download(item.name, folder)} download={item.name} className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors" title="다운로드"><DownloadIcon /></a>}
           <button onClick={() => item.is_dir ? onDeleteDir(item.name) : onDeleteFile(item.name)} className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors" title="삭제"><TrashIcon /></button>
         </div>
       </td>
@@ -90,6 +91,7 @@ export function ItemRowMobile({ item, folder, onEnterDir, onPreview, onDeleteFil
   onEnterDir: (name: string) => void; onPreview: (name: string) => void
   onDeleteFile: (name: string) => void; onDeleteDir: (name: string) => void
 }) {
+  const { storage } = useApplicationServices()
   const formattedDate = format(new Date(item.uploaded_at), 'MM/dd HH:mm', { locale: ko })
   const canPreview = !item.is_dir && isPreviewable(item.name)
   return (
@@ -111,7 +113,7 @@ export function ItemRowMobile({ item, folder, onEnterDir, onPreview, onDeleteFil
       <div className="flex items-center gap-1 flex-shrink-0">
         {canPreview && <button onClick={() => onPreview(item.name)} className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"><EyeIcon /></button>}
         {!item.is_dir && <CopyLinkButtonMobile name={item.name} folder={folder} />}
-        {!item.is_dir && <a href={storageApi.download(item.name, folder)} download={item.name} className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"><DownloadIcon /></a>}
+        {!item.is_dir && <a href={storage.download(item.name, folder)} download={item.name} className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors"><DownloadIcon /></a>}
         <button onClick={() => item.is_dir ? onDeleteDir(item.name) : onDeleteFile(item.name)} className="w-8 h-8 rounded-lg flex items-center justify-center text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors"><TrashIcon /></button>
       </div>
     </div>

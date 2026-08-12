@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.domain.entities.job import JobRecord, JobStatus
-from src.domain.repositories.job_repository import JobRepository
+from src.application.ports.job_repository import JobRepository
 from src.infrastructure.persistence.models import JobORM
 
 

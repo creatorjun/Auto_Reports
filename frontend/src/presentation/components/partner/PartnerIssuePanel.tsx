@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/partner/PartnerIssuePanel.tsx
 import { useQuery } from '@tanstack/react-query'
-import { partnerApi } from '@/infrastructure/api/partnerApi'
+import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import PartnerPanelHeader from './PartnerPanelHeader'
 import type { PartnerIssue } from '@/domain/Partner'
 
@@ -50,16 +50,17 @@ export default function PartnerIssuePanel({
   accountId: string | null
   label: string
 }) {
+  const { partners } = useApplicationServices()
   const byOrg = useQuery({
     queryKey: ['partner-issues-org', orgId],
-    queryFn: () => partnerApi.getIssuesByOrg(orgId!),
+    queryFn: () => partners.getIssuesByOrg(orgId!),
     enabled: !!orgId && !accountId,
     staleTime: 60_000,
   })
 
   const byMember = useQuery({
     queryKey: ['partner-issues-member', accountId],
-    queryFn: () => partnerApi.getIssuesByMember(accountId!),
+    queryFn: () => partners.getIssuesByMember(accountId!),
     enabled: !!accountId,
     staleTime: 60_000,
   })

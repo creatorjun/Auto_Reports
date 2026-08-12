@@ -5,8 +5,8 @@ from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import SlaDelayIssueDetail, SlaDelayWidgetData
-from src.domain.ports.jira_port import JiraPort
-from src.shared.constants import JIRA_MAX_RESULT, SUMMARY_TRUNCATE_LEN
+from src.application.ports.jira_port import JiraPort
+from src.domain.constants import JIRA_MAX_RESULT, SUMMARY_TRUNCATE_LEN
 
 logger = logging.getLogger(__name__)
 

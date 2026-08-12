@@ -1,115 +1,31 @@
-# backend/docs/05_issue_catalog.md
+# Clean Architecture Audit
 
-# Issue Catalog — 코드 검수 결과
+검수 기준일: 2026-08-12
+검수 범위: `backend/src`, 실행 진입점, 비동기 경계, 리소스 수명, 테스트와 문서
 
-검수 기준일: 2026-08-05  
-검수 범위: `backend/src/` 전체
+## 수정한 위반
 
----
+| 항목 | 기존 문제 | 현재 구조 |
+|------|-----------|-----------|
+| 의존성 역전 | Application mapper가 Presentation Pydantic 스키마를 import | HTTP mapper를 `presentation/mappers`로 이동 |
+| 포트 배치 | 외부 시스템과 저장소 계약이 Domain에 혼재 | 모든 유스케이스 경계 계약을 `application/ports`로 이동 |
+| 프레임워크 누수 | Storage 유스케이스가 FastAPI `UploadFile`, subprocess, 파일시스템을 직접 사용 | `StoragePort`와 `DocumentConverterPort`를 주입하고 동기 I/O를 thread 경계로 격리 |
+| 스케줄러 누수 | Application이 APScheduler를 직접 import | `infrastructure/scheduling` adapter로 이동 |
+| Service Locator | 라우터 dependency가 구체 Container와 SQLAlchemy session을 조회 | 명시적 `ApiServices`와 유스케이스 async context factory로 교체 |
+| 전역 DB | 모듈 전역 engine과 session factory | lifespan이 소유하는 `Database` 객체로 교체 |
+| 잡 결합 | JobRunner가 Container와 SQLAlchemy를 직접 알고 FastAPI가 task를 소유 | 생성 callback과 repository 포트 주입, JobRunner가 task 수명 소유 |
+| 동시성 | lock을 잡은 채 저장소 I/O, 제출 검사와 실행 예약 사이 race | lock은 원자적 예약에만 사용하고 외부 I/O는 lock 밖에서 실행 |
+| 알림 | Event set/clear 타이밍으로 SSE 알림 유실 또는 dictionary 잔류 가능 | 알려진 상태 재검사와 실제 대기자 set으로 교체 |
+| 불변식 위반 | Presentation이 frozen 하위 dataclass를 `setattr`로 변경 | SiteUseCase가 `replace`로 aggregate를 갱신 |
+| 오류 매핑 | 유스케이스의 존재하지 않음 처리가 HTTP 예외와 결합 | Application 오류를 전역 HTTP handler가 404/409로 매핑 |
+| 수명 관리 | HTTP client, cache background task, DB engine 종료 책임 불명확 | 각 adapter의 `aclose`와 lifespan 종료 순서를 명시 |
 
-## 🔴 HIGH — 즉시 수정 권고
+## 유지해야 할 운영 보안 조건
 
-### [ISS-001] `sites.py` 라우터의 변환 함수 중복
+- 운영에서는 `COOKIE_SECURE=true`를 사용하고 HTTPS를 강제합니다.
+- `CREDENTIAL_ENCRYPTION_KEY`가 없으면 사이트 접속 자격증명을 암호화하지 않으므로 운영 배포 전에 Fernet 키를 반드시 설정합니다.
+- 브라우저 access token은 현재 localStorage에 있으므로 CSP와 XSS 방어를 유지하고, 외부 노출 범위가 커지면 메모리 저장 또는 HttpOnly cookie 전환을 검토합니다.
 
-**위치**: `backend/src/presentation/api/v1/sites.py`  
-**설명**: `_creds_from_schema`, `_creds_to_schema`, `_contact_from_schema`, `_contact_to_schema`, `_node_to_schema` 등의 변환 함수들이 라우터 파일에 직접 정의되어 있습니다. 이 로직은 Presentation Layer에 속하지 않으며 Application Layer의 Mapper 또는 별도 `site_mapper.py`로 분리해야 합니다.  
-**영향**: 테스트 불가, 코드 재사용 불가, 관심사 미분리  
-**수정 방향**: `src/application/mappers/site_mapper.py` 생성 및 이전
+## 회귀 방지
 
----
-
-### [ISS-002] `sites.py` `add_node` 엔드포인트의 취약한 응답
-
-**위치**: `backend/src/presentation/api/v1/sites.py` — `add_node()`  
-**설명**: `site.nodes[-1]`로 마지막 노드를 반환합니다. 동시 요청 시 잘못된 노드가 반환될 수 있으며, 데이터베이스 순서 보장이 없습니다.  
-**수정 방향**: `SiteUseCase.add_node()`가 추가된 노드 객체(id 포함)를 직접 반환하도록 수정
-
----
-
-### [ISS-003] `access_credentials` 평문 저장
-
-**위치**: `backend/src/infrastructure/persistence/site_models.py`  
-**설명**: CLI/Web/DB/VPN 패스워드가 JSONB에 평문으로 저장됩니다.  
-**영향**: DB 접근 권한이 있는 누구든 자격증명 열람 가능  
-**수정 방향**: 저장 시 AES-256 또는 Fernet 암호화 적용, 또는 HashiCorp Vault 연동 고려
-
----
-
-## 🟡 MEDIUM — 다음 리팩토링 사이클에서 수정
-
-### [ISS-004] `update_node`, `update_patch_history`, `update_visit_history` 패턴 중복
-
-**위치**: `backend/src/presentation/api/v1/sites.py`  
-**설명**: 3개의 서브리소스 업데이트 핸들러가 동일한 패턴(site 조회 → 서브리소스 탐색 → setattr 루프 → site 전체 저장)을 반복합니다.  
-**수정 방향**: `SiteUseCase`에 `update_node(site_id, node_id, updates)` 등 전용 메서드 추가
-
----
-
-### [ISS-005] `JobRunner._notify_events` 메모리 누수 가능성
-
-**위치**: `backend/src/infrastructure/job_runner.py`  
-**설명**: `_notify_events` 딕셔너리는 `finally` 블록에서 정리되지만, `save_pending` 이후 `execute_in_background`가 호출되지 않는 비정상 경로에서는 이벤트가 영구적으로 남을 수 있습니다.  
-**수정 방향**: TTL 기반 정리 또는 WeakValueDictionary 사용 검토
-
----
-
-### [ISS-006] `Container.is_valid_credentials` 비교 로직 취약
-
-**위치**: `backend/src/infrastructure/container.py`  
-**설명**: 패스워드 비교가 `==` 단순 문자열 비교입니다. `admin_password`가 빈 문자열(`""`)일 때 의도치 않게 로그인이 허용될 수 있습니다.  
-**수정 방향**: `admin_password`가 빈 문자열인 경우 로그인 실패 처리 추가
-
-```python
-if not password:
-    return False
-```
-
----
-
-### [ISS-007] `auth.py`의 `secure=False` 쿠키 설정
-
-**위치**: `backend/src/presentation/api/v1/auth.py` — `_set_refresh_cookie()`  
-**설명**: `secure=False`로 설정되어 있어 HTTP 환경에서도 쿠키가 전송됩니다. 운영 환경에서는 HTTPS가 보장되어야 합니다.  
-**수정 방향**: `secure=settings.cookie_secure` 형태로 환경변수화
-
----
-
-### [ISS-008] `trigger.py` SSE `elapsed` 계산 오차
-
-**위치**: `backend/src/presentation/api/v1/trigger.py` — `event_generator()`  
-**설명**: `elapsed += _SSE_WAIT_TIMEOUT`으로 누적하는 방식은 실제 대기 시간과 차이가 생깁니다 (잡이 빨리 완료되어 `wait_for_update`가 조기 반환 시). 타임아웃이 의도보다 짧게 작동할 수 있습니다.  
-**수정 방향**: `asyncio.get_event_loop().time()` 또는 `time.monotonic()`으로 실제 경과 시간 측정
-
----
-
-## 🟢 LOW — 품질 개선 사항
-
-### [ISS-009] `Settings.year_start` 프로퍼티 타임존 미고려
-
-**위치**: `backend/src/infrastructure/config/settings.py`  
-**설명**: `datetime.date.today()`는 서버 로컬 타임존 기준입니다. KST 서버가 아닌 환경에서 연도가 다를 수 있습니다.  
-**수정 방향**: `datetime.datetime.now(ZoneInfo("Asia/Seoul")).year` 사용
-
----
-
-### [ISS-010] 위젯 컬렉터 `site.nodes[-1]` 패턴 일관성
-
-**위치**: 여러 위젯 컬렉터 파일  
-**설명**: 위젯 컬렉터들이 각각 독립적으로 Jira API를 호출합니다. `report_assembler.py`가 병렬 실행하지만, 동일한 JQL을 여러 컬렉터가 중복 호출할 가능성이 있습니다.  
-**수정 방향**: 필요 시 공통 이슈 목록 사전 패치 후 컬렉터에 주입하는 방식으로 최적화 가능
-
----
-
-### [ISS-011] `partner_use_case.py` Jira 클라이언트 직접 접근
-
-**위치**: `backend/src/application/use_cases/partner_use_case.py`  
-**설명**: `PartnerUseCase`가 `jira_base_url`, `jira_email`, `jira_api_token`을 직접 받아 내부에서 HTTP 클라이언트를 생성합니다. 이는 `JiraPort` 추상화를 우회하는 패턴입니다.  
-**수정 방향**: `JiraPort`에 파트너 조회 메서드 추가 또는 전용 포트 분리
-
----
-
-## 검수 총평
-
-전체적으로 Clean Architecture 원칙이 잘 지켜지고 있습니다. 레이어 간 의존성 방향이 올바르며, 포트/어댑터 패턴이 일관성 있게 적용되어 있습니다. 위의 이슈들은 기능 결함이 아닌 보안 강화 및 코드 품질 개선 항목이 중심입니다.  
-
-**우선 처리 권고 순서**: ISS-003 (보안) → ISS-001 (아키텍처) → ISS-002 (버그) → ISS-006 (보안)
+`backend/tests/test_architecture.py`가 내부 레이어의 프레임워크 import와 의존 방향을 검사합니다. `test_site_use_case.py`와 `test_job_runner.py`는 불변 하위 엔티티 갱신, 없는 엔티티 오류, 알림 race와 잡 완료 상태를 검증합니다.

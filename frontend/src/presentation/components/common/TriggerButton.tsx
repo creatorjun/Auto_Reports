@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/common/TriggerButton.tsx
 import { useState } from 'react'
-import { useUiStore } from '@/app/store/uiStore'
+import { useUiStore } from '@/presentation/state/uiStore'
 import LazyGenerateReportModal from './LazyGenerateReportModal'
 
 interface Props {

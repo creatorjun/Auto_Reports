@@ -1,159 +1,86 @@
-# backend/docs/01_architecture.md
-
 # Backend Architecture
 
-## 개요
+## 의존성 규칙
 
-이 프로젝트는 **Clean Architecture** 원칙을 기반으로 4개 레이어로 구성된 FastAPI 백엔드입니다.  
-의존성은 항상 **외부 → 내부** 방향으로만 흐르며, 도메인 레이어는 어떤 외부 프레임워크에도 의존하지 않습니다.
-
-```
-Presentation  →  Application  →  Domain
-                    ↑
-             Infrastructure
-```
-
----
-
-## 레이어 구조
-
-### 1. Domain Layer (`src/domain/`)
-
-- **역할**: 비즈니스 핵심 엔티티와 규칙, 추상 포트(인터페이스) 정의
-- **의존 금지**: 외부 라이브러리, FastAPI, SQLAlchemy 일절 사용 불가
-- **구성**:
-
-| 경로 | 설명 |
-|------|------|
-| `entities/job.py` | `JobRecord`, `JobStatus` (Enum: PENDING/RUNNING/DONE/ERROR) |
-| `entities/report.py` | `Report` 도메인 엔티티 |
-| `entities/site.py` | `Site`, `DeploymentNode`, `PatchHistory`, `VisitHistory`, `AccessCredentials`, `Credential`, `ContactInfo` |
-| `repositories/job_repository.py` | Job 저장소 추상 인터페이스 |
-| `repositories/report_repository.py` | Report 저장소 추상 인터페이스 |
-| `ports/ai_port.py` | AI 분석기 추상 포트 |
-| `ports/jira_port.py` | Jira 클라이언트 추상 포트 |
-| `ports/storage_port.py` | 파일 스토리지 추상 포트 |
-| `ports/report_analyzer_port.py` | 보고서 분석 추상 포트 |
-
----
-
-### 2. Application Layer (`src/application/`)
-
-- **역할**: 유스케이스 오케스트레이션, 도메인 포트를 조합해 비즈니스 흐름 구현
-- **의존 허용**: Domain Layer만 의존 가능
-- **구성**:
-
-| 경로 | 설명 |
-|------|------|
-| `use_cases/generate_report.py` | 주간보고서 생성 유스케이스 (Jira 수집 → 위젯 조립 → AI 분석 → DB 저장) |
-| `use_cases/get_report.py` | 보고서 조회 유스케이스 (캐시 우선 → DB 폴백) |
-| `use_cases/site_use_cases.py` | 사이트 CRUD + 노드/패치/방문이력 관리 유스케이스 |
-| `use_cases/partner_use_case.py` | Jira 파트너 조회 유스케이스 |
-| `use_cases/storage_use_case.py` | 파일 업로드/다운로드/삭제 유스케이스 |
-| `services/ai_analyzer.py` | `AiPort`를 주입받아 AI 분석 수행, `ai_enabled=False`면 스킵 |
-| `services/report_assembler.py` | 위젯 컬렉터들을 병렬 실행해 보고서 데이터 조립 |
-| `services/query_builder.py` | JQL 쿼리 빌더 (위젯 유형별 JQL 생성) |
-| `services/query_config.py` | 쿼리 설정값 VO |
-| `widgets/base.py` | 위젯 컬렉터 추상 베이스 클래스 |
-| `widgets/collector_factory.py` | 위젯 컬렉터 팩토리 |
-| `widgets/count_collector.py` | 이슈 카운트 위젯 |
-| `widgets/created_vs_resolved_collector.py` | 생성 vs 해결 추이 위젯 |
-| `widgets/monthly_collector.py` | 월별 이슈 위젯 |
-| `widgets/monthly_count_collector.py` | 월별 카운트 위젯 |
-| `widgets/recent_collector.py` | 최근 이슈 목록 위젯 |
-| `widgets/resolution_collector.py` | 해결 현황 위젯 |
-| `widgets/sla_delay_collector.py` | SLA 지연 이슈 위젯 |
-| `ports/job_runner_port.py` | 백그라운드 잡 실행기 추상 포트 |
-| `ports/report_cache_port.py` | 보고서 캐시 추상 포트 |
-| `mappers/job_mapper.py` | JobRecord → JobStatusSchema 변환 |
-
----
-
-### 3. Infrastructure Layer (`src/infrastructure/`)
-
-- **역할**: 외부 시스템 연동 구현체 (DB, Jira, Gemini AI, 스케줄러 등)
-- **구성**:
-
-| 경로 | 설명 |
-|------|------|
-| `container.py` | **DI 컨테이너** — 앱 전체 의존성 조립 (싱글턴 패턴) |
-| `config/settings.py` | `pydantic-settings` 기반 환경변수 설정 (`.env` 로드) |
-| `persistence/database.py` | SQLAlchemy async engine + session factory |
-| `persistence/models.py` | `ReportORM`, `JobORM` — SQLAlchemy Mapped 모델 |
-| `persistence/site_models.py` | `SiteORM`, `DeploymentNodeORM`, `PatchHistoryORM`, `VisitHistoryORM` |
-| `persistence/report_repository_impl.py` | `ReportRepository` 구현체 |
-| `persistence/job_repository_impl.py` | `JobRepository` 구현체 |
-| `persistence/site_repository_impl.py` | `SiteRepository` 구현체 (가장 복잡한 구현체) |
-| `persistence/widget_serializer.py` | 위젯 데이터 JSONB 직렬화/역직렬화 |
-| `external/jira_client.py` | `httpx.AsyncClient` 기반 Jira REST API v3 클라이언트 |
-| `external/gemini_client.py` | Google Gemini API 클라이언트 |
-| `factories/jira_factory.py` | Jira 클라이언트 팩토리 |
-| `factories/ai_factory.py` | AI 클라이언트 팩토리 |
-| `factories/widget_collector_factory.py` | 위젯 컬렉터 팩토리 래퍼 |
-| `job_runner.py` | `JobRunnerPort` 구현체 — asyncio.Lock 기반 단일 잡 실행 보장 |
-| `report_cache.py` | LRU 캐시 구현체 (`ReportCachePort`) |
-| `security/jwt_service.py` | JWT access/refresh 토큰 발급·검증 |
-| `storage/local_storage.py` | `StoragePort` 로컬 파일시스템 구현체 |
-| `scheduler.py` | APScheduler 기반 cron 스케줄러 |
-
----
-
-### 4. Presentation Layer (`src/presentation/`)
-
-- **역할**: HTTP 요청/응답 처리, Pydantic 스키마 검증, FastAPI 라우터
-- **구성**:
-
-| 경로 | 설명 |
-|------|------|
-| `api/v1/auth.py` | 로그인/로그아웃/토큰 갱신/me 엔드포인트 |
-| `api/v1/trigger.py` | 보고서 트리거 + SSE 스트림 |
-| `api/v1/reports.py` | 보고서 조회 엔드포인트 |
-| `api/v1/sites.py` | 사이트 CRUD + 노드/패치/방문이력 서브리소스 |
-| `api/v1/partners.py` | 파트너 조회 엔드포인트 |
-| `api/v1/storage.py` | 파일 업로드/다운로드 엔드포인트 |
-| `api/deps.py` | FastAPI `Depends` 헬퍼 함수들 |
-| `api/v1/deps.py` | v1 전용 `Depends` 헬퍼 함수들 |
-| `schemas/report_schema.py` | 보고서 관련 Pydantic 스키마 |
-| `schemas/site_schema.py` | 사이트 관련 Pydantic 스키마 |
-| `schemas/partner_schema.py` | 파트너 관련 Pydantic 스키마 |
-
----
-
-## 의존성 주입 방식
-
-`Container` 클래스가 앱 시작 시 모든 의존성을 조립하고 `app.state.container`에 보관합니다.  
-`AsyncSession`이 필요한 유스케이스는 요청마다 `Container`의 팩토리 메서드로 생성합니다.
-
-```
-app.state.container (Container)
-    └─ _jira: JiraPort (JiraClient)
-    └─ _ai: AiPort (GeminiClient | NullAi)
-    └─ _report_cache: ReportCachePort (ReportLruCache)
-    └─ _jwt_service: JwtService
-    └─ _storage_use_case: StorageUseCase
-    └─ _partner_use_case: PartnerUseCase
-    └─ generate_report_use_case(session) → GenerateReportUseCase  [요청당 생성]
-    └─ get_report_use_case(session)      → GetReportUseCase        [요청당 생성]
-    └─ site_use_case(session)            → SiteUseCase             [요청당 생성]
+```text
+                         ┌──────────────────┐
+                         │      Domain      │
+                         │ entity, value    │
+                         └────────▲─────────┘
+                                  │
+                         ┌────────┴─────────┐
+                         │   Application    │
+                         │ use case, port   │
+                         └──────▲────▲──────┘
+                                │    │
+                 ┌──────────────┘    └──────────────┐
+        ┌────────┴─────────┐              ┌─────────┴────────┐
+        │ Infrastructure   │              │   Presentation   │
+        │ adapter, driver  │              │ HTTP, schema     │
+        └────────▲─────────┘              └─────────▲────────┘
+                 └──────────────┬───────────────────┘
+                                │
+                         ┌──────┴──────┐
+                         │ Bootstrap   │
+                         │ composition │
+                         └─────────────┘
 ```
 
----
+- `domain`은 표준 라이브러리 외 프레임워크를 import하지 않습니다.
+- `application`은 `domain`과 `application` 내부만 import합니다.
+- 저장소, 외부 API, 토큰, 캐시, 감사 로그, 파일 변환 계약은 Application 포트입니다.
+- `infrastructure`는 포트를 구현하고 SQLAlchemy, httpx, APScheduler, 파일시스템을 소유합니다.
+- `presentation`은 HTTP와 Pydantic 변환만 담당하고 구체 인프라 구현을 알지 못합니다.
+- `bootstrap`과 `main.py`만 양쪽의 구체 구현을 조립합니다.
 
-## 비동기 처리 및 잡 실행 모델
+이 규칙은 `backend/tests/test_architecture.py`가 AST import graph로 검사합니다.
 
-보고서 생성은 오래 걸리는 작업이므로 FastAPI `BackgroundTasks`로 비동기 실행합니다.  
-`JobRunner`는 `asyncio.Lock`으로 **동시에 1개 잡만 실행**되도록 보장합니다.  
-클라이언트는 `GET /trigger/{job_id}/stream` SSE 엔드포인트로 진행 상황을 실시간으로 수신합니다.
+## 레이어별 구성
 
+### Domain
+
+`src/domain/entities`와 `src/domain/value_objects`가 보고서, 잡, 사이트, 위젯 모델과 핵심 값을 정의합니다. `constants.py`는 KST와 도메인 기본값을 제공합니다. 저장소 인터페이스나 외부 서비스 계약은 Domain에 두지 않습니다.
+
+### Application
+
+`src/application/ports`에 Jira, Service Desk, AI, 이메일, 저장소, 캐시, 인증 토큰, 감사, 파일 저장소와 변환기, 잡 실행 계약이 있습니다. `use_cases`는 이 추상화만 조합하며 FastAPI 요청 객체, SQLAlchemy 세션, APScheduler, 로컬 경로를 받지 않습니다.
+
+사이트 하위 엔티티 갱신은 frozen dataclass를 직접 변경하지 않고 `dataclasses.replace`로 새 값을 만든 뒤 aggregate 전체를 저장합니다. 없는 aggregate나 하위 엔티티는 `EntityNotFoundError`로 표현하고 HTTP 404 매핑은 바깥 레이어에서 수행합니다.
+
+### Infrastructure
+
+- `persistence`: `Database`가 async engine과 session transaction을 소유하고 repository adapter가 ORM 매핑을 수행합니다.
+- `external`: Jira, Gemini, SMTP adapter입니다.
+- `storage`: 로컬 파일 adapter와 LibreOffice 문서 변환 adapter입니다.
+- `cache`: 만료형 LRU 구현과 생성한 정리 task의 종료를 책임집니다.
+- `scheduling`: cron 검증과 APScheduler 생성입니다.
+- `job_runner.py`: 보고서 task와 동시 실행 정책을 소유합니다.
+- `security`: JWT와 선택적 Fernet 자격증명 암호화입니다.
+
+### Presentation
+
+`src/presentation/api`는 FastAPI 라우터와 명시적 `ApiServices` 의존성을 사용합니다. Pydantic 변환은 `presentation/mappers`, 요청·응답 모델은 `presentation/schemas`, HTTP 보조 로직은 `presentation/http`에 있습니다. Application은 이 타입을 import하지 않습니다.
+
+### Bootstrap
+
+`src/bootstrap/container.py`는 설정에 맞는 adapter와 유스케이스 factory를 구성합니다. 전역 singleton이나 `app.state.container` service locator로 노출하지 않습니다. `main.py`가 프로세스 수준 `Database`, `Container`, `JobRunner`, scheduler와 `ApiServices`를 만들고 lifespan 종료 순서에 맞게 닫습니다.
+
+## 트랜잭션과 리소스 수명
+
+요청 단위 DB 유스케이스는 `Database.session()` context manager 안에서 만들어집니다. 정상 종료 시 commit, 예외 시 rollback이며 엔진은 FastAPI lifespan 종료 때 dispose됩니다. Jira HTTP client, 보고서 캐시, 잡 task도 각 소유자의 `aclose()`에서 정리됩니다.
+
+파일시스템과 LibreOffice 같은 동기 I/O는 `StorageUseCase`가 `asyncio.to_thread` 경계를 통해 호출하므로 이벤트 루프를 차단하지 않습니다.
+
+## 잡 실행과 SSE
+
+`JobRunner.submit()`은 lock 안에서 실행권을 원자적으로 예약하고 중복 제출에는 `JobAlreadyRunningError`를 발생시킵니다. FastAPI `BackgroundTasks`가 아니라 JobRunner가 생성한 `asyncio.Task`를 추적하고 종료 시 취소·회수합니다. 저장소 I/O와 보고서 생성은 lock 밖에서 실행됩니다.
+
+SSE는 조회한 `JobStatus`를 `wait_for_update()`에 전달합니다. 실행기는 대기자를 등록하기 전후로 상태를 다시 확인해 lost notification을 막고, 대기자 set은 종료 시 제거합니다.
+
+## 검증
+
+```bash
+cd backend
+python -m unittest discover -s tests -v
+python -m compileall -q src tests
 ```
-POST /trigger/          → 202 Accepted (job_id 반환)
-GET  /trigger/{id}/status   → 폴링 방식 상태 조회
-GET  /trigger/{id}/stream   → SSE 스트림 (실시간 상태 push)
-```
-
----
-
-## 스케줄링
-
-`Settings.schedule_cron` (기본값: `"0 23 * * 5"` — 매주 금요일 23:00 KST)에 따라  
-APScheduler가 `JobRunner.run_scheduled_job()`을 자동 실행합니다.

@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/cards/SlaRateCard.tsx
-import { SLA_COLOR_MAP, SLA_TARGET_RATE, SLA_RING_RADIUS } from '@/shared/constants'
+import { SLA_COLOR_MAP, SLA_TARGET_RATE, SLA_RING_RADIUS } from '@/presentation/config/constants'
 
 interface SlaField {
   name: string
