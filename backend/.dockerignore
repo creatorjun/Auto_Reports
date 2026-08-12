@@ -1,0 +1,9 @@
+# backend/.dockerignore
+__pycache__
+*.py[cod]
+.pytest_cache
+.test_deps
+.test_storage
+logs
+reports
+storage
