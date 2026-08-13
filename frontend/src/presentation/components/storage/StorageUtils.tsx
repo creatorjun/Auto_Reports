@@ -16,17 +16,32 @@ export function joinPath(...parts: string[]): string {
   return parts.filter(Boolean).join('/').replace(/\/+/g, '/')
 }
 
-export function getShareUrl(name: string, folder: string): string {
-  const base = window.location.origin
-  const path = folder ? `${folder}/${name}` : name
-  return `${base}/api/storage/share/${encodeURIComponent(path)}`
-}
-
 export async function copyToClipboard(text: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+    }
+  }
+
+  const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  const textArea = document.createElement('textarea')
+  textArea.value = text
+  textArea.setAttribute('readonly', '')
+  textArea.style.position = 'fixed'
+  textArea.style.left = '-9999px'
+  textArea.style.opacity = '0'
+
   try {
-    await navigator.clipboard.writeText(text)
-    return true
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    return document.execCommand('copy')
   } catch {
     return false
+  } finally {
+    textArea.remove()
+    activeElement?.focus()
   }
 }
