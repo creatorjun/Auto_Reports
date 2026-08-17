@@ -79,6 +79,28 @@ class LocalStorageAdapter(StoragePort):
             raise FileNotFoundError(f"Folder not found: {name}")
         shutil.rmtree(path)
 
+    def move_entry(self, source_folder: str, name: str, destination_folder: str) -> None:
+        if not name or name in {".", ".."} or "/" in name or "\\" in name:
+            raise ValueError("Invalid name")
+        source = self._resolve(source_folder, name)
+        destination_dir = self._resolve(destination_folder)
+        destination = self._resolve(destination_folder, name)
+        if not os.path.exists(source):
+            raise FileNotFoundError(f"Entry not found: {name}")
+        if not os.path.isdir(destination_dir):
+            raise FileNotFoundError(f"Folder not found: {destination_folder}")
+        source_key = os.path.normcase(source)
+        destination_key = os.path.normcase(destination)
+        if source_key == destination_key:
+            raise ValueError("Source and destination are the same")
+        if os.path.exists(destination):
+            raise FileExistsError(f"Already exists: {name}")
+        if os.path.isdir(source):
+            destination_dir_key = os.path.normcase(destination_dir)
+            if os.path.commonpath((source_key, destination_dir_key)) == source_key:
+                raise ValueError("Cannot move a folder into itself")
+        shutil.move(source, destination)
+
     async def save_file(self, folder: str, filename: str, data: bytes) -> StorageEntry:
         dest = self._resolve(folder, filename)
         os.makedirs(os.path.dirname(dest), exist_ok=True)

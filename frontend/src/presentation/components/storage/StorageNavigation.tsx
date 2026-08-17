@@ -1,5 +1,7 @@
 // frontend/src/presentation/components/storage/StorageNavigation.tsx
+import { useState } from 'react'
 import { ArrowLeft, ArrowRight, ArrowUp, ChevronRight, FolderPlus } from 'lucide-react'
+import { STORAGE_ENTRY_DRAG_TYPE } from './StorageDrag'
 
 type Props = {
   folder: string
@@ -11,6 +13,9 @@ type Props = {
   onNavigateTo: (index: number) => void
   onCreateFolder: () => void
   isCreateDisabled: boolean
+  dragSourceFolder: string | null
+  isMoving: boolean
+  onMoveToFolder: (destinationFolder: string) => void
 }
 
 type NavigationButtonProps = {
@@ -45,8 +50,40 @@ export default function StorageNavigation({
   onNavigateTo,
   onCreateFolder,
   isCreateDisabled,
+  dragSourceFolder,
+  isMoving,
+  onMoveToFolder,
 }: Props) {
   const breadcrumbs = folder ? folder.split('/') : []
+  const [dropTargetFolder, setDropTargetFolder] = useState<string | null>(null)
+
+  const getDropTargetProps = (destinationFolder: string) => {
+    const canDrop = dragSourceFolder !== null && destinationFolder !== dragSourceFolder && !isMoving
+    return {
+      canDrop,
+      isDropTarget: canDrop && dropTargetFolder === destinationFolder,
+      onDragOver: (event: React.DragEvent) => {
+        if (!canDrop || !Array.from(event.dataTransfer.types).includes(STORAGE_ENTRY_DRAG_TYPE)) return
+        event.preventDefault()
+        event.stopPropagation()
+        event.dataTransfer.dropEffect = 'move'
+        setDropTargetFolder(destinationFolder)
+      },
+      onDragLeave: (event: React.DragEvent) => {
+        if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+        setDropTargetFolder(null)
+      },
+      onDrop: (event: React.DragEvent) => {
+        if (!canDrop) return
+        event.preventDefault()
+        event.stopPropagation()
+        setDropTargetFolder(null)
+        onMoveToFolder(destinationFolder)
+      },
+    }
+  }
+
+  const rootDropTarget = getDropTargetProps('')
 
   return (
     <div className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-2 md:grid-cols-[auto_minmax(0,1fr)_auto]">
@@ -70,14 +107,33 @@ export default function StorageNavigation({
           type="button"
           onClick={() => onNavigateTo(-1)}
           disabled={!folder}
-          className="shrink-0 text-[13px] font-medium text-brand-600 transition-colors hover:text-brand-700 disabled:cursor-default disabled:text-apple-dark"
+          onDragOver={rootDropTarget.onDragOver}
+          onDragLeave={rootDropTarget.onDragLeave}
+          onDrop={rootDropTarget.onDrop}
+          title={rootDropTarget.canDrop ? '여기에 놓아 보관함으로 이동' : undefined}
+          className={`shrink-0 rounded-md px-1.5 py-1 text-[13px] font-medium transition-all disabled:cursor-default ${
+            rootDropTarget.isDropTarget
+              ? 'bg-brand-100 text-brand-700 ring-2 ring-brand-300'
+              : 'text-brand-600 hover:text-brand-700 disabled:text-apple-dark'
+          }`}
         >
           보관함
         </button>
         {breadcrumbs.map((segment, index) => {
           const isCurrent = index === breadcrumbs.length - 1
+          const destinationFolder = breadcrumbs.slice(0, index + 1).join('/')
+          const dropTarget = getDropTargetProps(destinationFolder)
           return (
-            <div key={`${segment}-${index}`} className="flex shrink-0 items-center gap-1">
+            <div
+              key={`${segment}-${index}`}
+              onDragOver={dropTarget.onDragOver}
+              onDragLeave={dropTarget.onDragLeave}
+              onDrop={dropTarget.onDrop}
+              title={dropTarget.canDrop ? `여기에 놓아 ${segment}(으)로 이동` : undefined}
+              className={`flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 transition-all ${
+                dropTarget.isDropTarget ? 'bg-brand-100 ring-2 ring-brand-300' : ''
+              }`}
+            >
               <ChevronRight size={12} className="text-apple-divider" strokeWidth={1.6} />
               <button
                 type="button"

@@ -73,11 +73,14 @@ Aggregate 또는 하위 엔티티가 없으면 404입니다.
 | GET | `/storage/check?folder=...&name=...` | 존재 여부 조회 |
 | POST | `/storage/folders` | 폴더 생성 |
 | DELETE | `/storage/folders?folder=...&name=...` | 폴더 삭제 |
+| POST | `/storage/move` | 파일 또는 폴더를 다른 폴더로 이동 |
 | POST | `/storage/upload?folder=...&overwrite=false` | multipart 단일 파일 업로드 |
 | POST | `/storage/upload/init` | chunk upload session 생성 |
 | POST | `/storage/upload/chunk?upload_id=...&chunk_index=...` | chunk 업로드 |
 | POST | `/storage/upload/complete` | chunk 병합과 최종 파일 반환 |
 | DELETE | `/storage/upload/abort?upload_id=...` | session 중단과 임시 데이터 삭제 |
 | DELETE | `/storage/files?folder=...&name=...` | 파일 삭제 |
+
+`/storage/move`는 `source_folder`, `name`, `destination_folder`를 JSON body로 받습니다. 동일 경로와 폴더 자기 하위 이동은 400, 대상 이름 충돌은 409로 반환합니다.
 
 경로는 Storage adapter가 정규화하고 root 이탈을 거부합니다. 중복은 409, quota 초과는 413, 잘못된 경로는 400 또는 404로 반환합니다.

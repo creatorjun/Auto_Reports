@@ -1,15 +1,17 @@
 // frontend/src/presentation/pages/StoragePage.tsx
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   useCreateFolder,
   useDeleteFolder,
   useDeleteStorageFile,
+  useMoveStorageEntry,
   useStorageItems,
   useStorageQuota,
   useUploadFiles,
   QuotaExceededError,
   type DuplicateFile,
 } from '@/presentation/hooks/useStorage'
+import { RequestError } from '@/application/errors/RequestError'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import FilePreviewModal from '@/presentation/components/storage/FilePreviewModal'
 import StorageNavigation from '@/presentation/components/storage/StorageNavigation'
@@ -19,15 +21,35 @@ import {
   QuotaExceededModal,
   OverwriteConfirmModal,
   UploadProgressBar,
+} from '@/presentation/components/storage/StorageModals'
+import {
   CreateFolderRow,
   CreateFolderRowMobile,
   ItemRow,
   ItemRowMobile,
-} from '@/presentation/components/storage/StorageModals'
+} from '@/presentation/components/storage/StorageTable'
+import {
+  STORAGE_ENTRY_DRAG_TYPE,
+  type DraggedStorageEntry,
+} from '@/presentation/components/storage/StorageDrag'
 import { isPreviewable, formatBytes, joinPath } from '@/presentation/components/storage/StorageUtils'
 
 type ConfirmTarget = { name: string; isDir: boolean } | null
 type FolderHistory = { entries: string[]; index: number }
+type MoveFeedback = { type: 'success' | 'error'; message: string } | null
+
+function getMoveErrorMessage(error: unknown): string {
+  if (error instanceof RequestError && error.status === 409) {
+    return '대상 폴더에 같은 이름의 파일 또는 폴더가 있습니다.'
+  }
+  if (error instanceof RequestError && error.status === 404) {
+    return '이동할 항목이나 대상 폴더를 찾을 수 없습니다.'
+  }
+  if (error instanceof RequestError && error.status === 400) {
+    return '해당 위치로 이동할 수 없습니다.'
+  }
+  return '이동 중 오류가 발생했습니다.'
+}
 
 export default function StoragePage() {
   const [folderHistory, setFolderHistory] = useState<FolderHistory>({ entries: [''], index: 0 })
@@ -38,14 +60,22 @@ export default function StoragePage() {
   const { mutate: createFolder, isPending: isCreating } = useCreateFolder(folder)
   const { mutate: deleteFolder, isPending: isDeletingDir } = useDeleteFolder(folder)
   const { mutate: deleteFile, isPending: isDeletingFile } = useDeleteStorageFile(folder)
+  const { mutate: moveEntry, isPending: isMoving } = useMoveStorageEntry()
 
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget>(null)
   const [previewTarget, setPreviewTarget] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
+  const [isUploadDragging, setIsUploadDragging] = useState(false)
+  const [draggedEntry, setDraggedEntry] = useState<DraggedStorageEntry | null>(null)
+  const [moveFeedback, setMoveFeedback] = useState<MoveFeedback>(null)
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<DuplicateFile[] | null>(null)
   const [quotaError, setQuotaError] = useState<{ available: number; needed: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const moveFeedbackTimer = useRef<number | null>(null)
+
+  useEffect(() => () => {
+    if (moveFeedbackTimer.current !== null) window.clearTimeout(moveFeedbackTimer.current)
+  }, [])
 
   const previewableFiles = (data ?? []).filter(item => !item.is_dir && isPreviewable(item.name)).map(item => item.name)
 
@@ -84,14 +114,56 @@ export default function StoragePage() {
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation()
-    setIsDragging(false)
+    setIsUploadDragging(false)
+    if (Array.from(e.dataTransfer.types).includes(STORAGE_ENTRY_DRAG_TYPE)) return
     handleFiles(e.dataTransfer.files)
   }, [handleFiles])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (Array.from(e.dataTransfer.types).includes(STORAGE_ENTRY_DRAG_TYPE)) {
+      setIsUploadDragging(false)
+      return
+    }
     e.preventDefault(); e.stopPropagation()
-    setIsDragging(true)
+    setIsUploadDragging(true)
   }, [])
+
+  const showMoveFeedback = useCallback((feedback: Exclude<MoveFeedback, null>) => {
+    setMoveFeedback(feedback)
+    if (moveFeedbackTimer.current !== null) window.clearTimeout(moveFeedbackTimer.current)
+    moveFeedbackTimer.current = window.setTimeout(() => setMoveFeedback(null), 3200)
+  }, [])
+
+  const handleMove = useCallback((entry: DraggedStorageEntry, destinationFolder: string) => {
+    if (isMoving || destinationFolder === entry.sourceFolder) return
+    const sourcePath = joinPath(entry.sourceFolder, entry.name)
+    if (entry.isDir && (destinationFolder === sourcePath || destinationFolder.startsWith(`${sourcePath}/`))) {
+      showMoveFeedback({ type: 'error', message: '폴더를 자기 자신 또는 하위 폴더로 이동할 수 없습니다.' })
+      setDraggedEntry(null)
+      return
+    }
+    moveEntry(
+      {
+        name: entry.name,
+        sourceFolder: entry.sourceFolder,
+        destinationFolder,
+      },
+      {
+        onSuccess: () => {
+          const destinationLabel = destinationFolder.split('/').pop() || '보관함'
+          showMoveFeedback({ type: 'success', message: `${entry.name} → ${destinationLabel} 이동 완료` })
+        },
+        onError: (error) => {
+          showMoveFeedback({ type: 'error', message: getMoveErrorMessage(error) })
+        },
+        onSettled: () => setDraggedEntry(null),
+      },
+    )
+  }, [isMoving, moveEntry, showMoveFeedback])
+
+  const handleMoveToFolder = useCallback((destinationFolder: string) => {
+    if (draggedEntry) handleMove(draggedEntry, destinationFolder)
+  }, [draggedEntry, handleMove])
 
   const navigateToFolder = (target: string) => {
     setFolderHistory((current) => {
@@ -219,14 +291,38 @@ export default function StoragePage() {
         onNavigateTo={navigateTo}
         onCreateFolder={handleCreateFolder}
         isCreateDisabled={showNewFolder || isCreating}
+        dragSourceFolder={draggedEntry?.sourceFolder ?? null}
+        isMoving={isMoving}
+        onMoveToFolder={handleMoveToFolder}
       />
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] text-apple-light">
+          파일 또는 폴더를 다른 폴더나 상단 경로로 드래그해 이동할 수 있습니다.
+        </p>
+        {isMoving && <span className="text-[11px] font-medium text-brand-600">이동 중...</span>}
+      </div>
+
+      {moveFeedback && (
+        <div
+          role={moveFeedback.type === 'error' ? 'alert' : 'status'}
+          aria-live="polite"
+          className={`rounded-xl border px-3.5 py-2.5 text-[12px] font-medium ${
+            moveFeedback.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-700'
+              : 'border-red-200 bg-red-50 text-red-600'
+          }`}
+        >
+          {moveFeedback.message}
+        </div>
+      )}
 
       <div
         className={`card border-2 border-dashed transition-colors duration-200 cursor-pointer ${
-          isDragging ? 'border-brand-400 bg-brand-50/40' : 'border-apple-divider hover:border-brand-300'
+          isUploadDragging ? 'border-brand-400 bg-brand-50/40' : 'border-apple-divider hover:border-brand-300'
         }`}
         onDragOver={handleDragOver} onDragEnter={handleDragOver}
-        onDragLeave={(e) => { e.preventDefault(); setIsDragging(false) }}
+        onDragLeave={(e) => { e.preventDefault(); setIsUploadDragging(false) }}
         onDrop={handleDrop}
         onClick={() => !isUploading && inputRef.current?.click()}
       >
@@ -273,6 +369,9 @@ export default function StoragePage() {
               )}
               {(data ?? []).map((item) => (
                 <ItemRow key={item.name} item={item} folder={folder}
+                  draggedEntry={draggedEntry} isMoving={isMoving}
+                  onDragStart={setDraggedEntry} onDragEnd={() => setDraggedEntry(null)}
+                  onMove={handleMove}
                   onEnterDir={handleEnterDir} onPreview={setPreviewTarget}
                   onDeleteFile={(name) => setConfirmTarget({ name, isDir: false })}
                   onDeleteDir={(name) => setConfirmTarget({ name, isDir: true })}
@@ -290,6 +389,9 @@ export default function StoragePage() {
           )}
           {(data ?? []).map((item) => (
             <ItemRowMobile key={item.name} item={item} folder={folder}
+              draggedEntry={draggedEntry} isMoving={isMoving}
+              onDragStart={setDraggedEntry} onDragEnd={() => setDraggedEntry(null)}
+              onMove={handleMove}
               onEnterDir={handleEnterDir} onPreview={setPreviewTarget}
               onDeleteFile={(name) => setConfirmTarget({ name, isDir: false })}
               onDeleteDir={(name) => setConfirmTarget({ name, isDir: true })}

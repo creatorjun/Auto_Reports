@@ -27,6 +27,9 @@ class StoragePort(ABC):
     def delete_folder(self, folder: str, name: str) -> None: ...
 
     @abstractmethod
+    def move_entry(self, source_folder: str, name: str, destination_folder: str) -> None: ...
+
+    @abstractmethod
     async def save_file(self, folder: str, filename: str, data: bytes) -> StorageEntry: ...
 
     @abstractmethod

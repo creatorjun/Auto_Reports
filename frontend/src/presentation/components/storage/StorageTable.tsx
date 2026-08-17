@@ -2,11 +2,88 @@
 import { useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import { GripVertical } from 'lucide-react'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import type { StorageItem } from '@/domain/Storage'
 import { FolderIcon, FileIcon, EyeIcon, DownloadIcon, TrashIcon } from './StorageIcons'
-import { formatBytes, isPreviewable } from './StorageUtils'
+import { formatBytes, isPreviewable, joinPath } from './StorageUtils'
 import { CopyLinkButton, CopyLinkButtonMobile } from './StorageCopyLinkButton'
+import { STORAGE_ENTRY_DRAG_TYPE, type DraggedStorageEntry } from './StorageDrag'
+
+type ItemRowProps = {
+  item: StorageItem
+  folder: string
+  draggedEntry: DraggedStorageEntry | null
+  isMoving: boolean
+  onEnterDir: (name: string) => void
+  onPreview: (name: string) => void
+  onDeleteFile: (name: string) => void
+  onDeleteDir: (name: string) => void
+  onDragStart: (entry: DraggedStorageEntry) => void
+  onDragEnd: () => void
+  onMove: (entry: DraggedStorageEntry, destinationFolder: string) => void
+}
+
+function useStorageItemDrag({
+  item,
+  folder,
+  draggedEntry,
+  isMoving,
+  onDragStart,
+  onDragEnd,
+  onMove,
+}: Pick<
+  ItemRowProps,
+  'item' | 'folder' | 'draggedEntry' | 'isMoving' | 'onDragStart' | 'onDragEnd' | 'onMove'
+>) {
+  const [isDropTarget, setIsDropTarget] = useState(false)
+  const isDragged = draggedEntry?.sourceFolder === folder && draggedEntry.name === item.name
+  const canAcceptDrop = Boolean(item.is_dir && draggedEntry && !isDragged && !isMoving)
+
+  const handleDragStart = (event: React.DragEvent) => {
+    const entry = { name: item.name, isDir: item.is_dir, sourceFolder: folder }
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData(STORAGE_ENTRY_DRAG_TYPE, JSON.stringify(entry))
+    onDragStart(entry)
+  }
+
+  const handleDragOver = (event: React.DragEvent) => {
+    if (!canAcceptDrop || !Array.from(event.dataTransfer.types).includes(STORAGE_ENTRY_DRAG_TYPE)) return
+    event.preventDefault()
+    event.stopPropagation()
+    event.dataTransfer.dropEffect = 'move'
+    setIsDropTarget(true)
+  }
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+    setIsDropTarget(false)
+  }
+
+  const handleDrop = (event: React.DragEvent) => {
+    if (!canAcceptDrop || !draggedEntry) return
+    event.preventDefault()
+    event.stopPropagation()
+    setIsDropTarget(false)
+    onMove(draggedEntry, joinPath(folder, item.name))
+  }
+
+  const handleDragEnd = () => {
+    setIsDropTarget(false)
+    onDragEnd()
+  }
+
+  return {
+    canAcceptDrop,
+    isDragged,
+    isDropTarget,
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+  }
+}
 
 export function CreateFolderRow({ onConfirm, onCancel }: { onConfirm: (name: string) => void; onCancel: () => void }) {
   const [value, setValue] = useState('')
@@ -48,18 +125,37 @@ export function CreateFolderRowMobile({ onConfirm, onCancel }: { onConfirm: (nam
   )
 }
 
-export function ItemRow({ item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDir }: {
-  item: StorageItem; folder: string
-  onEnterDir: (name: string) => void; onPreview: (name: string) => void
-  onDeleteFile: (name: string) => void; onDeleteDir: (name: string) => void
-}) {
+export function ItemRow(props: ItemRowProps) {
+  const { item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDir, isMoving } = props
   const { storage } = useApplicationServices()
   const formattedDate = format(new Date(item.uploaded_at), 'MM/dd HH:mm', { locale: ko })
   const canPreview = !item.is_dir && isPreviewable(item.name)
+  const drag = useStorageItemDrag(props)
   return (
-    <tr className="hover:bg-apple-gray/60 transition-colors duration-150">
+    <tr
+      onDragStart={drag.handleDragStart}
+      onDragOver={drag.handleDragOver}
+      onDragLeave={drag.handleDragLeave}
+      onDrop={drag.handleDrop}
+      onDragEnd={drag.handleDragEnd}
+      aria-busy={isMoving}
+      title={drag.canAcceptDrop ? '여기에 놓아 이동' : undefined}
+      className={`transition-all duration-150 ${
+        drag.isDropTarget
+          ? 'bg-brand-50 outline outline-2 outline-inset outline-brand-300'
+          : 'hover:bg-apple-gray/60'
+      } ${drag.isDragged ? 'opacity-45' : 'opacity-100'}`}
+    >
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
         <div className="flex items-center gap-2">
+          <span
+            draggable={!isMoving}
+            title="드래그하여 이동"
+            aria-label={`${item.name} 이동`}
+            className="flex h-7 w-5 flex-shrink-0 cursor-grab select-none items-center justify-center text-apple-light/50 active:cursor-grabbing"
+          >
+            <GripVertical size={14} strokeWidth={1.6} />
+          </span>
           <span className={item.is_dir ? 'text-brand-500' : 'text-apple-light'}>
             {item.is_dir ? <FolderIcon /> : <FileIcon />}
           </span>
@@ -86,17 +182,36 @@ export function ItemRow({ item, folder, onEnterDir, onPreview, onDeleteFile, onD
   )
 }
 
-export function ItemRowMobile({ item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDir }: {
-  item: StorageItem; folder: string
-  onEnterDir: (name: string) => void; onPreview: (name: string) => void
-  onDeleteFile: (name: string) => void; onDeleteDir: (name: string) => void
-}) {
+export function ItemRowMobile(props: ItemRowProps) {
+  const { item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDir, isMoving } = props
   const { storage } = useApplicationServices()
   const formattedDate = format(new Date(item.uploaded_at), 'MM/dd HH:mm', { locale: ko })
   const canPreview = !item.is_dir && isPreviewable(item.name)
+  const drag = useStorageItemDrag(props)
   return (
-    <div className="flex items-center justify-between px-4 py-4 hover:bg-apple-gray/60 transition-colors">
+    <div
+      onDragStart={drag.handleDragStart}
+      onDragOver={drag.handleDragOver}
+      onDragLeave={drag.handleDragLeave}
+      onDrop={drag.handleDrop}
+      onDragEnd={drag.handleDragEnd}
+      aria-busy={isMoving}
+      title={drag.canAcceptDrop ? '여기에 놓아 이동' : undefined}
+      className={`flex items-center justify-between px-4 py-4 transition-all ${
+        drag.isDropTarget
+          ? 'bg-brand-50 outline outline-2 outline-inset outline-brand-300'
+          : 'hover:bg-apple-gray/60'
+      } ${drag.isDragged ? 'opacity-45' : 'opacity-100'}`}
+    >
       <div className="flex items-center gap-2 flex-1 min-w-0 pr-3">
+        <span
+          draggable={!isMoving}
+          title="드래그하여 이동"
+          aria-label={`${item.name} 이동`}
+          className="flex h-8 w-6 flex-shrink-0 cursor-grab select-none items-center justify-center text-apple-light/50 active:cursor-grabbing"
+        >
+          <GripVertical size={14} strokeWidth={1.6} />
+        </span>
         <span className={`flex-shrink-0 ${item.is_dir ? 'text-brand-500' : 'text-apple-light'}`}>{item.is_dir ? <FolderIcon /> : <FileIcon />}</span>
         {item.is_dir ? (
           <button onClick={() => onEnterDir(item.name)} className="flex flex-col gap-0.5 min-w-0 text-left">

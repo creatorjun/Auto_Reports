@@ -32,6 +32,14 @@ export const storageApi = {
     await client.delete('/storage/folders', { params: { name, folder } })
   },
 
+  move: async (name: string, sourceFolder: string, destinationFolder: string): Promise<void> => {
+    await client.post('/storage/move', {
+      name,
+      source_folder: sourceFolder,
+      destination_folder: destinationFolder,
+    })
+  },
+
   upload: async (
     file: File,
     folder = '',

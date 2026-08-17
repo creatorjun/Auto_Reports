@@ -27,6 +27,12 @@ class FolderCreateRequest(BaseModel):
     folder: str = ""
 
 
+class MoveEntryRequest(BaseModel):
+    source_folder: str = ""
+    name: str
+    destination_folder: str = ""
+
+
 class FileExistsResponse(BaseModel):
     exists: bool
 
@@ -147,6 +153,34 @@ async def delete_folder(
         raise HTTPException(status_code=400, detail="Invalid path")
     ip = get_client_ip(request)
     audit.record("FOLDER_DELETE", ip=ip, path=f"{folder}/{name}")
+
+
+@router.post("/move", status_code=204)
+async def move_entry(
+    request: Request,
+    body: MoveEntryRequest,
+    uc: StorageUseCase = Depends(get_storage_use_case),
+    audit: AuditPort = Depends(get_audit),
+):
+    try:
+        await uc.move_entry(
+            body.source_folder,
+            body.name,
+            body.destination_folder,
+        )
+    except FileExistsError:
+        raise HTTPException(status_code=409, detail="Destination already exists")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Source or destination not found")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid move")
+    ip = get_client_ip(request)
+    audit.record(
+        "STORAGE_MOVE",
+        ip=ip,
+        source=f"{body.source_folder}/{body.name}",
+        destination=f"{body.destination_folder}/{body.name}",
+    )
 
 
 @router.post("/upload", response_model=StorageFileInfo, status_code=201)

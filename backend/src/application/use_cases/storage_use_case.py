@@ -29,6 +29,19 @@ class StorageUseCase:
     async def delete_folder(self, folder: str, name: str) -> None:
         await asyncio.to_thread(self._storage.delete_folder, folder, name)
 
+    async def move_entry(
+        self,
+        source_folder: str,
+        name: str,
+        destination_folder: str,
+    ) -> None:
+        await asyncio.to_thread(
+            self._storage.move_entry,
+            source_folder,
+            name,
+            destination_folder,
+        )
+
     async def get_quota(self) -> dict:
         used = await asyncio.to_thread(self._storage.get_total_size)
         limit = STORAGE_LIMIT_BYTES

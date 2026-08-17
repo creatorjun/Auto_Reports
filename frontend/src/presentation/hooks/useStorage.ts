@@ -46,6 +46,25 @@ export const useDeleteFolder = (folder: string) => {
   })
 }
 
+export interface MoveStorageEntryInput {
+  name: string
+  sourceFolder: string
+  destinationFolder: string
+}
+
+export const useMoveStorageEntry = () => {
+  const { storage } = useApplicationServices()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, sourceFolder, destinationFolder }: MoveStorageEntryInput) =>
+      storage.move(name, sourceFolder, destinationFolder),
+    onSuccess: (_, { sourceFolder, destinationFolder }) => {
+      queryClient.invalidateQueries({ queryKey: ['storage', sourceFolder] })
+      queryClient.invalidateQueries({ queryKey: ['storage', destinationFolder] })
+    },
+  })
+}
+
 export const useUploadFile = (folder: string) => {
   const { storage } = useApplicationServices()
   const queryClient = useQueryClient()

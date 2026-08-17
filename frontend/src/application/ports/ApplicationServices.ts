@@ -57,6 +57,7 @@ export interface StorageGateway {
   getQuota: () => Promise<StorageQuota>
   createFolder: (name: string, folder?: string) => Promise<void>
   deleteFolder: (name: string, folder?: string) => Promise<void>
+  move: (name: string, sourceFolder: string, destinationFolder: string) => Promise<void>
   upload: (
     file: File,
     folder?: string,
