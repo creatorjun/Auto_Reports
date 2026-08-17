@@ -65,6 +65,25 @@ export const useMoveStorageEntry = () => {
   })
 }
 
+export const useDownloadStorageSelection = (folder: string) => {
+  const { storage } = useApplicationServices()
+  return useMutation({
+    mutationFn: (names: string[]) => storage.downloadSelection(folder, names),
+  })
+}
+
+export const useDeleteStorageSelection = (folder: string) => {
+  const { storage } = useApplicationServices()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (names: string[]) => storage.deleteSelection(folder, names),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['storage', folder] })
+      queryClient.invalidateQueries({ queryKey: ['storage-quota'] })
+    },
+  })
+}
+
 export const useUploadFile = (folder: string) => {
   const { storage } = useApplicationServices()
   const queryClient = useQueryClient()

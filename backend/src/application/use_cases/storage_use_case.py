@@ -17,6 +17,13 @@ class StorageUseCase:
         self._storage = storage
         self._converter = converter
 
+    @staticmethod
+    def _selection(names: list[str]) -> list[str]:
+        selection = list(dict.fromkeys(names))
+        if not selection or len(selection) > 200:
+            raise ValueError("Selection must contain between 1 and 200 entries")
+        return selection
+
     async def list_entries(self, folder: str) -> list[StorageEntry]:
         return await asyncio.to_thread(self._storage.list_entries, folder)
 
@@ -41,6 +48,21 @@ class StorageUseCase:
             name,
             destination_folder,
         )
+
+    async def create_archive(self, folder: str, names: list[str]) -> str:
+        return await asyncio.to_thread(
+            self._storage.create_archive,
+            folder,
+            self._selection(names),
+        )
+
+    async def delete_archive(self, path: str) -> None:
+        await asyncio.to_thread(self._storage.delete_archive, path)
+
+    async def delete_entries(self, folder: str, names: list[str]) -> int:
+        selection = self._selection(names)
+        await asyncio.to_thread(self._storage.delete_entries, folder, selection)
+        return len(selection)
 
     async def get_quota(self) -> dict:
         used = await asyncio.to_thread(self._storage.get_total_size)

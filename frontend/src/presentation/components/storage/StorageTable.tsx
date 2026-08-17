@@ -13,15 +13,47 @@ import { STORAGE_ENTRY_DRAG_TYPE, type DraggedStorageEntry } from './StorageDrag
 type ItemRowProps = {
   item: StorageItem
   folder: string
+  selected: boolean
   draggedEntry: DraggedStorageEntry | null
   isMoving: boolean
   onEnterDir: (name: string) => void
   onPreview: (name: string) => void
   onDeleteFile: (name: string) => void
   onDeleteDir: (name: string) => void
+  onSelectionChange: (name: string, selected: boolean) => void
   onDragStart: (entry: DraggedStorageEntry) => void
   onDragEnd: () => void
   onMove: (entry: DraggedStorageEntry, destinationFolder: string) => void
+}
+
+export function SelectionCheckbox({
+  checked,
+  indeterminate = false,
+  disabled = false,
+  label,
+  onChange,
+}: {
+  checked: boolean
+  indeterminate?: boolean
+  disabled?: boolean
+  label: string
+  onChange: (checked: boolean) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = indeterminate
+  }, [indeterminate])
+  return (
+    <input
+      ref={inputRef}
+      type="checkbox"
+      checked={checked}
+      disabled={disabled}
+      aria-label={label}
+      onChange={(event) => onChange(event.target.checked)}
+      className="h-4 w-4 flex-shrink-0 cursor-pointer accent-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+    />
+  )
 }
 
 function useStorageItemDrag({
@@ -126,7 +158,17 @@ export function CreateFolderRowMobile({ onConfirm, onCancel }: { onConfirm: (nam
 }
 
 export function ItemRow(props: ItemRowProps) {
-  const { item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDir, isMoving } = props
+  const {
+    item,
+    folder,
+    selected,
+    onEnterDir,
+    onPreview,
+    onDeleteFile,
+    onDeleteDir,
+    onSelectionChange,
+    isMoving,
+  } = props
   const { storage } = useApplicationServices()
   const formattedDate = format(new Date(item.uploaded_at), 'MM/dd HH:mm', { locale: ko })
   const canPreview = !item.is_dir && isPreviewable(item.name)
@@ -148,6 +190,12 @@ export function ItemRow(props: ItemRowProps) {
     >
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
         <div className="flex items-center gap-2">
+          <SelectionCheckbox
+            checked={selected}
+            disabled={isMoving}
+            label={`${item.name} 선택`}
+            onChange={(checked) => onSelectionChange(item.name, checked)}
+          />
           <span
             draggable={!isMoving}
             title="드래그하여 이동"
@@ -183,7 +231,17 @@ export function ItemRow(props: ItemRowProps) {
 }
 
 export function ItemRowMobile(props: ItemRowProps) {
-  const { item, folder, onEnterDir, onPreview, onDeleteFile, onDeleteDir, isMoving } = props
+  const {
+    item,
+    folder,
+    selected,
+    onEnterDir,
+    onPreview,
+    onDeleteFile,
+    onDeleteDir,
+    onSelectionChange,
+    isMoving,
+  } = props
   const { storage } = useApplicationServices()
   const formattedDate = format(new Date(item.uploaded_at), 'MM/dd HH:mm', { locale: ko })
   const canPreview = !item.is_dir && isPreviewable(item.name)
@@ -204,6 +262,12 @@ export function ItemRowMobile(props: ItemRowProps) {
       } ${drag.isDragged ? 'opacity-45' : 'opacity-100'}`}
     >
       <div className="flex items-center gap-2 flex-1 min-w-0 pr-3">
+        <SelectionCheckbox
+          checked={selected}
+          disabled={isMoving}
+          label={`${item.name} 선택`}
+          onChange={(checked) => onSelectionChange(item.name, checked)}
+        />
         <span
           draggable={!isMoving}
           title="드래그하여 이동"

@@ -65,6 +65,58 @@ export function DeleteConfirmModal({ target, isDir, onConfirm, onCancel, isPendi
   )
 }
 
+export function SelectionDeleteConfirmModal({
+  count,
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  count: number
+  onConfirm: () => void
+  onCancel: () => void
+  isPending: boolean
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative mx-4 w-[320px] rounded-2xl bg-white p-6 shadow-2xl md:w-[380px]">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-red-50">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M3 5h12M7 5V3.5h4V5m-6.5 0 .6 10h7.8l.6-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" className="text-red-500" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-[14px] font-semibold text-apple-dark">선택 항목 삭제</p>
+            <p className="mt-0.5 text-[11px] text-apple-light">{count}개 항목이 선택됨</p>
+          </div>
+        </div>
+        <p className="mb-5 text-[12px] leading-relaxed text-apple-light">
+          선택한 파일과 폴더를 모두 삭제합니다. 폴더 안의 항목도 함께 삭제되며 복구할 수 없습니다.
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isPending}
+            className="flex-1 rounded-xl bg-apple-gray px-3 py-2 text-[12px] font-medium text-apple-dark transition-colors hover:bg-apple-divider/50 disabled:opacity-40"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isPending}
+            className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-[12px] font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-40"
+          >
+            {isPending ? '삭제 중...' : `${count}개 삭제`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function QuotaExceededModal({ available, needed, onClose }: {
   available: number; needed: number; onClose: () => void
 }) {

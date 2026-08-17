@@ -4,6 +4,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+import zipfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -83,3 +84,38 @@ class LocalStorageMoveTest(unittest.TestCase):
             self.storage.move_entry("", "missing.txt", "")
         with self.assertRaises(FileNotFoundError):
             self.storage.move_entry("", "report.txt", "missing-folder")
+
+    def test_creates_archive_for_selected_file_and_folder(self) -> None:
+        self.write_file("", "summary.txt", b"summary")
+        self.storage.create_folder("", "reports")
+        self.write_file("reports", "daily.txt", b"daily")
+
+        archive_path = self.storage.create_archive("", ["summary.txt", "reports"])
+
+        with zipfile.ZipFile(archive_path) as archive:
+            self.assertEqual(
+                {"reports/", "reports/daily.txt", "summary.txt"},
+                set(archive.namelist()),
+            )
+            self.assertEqual(b"summary", archive.read("summary.txt"))
+            self.assertEqual(b"daily", archive.read("reports/daily.txt"))
+        self.storage.delete_archive(archive_path)
+        self.assertFalse(os.path.exists(archive_path))
+
+    def test_deletes_selected_files_and_folders(self) -> None:
+        self.write_file("", "summary.txt", b"summary")
+        self.storage.create_folder("", "reports")
+        self.write_file("reports", "daily.txt", b"daily")
+
+        self.storage.delete_entries("", ["summary.txt", "reports"])
+
+        self.assertFalse(os.path.exists(self.storage.resolve_path("", "summary.txt")))
+        self.assertFalse(os.path.exists(self.storage.resolve_path("", "reports")))
+
+    def test_bulk_delete_validates_every_entry_before_deleting(self) -> None:
+        source = self.write_file("", "summary.txt", b"summary")
+
+        with self.assertRaises(FileNotFoundError):
+            self.storage.delete_entries("", ["summary.txt", "missing.txt"])
+
+        self.assertTrue(os.path.exists(source))

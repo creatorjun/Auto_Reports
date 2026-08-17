@@ -40,6 +40,19 @@ export const storageApi = {
     })
   },
 
+  downloadSelection: async (folder: string, names: string[]): Promise<Blob> => {
+    const res = await client.post<Blob>(
+      '/storage/selection/archive',
+      { folder, names },
+      { responseType: 'blob' },
+    )
+    return res.data
+  },
+
+  deleteSelection: async (folder: string, names: string[]): Promise<void> => {
+    await client.post('/storage/selection/delete', { folder, names })
+  },
+
   upload: async (
     file: File,
     folder = '',

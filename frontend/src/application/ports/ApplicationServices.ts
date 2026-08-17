@@ -58,6 +58,8 @@ export interface StorageGateway {
   createFolder: (name: string, folder?: string) => Promise<void>
   deleteFolder: (name: string, folder?: string) => Promise<void>
   move: (name: string, sourceFolder: string, destinationFolder: string) => Promise<void>
+  downloadSelection: (folder: string, names: string[]) => Promise<Blob>
+  deleteSelection: (folder: string, names: string[]) => Promise<void>
   upload: (
     file: File,
     folder?: string,

@@ -3,6 +3,8 @@ import asyncio
 import mimetypes
 import os
 import shutil
+import uuid
+import zipfile
 from datetime import datetime, timezone
 from functools import lru_cache
 
@@ -12,6 +14,7 @@ from src.infrastructure.config.settings import get_settings
 
 CHUNK_SIZE = 1024 * 1024
 _TEMP_PREFIX = ".chunked_"
+_ARCHIVE_DIR_NAME = f"{_TEMP_PREFIX}archives"
 
 
 class LocalStorageAdapter(StoragePort):
@@ -20,6 +23,9 @@ class LocalStorageAdapter(StoragePort):
         os.makedirs(self._base, exist_ok=True)
         self._path_locks: dict[str, asyncio.Lock] = {}
         self._meta_lock = asyncio.Lock()
+        self._archive_dir = os.path.join(self._base, _ARCHIVE_DIR_NAME)
+        shutil.rmtree(self._archive_dir, ignore_errors=True)
+        os.makedirs(self._archive_dir)
 
     def _resolve(self, folder: str, name: str = "") -> str:
         target = os.path.realpath(os.path.join(self._base, folder.lstrip("/"), name))
@@ -35,6 +41,27 @@ class LocalStorageAdapter(StoragePort):
         safe_id = upload_id.replace("/", "").replace("..", "")
         return os.path.join(self._base, f"{_TEMP_PREFIX}{safe_id}")
 
+    @staticmethod
+    def _validate_entry_name(name: str) -> None:
+        if not name or name in {".", ".."} or "/" in name or "\\" in name:
+            raise ValueError("Invalid name")
+
+    def _resolve_entries(self, folder: str, names: list[str]) -> list[tuple[str, str]]:
+        if not names or len(names) > 200:
+            raise ValueError("Invalid selection")
+        entries: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for name in names:
+            self._validate_entry_name(name)
+            if name in seen:
+                continue
+            seen.add(name)
+            path = self._resolve(folder, name)
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"Entry not found: {name}")
+            entries.append((name, path))
+        return entries
+
     async def _get_path_lock(self, dest: str) -> asyncio.Lock:
         async with self._meta_lock:
             if dest not in self._path_locks:
@@ -46,7 +73,12 @@ class LocalStorageAdapter(StoragePort):
         if not os.path.isdir(dir_path):
             raise FileNotFoundError(f"Folder not found: {folder}")
         result: list[StorageEntry] = []
-        for entry in sorted(os.scandir(dir_path), key=lambda e: (e.is_file(), e.name.lower())):
+        visible_entries = (
+            entry
+            for entry in os.scandir(dir_path)
+            if not entry.name.startswith(_TEMP_PREFIX)
+        )
+        for entry in sorted(visible_entries, key=lambda e: (e.is_file(), e.name.lower())):
             stat = entry.stat()
             result.append(StorageEntry(
                 name=entry.name,
@@ -80,8 +112,7 @@ class LocalStorageAdapter(StoragePort):
         shutil.rmtree(path)
 
     def move_entry(self, source_folder: str, name: str, destination_folder: str) -> None:
-        if not name or name in {".", ".."} or "/" in name or "\\" in name:
-            raise ValueError("Invalid name")
+        self._validate_entry_name(name)
         source = self._resolve(source_folder, name)
         destination_dir = self._resolve(destination_folder)
         destination = self._resolve(destination_folder, name)
@@ -100,6 +131,58 @@ class LocalStorageAdapter(StoragePort):
             if os.path.commonpath((source_key, destination_dir_key)) == source_key:
                 raise ValueError("Cannot move a folder into itself")
         shutil.move(source, destination)
+
+    def create_archive(self, folder: str, names: list[str]) -> str:
+        entries = self._resolve_entries(folder, names)
+        archive_path = os.path.join(self._archive_dir, f"{uuid.uuid4().hex}.zip")
+        try:
+            with zipfile.ZipFile(
+                archive_path,
+                "w",
+                compression=zipfile.ZIP_DEFLATED,
+                allowZip64=True,
+            ) as archive:
+                for name, path in entries:
+                    if os.path.isdir(path):
+                        for root, directories, filenames in os.walk(path):
+                            directories[:] = [
+                                directory
+                                for directory in directories
+                                if not os.path.islink(os.path.join(root, directory))
+                            ]
+                            relative = os.path.relpath(root, path)
+                            archive_root = name if relative == "." else f"{name}/{relative.replace(os.sep, '/')}"
+                            archive.write(root, archive_root)
+                            for filename in filenames:
+                                source = os.path.join(root, filename)
+                                if os.path.islink(source):
+                                    continue
+                                archive.write(source, f"{archive_root}/{filename}")
+                    else:
+                        archive.write(path, name)
+            return archive_path
+        except Exception:
+            if os.path.exists(archive_path):
+                os.remove(archive_path)
+            raise
+
+    def delete_archive(self, path: str) -> None:
+        archive_path = os.path.realpath(path)
+        archive_root = os.path.realpath(self._archive_dir)
+        if os.path.commonpath((archive_root, archive_path)) != archive_root:
+            raise ValueError("Invalid archive path")
+        try:
+            os.remove(archive_path)
+        except FileNotFoundError:
+            pass
+
+    def delete_entries(self, folder: str, names: list[str]) -> None:
+        entries = self._resolve_entries(folder, names)
+        for _, path in entries:
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
 
     async def save_file(self, folder: str, filename: str, data: bytes) -> StorageEntry:
         dest = self._resolve(folder, filename)

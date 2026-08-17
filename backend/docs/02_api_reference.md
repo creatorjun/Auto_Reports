@@ -74,6 +74,8 @@ Aggregate 또는 하위 엔티티가 없으면 404입니다.
 | POST | `/storage/folders` | 폴더 생성 |
 | DELETE | `/storage/folders?folder=...&name=...` | 폴더 삭제 |
 | POST | `/storage/move` | 파일 또는 폴더를 다른 폴더로 이동 |
+| POST | `/storage/selection/archive` | 선택한 파일과 폴더를 ZIP으로 다운로드 |
+| POST | `/storage/selection/delete` | 선택한 파일과 폴더를 일괄 삭제 |
 | POST | `/storage/upload?folder=...&overwrite=false` | multipart 단일 파일 업로드 |
 | POST | `/storage/upload/init` | chunk upload session 생성 |
 | POST | `/storage/upload/chunk?upload_id=...&chunk_index=...` | chunk 업로드 |
@@ -82,5 +84,7 @@ Aggregate 또는 하위 엔티티가 없으면 404입니다.
 | DELETE | `/storage/files?folder=...&name=...` | 파일 삭제 |
 
 `/storage/move`는 `source_folder`, `name`, `destination_folder`를 JSON body로 받습니다. 동일 경로와 폴더 자기 하위 이동은 400, 대상 이름 충돌은 409로 반환합니다.
+
+선택 작업은 `folder`, `names`를 JSON body로 받으며 한 번에 1개 이상 200개 이하의 현재 폴더 항목을 처리합니다. ZIP 임시 파일은 응답 완료 후 자동 삭제됩니다. 일괄 삭제는 모든 항목의 경로와 존재 여부를 먼저 검증합니다.
 
 경로는 Storage adapter가 정규화하고 root 이탈을 거부합니다. 중복은 409, quota 초과는 413, 잘못된 경로는 400 또는 404로 반환합니다.

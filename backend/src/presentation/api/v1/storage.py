@@ -4,7 +4,8 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 
 from src.application.ports.audit_port import AuditPort
 from src.application.services.auth_service import AuthService
@@ -31,6 +32,11 @@ class MoveEntryRequest(BaseModel):
     source_folder: str = ""
     name: str
     destination_folder: str = ""
+
+
+class StorageSelectionRequest(BaseModel):
+    folder: str = ""
+    names: list[str] = Field(min_length=1, max_length=200)
 
 
 class FileExistsResponse(BaseModel):
@@ -181,6 +187,61 @@ async def move_entry(
         source=f"{body.source_folder}/{body.name}",
         destination=f"{body.destination_folder}/{body.name}",
     )
+
+
+@router.post("/selection/archive")
+async def download_selection(
+    request: Request,
+    body: StorageSelectionRequest,
+    uc: StorageUseCase = Depends(get_storage_use_case),
+    audit: AuditPort = Depends(get_audit),
+):
+    try:
+        archive_path = await uc.create_archive(body.folder, body.names)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Selected entry not found")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid selection")
+    ip = get_client_ip(request)
+    audit.record(
+        "STORAGE_SELECTION_DOWNLOAD",
+        ip=ip,
+        folder=body.folder,
+        count=len(set(body.names)),
+    )
+    return FileResponse(
+        path=archive_path,
+        media_type="application/zip",
+        filename="storage-selection.zip",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+        background=BackgroundTask(uc.delete_archive, archive_path),
+    )
+
+
+@router.post("/selection/delete")
+async def delete_selection(
+    request: Request,
+    body: StorageSelectionRequest,
+    uc: StorageUseCase = Depends(get_storage_use_case),
+    audit: AuditPort = Depends(get_audit),
+):
+    try:
+        deleted = await uc.delete_entries(body.folder, body.names)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Selected entry not found")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid selection")
+    ip = get_client_ip(request)
+    audit.record(
+        "STORAGE_SELECTION_DELETE",
+        ip=ip,
+        folder=body.folder,
+        count=deleted,
+    )
+    return {"deleted": deleted}
 
 
 @router.post("/upload", response_model=StorageFileInfo, status_code=201)

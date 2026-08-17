@@ -1,9 +1,12 @@
 // frontend/src/presentation/pages/StoragePage.tsx
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Download, Trash2, X } from 'lucide-react'
 import {
   useCreateFolder,
   useDeleteFolder,
+  useDeleteStorageSelection,
   useDeleteStorageFile,
+  useDownloadStorageSelection,
   useMoveStorageEntry,
   useStorageItems,
   useStorageQuota,
@@ -18,6 +21,7 @@ import StorageNavigation from '@/presentation/components/storage/StorageNavigati
 import {
   QuotaBar,
   DeleteConfirmModal,
+  SelectionDeleteConfirmModal,
   QuotaExceededModal,
   OverwriteConfirmModal,
   UploadProgressBar,
@@ -27,16 +31,17 @@ import {
   CreateFolderRowMobile,
   ItemRow,
   ItemRowMobile,
+  SelectionCheckbox,
 } from '@/presentation/components/storage/StorageTable'
 import {
   STORAGE_ENTRY_DRAG_TYPE,
   type DraggedStorageEntry,
 } from '@/presentation/components/storage/StorageDrag'
-import { isPreviewable, formatBytes, joinPath } from '@/presentation/components/storage/StorageUtils'
+import { isPreviewable, formatBytes, joinPath, saveBlob } from '@/presentation/components/storage/StorageUtils'
 
 type ConfirmTarget = { name: string; isDir: boolean } | null
 type FolderHistory = { entries: string[]; index: number }
-type MoveFeedback = { type: 'success' | 'error'; message: string } | null
+type StorageFeedback = { type: 'success' | 'error'; message: string } | null
 
 function getMoveErrorMessage(error: unknown): string {
   if (error instanceof RequestError && error.status === 409) {
@@ -51,6 +56,18 @@ function getMoveErrorMessage(error: unknown): string {
   return '이동 중 오류가 발생했습니다.'
 }
 
+function getSelectionErrorMessage(error: unknown, action: 'download' | 'delete'): string {
+  if (error instanceof RequestError && error.status === 404) {
+    return '선택한 항목 중 찾을 수 없는 파일 또는 폴더가 있습니다.'
+  }
+  if (error instanceof RequestError && error.status === 400) {
+    return '선택 항목을 처리할 수 없습니다. 목록을 새로고침한 후 다시 시도하세요.'
+  }
+  return action === 'download'
+    ? '선택 항목 다운로드 중 오류가 발생했습니다.'
+    : '선택 항목 삭제 중 오류가 발생했습니다.'
+}
+
 export default function StoragePage() {
   const [folderHistory, setFolderHistory] = useState<FolderHistory>({ entries: [''], index: 0 })
   const folder = folderHistory.entries[folderHistory.index]
@@ -61,21 +78,39 @@ export default function StoragePage() {
   const { mutate: deleteFolder, isPending: isDeletingDir } = useDeleteFolder(folder)
   const { mutate: deleteFile, isPending: isDeletingFile } = useDeleteStorageFile(folder)
   const { mutate: moveEntry, isPending: isMoving } = useMoveStorageEntry()
+  const { mutate: downloadSelection, isPending: isDownloadingSelection } = useDownloadStorageSelection(folder)
+  const { mutate: deleteSelection, isPending: isDeletingSelection } = useDeleteStorageSelection(folder)
 
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget>(null)
   const [previewTarget, setPreviewTarget] = useState<string | null>(null)
   const [isUploadDragging, setIsUploadDragging] = useState(false)
   const [draggedEntry, setDraggedEntry] = useState<DraggedStorageEntry | null>(null)
-  const [moveFeedback, setMoveFeedback] = useState<MoveFeedback>(null)
+  const [selectedNames, setSelectedNames] = useState<Set<string>>(() => new Set())
+  const [showSelectionDelete, setShowSelectionDelete] = useState(false)
+  const [storageFeedback, setStorageFeedback] = useState<StorageFeedback>(null)
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<DuplicateFile[] | null>(null)
   const [quotaError, setQuotaError] = useState<{ available: number; needed: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const moveFeedbackTimer = useRef<number | null>(null)
+  const feedbackTimer = useRef<number | null>(null)
 
   useEffect(() => () => {
-    if (moveFeedbackTimer.current !== null) window.clearTimeout(moveFeedbackTimer.current)
+    if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current)
   }, [])
+
+  useEffect(() => {
+    setSelectedNames(new Set())
+    setShowSelectionDelete(false)
+  }, [folder])
+
+  useEffect(() => {
+    if (!data) return
+    const available = new Set(data.map((item) => item.name))
+    setSelectedNames((current) => {
+      const next = new Set([...current].filter((name) => available.has(name)))
+      return next.size === current.size ? current : next
+    })
+  }, [data])
 
   const previewableFiles = (data ?? []).filter(item => !item.is_dir && isPreviewable(item.name)).map(item => item.name)
 
@@ -128,17 +163,17 @@ export default function StoragePage() {
     setIsUploadDragging(true)
   }, [])
 
-  const showMoveFeedback = useCallback((feedback: Exclude<MoveFeedback, null>) => {
-    setMoveFeedback(feedback)
-    if (moveFeedbackTimer.current !== null) window.clearTimeout(moveFeedbackTimer.current)
-    moveFeedbackTimer.current = window.setTimeout(() => setMoveFeedback(null), 3200)
+  const showFeedback = useCallback((feedback: Exclude<StorageFeedback, null>) => {
+    setStorageFeedback(feedback)
+    if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current)
+    feedbackTimer.current = window.setTimeout(() => setStorageFeedback(null), 3200)
   }, [])
 
   const handleMove = useCallback((entry: DraggedStorageEntry, destinationFolder: string) => {
     if (isMoving || destinationFolder === entry.sourceFolder) return
     const sourcePath = joinPath(entry.sourceFolder, entry.name)
     if (entry.isDir && (destinationFolder === sourcePath || destinationFolder.startsWith(`${sourcePath}/`))) {
-      showMoveFeedback({ type: 'error', message: '폴더를 자기 자신 또는 하위 폴더로 이동할 수 없습니다.' })
+      showFeedback({ type: 'error', message: '폴더를 자기 자신 또는 하위 폴더로 이동할 수 없습니다.' })
       setDraggedEntry(null)
       return
     }
@@ -151,19 +186,70 @@ export default function StoragePage() {
       {
         onSuccess: () => {
           const destinationLabel = destinationFolder.split('/').pop() || '보관함'
-          showMoveFeedback({ type: 'success', message: `${entry.name} → ${destinationLabel} 이동 완료` })
+          showFeedback({ type: 'success', message: `${entry.name} → ${destinationLabel} 이동 완료` })
         },
         onError: (error) => {
-          showMoveFeedback({ type: 'error', message: getMoveErrorMessage(error) })
+          showFeedback({ type: 'error', message: getMoveErrorMessage(error) })
         },
         onSettled: () => setDraggedEntry(null),
       },
     )
-  }, [isMoving, moveEntry, showMoveFeedback])
+  }, [isMoving, moveEntry, showFeedback])
 
   const handleMoveToFolder = useCallback((destinationFolder: string) => {
     if (draggedEntry) handleMove(draggedEntry, destinationFolder)
   }, [draggedEntry, handleMove])
+
+  const storageItems = data ?? []
+  const selectedCount = selectedNames.size
+  const allSelected = storageItems.length > 0 && selectedCount === storageItems.length
+  const selectionIndeterminate = selectedCount > 0 && !allSelected
+  const isSelectionBusy = isDownloadingSelection || isDeletingSelection || isMoving
+  const isItemBusy = isSelectionBusy
+
+  const handleSelectionChange = useCallback((name: string, selected: boolean) => {
+    setSelectedNames((current) => {
+      const next = new Set(current)
+      if (selected) next.add(name)
+      else next.delete(name)
+      return next
+    })
+  }, [])
+
+  const handleToggleAll = () => {
+    setSelectedNames(allSelected ? new Set() : new Set(storageItems.map((item) => item.name)))
+  }
+
+  const handleDownloadSelection = () => {
+    const names = [...selectedNames]
+    if (!names.length) return
+    downloadSelection(names, {
+      onSuccess: (blob) => {
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+        saveBlob(blob, `storage-selection-${timestamp}.zip`)
+        showFeedback({ type: 'success', message: `${names.length}개 항목 다운로드 준비 완료` })
+      },
+      onError: (error) => {
+        showFeedback({ type: 'error', message: getSelectionErrorMessage(error, 'download') })
+      },
+    })
+  }
+
+  const handleConfirmSelectionDelete = () => {
+    const names = [...selectedNames]
+    if (!names.length) return
+    deleteSelection(names, {
+      onSuccess: () => {
+        setSelectedNames(new Set())
+        setShowSelectionDelete(false)
+        showFeedback({ type: 'success', message: `${names.length}개 항목 삭제 완료` })
+      },
+      onError: (error) => {
+        setShowSelectionDelete(false)
+        showFeedback({ type: 'error', message: getSelectionErrorMessage(error, 'delete') })
+      },
+    })
+  }
 
   const navigateToFolder = (target: string) => {
     setFolderHistory((current) => {
@@ -240,6 +326,16 @@ export default function StoragePage() {
           isPending={isDeleting}
         />
       )}
+      {showSelectionDelete && selectedCount > 0 && (
+        <SelectionDeleteConfirmModal
+          count={selectedCount}
+          onConfirm={handleConfirmSelectionDelete}
+          onCancel={() => {
+            if (!isDeletingSelection) setShowSelectionDelete(false)
+          }}
+          isPending={isDeletingSelection}
+        />
+      )}
       {previewTarget && (
         <FilePreviewModal
           name={previewTarget}
@@ -267,7 +363,7 @@ export default function StoragePage() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-[18px] md:text-[22px] 3xl:text-[26px] font-semibold text-apple-dark tracking-tight">파일 보관함</h1>
-          <p className="text-[12px] md:text-[13px] 3xl:text-[14px] text-apple-light mt-1">파일을 업로드하고 언제든지 다운로드</p>
+          <p className="text-[12px] md:text-[13px] 3xl:text-[14px] text-apple-light mt-1">파일을 업로드하고 선택하여 다운로드 또는 삭제</p>
         </div>
         {isFetching && !isLoading && <span className="text-[11px] text-apple-light">업데이트 중...</span>}
       </div>
@@ -300,20 +396,64 @@ export default function StoragePage() {
         <p className="text-[11px] text-apple-light">
           파일 또는 폴더를 다른 폴더나 상단 경로로 드래그해 이동할 수 있습니다.
         </p>
-        {isMoving && <span className="text-[11px] font-medium text-brand-600">이동 중...</span>}
+        <div className="flex items-center gap-2">
+          {isMoving && <span className="text-[11px] font-medium text-brand-600">이동 중...</span>}
+          <button
+            type="button"
+            onClick={handleToggleAll}
+            disabled={!storageItems.length || isSelectionBusy}
+            className="text-[11px] font-medium text-brand-600 transition-colors hover:text-brand-700 disabled:cursor-not-allowed disabled:text-apple-light"
+          >
+            {allSelected ? '전체 선택 해제' : '전체 선택'}
+          </button>
+        </div>
       </div>
 
-      {moveFeedback && (
+      {selectedCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-200 bg-brand-50/70 px-3.5 py-2.5">
+          <span className="mr-auto text-[12px] font-semibold text-brand-700">{selectedCount}개 선택</span>
+          <button
+            type="button"
+            onClick={handleDownloadSelection}
+            disabled={isSelectionBusy}
+            className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[11px] font-medium text-brand-700 shadow-sm transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download size={13} strokeWidth={1.8} />
+            {isDownloadingSelection ? '압축 중...' : 'ZIP 다운로드'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSelectionDelete(true)}
+            disabled={isSelectionBusy}
+            className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[11px] font-medium text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Trash2 size={13} strokeWidth={1.8} />
+            삭제
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedNames(new Set())}
+            disabled={isSelectionBusy}
+            title="선택 해제"
+            aria-label="선택 해제"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-apple-light transition-colors hover:bg-white hover:text-apple-dark disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <X size={14} strokeWidth={1.8} />
+          </button>
+        </div>
+      )}
+
+      {storageFeedback && (
         <div
-          role={moveFeedback.type === 'error' ? 'alert' : 'status'}
+          role={storageFeedback.type === 'error' ? 'alert' : 'status'}
           aria-live="polite"
           className={`rounded-xl border px-3.5 py-2.5 text-[12px] font-medium ${
-            moveFeedback.type === 'success'
+            storageFeedback.type === 'success'
               ? 'border-green-200 bg-green-50 text-green-700'
               : 'border-red-200 bg-red-50 text-red-600'
           }`}
         >
-          {moveFeedback.message}
+          {storageFeedback.message}
         </div>
       )}
 
@@ -355,9 +495,21 @@ export default function StoragePage() {
           <table className="w-full">
             <thead className="border-b border-apple-divider/60">
               <tr>
-                {['이름', '크기', '수정일시', ''].map((h, i) => (
-                  <th key={i} className="text-left px-6 py-3.5 3xl:px-8 3xl:py-4 text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wider">{h}</th>
-                ))}
+                <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4 3xl:text-[12px]">
+                  <div className="flex items-center gap-2">
+                    <SelectionCheckbox
+                      checked={allSelected}
+                      indeterminate={selectionIndeterminate}
+                      disabled={!storageItems.length || isSelectionBusy}
+                      label="현재 폴더 전체 선택"
+                      onChange={handleToggleAll}
+                    />
+                    이름
+                  </div>
+                </th>
+                <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4 3xl:text-[12px]">크기</th>
+                <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4 3xl:text-[12px]">수정일시</th>
+                <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4 3xl:text-[12px]" />
               </tr>
             </thead>
             <tbody className="divide-y divide-apple-divider/40">
@@ -367,9 +519,11 @@ export default function StoragePage() {
                   onCancel={handleCancelCreateFolder}
                 />
               )}
-              {(data ?? []).map((item) => (
+              {storageItems.map((item) => (
                 <ItemRow key={item.name} item={item} folder={folder}
-                  draggedEntry={draggedEntry} isMoving={isMoving}
+                  selected={selectedNames.has(item.name)}
+                  draggedEntry={draggedEntry} isMoving={isItemBusy}
+                  onSelectionChange={handleSelectionChange}
                   onDragStart={setDraggedEntry} onDragEnd={() => setDraggedEntry(null)}
                   onMove={handleMove}
                   onEnterDir={handleEnterDir} onPreview={setPreviewTarget}
@@ -387,9 +541,11 @@ export default function StoragePage() {
               onCancel={handleCancelCreateFolder}
             />
           )}
-          {(data ?? []).map((item) => (
+          {storageItems.map((item) => (
             <ItemRowMobile key={item.name} item={item} folder={folder}
-              draggedEntry={draggedEntry} isMoving={isMoving}
+              selected={selectedNames.has(item.name)}
+              draggedEntry={draggedEntry} isMoving={isItemBusy}
+              onSelectionChange={handleSelectionChange}
               onDragStart={setDraggedEntry} onDragEnd={() => setDraggedEntry(null)}
               onMove={handleMove}
               onEnterDir={handleEnterDir} onPreview={setPreviewTarget}
