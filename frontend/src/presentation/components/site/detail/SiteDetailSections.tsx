@@ -101,8 +101,8 @@ export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
                 />
               ) : (
                 <div className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-sm">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
+                  <div className="mb-3">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold text-apple-dark">
                         {node.hostname ?? '—'}
                       </span>
@@ -112,13 +112,15 @@ export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
                         </span>
                       )}
                     </div>
-                    <CardActions
-                      onEdit={() => {
-                        setEditTarget(node.id ?? null)
-                        setShowAddForm(false)
-                      }}
-                      onDelete={() => node.id && deleteNode(node.id)}
-                    />
+                    <div className="mt-2">
+                      <CardActions
+                        onEdit={() => {
+                          setEditTarget(node.id ?? null)
+                          setShowAddForm(false)
+                        }}
+                        onDelete={() => node.id && deleteNode(node.id)}
+                      />
+                    </div>
                   </div>
                   <Row label="IP 주소"       value={node.ip_address} />
                   <Row label="OS"           value={node.os_type} />

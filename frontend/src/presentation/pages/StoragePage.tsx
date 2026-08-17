@@ -12,6 +12,7 @@ import {
 } from '@/presentation/hooks/useStorage'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import FilePreviewModal from '@/presentation/components/storage/FilePreviewModal'
+import StorageNavigation from '@/presentation/components/storage/StorageNavigation'
 import {
   QuotaBar,
   DeleteConfirmModal,
@@ -26,9 +27,11 @@ import {
 import { isPreviewable, formatBytes, joinPath } from '@/presentation/components/storage/StorageUtils'
 
 type ConfirmTarget = { name: string; isDir: boolean } | null
+type FolderHistory = { entries: string[]; index: number }
 
 export default function StoragePage() {
-  const [folder, setFolder] = useState('')
+  const [folderHistory, setFolderHistory] = useState<FolderHistory>({ entries: [''], index: 0 })
+  const folder = folderHistory.entries[folderHistory.index]
   const { data, isLoading, isFetching } = useStorageItems(folder)
   const { data: quota } = useStorageQuota()
   const { upload, checkDuplicates, isUploading, uploadingCount, progressList, totalPercent } = useUploadFiles(folder)
@@ -43,8 +46,6 @@ export default function StoragePage() {
   const [pendingFiles, setPendingFiles] = useState<DuplicateFile[] | null>(null)
   const [quotaError, setQuotaError] = useState<{ available: number; needed: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  const breadcrumbs = folder ? folder.split('/') : []
 
   const previewableFiles = (data ?? []).filter(item => !item.is_dir && isPreviewable(item.name)).map(item => item.name)
 
@@ -92,13 +93,52 @@ export default function StoragePage() {
     setIsDragging(true)
   }, [])
 
-  const handleEnterDir = (name: string) => {
-    setFolder(joinPath(folder, name))
+  const navigateToFolder = (target: string) => {
+    setFolderHistory((current) => {
+      if (current.entries[current.index] === target) return current
+      return {
+        entries: [...current.entries.slice(0, current.index + 1), target],
+        index: current.index + 1,
+      }
+    })
     setShowNewFolder(false)
   }
 
+  const handleEnterDir = (name: string) => {
+    navigateToFolder(joinPath(folder, name))
+  }
+
   const navigateTo = (index: number) => {
-    setFolder(index < 0 ? '' : breadcrumbs.slice(0, index + 1).join('/'))
+    const breadcrumbs = folder ? folder.split('/') : []
+    navigateToFolder(index < 0 ? '' : breadcrumbs.slice(0, index + 1).join('/'))
+  }
+
+  const navigateBack = () => {
+    setFolderHistory((current) => ({ ...current, index: Math.max(0, current.index - 1) }))
+    setShowNewFolder(false)
+  }
+
+  const navigateForward = () => {
+    setFolderHistory((current) => ({
+      ...current,
+      index: Math.min(current.entries.length - 1, current.index + 1),
+    }))
+    setShowNewFolder(false)
+  }
+
+  const navigateUp = () => {
+    const parent = folder.split('/').slice(0, -1).join('/')
+    navigateToFolder(parent)
+  }
+
+  const canGoBack = folderHistory.index > 0
+  const canGoForward = folderHistory.index < folderHistory.entries.length - 1
+
+  const handleCreateFolder = () => {
+    setShowNewFolder(true)
+  }
+
+  const handleCancelCreateFolder = () => {
     setShowNewFolder(false)
   }
 
@@ -169,33 +209,17 @@ export default function StoragePage() {
         />
       )}
 
-      <div className="flex items-center gap-1 flex-wrap">
-        <button onClick={() => navigateTo(-1)}
-          className={`text-[13px] transition-colors ${folder ? 'text-brand-600 hover:text-brand-700' : 'text-apple-dark font-medium cursor-default'}`}>
-          보관함
-        </button>
-        {breadcrumbs.map((seg, i) => (
-          <div key={i} className="flex items-center gap-1">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-apple-divider">
-              <path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <button onClick={() => navigateTo(i)}
-              className={`text-[13px] transition-colors ${i === breadcrumbs.length - 1 ? 'text-apple-dark font-medium cursor-default' : 'text-brand-600 hover:text-brand-700'}`}>
-              {seg}
-            </button>
-          </div>
-        ))}
-        <div className="ml-auto">
-          <button onClick={() => setShowNewFolder(true)} disabled={showNewFolder || isCreating}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-              <path d="M0.75 3.75A.75.75 0 0 1 1.5 3h3.086a.75.75 0 0 1 .53.22l.664.664a.75.75 0 0 0 .53.22H11.5a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-.75.75h-10a.75.75 0 0 1-.75-.75V3.75Z" stroke="currentColor" strokeWidth="1.1" fill="currentColor" opacity="0.15" />
-              <path d="M6.5 5.5v3M5 7h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-            새 폴더
-          </button>
-        </div>
-      </div>
+      <StorageNavigation
+        folder={folder}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
+        onBack={navigateBack}
+        onForward={navigateForward}
+        onUp={navigateUp}
+        onNavigateTo={navigateTo}
+        onCreateFolder={handleCreateFolder}
+        isCreateDisabled={showNewFolder || isCreating}
+      />
 
       <div
         className={`card border-2 border-dashed transition-colors duration-200 cursor-pointer ${
@@ -244,7 +268,7 @@ export default function StoragePage() {
               {showNewFolder && (
                 <CreateFolderRow
                   onConfirm={(name) => createFolder(name, { onSuccess: () => setShowNewFolder(false) })}
-                  onCancel={() => setShowNewFolder(false)}
+                  onCancel={handleCancelCreateFolder}
                 />
               )}
               {(data ?? []).map((item) => (
@@ -261,7 +285,7 @@ export default function StoragePage() {
           {showNewFolder && (
             <CreateFolderRowMobile
               onConfirm={(name) => createFolder(name, { onSuccess: () => setShowNewFolder(false) })}
-              onCancel={() => setShowNewFolder(false)}
+              onCancel={handleCancelCreateFolder}
             />
           )}
           {(data ?? []).map((item) => (
