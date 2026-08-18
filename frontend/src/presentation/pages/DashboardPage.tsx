@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
 import { lazy, Suspense, useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import { BarChart2, ShieldAlert, Activity, Pin, Briefcase } from 'lucide-react'
+import { BarChart2, ShieldAlert, Activity, Pin } from 'lucide-react'
 import { useLatestReport, useReportById } from '@/presentation/hooks/useReport'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useDashboardData } from '@/presentation/hooks/useDashboardData'
@@ -158,24 +158,17 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         </Suspense>
       )}
 
-      <div className="space-y-1">
-        <SectionTitle
-          icon={Briefcase}
-          title="업무 유형별 주간 현황"
-          subtitle={dateRange ? `${dateRange.start} – ${dateRange.end}` : undefined}
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
-          {workTypeWeekly.map((widget) => (
-            <WorkTypeSummaryCard
-              key={widget.key}
-              label={widget.label}
-              created={widget.created}
-              resolved={widget.resolved}
-              onCreatedClick={() => setWorkTypeCreated(widget)}
-              onResolvedClick={() => setWorkTypeResolved(widget)}
-            />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
+        {workTypeWeekly.map((widget) => (
+          <WorkTypeSummaryCard
+            key={widget.key}
+            label={widget.label}
+            created={widget.created}
+            resolved={widget.resolved}
+            onCreatedClick={() => setWorkTypeCreated(widget)}
+            onResolvedClick={() => setWorkTypeResolved(widget)}
+          />
+        ))}
       </div>
 
       {(hasW13 || hasW14) && (
