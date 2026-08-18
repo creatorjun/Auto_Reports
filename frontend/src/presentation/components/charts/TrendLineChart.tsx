@@ -4,28 +4,17 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 interface Props {
   created: number
   resolved: number
-  title?: string
-  subtitle?: string
   onBarClick?: (key: '생성' | '해결') => void
 }
 
-export default function TrendLineChart({
-  created,
-  resolved,
-  title = '⚖️ 생성 vs 해결',
-  subtitle,
-  onBarClick,
-}: Props) {
+export default function TrendLineChart({ created, resolved, onBarClick }: Props) {
   const data = [
     { name: '이번 주', '생성': created, '해결': resolved },
   ]
 
   return (
-    <div className="card min-w-0">
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-4">
-        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
-        {subtitle && <span className="text-[11px] text-apple-light">{subtitle}</span>}
-      </div>
+    <div className="card">
+      <h3 className="text-sm font-semibold text-gray-700 mb-4">⚖️ 생성 vs 해결</h3>
       <ResponsiveContainer width="100%" height={360}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />

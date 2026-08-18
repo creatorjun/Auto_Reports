@@ -7,7 +7,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 | Page | Route | 역할 |
 |------|-------|------|
 | `LoginPage` | `/login` | credential 입력과 로그인 mutation |
-| `DashboardPage` | `/`, `/reports/:id` | 최신 또는 선택 보고서 widget dashboard와 업무 유형별 주간 생성·해결 현황 |
+| `DashboardPage` | `/`, `/reports/:id` | 최신 또는 선택 보고서 widget dashboard와 업무 유형별 주간 생성·완료 숫자 card |
 | `HistoryPage` | `/history` | 보고서 pagination, 선택, 삭제 |
 | `PartnerManagementPage` | `/partners` | 조직·멤버·이슈 탐색 |
 | `StoragePage` | `/storage` | 폴더 탐색, 업로드, 삭제, preview |

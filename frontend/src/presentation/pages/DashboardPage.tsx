@@ -8,6 +8,7 @@ import { useDashboardData } from '@/presentation/hooks/useDashboardData'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import SummaryCard, { SUMMARY_ICONS } from '@/presentation/components/cards/SummaryCard'
 import AiSummaryCard from '@/presentation/components/cards/AiSummaryCard'
+import WorkTypeSummaryCard from '@/presentation/components/cards/WorkTypeSummaryCard'
 import SectionTitle from '@/presentation/components/common/SectionTitle'
 import { ModalFallback, ChartFallback } from '@/presentation/components/common/DashboardFallbacks'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/constants'
@@ -68,11 +69,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const handleTrendBarClick = (key: '생성' | '해결') => {
     if (key === '생성') setShowWeeklyCreated(true)
     else setShowWeeklyResolved(true)
-  }
-
-  const handleWorkTypeBarClick = (widget: WorkTypeWeeklyWidget, key: '생성' | '해결') => {
-    if (key === '생성') setWorkTypeCreated(widget)
-    else setWorkTypeResolved(widget)
   }
 
   return (
@@ -168,17 +164,16 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           title="업무 유형별 주간 현황"
           subtitle={dateRange ? `${dateRange.start} – ${dateRange.end}` : undefined}
         />
-        <div className="grid grid-cols-1 md:grid-cols-2 3xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
           {workTypeWeekly.map((widget) => (
-            <Suspense key={widget.key} fallback={<ChartFallback />}>
-              <TrendLineChart
-                title={widget.label}
-                subtitle="생성 vs 해결"
-                created={widget.created}
-                resolved={widget.resolved}
-                onBarClick={(key) => handleWorkTypeBarClick(widget, key)}
-              />
-            </Suspense>
+            <WorkTypeSummaryCard
+              key={widget.key}
+              label={widget.label}
+              created={widget.created}
+              resolved={widget.resolved}
+              onCreatedClick={() => setWorkTypeCreated(widget)}
+              onResolvedClick={() => setWorkTypeResolved(widget)}
+            />
           ))}
         </div>
       </div>
