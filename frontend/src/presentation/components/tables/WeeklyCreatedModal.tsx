@@ -7,6 +7,7 @@ import type { CreatedIssue } from '@/domain/Dashboard'
 interface Props {
   issues: CreatedIssue[]
   total: number
+  title?: string
   dateRange?: { start: string; end: string }
   onClose: () => void
 }
@@ -19,14 +20,14 @@ const COLUMNS: ColumnDef<CreatedIssue>[] = [
   { header: '생성일시',  renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.created}</span> },
 ]
 
-export default function WeeklyCreatedModal({ issues, total, dateRange, onClose }: Props) {
+export default function WeeklyCreatedModal({ issues, total, title = '생성 이슈', dateRange, onClose }: Props) {
   const subtitle = dateRange
     ? `${dateRange.start} – ${dateRange.end} · 전체 ${total}건 (생성일 최신순)`
     : `전체 ${total}건 (생성일 최신순)`
 
   return (
     <IssueTableModal
-      title="생성 이슈"
+      title={title}
       subtitle={subtitle}
       data={issues}
       columns={COLUMNS}

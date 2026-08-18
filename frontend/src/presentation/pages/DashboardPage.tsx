@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
 import { lazy, Suspense, useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import { BarChart2, ShieldAlert, Activity, Pin } from 'lucide-react'
+import { BarChart2, ShieldAlert, Activity, Pin, Briefcase } from 'lucide-react'
 import { useLatestReport, useReportById } from '@/presentation/hooks/useReport'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useDashboardData } from '@/presentation/hooks/useDashboardData'
@@ -12,7 +12,7 @@ import SectionTitle from '@/presentation/components/common/SectionTitle'
 import { ModalFallback, ChartFallback } from '@/presentation/components/common/DashboardFallbacks'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/constants'
 import type { ReportDetail } from '@/domain/Report'
-import type { SlaDelayIssue, ViolationEntry } from '@/domain/Dashboard'
+import type { SlaDelayIssue, ViolationEntry, WorkTypeWeeklyWidget } from '@/domain/Dashboard'
 import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
 
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
@@ -36,6 +36,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
   const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
+  const [workTypeCreated,    setWorkTypeCreated]    = useState<WorkTypeWeeklyWidget | null>(null)
+  const [workTypeResolved,   setWorkTypeResolved]   = useState<WorkTypeWeeklyWidget | null>(null)
   const [showIssueReview,    setShowIssueReview]    = useState(false)
   const [showDataRequest,    setShowDataRequest]    = useState(false)
   const [showResultPending,  setShowResultPending]  = useState(false)
@@ -48,7 +50,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     return () => setCurrentReport(null)
   }, [report, setCurrentReport])
 
-  const { weekly, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report)
+  const { weekly, workTypeWeekly, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report)
   const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange } = weekly
   const { w7Monthly, w8Monthly, hasW7, hasW8 } = slaMonthly
   const { w13Monthly, w14Monthly, hasW13, hasW14 } = monthlyCount
@@ -66,6 +68,11 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const handleTrendBarClick = (key: '생성' | '해결') => {
     if (key === '생성') setShowWeeklyCreated(true)
     else setShowWeeklyResolved(true)
+  }
+
+  const handleWorkTypeBarClick = (widget: WorkTypeWeeklyWidget, key: '생성' | '해결') => {
+    if (key === '생성') setWorkTypeCreated(widget)
+    else setWorkTypeResolved(widget)
   }
 
   return (
@@ -90,6 +97,28 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       {showWeeklyResolved && (
         <Suspense fallback={<ModalFallback />}>
           <WeeklyResolvedModal issues={weeklyResolved} total={w3Resolved} dateRange={dateRange} onClose={() => setShowWeeklyResolved(false)} />
+        </Suspense>
+      )}
+      {workTypeCreated && (
+        <Suspense fallback={<ModalFallback />}>
+          <WeeklyCreatedModal
+            title={`${workTypeCreated.label} 생성 이슈`}
+            issues={workTypeCreated.createdIssues}
+            total={workTypeCreated.created}
+            dateRange={dateRange}
+            onClose={() => setWorkTypeCreated(null)}
+          />
+        </Suspense>
+      )}
+      {workTypeResolved && (
+        <Suspense fallback={<ModalFallback />}>
+          <WeeklyResolvedModal
+            title={`${workTypeResolved.label} 완료 이슈`}
+            issues={workTypeResolved.resolvedIssues}
+            total={workTypeResolved.resolved}
+            dateRange={dateRange}
+            onClose={() => setWorkTypeResolved(null)}
+          />
         </Suspense>
       )}
       {showIssueReview && (
@@ -132,6 +161,27 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           />
         </Suspense>
       )}
+
+      <div className="space-y-1">
+        <SectionTitle
+          icon={Briefcase}
+          title="업무 유형별 주간 현황"
+          subtitle={dateRange ? `${dateRange.start} – ${dateRange.end}` : undefined}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 3xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
+          {workTypeWeekly.map((widget) => (
+            <Suspense key={widget.key} fallback={<ChartFallback />}>
+              <TrendLineChart
+                title={widget.label}
+                subtitle="생성 vs 해결"
+                created={widget.created}
+                resolved={widget.resolved}
+                onBarClick={(key) => handleWorkTypeBarClick(widget, key)}
+              />
+            </Suspense>
+          ))}
+        </div>
+      </div>
 
       {(hasW13 || hasW14) && (
         <div className="space-y-1">

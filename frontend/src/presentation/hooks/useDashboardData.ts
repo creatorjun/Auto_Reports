@@ -11,6 +11,7 @@ import type {
   ReviewIssue,
   SlaDelayIssue,
   ViolationEntry,
+  WorkTypeWeeklyWidget,
 } from '@/domain/Dashboard'
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
@@ -32,6 +33,20 @@ interface ResolutionTypeEntry {
   count: number
 }
 
+interface CreatedVsResolvedData {
+  created: number
+  resolved: number
+  created_details: CreatedIssue[]
+  resolved_details: ResolvedIssue[]
+}
+
+const WORK_TYPE_DEFINITIONS = [
+  { key: 'support', label: '지원 요청', jiraType: '서비스 요청' },
+  { key: 'improvement', label: '개선 요청', jiraType: '개선' },
+  { key: 'incident', label: '인시던트 보고', jiraType: '인시던트' },
+  { key: 'cve', label: 'CVE', jiraType: 'CVE' },
+] as const
+
 function getData<T>(widget: { data: Record<string, unknown> | null } | undefined): T | null {
   return (widget?.data ?? null) as T | null
 }
@@ -40,7 +55,7 @@ export function useDashboardData(report: ReportDetail) {
   const w = report.widgets
 
   const weekly = useMemo(() => {
-    const w3Data = getData<{ created: number; resolved: number; created_details: CreatedIssue[]; resolved_details: ResolvedIssue[] }>(w.w3)
+    const w3Data = getData<CreatedVsResolvedData>(w.w3)
     return {
       w3Created: w3Data?.created ?? 0,
       w3Resolved: w3Data?.resolved ?? 0,
@@ -49,6 +64,21 @@ export function useDashboardData(report: ReportDetail) {
       dateRange: report.week_start && report.week_end ? { start: report.week_start, end: report.week_end } : undefined,
     }
   }, [w.w3, report.week_start, report.week_end])
+
+  const workTypeWeekly = useMemo<WorkTypeWeeklyWidget[]>(() => (
+    WORK_TYPE_DEFINITIONS.map(({ key, label, jiraType }) => {
+      const createdIssues = weekly.weeklyCreated.filter((issue) => issue.type === jiraType)
+      const resolvedIssues = weekly.weeklyResolved.filter((issue) => issue.type === jiraType)
+      return {
+        key,
+        label,
+        created: createdIssues.length,
+        resolved: resolvedIssues.length,
+        createdIssues,
+        resolvedIssues,
+      }
+    })
+  ), [weekly])
 
   const slaMonthly = useMemo(() => {
     const w7Data = getData<{ monthly: MonthlyEntry[] }>(w.w7)
@@ -126,5 +156,5 @@ export function useDashboardData(report: ReportDetail) {
     }
   }, [w.w4, w.w5, w.w6])
 
-  return { weekly, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues }
+  return { weekly, workTypeWeekly, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues }
 }

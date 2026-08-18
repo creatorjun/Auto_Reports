@@ -7,6 +7,7 @@ import type { ResolvedIssue } from '@/domain/Dashboard'
 interface Props {
   issues: ResolvedIssue[]
   total: number
+  title?: string
   dateRange?: { start: string; end: string }
   onClose: () => void
 }
@@ -19,14 +20,14 @@ const COLUMNS: ColumnDef<ResolvedIssue>[] = [
   { header: '해결일시',  renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.resolved}</span> },
 ]
 
-export default function WeeklyResolvedModal({ issues, total, dateRange, onClose }: Props) {
+export default function WeeklyResolvedModal({ issues, total, title = '완료 이슈', dateRange, onClose }: Props) {
   const subtitle = dateRange
     ? `${dateRange.start} – ${dateRange.end} · 전체 ${total}건 (해결일 최신순)`
     : `전체 ${total}건 (해결일 최신순)`
 
   return (
     <IssueTableModal
-      title="완료 이슈"
+      title={title}
       subtitle={subtitle}
       data={issues}
       columns={COLUMNS}

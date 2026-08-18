@@ -17,7 +17,7 @@
 
 ## Report와 dashboard
 
-`ReportDetail`은 summary 필드에 widget map과 선택적 AI 분석을 추가합니다. 서버 widget의 서로 다른 breakdown 구조를 React component 내부에서 즉석 추론하지 않고 `useDashboardData`가 `Dashboard.ts`의 표시 모델로 변환합니다.
+`ReportDetail`은 summary 필드에 widget map과 선택적 AI 분석을 추가합니다. 서버 widget의 서로 다른 breakdown 구조를 React component 내부에서 즉석 추론하지 않고 `useDashboardData`가 `Dashboard.ts`의 표시 모델로 변환합니다. w3 생성·해결 상세는 `WorkTypeWeeklyWidget`으로 분류되어 지원 요청, 개선 요청, 인시던트 보고, CVE의 주간 현황을 제공합니다.
 
 ## Site aggregate
 
