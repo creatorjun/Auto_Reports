@@ -16,7 +16,7 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             project_key="TACEA",
             issue_types=["인시던트", "개선", "CVE", "서비스 요청"],
             active_statuses=["처리 중"],
-            closed_statuses=["Closed"],
+            closed_statuses=["Closed", "반려됨", "중복 이슈", "취소됨"],
             sla_threshold_days=30,
             year_start=2026,
         )
@@ -35,4 +35,11 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             'project = TACEA AND issuetype IN (인시던트, 개선, CVE, "서비스 요청") '
             'AND resolved >= "2026-01-01"',
             self.queries.w2_yearly_resolved(),
+        )
+
+    def test_incomplete_issues_count_every_issue_type_in_project(self) -> None:
+        self.assertEqual(
+            'project = TACEA AND status NOT IN ("Closed", "반려됨", "중복 이슈", '
+            '"취소됨") ORDER BY issuekey DESC',
+            self.queries.w12_recent(),
         )

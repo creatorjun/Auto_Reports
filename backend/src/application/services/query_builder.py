@@ -31,9 +31,12 @@ class ResolvedQueries:
         self.date_start = self.week_start.strftime("%Y-%m-%d")
         self.date_end = self.week_end.strftime("%Y-%m-%d")
 
+    def _project(self) -> str:
+        return f"project = {self._c.project_key}"
+
     def _base(self) -> str:
         types = ", ".join(f'"{t}"' if " " in t else t for t in self._c.issue_types)
-        return f"project = {self._c.project_key} AND issuetype IN ({types})"
+        return f"{self._project()} AND issuetype IN ({types})"
 
     def _closed(self) -> str:
         return ", ".join(f'"{s}"' for s in self._c.closed_statuses)
@@ -43,7 +46,7 @@ class ResolvedQueries:
 
     def w1_yearly_created(self) -> str:
         return (
-            f"project = {self._c.project_key} "
+            f"{self._project()} "
             f"AND created >= \"{self._c.year_start}-01-01\""
         )
 
@@ -96,7 +99,7 @@ class ResolvedQueries:
 
     def w12_recent(self) -> str:
         return (
-            f"{self._base()} AND status NOT IN ({self._closed()}) "
+            f"{self._project()} AND status NOT IN ({self._closed()}) "
             f"ORDER BY issuekey DESC"
         )
 
