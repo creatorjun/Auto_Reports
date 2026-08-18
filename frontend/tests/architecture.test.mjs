@@ -80,3 +80,16 @@ test('source comments follow project rule', () => {
   }
   assert.deepEqual(violations, [])
 })
+
+test('deployment keeps critical report generation available across releases', () => {
+  const modal = fs.readFileSync(
+    path.join(source, 'presentation/components/common/LazyGenerateReportModal.tsx'),
+    'utf8',
+  )
+  const nginx = fs.readFileSync(path.join(root, 'nginx.conf'), 'utf8')
+  assert.match(modal, /import GenerateReportModal from ['"]\.\/GenerateReportModal['"]/)
+  assert.doesNotMatch(modal, /lazy\s*\(|import\s*\(\s*['"]\.\/GenerateReportModal['"]\s*\)/)
+  assert.match(nginx, /location = \/index\.html\s*\{[^}]*no-cache, no-store, must-revalidate/s)
+  assert.match(nginx, /location \/assets\/\s*\{[^}]*try_files \$uri =404;/s)
+  assert.match(nginx, /location \/assets\/\s*\{[^}]*max-age=31536000, immutable/s)
+})
