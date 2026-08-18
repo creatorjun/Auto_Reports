@@ -30,10 +30,9 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             self.queries.w1_yearly_created(),
         )
 
-    def test_yearly_resolved_retains_dashboard_issue_type_scope(self) -> None:
+    def test_yearly_resolved_counts_every_issue_type_in_project(self) -> None:
         self.assertEqual(
-            'project = TACEA AND issuetype IN (인시던트, 개선, CVE, "서비스 요청") '
-            'AND resolved >= "2026-01-01"',
+            'project = TACEA AND resolved >= "2026-01-01"',
             self.queries.w2_yearly_resolved(),
         )
 

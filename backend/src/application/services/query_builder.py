@@ -51,7 +51,10 @@ class ResolvedQueries:
         )
 
     def w2_yearly_resolved(self) -> str:
-        return f"{self._base()} AND resolved >= \"{self._c.year_start}-01-01\""
+        return (
+            f"{self._project()} "
+            f"AND resolved >= \"{self._c.year_start}-01-01\""
+        )
 
     def w3_created_vs_resolved(self) -> Tuple[str, str]:
         return (
