@@ -42,7 +42,10 @@ class ResolvedQueries:
         return self._c.sla_threshold_days
 
     def w1_yearly_created(self) -> str:
-        return f"{self._base()} AND created >= \"{self._c.year_start}-01-01\""
+        return (
+            f"project = {self._c.project_key} "
+            f"AND created >= \"{self._c.year_start}-01-01\""
+        )
 
     def w2_yearly_resolved(self) -> str:
         return f"{self._base()} AND resolved >= \"{self._c.year_start}-01-01\""
