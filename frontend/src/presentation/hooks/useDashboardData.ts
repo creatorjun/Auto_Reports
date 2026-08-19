@@ -11,7 +11,7 @@ import type {
   ReviewIssue,
   SlaDelayIssue,
   ViolationEntry,
-  WorkTypeWeeklyWidget,
+  WorkTypeOpenWidget,
 } from '@/domain/Dashboard'
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
@@ -51,6 +51,13 @@ function getData<T>(widget: { data: Record<string, unknown> | null } | undefined
   return (widget?.data ?? null) as T | null
 }
 
+function getInclusiveDayCount(start: string, end: string): number {
+  const startTime = Date.parse(`${start}T00:00:00Z`)
+  const endTime = Date.parse(`${end}T00:00:00Z`)
+  if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime < startTime) return 0
+  return Math.floor((endTime - startTime) / 86_400_000) + 1
+}
+
 export function useDashboardData(report: ReportDetail) {
   const w = report.widgets
 
@@ -62,23 +69,9 @@ export function useDashboardData(report: ReportDetail) {
       weeklyCreated: w3Data?.created_details ?? [],
       weeklyResolved: w3Data?.resolved_details ?? [],
       dateRange: report.week_start && report.week_end ? { start: report.week_start, end: report.week_end } : undefined,
+      rangeDays: getInclusiveDayCount(report.week_start, report.week_end),
     }
   }, [w.w3, report.week_start, report.week_end])
-
-  const workTypeWeekly = useMemo<WorkTypeWeeklyWidget[]>(() => (
-    WORK_TYPE_DEFINITIONS.map(({ key, label, jiraType }) => {
-      const createdIssues = weekly.weeklyCreated.filter((issue) => issue.type === jiraType)
-      const resolvedIssues = weekly.weeklyResolved.filter((issue) => issue.type === jiraType)
-      return {
-        key,
-        label,
-        created: createdIssues.length,
-        resolved: resolvedIssues.length,
-        createdIssues,
-        resolvedIssues,
-      }
-    })
-  ), [weekly])
 
   const slaMonthly = useMemo(() => {
     const w7Data = getData<{ monthly: MonthlyEntry[] }>(w.w7)
@@ -145,6 +138,18 @@ export function useDashboardData(report: ReportDetail) {
     return { recentIssues, incompleteIssues, incompleteTotal: incompleteIssues.length }
   }, [w.w12])
 
+  const workTypeOpen = useMemo<WorkTypeOpenWidget[]>(() => (
+    WORK_TYPE_DEFINITIONS.map(({ key, label, jiraType }) => {
+      const issues = recentAndIncomplete.incompleteIssues.filter((issue) => issue.type === jiraType)
+      return {
+        key,
+        label,
+        count: issues.length,
+        issues,
+      }
+    })
+  ), [recentAndIncomplete])
+
   const statusIssues = useMemo(() => {
     const w4Data = getData<{ issue_details: ReviewIssue[] }>(w.w4)
     const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w.w5)
@@ -156,5 +161,5 @@ export function useDashboardData(report: ReportDetail) {
     }
   }, [w.w4, w.w5, w.w6])
 
-  return { weekly, workTypeWeekly, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues }
+  return { weekly, workTypeOpen, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues }
 }

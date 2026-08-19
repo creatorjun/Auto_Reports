@@ -7,6 +7,7 @@ import type { IncompleteIssue } from '@/domain/Dashboard'
 interface Props {
   issues: IncompleteIssue[]
   total: number
+  title?: string
   onClose: () => void
 }
 
@@ -19,10 +20,10 @@ const COLUMNS: ColumnDef<IncompleteIssue>[] = [
   { header: '경과일',    renderCell: d => <div className="py-2.5 whitespace-nowrap"><span className={MODAL_CLS.elapsedCell}>{d.elapsed_days}일</span></div> },
 ]
 
-export default function IncompleteIssueModal({ issues, total, onClose }: Props) {
+export default function IncompleteIssueModal({ issues, total, title = '미완료 이슈', onClose }: Props) {
   return (
     <IssueTableModal
-      title="미완료 이슈"
+      title={title}
       subtitle={`처리 완료되지 않은 이슈 · 전체 ${total}건 (오래된 순)`}
       data={issues}
       columns={COLUMNS}

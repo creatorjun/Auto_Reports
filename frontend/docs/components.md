@@ -7,7 +7,7 @@
 | `auth` | route 인증 가드 |
 | `layout` | Header, Sidebar, MobileTabBar, Outlet layout |
 | `common` | loading, error boundary, 검색, 보고서 생성, 공통 modal shell·table |
-| `cards` | AI, SLA, 숫자 summary card와 업무 유형별 생성·완료 card |
+| `cards` | AI, SLA, 숫자 summary card와 업무 유형별 열린 요청 건수 card |
 | `charts` | 월별, SLA, 사유, 처리시간, 유형 Recharts 시각화 |
 | `tables` | 이슈 종류별 modal과 history report table |
 | `history` | 보고서 삭제 확인 |

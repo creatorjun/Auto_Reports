@@ -13,7 +13,7 @@ import SectionTitle from '@/presentation/components/common/SectionTitle'
 import { ModalFallback, ChartFallback } from '@/presentation/components/common/DashboardFallbacks'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/constants'
 import type { ReportDetail } from '@/domain/Report'
-import type { SlaDelayIssue, ViolationEntry, WorkTypeWeeklyWidget } from '@/domain/Dashboard'
+import type { SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
 import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
 
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
@@ -37,8 +37,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
   const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
-  const [workTypeCreated,    setWorkTypeCreated]    = useState<WorkTypeWeeklyWidget | null>(null)
-  const [workTypeResolved,   setWorkTypeResolved]   = useState<WorkTypeWeeklyWidget | null>(null)
+  const [workTypeOpen,       setWorkTypeOpen]       = useState<WorkTypeOpenWidget | null>(null)
   const [showIssueReview,    setShowIssueReview]    = useState(false)
   const [showDataRequest,    setShowDataRequest]    = useState(false)
   const [showResultPending,  setShowResultPending]  = useState(false)
@@ -51,8 +50,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     return () => setCurrentReport(null)
   }, [report, setCurrentReport])
 
-  const { weekly, workTypeWeekly, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report)
-  const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange } = weekly
+  const { weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report)
+  const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeDays } = weekly
   const { w7Monthly, w8Monthly, hasW7, hasW8 } = slaMonthly
   const { w13Monthly, w14Monthly, hasW13, hasW14 } = monthlyCount
   const { w9Total, w9Distribution } = slaDonut
@@ -77,8 +76,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w1?.total ?? 0} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
         <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w2?.total ?? 0} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
-        <SummaryCard label="생성"         value={w3Created}        color="blue"   icon={SUMMARY_ICONS.weekCreated}   onClick={() => setShowWeeklyCreated(true)}  />
-        <SummaryCard label="완료"         value={w3Resolved}       color="green"  icon={SUMMARY_ICONS.weekResolved}   onClick={() => setShowWeeklyResolved(true)} />
+        <SummaryCard label={`최근 ${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
+        <SummaryCard label={`최근 ${rangeDays}일 완료`} value={w3Resolved} color="green" icon={SUMMARY_ICONS.weekResolved} onClick={() => setShowWeeklyResolved(true)} />
         <SummaryCard label="이슈 리뷰 중" value={w.w4?.total ?? 0} color="yellow" icon={SUMMARY_ICONS.issueReview}    onClick={() => setShowIssueReview(true)}    />
         <SummaryCard label="자료 요청 중" value={w.w5?.total ?? 0} color="yellow" icon={SUMMARY_ICONS.dataRequest}    onClick={() => setShowDataRequest(true)}    />
         <SummaryCard label="결과 대기 중" value={w.w6?.total ?? 0} color="yellow" icon={SUMMARY_ICONS.resultPending}  onClick={() => setShowResultPending(true)}  />
@@ -95,25 +94,13 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           <WeeklyResolvedModal issues={weeklyResolved} total={w3Resolved} dateRange={dateRange} onClose={() => setShowWeeklyResolved(false)} />
         </Suspense>
       )}
-      {workTypeCreated && (
+      {workTypeOpen && (
         <Suspense fallback={<ModalFallback />}>
-          <WeeklyCreatedModal
-            title={`${workTypeCreated.label} 생성 이슈`}
-            issues={workTypeCreated.createdIssues}
-            total={workTypeCreated.created}
-            dateRange={dateRange}
-            onClose={() => setWorkTypeCreated(null)}
-          />
-        </Suspense>
-      )}
-      {workTypeResolved && (
-        <Suspense fallback={<ModalFallback />}>
-          <WeeklyResolvedModal
-            title={`${workTypeResolved.label} 완료 이슈`}
-            issues={workTypeResolved.resolvedIssues}
-            total={workTypeResolved.resolved}
-            dateRange={dateRange}
-            onClose={() => setWorkTypeResolved(null)}
+          <IncompleteIssueModal
+            title={`${workTypeOpen.label} 열린 요청`}
+            issues={workTypeOpen.issues}
+            total={workTypeOpen.count}
+            onClose={() => setWorkTypeOpen(null)}
           />
         </Suspense>
       )}
@@ -159,14 +146,12 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
-        {workTypeWeekly.map((widget) => (
+        {workTypeOpenWidgets.map((widget) => (
           <WorkTypeSummaryCard
             key={widget.key}
             label={widget.label}
-            created={widget.created}
-            resolved={widget.resolved}
-            onCreatedClick={() => setWorkTypeCreated(widget)}
-            onResolvedClick={() => setWorkTypeResolved(widget)}
+            count={widget.count}
+            onClick={() => setWorkTypeOpen(widget)}
           />
         ))}
       </div>

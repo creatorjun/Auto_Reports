@@ -7,7 +7,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 | Page | Route | 역할 |
 |------|-------|------|
 | `LoginPage` | `/login` | credential 입력과 로그인 mutation |
-| `DashboardPage` | `/`, `/reports/:id` | 최신 또는 선택 보고서 widget dashboard와 업무 유형별 주간 생성·완료 숫자 card |
+| `DashboardPage` | `/`, `/reports/:id` | 최신 또는 선택 보고서 widget dashboard, 쿼리 기간별 생성·완료 card와 업무 유형별 현재 열린 요청 숫자 card |
 | `HistoryPage` | `/history` | 보고서 pagination, 선택, 삭제 |
 | `PartnerManagementPage` | `/partners` | 조직·멤버·이슈 탐색 |
 | `StoragePage` | `/storage` | 폴더 탐색, 업로드, 삭제, preview |
@@ -26,7 +26,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 | `useJobStream` | SSE 우선, polling fallback |
 | `useTrigger` | 전역 trigger 상태 연결 |
 | `useStorage` | 파일·폴더 query와 mutation |
-| `useDashboardData` | widget map을 표시 모델로 변환하고 w3 상세를 업무 유형별 주간 현황으로 분류 |
+| `useDashboardData` | widget map을 표시 모델로 변환하고 w12 미완료 상세를 업무 유형별 열린 요청 현황으로 분류 |
 
 모든 서버 hook은 `useApplicationServices()`에서 gateway를 얻습니다.
 

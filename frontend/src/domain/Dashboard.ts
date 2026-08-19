@@ -54,13 +54,11 @@ export interface ResolvedIssue {
   resolved: string
 }
 
-export interface WorkTypeWeeklyWidget {
+export interface WorkTypeOpenWidget {
   key: string
   label: string
-  created: number
-  resolved: number
-  createdIssues: CreatedIssue[]
-  resolvedIssues: ResolvedIssue[]
+  count: number
+  issues: IncompleteIssue[]
 }
 
 export interface StatusIssue {
