@@ -29,7 +29,6 @@ const WeeklyResolvedModal = lazy(() => import('@/presentation/components/tables/
 const IssueReviewModal    = lazy(() => import('@/presentation/components/tables/IssueReviewModal'))
 const DataRequestModal    = lazy(() => import('@/presentation/components/tables/DataRequestModal'))
 const ResultPendingModal  = lazy(() => import('@/presentation/components/tables/ResultPendingModal'))
-const ProcessingModal     = lazy(() => import('@/presentation/components/tables/ProcessingModal'))
 const IncompleteIssueModal = lazy(() => import('@/presentation/components/tables/IncompleteIssueModal'))
 const SlaViolationModal   = lazy(() => import('@/presentation/components/tables/SlaViolationModal'))
 const SlaDelayModal       = lazy(() => import('@/presentation/components/tables/SlaDelayModal'))
@@ -42,7 +41,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const [showIssueReview,    setShowIssueReview]    = useState(false)
   const [showDataRequest,    setShowDataRequest]    = useState(false)
   const [showResultPending,  setShowResultPending]  = useState(false)
-  const [showProcessing,     setShowProcessing]     = useState(false)
   const [showIncomplete,     setShowIncomplete]     = useState(false)
   const [slaViolationEntry,  setSlaViolationEntry]  = useState<ViolationEntry | null>(null)
   const [slaDelayEntry,      setSlaDelayEntry]      = useState<{ status: string; issues: SlaDelayIssue[] } | null>(null)
@@ -59,7 +57,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const { w9Total, w9Distribution } = slaDonut
   const { w10ByStatus, w10ByStatusDetails } = slaDelay
   const { recentIssues, incompleteIssues, incompleteTotal } = recentAndIncomplete
-  const { reviewIssues, dataRequestIssues, resultPendingIssues, processingIssues } = statusIssues
+  const { reviewIssues, dataRequestIssues, resultPendingIssues } = statusIssues
   const w = report.widgets
 
   const slaModalIssues: SlaViolationIssue[] = useMemo(() => {
@@ -83,7 +81,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <SummaryCard label="이슈 리뷰 중" value={w.w4?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
         <SummaryCard label="자료 요청 중" value={w.w5?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.dataRequest}   onClick={() => setShowDataRequest(true)}   />
         <SummaryCard label="결과 대기 중" value={w.w6?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.resultPending} onClick={() => setShowResultPending(true)} />
-        <SummaryCard label="처리 중"      value={w.w15?.total ?? 0} color="yellow" icon={SUMMARY_ICONS.processing}    onClick={() => setShowProcessing(true)}    />
         <SummaryCard label="미완료 이슈"  value={incompleteTotal}   color="red"    icon={SUMMARY_ICONS.incomplete}    onClick={() => setShowIncomplete(true)}    />
       </div>
 
@@ -120,11 +117,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       {showResultPending && (
         <Suspense fallback={<ModalFallback />}>
           <ResultPendingModal issues={resultPendingIssues} total={w.w6?.total ?? 0} onClose={() => setShowResultPending(false)} />
-        </Suspense>
-      )}
-      {showProcessing && (
-        <Suspense fallback={<ModalFallback />}>
-          <ProcessingModal issues={processingIssues} total={w.w15?.total ?? 0} onClose={() => setShowProcessing(false)} />
         </Suspense>
       )}
       {showIncomplete && (

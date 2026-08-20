@@ -2,7 +2,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   CalendarPlus, CalendarCheck, FilePlus, CheckCircle2,
-  Eye, FolderSearch, Clock, AlertTriangle, Loader2
+  Eye, FolderSearch, Clock, AlertTriangle
 } from 'lucide-react'
 
 interface Props {
@@ -30,7 +30,6 @@ export const SUMMARY_ICONS = {
   issueReview:    Eye,
   dataRequest:    FolderSearch,
   resultPending:  Clock,
-  processing:     Loader2,
   incomplete:     AlertTriangle,
 } as const
 

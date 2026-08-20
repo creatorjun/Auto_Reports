@@ -17,4 +17,3 @@ class WidgetId(StrEnum):
     RECENT_ISSUES          = "w12"
     MONTHLY_CREATED        = "w13"
     MONTHLY_RESOLVED       = "w14"
-    PROCESSING             = "w15"

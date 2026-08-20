@@ -6,7 +6,6 @@ import type {
   IncompleteIssue,
   MonthlyCountEntry,
   MonthlyEntry,
-  ProcessingIssue,
   ResolvedIssue,
   ResultPendingIssue,
   ReviewIssue,
@@ -152,17 +151,15 @@ export function useDashboardData(report: ReportDetail) {
   ), [recentAndIncomplete])
 
   const statusIssues = useMemo(() => {
-    const w4Data  = getData<{ issue_details: ReviewIssue[] }>(w.w4)
-    const w5Data  = getData<{ issue_details: DataRequestIssue[] }>(w.w5)
-    const w6Data  = getData<{ issue_details: ResultPendingIssue[] }>(w.w6)
-    const w15Data = getData<{ issue_details: ProcessingIssue[] }>(w.w15)
+    const w4Data = getData<{ issue_details: ReviewIssue[] }>(w.w4)
+    const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w.w5)
+    const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w.w6)
     return {
-      reviewIssues:      w4Data?.issue_details  ?? [],
-      dataRequestIssues: w5Data?.issue_details  ?? [],
+      reviewIssues: w4Data?.issue_details ?? [],
+      dataRequestIssues: w5Data?.issue_details ?? [],
       resultPendingIssues: w6Data?.issue_details ?? [],
-      processingIssues:  w15Data?.issue_details ?? [],
     }
-  }, [w.w4, w.w5, w.w6, w.w15])
+  }, [w.w4, w.w5, w.w6])
 
   return { weekly, workTypeOpen, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues }
 }
