@@ -80,6 +80,12 @@ class ResolvedQueries:
             f"AND status NOT IN ({self._closed()})"
         )
 
+    def w15_processing(self) -> str:
+        return (
+            f"{self._base()} AND status = \"처리 중\" "
+            f"AND status NOT IN ({self._closed()})"
+        )
+
     def w7_w8_monthly_candidates(self, year: int, month: int) -> str:
         start = f"{year}-{month:02d}-01"
         end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"

@@ -73,4 +73,5 @@ export interface StatusIssue {
 export type ReviewIssue = StatusIssue
 export type DataRequestIssue = StatusIssue
 export type ResultPendingIssue = StatusIssue
+export type ProcessingIssue = StatusIssue
 export type IncompleteIssue = StatusIssue
