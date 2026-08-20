@@ -1,6 +1,7 @@
 # backend/src/domain/constants.py
 from zoneinfo import ZoneInfo
 
+
 KST = ZoneInfo("Asia/Seoul")
 JIRA_MAX_RESULT = 500
 SUMMARY_TRUNCATE_LEN = 60
@@ -13,6 +14,7 @@ STATUS_ORDER: list[str] = [
     "연구소 대기 중",
     "연구소 검토 중",
     "구현 중",
+    "처리 중",
     "배포 파일 검토 중",
     "결과 대기 중",
     "보류 중",
@@ -26,6 +28,7 @@ STAGE_MAP: dict[str, int] = {
     "연구소 대기 중": 3,
     "연구소 검토 중": 3,
     "구현 중": 4,
+    "처리 중": 4,
     "배포 파일 검토 중": 5,
     "결과 대기 중": 6,
 }
