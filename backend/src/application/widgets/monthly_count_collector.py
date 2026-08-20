@@ -30,8 +30,8 @@ class MonthlyCountCollector(AbstractWidgetCollector):
                 month = 12
                 year -= 1
 
-        created_jqls  = [self._q.w13_monthly_created(y, m)  for y, m in months]
-        resolved_jqls = [self._q.w14_monthly_resolved(y, m) for y, m in months]
+        created_jqls  = [self._q.w8_monthly_created(y, m)  for y, m in months]
+        resolved_jqls = [self._q.w9_monthly_resolved(y, m) for y, m in months]
         all_jqls = created_jqls + resolved_jqls
 
         all_counts = await self._jira.get_issue_counts_batch(all_jqls)
@@ -40,26 +40,26 @@ class MonthlyCountCollector(AbstractWidgetCollector):
         created_counts  = all_counts[:n]
         resolved_counts = all_counts[n:]
 
-        w13_entries: list[MonthlyCountEntry] = []
-        w14_entries: list[MonthlyCountEntry] = []
+        w8_entries: list[MonthlyCountEntry] = []
+        w9_entries: list[MonthlyCountEntry] = []
         for (y, m), created, resolved in zip(months, created_counts, resolved_counts):
             label = f"{m}월"
-            w13_entries.append(MonthlyCountEntry(month=label, year=y, month_num=m, count=created))
-            w14_entries.append(MonthlyCountEntry(month=label, year=y, month_num=m, count=resolved))
+            w8_entries.append(MonthlyCountEntry(month=label, year=y, month_num=m, count=created))
+            w9_entries.append(MonthlyCountEntry(month=label, year=y, month_num=m, count=resolved))
 
         logger.info(
-            f"[w13/w14] 월별 등록/해결 {self.MONTHS_BACK}개월 수집 완료 "
+            f"[w8/w9] 월별 등록/해결 {self.MONTHS_BACK}개월 수집 완료 "
             f"(배치 {len(all_jqls)}건 JQL → 단일 gather)"
         )
         return (
             WidgetResult(
                 name="월별 등록 건수",
-                total=sum(e.count for e in w13_entries),
-                data=MonthlyCountWidgetData(monthly=w13_entries),
+                total=sum(e.count for e in w8_entries),
+                data=MonthlyCountWidgetData(monthly=w8_entries),
             ),
             WidgetResult(
                 name="월별 해결 건수",
-                total=sum(e.count for e in w14_entries),
-                data=MonthlyCountWidgetData(monthly=w14_entries),
+                total=sum(e.count for e in w9_entries),
+                data=MonthlyCountWidgetData(monthly=w9_entries),
             ),
         )

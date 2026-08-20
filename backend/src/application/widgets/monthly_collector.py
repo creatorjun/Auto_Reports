@@ -36,7 +36,7 @@ class MonthlyCollector(AbstractWidgetCollector):
                 year -= 1
 
         async def _fetch_month(y: int, m: int) -> tuple[int, int, list]:
-            jql = self._q.w7_w8_monthly_candidates(y, m)
+            jql = self._q.w10_w11_monthly_candidates(y, m)
             issues = await self._jira.get_issues_with_sla(
                 jql, max_results=JIRA_MAX_RESULT, extra_fields="resolutiondate"
             )
@@ -44,8 +44,8 @@ class MonthlyCollector(AbstractWidgetCollector):
 
         month_results = await asyncio.gather(*[_fetch_month(y, m) for y, m in months])
 
-        w7_entries: list[MonthlyEntry] = []
-        w8_entries: list[MonthlyEntry] = []
+        w10_entries: list[MonthlyEntry] = []
+        w11_entries: list[MonthlyEntry] = []
 
         for y, m, issues in month_results:
             total     = len(issues)
@@ -63,19 +63,19 @@ class MonthlyCollector(AbstractWidgetCollector):
             res_rate  = round(res_met  / total * 100, 1) if total > 0 else 0.0
 
             label = f"{y}-{m:02d}"
-            w7_entries.append(MonthlyEntry(
+            w10_entries.append(MonthlyEntry(
                 month=label, year=y, month_num=m,
                 rate=init_rate, met=init_met, total=total,
             ))
-            w8_entries.append(MonthlyEntry(
+            w11_entries.append(MonthlyEntry(
                 month=label, year=y, month_num=m,
                 rate=res_rate, met=res_met, total=total,
             ))
 
-        logger.info(f"[w7/w8] 월별 SLA {self.MONTHS_BACK}개월 수집 완료")
+        logger.info(f"[w10/w11] 월별 SLA {self.MONTHS_BACK}개월 수집 완료")
         return (
-            WidgetResult(name="최초응답 SLA 월별", total=0, data=SlaMonthlyWidgetData(monthly=w7_entries)),
-            WidgetResult(name="해결시간 SLA 월별", total=0, data=SlaMonthlyWidgetData(monthly=w8_entries)),
+            WidgetResult(name="최초응답 SLA 월별", total=0, data=SlaMonthlyWidgetData(monthly=w10_entries)),
+            WidgetResult(name="해결시간 SLA 월별", total=0, data=SlaMonthlyWidgetData(monthly=w11_entries)),
         )
 
     @staticmethod

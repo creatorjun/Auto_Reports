@@ -107,7 +107,7 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
         self._q = q
 
     async def collect(self) -> WidgetResult[SlaMetVsViolatedWidgetData]:
-        jql = self._q.w9_sla()
+        jql = self._q.w12_sla()
         issues = await self._jira.get_issues_with_sla(jql, max_results=JIRA_MAX_RESULT)
 
         only_initial_issues: list[SlaViolationIssueDetail] = []
@@ -177,7 +177,7 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
                 )
 
         logger.info(
-            f"[w9] 위반 {total_violations}건 "
+            f"[w12] 위반 {total_violations}건 "
             f"(최초응답만 {only_initial}건 / 해결시간만 {only_resolution}건 / 둘다 {both}건)"
         )
         return WidgetResult(

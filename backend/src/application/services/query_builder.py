@@ -80,7 +80,23 @@ class ResolvedQueries:
             f"AND status NOT IN ({self._closed()})"
         )
 
-    def w7_w8_monthly_candidates(self, year: int, month: int) -> str:
+    def w7_recent(self) -> str:
+        return (
+            f"{self._project()} AND status NOT IN ({self._closed()}) "
+            f"ORDER BY issuekey DESC"
+        )
+
+    def w8_monthly_created(self, year: int, month: int) -> str:
+        start = f"{year}-{month:02d}-01"
+        end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
+        return f"{self._base()} AND created >= \"{start}\" AND created < \"{end}\""
+
+    def w9_monthly_resolved(self, year: int, month: int) -> str:
+        start = f"{year}-{month:02d}-01"
+        end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
+        return f"{self._base()} AND resolved >= \"{start}\" AND resolved < \"{end}\""
+
+    def w10_w11_monthly_candidates(self, year: int, month: int) -> str:
         start = f"{year}-{month:02d}-01"
         end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
         return (
@@ -88,30 +104,14 @@ class ResolvedQueries:
             f" ORDER BY created ASC"
         )
 
-    def w9_sla(self) -> str:
+    def w12_sla(self) -> str:
         return (
             f"{self._base()} AND status NOT IN ({self._closed()}) "
             f"ORDER BY created ASC"
         )
 
-    def w11_resolution_resolved(self) -> str:
+    def w14_resolution_resolved(self) -> str:
         return (
             f"{self._base()} AND resolved >= \"{self.date_start}\" "
             f"AND resolved <= \"{self.date_end}\" ORDER BY resolved DESC"
         )
-
-    def w12_recent(self) -> str:
-        return (
-            f"{self._project()} AND status NOT IN ({self._closed()}) "
-            f"ORDER BY issuekey DESC"
-        )
-
-    def w13_monthly_created(self, year: int, month: int) -> str:
-        start = f"{year}-{month:02d}-01"
-        end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
-        return f"{self._base()} AND created >= \"{start}\" AND created < \"{end}\""
-
-    def w14_monthly_resolved(self, year: int, month: int) -> str:
-        start = f"{year}-{month:02d}-01"
-        end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
-        return f"{self._base()} AND resolved >= \"{start}\" AND resolved < \"{end}\""

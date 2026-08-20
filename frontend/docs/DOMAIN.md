@@ -14,10 +14,30 @@
 | `Site.ts` | 사이트 aggregate, 하위 이력, create/update payload |
 | `Storage.ts` | `StorageItem`, `StorageFile`, `StorageQuota` |
 | `Dashboard.ts` | SLA·월별·상태별 widget 표시 모델 |
+| `WidgetId.ts` | 대시보드 최초 렌더 순서에 맞춘 widget ID 계약 |
 
 ## Report와 dashboard
 
-`ReportDetail`은 summary 필드에 widget map과 선택적 AI 분석을 추가합니다. 서버 widget의 서로 다른 breakdown 구조를 React component 내부에서 즉석 추론하지 않고 `useDashboardData`가 `Dashboard.ts`의 표시 모델로 변환합니다. w3 생성·완료 건수에는 보고서 쿼리의 시작일과 종료일을 포함한 기간 일수가 표시됩니다. w12 미완료 이슈 상세는 `WorkTypeOpenWidget`으로 분류되어 지원 요청, 개선 요청, 인시던트 보고, CVE의 현재 열린 요청 건수를 제공합니다.
+`ReportDetail`은 summary 필드에 widget map과 선택적 AI 분석을 추가합니다. 서버 widget의 서로 다른 breakdown 구조를 React component 내부에서 즉석 추론하지 않고 `useDashboardData`가 `Dashboard.ts`의 표시 모델로 변환합니다. w3 생성·완료 건수에는 보고서 쿼리의 시작일과 종료일을 포함한 기간 일수가 표시됩니다. w7 미완료 이슈 상세는 `WorkTypeOpenWidget`으로 분류되어 지원 요청, 개선 요청, 인시던트 보고, CVE의 현재 열린 요청 건수를 제공합니다.
+
+widget ID는 화면에서 데이터가 처음 렌더링되는 순서를 따릅니다.
+
+| ID | 데이터 |
+|----|--------|
+| w1 | 연간 생성 |
+| w2 | 연간 해결 |
+| w3 | 기간 생성·해결 |
+| w4 | 이슈 리뷰 중 |
+| w5 | 자료 요청 중 |
+| w6 | 결과 대기 중 |
+| w7 | 미완료·최근 이슈 |
+| w8 | 월별 등록 |
+| w9 | 월별 해결 |
+| w10 | 최초응답 SLA 월별 |
+| w11 | 해결시간 SLA 월별 |
+| w12 | SLA 위반 분포 |
+| w13 | SLA 지연 사유 |
+| w14 | 유형별 평균 처리일 |
 
 ## Site aggregate
 

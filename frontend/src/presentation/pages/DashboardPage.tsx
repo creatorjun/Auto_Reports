@@ -15,6 +15,7 @@ import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/
 import type { ReportDetail } from '@/domain/Report'
 import type { SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
 import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
+import { WIDGET_ID } from '@/domain/WidgetId'
 
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
 const ReasonPieChart      = lazy(() => import('@/presentation/components/charts/ReasonPieChart'))
@@ -52,10 +53,10 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   const { weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report)
   const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeDays } = weekly
-  const { w7Monthly, w8Monthly, hasW7, hasW8 } = slaMonthly
-  const { w13Monthly, w14Monthly, hasW13, hasW14 } = monthlyCount
-  const { w9Total, w9Distribution } = slaDonut
-  const { w10ByStatus, w10ByStatusDetails } = slaDelay
+  const { w10Monthly, w11Monthly, hasW10, hasW11 } = slaMonthly
+  const { w8Monthly, w9Monthly, hasW8, hasW9 } = monthlyCount
+  const { w12Total, w12Distribution } = slaDonut
+  const { w13ByStatus, w13ByStatusDetails } = slaDelay
   const { recentIssues, incompleteIssues, incompleteTotal } = recentAndIncomplete
   const { reviewIssues, dataRequestIssues, resultPendingIssues } = statusIssues
   const w = report.widgets
@@ -74,13 +75,13 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
       {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
-        <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w.w1?.total ?? 0} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
-        <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w.w2?.total ?? 0} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
+        <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w[WIDGET_ID.YEARLY_CREATED]?.total ?? 0} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
+        <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w[WIDGET_ID.YEARLY_RESOLVED]?.total ?? 0} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
         <SummaryCard label={`최근 ${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
         <SummaryCard label={`최근 ${rangeDays}일 완료`} value={w3Resolved} color="green" icon={SUMMARY_ICONS.weekResolved} onClick={() => setShowWeeklyResolved(true)} />
-        <SummaryCard label="이슈 리뷰 중" value={w.w4?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
-        <SummaryCard label="자료 요청 중" value={w.w5?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.dataRequest}   onClick={() => setShowDataRequest(true)}   />
-        <SummaryCard label="결과 대기 중" value={w.w6?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.resultPending} onClick={() => setShowResultPending(true)} />
+        <SummaryCard label="이슈 리뷰 중" value={w[WIDGET_ID.ISSUE_REVIEW]?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
+        <SummaryCard label="자료 요청 중" value={w[WIDGET_ID.DATA_REQUEST]?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.dataRequest}   onClick={() => setShowDataRequest(true)}   />
+        <SummaryCard label="결과 대기 중" value={w[WIDGET_ID.RESULT_PENDING]?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.resultPending} onClick={() => setShowResultPending(true)} />
         <SummaryCard label="미완료 이슈"  value={incompleteTotal}   color="red"    icon={SUMMARY_ICONS.incomplete}    onClick={() => setShowIncomplete(true)}    />
       </div>
 
@@ -106,17 +107,17 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       )}
       {showIssueReview && (
         <Suspense fallback={<ModalFallback />}>
-          <IssueReviewModal issues={reviewIssues} total={w.w4?.total ?? 0} onClose={() => setShowIssueReview(false)} />
+          <IssueReviewModal issues={reviewIssues} total={w[WIDGET_ID.ISSUE_REVIEW]?.total ?? 0} onClose={() => setShowIssueReview(false)} />
         </Suspense>
       )}
       {showDataRequest && (
         <Suspense fallback={<ModalFallback />}>
-          <DataRequestModal issues={dataRequestIssues} total={w.w5?.total ?? 0} onClose={() => setShowDataRequest(false)} />
+          <DataRequestModal issues={dataRequestIssues} total={w[WIDGET_ID.DATA_REQUEST]?.total ?? 0} onClose={() => setShowDataRequest(false)} />
         </Suspense>
       )}
       {showResultPending && (
         <Suspense fallback={<ModalFallback />}>
-          <ResultPendingModal issues={resultPendingIssues} total={w.w6?.total ?? 0} onClose={() => setShowResultPending(false)} />
+          <ResultPendingModal issues={resultPendingIssues} total={w[WIDGET_ID.RESULT_PENDING]?.total ?? 0} onClose={() => setShowResultPending(false)} />
         </Suspense>
       )}
       {showIncomplete && (
@@ -156,28 +157,28 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         ))}
       </div>
 
-      {(hasW13 || hasW14) && (
+      {(hasW8 || hasW9) && (
         <div className="space-y-1">
           <SectionTitle icon={BarChart2} title="월별 이슈 현황" subtitle="최근 6개월" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
             <Suspense fallback={<ChartFallback />}>
-              <MonthlyCountChart title="월별 등록 건수" subtitle="최근 6개월" monthly={w13Monthly} color={MONTHLY_COUNT_COLORS.created}  />
+              <MonthlyCountChart title="월별 등록 건수" subtitle="최근 6개월" monthly={w8Monthly} color={MONTHLY_COUNT_COLORS.created}  />
             </Suspense>
             <Suspense fallback={<ChartFallback />}>
-              <MonthlyCountChart title="월별 해결 건수" subtitle="최근 6개월" monthly={w14Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
+              <MonthlyCountChart title="월별 해결 건수" subtitle="최근 6개월" monthly={w9Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
             </Suspense>
           </div>
         </div>
       )}
-      {(hasW7 || hasW8) && (
+      {(hasW10 || hasW11) && (
         <div className="space-y-1">
           <SectionTitle icon={ShieldAlert} title="SLA 준수율" subtitle="최근 6개월" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
             <Suspense fallback={<ChartFallback />}>
-              <SlaMonthlyLineChart title="최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w7Monthly} color={SLA_MONTHLY_COLORS.initial}    />
+              <SlaMonthlyLineChart title="최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w10Monthly} color={SLA_MONTHLY_COLORS.initial}    />
             </Suspense>
             <Suspense fallback={<ChartFallback />}>
-              <SlaMonthlyLineChart title="해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w8Monthly} color={SLA_MONTHLY_COLORS.resolution} />
+              <SlaMonthlyLineChart title="해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w11Monthly} color={SLA_MONTHLY_COLORS.resolution} />
             </Suspense>
           </div>
         </div>
@@ -187,15 +188,15 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
           <Suspense fallback={<ChartFallback />}>
             <SlaDonutChart
-              total={w9Total}
-              distribution={w9Distribution}
+              total={w12Total}
+              distribution={w12Distribution}
               onSliceClick={(entry) => setSlaViolationEntry(entry)}
             />
           </Suspense>
           <Suspense fallback={<ChartFallback />}>
             <ReasonPieChart
-              byStatus={w10ByStatus}
-              byStatusDetails={w10ByStatusDetails}
+              byStatus={w13ByStatus}
+              byStatusDetails={w13ByStatusDetails}
               onSliceClick={(status, issues) => setSlaDelayEntry({ status, issues })}
             />
           </Suspense>

@@ -48,7 +48,7 @@ class ReportAssembler:
         base_results = all_results[:len(entries)]
         monthly_results_nested = all_results[len(entries):]
 
-        widgets: dict[WidgetId, WidgetResult] = {
+        collected_widgets: dict[WidgetId, WidgetResult] = {
             e.widget_id: result for e, result in zip(entries, base_results)
         }
 
@@ -56,9 +56,15 @@ class ReportAssembler:
             ids = widget_ids if isinstance(widget_ids, list) else [widget_ids]
             if isinstance(results, tuple):
                 for wid, res in zip(ids, results):
-                    widgets[wid] = res
+                    collected_widgets[wid] = res
             else:
-                widgets[ids[0]] = results
+                collected_widgets[ids[0]] = results
+
+        widgets = {
+            widget_id: collected_widgets[widget_id]
+            for widget_id in WidgetId
+            if widget_id in collected_widgets
+        }
 
         logger.info("데이터 수집 완료 ✅")
         return NewReport(

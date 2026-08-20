@@ -46,7 +46,7 @@ class RecentCollector(AbstractWidgetCollector):
         self._q = q
 
     async def collect(self) -> WidgetResult[RecentIssueWidgetData]:
-        jql = self._q.w12_recent()
+        jql = self._q.w7_recent()
         issues = await self._jira.get_issues_with_assignees(
             jql, max_results=JIRA_MAX_RESULT
         )
@@ -75,7 +75,7 @@ class RecentCollector(AbstractWidgetCollector):
                 )
             )
         total = len(issue_details)
-        logger.info(f"[w12-최근이슈] {total}건")
+        logger.info(f"[w7-최근이슈] {total}건")
         return WidgetResult(
             name="최근 활성 이슈",
             total=total,

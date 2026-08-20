@@ -22,7 +22,8 @@ frontend/
     │   ├── Report.ts
     │   ├── Search.ts
     │   ├── Site.ts
-    │   └── Storage.ts
+    │   ├── Storage.ts
+    │   └── WidgetId.ts
     ├── application/
     │   ├── errors/RequestError.ts
     │   └── ports/

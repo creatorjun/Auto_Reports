@@ -2,6 +2,7 @@
 import dataclasses
 
 from src.domain.entities.report import Report
+from src.domain.value_objects.widget_id import WidgetId
 from src.presentation.schemas.report_schema import (
     AiAnalysisSchema,
     ReportDetailSchema,
@@ -24,14 +25,20 @@ class ReportMapper:
 
     @staticmethod
     def to_detail(report: Report) -> ReportDetailSchema:
+        ordered_ids = [widget_id for widget_id in WidgetId if widget_id in report.widgets]
+        ordered_ids.extend(key for key in report.widgets if key not in ordered_ids)
         widgets = {
-            k: WidgetResultSchema(
-                name=v.name,
-                total=v.total,
-                jql=v.jql,
-                data=dataclasses.asdict(v.data) if v.data is not None else None,
+            widget_id: WidgetResultSchema(
+                name=report.widgets[widget_id].name,
+                total=report.widgets[widget_id].total,
+                jql=report.widgets[widget_id].jql,
+                data=(
+                    dataclasses.asdict(report.widgets[widget_id].data)
+                    if report.widgets[widget_id].data is not None
+                    else None
+                ),
             )
-            for k, v in report.widgets.items()
+            for widget_id in ordered_ids
         }
         ai = None
         if report.ai_analysis:

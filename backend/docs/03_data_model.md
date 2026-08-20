@@ -47,6 +47,8 @@ site_id 외래키와 hostname, role, CPU core/thread, memory/disk 용량, OS, IP
 
 `Report`는 `WidgetResult` map과 선택적 `AiAnalysis`를 가집니다. JSONB 변환은 `widget_serializer.py` adapter의 책임이고 Domain 모델은 JSONB나 SQLAlchemy를 알지 못합니다.
 
+widget ID는 대시보드에서 처음 렌더링되는 순서인 연간 생성·해결, 기간 생성·해결, 진행 상태, 최근 이슈, 월별 현황, 월별 SLA, 분석 차트 순으로 w1부터 w14까지 부여합니다. `0013_reorder_dashboard_widget_ids.py`는 기존 보고서 JSONB의 이전 키를 새 순번으로 변환합니다.
+
 ## Migration
 
 마이그레이션은 `backend/alembic/versions`에 있습니다.

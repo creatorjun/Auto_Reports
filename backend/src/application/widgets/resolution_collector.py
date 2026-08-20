@@ -18,7 +18,7 @@ class ResolutionCollector(AbstractWidgetCollector):
         self._q = q
 
     async def collect(self) -> WidgetResult[ResolutionTypeWidgetData]:
-        jql = self._q.w11_resolution_resolved()
+        jql = self._q.w14_resolution_resolved()
         issues = await self._jira.get_issues(
             jql, max_results=JIRA_MAX_RESULT, fields="summary,issuetype,created,resolutiondate",
         )
@@ -43,7 +43,7 @@ class ResolutionCollector(AbstractWidgetCollector):
                 count=len(hours_list),
             )
         total = sum(e.count for e in result.values())
-        logger.info(f"[w11-평균처리일] {total}건")
+        logger.info(f"[w14-평균처리일] {total}건")
         return WidgetResult(
             name="유형별 평균 처리일",
             total=total,

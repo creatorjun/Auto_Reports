@@ -93,3 +93,33 @@ test('deployment keeps critical report generation available across releases', ()
   assert.match(nginx, /location \/assets\/\s*\{[^}]*try_files \$uri =404;/s)
   assert.match(nginx, /location \/assets\/\s*\{[^}]*max-age=31536000, immutable/s)
 })
+
+test('dashboard widget ids follow first render order', () => {
+  const contract = fs.readFileSync(path.join(source, 'domain/WidgetId.ts'), 'utf8')
+  const entries = [...contract.matchAll(/^\s+([A-Z_]+): '(w\d+)',$/gm)]
+    .map((match) => [match[1], match[2]])
+  assert.deepEqual(entries, [
+    ['YEARLY_CREATED', 'w1'],
+    ['YEARLY_RESOLVED', 'w2'],
+    ['CREATED_VS_RESOLVED', 'w3'],
+    ['ISSUE_REVIEW', 'w4'],
+    ['DATA_REQUEST', 'w5'],
+    ['RESULT_PENDING', 'w6'],
+    ['RECENT_ISSUES', 'w7'],
+    ['MONTHLY_CREATED', 'w8'],
+    ['MONTHLY_RESOLVED', 'w9'],
+    ['SLA_INITIAL_RESPONSE', 'w10'],
+    ['SLA_RESOLUTION_MONTHLY', 'w11'],
+    ['SLA_MET_VS_VIOLATED', 'w12'],
+    ['SLA_DELAY_REASON', 'w13'],
+    ['AVG_RESOLUTION_TYPE', 'w14'],
+  ])
+
+  for (const relative of [
+    'presentation/pages/DashboardPage.tsx',
+    'presentation/hooks/useDashboardData.ts',
+  ]) {
+    const content = fs.readFileSync(path.join(source, relative), 'utf8')
+    assert.doesNotMatch(content, /\bw(?:\.w\d+|\[['"]w\d+['"]\])/)
+  }
+})

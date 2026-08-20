@@ -1,5 +1,6 @@
 // frontend/src/presentation/components/tables/WeeklyResolvedModal.tsx
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
+import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
 import IssueTableModal, { type ColumnDef } from '@/presentation/components/common/IssueTableModal'
 import { MODAL_CLS } from '@/presentation/config/ui'
 import type { ResolvedIssue } from '@/domain/Dashboard'
@@ -15,7 +16,7 @@ interface Props {
 const COLUMNS: ColumnDef<ResolvedIssue>[] = [
   { header: '이슈 번호',  renderCell: d => <span className={MODAL_CLS.keyCell}>{d.key}</span> },
   { header: '제목',      renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span> },
-  { header: '유형',      renderCell: d => <span className={MODAL_CLS.metaCell}>{d.type}</span> },
+  { header: '유형',      renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><IssueTypeBadge type={d.type} /></div> },
   { header: '현재 상태',  renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><StatusBadge status={d.status} /></div> },
   { header: '해결일시',  renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.resolved}</span> },
 ]
@@ -39,7 +40,7 @@ export default function WeeklyResolvedModal({ issues, total, title = '완료 이
           </div>
           <p className="text-ui-sm text-apple-dark/80 leading-snug">{d.summary}</p>
           <div className="flex flex-wrap gap-2 items-center text-ui-xs text-apple-light">
-            <span>{d.type}</span><span>·</span><StatusBadge status={d.status} />
+            <IssueTypeBadge type={d.type} /><span>·</span><StatusBadge status={d.status} />
           </div>
         </div>
       )}

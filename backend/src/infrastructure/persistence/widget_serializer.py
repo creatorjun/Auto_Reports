@@ -22,14 +22,14 @@ _WIDGET_DATA_TYPE_MAP: dict[str, type] = {
     WidgetId.ISSUE_REVIEW:           SimpleIssueWidgetData,
     WidgetId.DATA_REQUEST:           SimpleIssueWidgetData,
     WidgetId.RESULT_PENDING:         SimpleIssueWidgetData,
+    WidgetId.RECENT_ISSUES:          RecentIssueWidgetData,
+    WidgetId.MONTHLY_CREATED:        MonthlyCountWidgetData,
+    WidgetId.MONTHLY_RESOLVED:       MonthlyCountWidgetData,
     WidgetId.SLA_INITIAL_RESPONSE:   SlaMonthlyWidgetData,
     WidgetId.SLA_RESOLUTION_MONTHLY: SlaMonthlyWidgetData,
     WidgetId.SLA_MET_VS_VIOLATED:    SlaMetVsViolatedWidgetData,
     WidgetId.SLA_DELAY_REASON:       SlaDelayWidgetData,
     WidgetId.AVG_RESOLUTION_TYPE:    ResolutionTypeWidgetData,
-    WidgetId.RECENT_ISSUES:          RecentIssueWidgetData,
-    WidgetId.MONTHLY_CREATED:        MonthlyCountWidgetData,
-    WidgetId.MONTHLY_RESOLVED:       MonthlyCountWidgetData,
 }
 
 

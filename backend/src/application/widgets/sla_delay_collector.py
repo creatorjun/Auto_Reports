@@ -20,7 +20,7 @@ class SlaDelayCollector(AbstractWidgetCollector):
         self._q = q
 
     async def collect(self) -> WidgetResult[SlaDelayWidgetData]:
-        jql = self._q.w9_sla()
+        jql = self._q.w12_sla()
         issues = await self._jira.get_issues_with_sla(jql, max_results=JIRA_MAX_RESULT)
 
         by_status: dict[str, int] = {}
@@ -47,7 +47,7 @@ class SlaDelayCollector(AbstractWidgetCollector):
             by_status_details.setdefault(status, []).append(detail)
 
         total = sum(by_status.values())
-        logger.info(f"[w10-SLA지연사유] {total}건")
+        logger.info(f"[w13-SLA지연사유] {total}건")
         return WidgetResult(
             name="SLA 지연 사유",
             total=total,

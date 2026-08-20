@@ -33,6 +33,10 @@
     @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full
            bg-red-50 text-red-700 border border-red-200/60;
   }
+  .badge-type {
+    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full whitespace-nowrap
+           bg-blue-50 text-blue-700 border border-blue-200/60;
+  }
   .nav-link {
     @apply flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium
            transition-all duration-200 text-apple-mid hover:bg-apple-gray hover:text-apple-dark;

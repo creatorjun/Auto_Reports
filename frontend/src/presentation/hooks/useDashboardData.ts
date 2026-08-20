@@ -15,14 +15,15 @@ import type {
 } from '@/domain/Dashboard'
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
+import { WIDGET_ID } from '@/domain/WidgetId'
 
-interface W9Data {
+interface SlaMetData {
   initial_response_violations?: number
   resolution_violations?: number
   violation_distribution?: ViolationEntry[]
 }
 
-interface W10Data {
+interface SlaDelayData {
   by_status?: Record<string, number>
   by_status_details?: Record<string, SlaDelayIssue[]>
 }
@@ -62,7 +63,7 @@ export function useDashboardData(report: ReportDetail) {
   const w = report.widgets
 
   const weekly = useMemo(() => {
-    const w3Data = getData<CreatedVsResolvedData>(w.w3)
+    const w3Data = getData<CreatedVsResolvedData>(w[WIDGET_ID.CREATED_VS_RESOLVED])
     return {
       w3Created: w3Data?.created ?? 0,
       w3Resolved: w3Data?.resolved ?? 0,
@@ -71,58 +72,58 @@ export function useDashboardData(report: ReportDetail) {
       dateRange: report.week_start && report.week_end ? { start: report.week_start, end: report.week_end } : undefined,
       rangeDays: getInclusiveDayCount(report.week_start, report.week_end),
     }
-  }, [w.w3, report.week_start, report.week_end])
+  }, [w[WIDGET_ID.CREATED_VS_RESOLVED], report.week_start, report.week_end])
 
   const slaMonthly = useMemo(() => {
-    const w7Data = getData<{ monthly: MonthlyEntry[] }>(w.w7)
-    const w8Data = getData<{ monthly: MonthlyEntry[] }>(w.w8)
-    const w7Monthly = w7Data?.monthly ?? []
-    const w8Monthly = w8Data?.monthly ?? []
+    const w10Data = getData<{ monthly: MonthlyEntry[] }>(w[WIDGET_ID.SLA_INITIAL_RESPONSE])
+    const w11Data = getData<{ monthly: MonthlyEntry[] }>(w[WIDGET_ID.SLA_RESOLUTION_MONTHLY])
+    const w10Monthly = w10Data?.monthly ?? []
+    const w11Monthly = w11Data?.monthly ?? []
     return {
-      w7Monthly,
-      w8Monthly,
-      hasW7: w7Monthly.some((e) => e.total > 0),
-      hasW8: w8Monthly.some((e) => e.total > 0),
+      w10Monthly,
+      w11Monthly,
+      hasW10: w10Monthly.some((e) => e.total > 0),
+      hasW11: w11Monthly.some((e) => e.total > 0),
     }
-  }, [w.w7, w.w8])
+  }, [w[WIDGET_ID.SLA_INITIAL_RESPONSE], w[WIDGET_ID.SLA_RESOLUTION_MONTHLY]])
 
   const monthlyCount = useMemo(() => {
-    const w13Data = getData<{ monthly: MonthlyCountEntry[] }>(w.w13)
-    const w14Data = getData<{ monthly: MonthlyCountEntry[] }>(w.w14)
-    const w13Monthly = w13Data?.monthly ?? []
-    const w14Monthly = w14Data?.monthly ?? []
+    const w8Data = getData<{ monthly: MonthlyCountEntry[] }>(w[WIDGET_ID.MONTHLY_CREATED])
+    const w9Data = getData<{ monthly: MonthlyCountEntry[] }>(w[WIDGET_ID.MONTHLY_RESOLVED])
+    const w8Monthly = w8Data?.monthly ?? []
+    const w9Monthly = w9Data?.monthly ?? []
     return {
-      w13Monthly,
-      w14Monthly,
-      hasW13: w13Monthly.some((e) => e.count > 0),
-      hasW14: w14Monthly.some((e) => e.count > 0),
+      w8Monthly,
+      w9Monthly,
+      hasW8: w8Monthly.some((e) => e.count > 0),
+      hasW9: w9Monthly.some((e) => e.count > 0),
     }
-  }, [w.w13, w.w14])
+  }, [w[WIDGET_ID.MONTHLY_CREATED], w[WIDGET_ID.MONTHLY_RESOLVED]])
 
   const slaDonut = useMemo(() => {
-    const w9Data = getData<W9Data>(w.w9)
+    const w12Data = getData<SlaMetData>(w[WIDGET_ID.SLA_MET_VS_VIOLATED])
     return {
-      w9Total: w.w9?.total ?? 0,
-      w9Distribution: w9Data?.violation_distribution ?? [],
+      w12Total: w[WIDGET_ID.SLA_MET_VS_VIOLATED]?.total ?? 0,
+      w12Distribution: w12Data?.violation_distribution ?? [],
     }
-  }, [w.w9])
+  }, [w[WIDGET_ID.SLA_MET_VS_VIOLATED]])
 
   const slaDelay = useMemo(() => {
-    const w10Data = getData<W10Data>(w.w10)
+    const w13Data = getData<SlaDelayData>(w[WIDGET_ID.SLA_DELAY_REASON])
     return {
-      w10ByStatus: w10Data?.by_status ?? {},
-      w10ByStatusDetails: w10Data?.by_status_details ?? {},
+      w13ByStatus: w13Data?.by_status ?? {},
+      w13ByStatusDetails: w13Data?.by_status_details ?? {},
     }
-  }, [w.w10])
+  }, [w[WIDGET_ID.SLA_DELAY_REASON]])
 
   const resolutionByType = useMemo(() => {
-    const w11Data = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w.w11)
-    return w11Data?.by_type ?? {}
-  }, [w.w11])
+    const w14Data = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w[WIDGET_ID.AVG_RESOLUTION_TYPE])
+    return w14Data?.by_type ?? {}
+  }, [w[WIDGET_ID.AVG_RESOLUTION_TYPE]])
 
   const recentAndIncomplete = useMemo(() => {
-    const w12Data = getData<{ issue_details: RecentIssue[] }>(w.w12)
-    const recentIssues = (w12Data?.issue_details ?? []).map((i) => ({
+    const w7Data = getData<{ issue_details: RecentIssue[] }>(w[WIDGET_ID.RECENT_ISSUES])
+    const recentIssues = (w7Data?.issue_details ?? []).map((i) => ({
       ...i,
       reporter: i.reporter ?? '미지정',
       tac_team: i.tac_team ?? '미지정',
@@ -136,7 +137,7 @@ export function useDashboardData(report: ReportDetail) {
       elapsed_days: i.elapsed_days,
     }))
     return { recentIssues, incompleteIssues, incompleteTotal: incompleteIssues.length }
-  }, [w.w12])
+  }, [w[WIDGET_ID.RECENT_ISSUES]])
 
   const workTypeOpen = useMemo<WorkTypeOpenWidget[]>(() => (
     WORK_TYPE_DEFINITIONS.map(({ key, label, jiraType }) => {
@@ -151,15 +152,15 @@ export function useDashboardData(report: ReportDetail) {
   ), [recentAndIncomplete])
 
   const statusIssues = useMemo(() => {
-    const w4Data = getData<{ issue_details: ReviewIssue[] }>(w.w4)
-    const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w.w5)
-    const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w.w6)
+    const w4Data = getData<{ issue_details: ReviewIssue[] }>(w[WIDGET_ID.ISSUE_REVIEW])
+    const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w[WIDGET_ID.DATA_REQUEST])
+    const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w[WIDGET_ID.RESULT_PENDING])
     return {
       reviewIssues: w4Data?.issue_details ?? [],
       dataRequestIssues: w5Data?.issue_details ?? [],
       resultPendingIssues: w6Data?.issue_details ?? [],
     }
-  }, [w.w4, w.w5, w.w6])
+  }, [w[WIDGET_ID.ISSUE_REVIEW], w[WIDGET_ID.DATA_REQUEST], w[WIDGET_ID.RESULT_PENDING]])
 
   return { weekly, workTypeOpen, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues }
 }

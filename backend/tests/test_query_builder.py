@@ -8,6 +8,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
+from src.domain.value_objects.widget_id import WidgetId
 
 
 class WidgetQueryBuilderTest(unittest.TestCase):
@@ -40,5 +41,26 @@ class WidgetQueryBuilderTest(unittest.TestCase):
         self.assertEqual(
             'project = TACEA AND status NOT IN ("Closed", "반려됨", "중복 이슈", '
             '"취소됨") ORDER BY issuekey DESC',
-            self.queries.w12_recent(),
+            self.queries.w7_recent(),
+        )
+
+    def test_widget_ids_follow_dashboard_render_order(self) -> None:
+        self.assertEqual(
+            [
+                ("YEARLY_CREATED", "w1"),
+                ("YEARLY_RESOLVED", "w2"),
+                ("CREATED_VS_RESOLVED", "w3"),
+                ("ISSUE_REVIEW", "w4"),
+                ("DATA_REQUEST", "w5"),
+                ("RESULT_PENDING", "w6"),
+                ("RECENT_ISSUES", "w7"),
+                ("MONTHLY_CREATED", "w8"),
+                ("MONTHLY_RESOLVED", "w9"),
+                ("SLA_INITIAL_RESPONSE", "w10"),
+                ("SLA_RESOLUTION_MONTHLY", "w11"),
+                ("SLA_MET_VS_VIOLATED", "w12"),
+                ("SLA_DELAY_REASON", "w13"),
+                ("AVG_RESOLUTION_TYPE", "w14"),
+            ],
+            [(widget_id.name, widget_id.value) for widget_id in WidgetId],
         )

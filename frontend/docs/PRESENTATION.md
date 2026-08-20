@@ -26,7 +26,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 | `useJobStream` | SSE 우선, polling fallback |
 | `useTrigger` | 전역 trigger 상태 연결 |
 | `useStorage` | 파일·폴더 query와 mutation |
-| `useDashboardData` | widget map을 표시 모델로 변환하고 w12 미완료 상세를 업무 유형별 열린 요청 현황으로 분류 |
+| `useDashboardData` | widget map을 표시 모델로 변환하고 w7 미완료 상세를 업무 유형별 열린 요청 현황으로 분류 |
 
 모든 서버 hook은 `useApplicationServices()`에서 gateway를 얻습니다.
 
