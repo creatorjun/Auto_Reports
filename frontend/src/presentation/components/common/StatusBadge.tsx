@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/common/StatusBadge.tsx
 const CLOSED = new Set([
-  'Closed', '중복 이슈', '반려됨', '취소됨', '닫혀',
+  'Closed', '중복 이슈', '반려됨', '취소됨', '닫혀', '닫힘',
 ])
 
 const ACTIVE = new Set([

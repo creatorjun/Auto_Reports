@@ -123,3 +123,27 @@ test('dashboard widget ids follow first render order', () => {
     assert.doesNotMatch(content, /\bw(?:\.w\d+|\[['"]w\d+['"]\])/)
   }
 })
+
+test('status badges style closed and unrecognized Jira states', () => {
+  const component = fs.readFileSync(
+    path.join(source, 'presentation/components/common/StatusBadge.tsx'),
+    'utf8',
+  )
+  const styles = fs.readFileSync(
+    path.join(source, 'presentation/styles/index.css'),
+    'utf8',
+  )
+
+  assert.match(component, /const CLOSED = new Set\(\[[\s\S]*?'닫힘'/)
+  assert.match(component, /CLOSED\.has\(status\).*className="badge-good"/)
+  assert.match(styles, /\.badge-neutral\s*\{/)
+})
+
+test('resolved issues modal omits the current status field', () => {
+  const modal = fs.readFileSync(
+    path.join(source, 'presentation/components/tables/WeeklyResolvedModal.tsx'),
+    'utf8',
+  )
+
+  assert.doesNotMatch(modal, /StatusBadge|현재 상태|d\.status/)
+})

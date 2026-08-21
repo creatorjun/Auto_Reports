@@ -39,12 +39,35 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             self.queries.w2_yearly_resolved(),
         )
 
-    def test_incomplete_issues_count_every_issue_type_in_project(self) -> None:
+    def test_incomplete_issues_exclude_license_requests(self) -> None:
         self.assertEqual(
-            'project = TACEA AND status NOT IN ("Closed", "반려됨", "중복 이슈", '
-            '"취소됨") ORDER BY issuekey DESC',
+            'project = TACEA AND issuetype != "라이센스 요청" '
+            'AND status NOT IN ("Closed", "반려됨", "중복 이슈", "취소됨") '
+            'ORDER BY issuekey DESC',
             self.queries.w7_recent(),
         )
+
+    def test_every_dashboard_query_excludes_license_requests(self) -> None:
+        created, resolved = self.queries.w3_created_vs_resolved()
+        dashboard_queries = [
+            self.queries.w1_yearly_created(),
+            self.queries.w2_yearly_resolved(),
+            created,
+            resolved,
+            self.queries.w4_issue_review(),
+            self.queries.w5_data_request(),
+            self.queries.w6_result_pending(),
+            self.queries.w7_recent(),
+            self.queries.w8_monthly_created(2026, 8),
+            self.queries.w9_monthly_resolved(2026, 8),
+            self.queries.w10_w11_monthly_candidates(2026, 8),
+            self.queries.w12_sla(),
+            self.queries.w14_resolution_resolved(),
+        ]
+
+        for query in dashboard_queries:
+            with self.subTest(query=query):
+                self.assertIn('issuetype != "라이센스 요청"', query)
 
     def test_widget_ids_follow_dashboard_render_order(self) -> None:
         self.assertEqual(

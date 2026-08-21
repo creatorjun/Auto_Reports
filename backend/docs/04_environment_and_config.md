@@ -25,7 +25,7 @@
 | `JIRA_QA_ASSIGNEE_FIELD_ID` | `customfield_12222` | QA 담당자 field |
 | `REPORT_RETENTION_WEEKS` | `52` | 0이면 자동 정리 비활성 |
 
-w1 연간 생성과 w2 연간 해결은 `PROJECT_KEY`의 전체 이슈 유형을 집계하되 `라이센스 요청` 이슈 유형은 제외합니다.
+첫 번째 대시보드의 w1부터 w14까지 모든 위젯은 각 집계 조건에 앞서 `라이센스 요청` 이슈 유형을 제외합니다.
 
 ## Database
 

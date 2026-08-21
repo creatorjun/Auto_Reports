@@ -4,7 +4,7 @@ from typing import Tuple
 
 from src.application.services.query_config import QueryConfig
 
-YEARLY_EXCLUDED_ISSUE_TYPE = "라이센스 요청"
+DASHBOARD_EXCLUDED_ISSUE_TYPE = "라이센스 요청"
 
 
 class WidgetQueryBuilder:
@@ -36,12 +36,12 @@ class ResolvedQueries:
     def _project(self) -> str:
         return f"project = {self._c.project_key}"
 
+    def _dashboard_project(self) -> str:
+        return f'{self._project()} AND issuetype != "{DASHBOARD_EXCLUDED_ISSUE_TYPE}"'
+
     def _base(self) -> str:
         types = ", ".join(f'"{t}"' if " " in t else t for t in self._c.issue_types)
-        return f"{self._project()} AND issuetype IN ({types})"
-
-    def _yearly_base(self) -> str:
-        return f'{self._project()} AND issuetype != "{YEARLY_EXCLUDED_ISSUE_TYPE}"'
+        return f"{self._dashboard_project()} AND issuetype IN ({types})"
 
     def _closed(self) -> str:
         return ", ".join(f'"{s}"' for s in self._c.closed_statuses)
@@ -51,13 +51,13 @@ class ResolvedQueries:
 
     def w1_yearly_created(self) -> str:
         return (
-            f"{self._yearly_base()} "
+            f"{self._dashboard_project()} "
             f"AND created >= \"{self._c.year_start}-01-01\""
         )
 
     def w2_yearly_resolved(self) -> str:
         return (
-            f"{self._yearly_base()} "
+            f"{self._dashboard_project()} "
             f"AND resolved >= \"{self._c.year_start}-01-01\""
         )
 
@@ -87,7 +87,7 @@ class ResolvedQueries:
 
     def w7_recent(self) -> str:
         return (
-            f"{self._project()} AND status NOT IN ({self._closed()}) "
+            f"{self._dashboard_project()} AND status NOT IN ({self._closed()}) "
             f"ORDER BY issuekey DESC"
         )
 
