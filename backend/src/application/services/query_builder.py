@@ -4,6 +4,8 @@ from typing import Tuple
 
 from src.application.services.query_config import QueryConfig
 
+YEARLY_EXCLUDED_ISSUE_TYPE = "라이센스 요청"
+
 
 class WidgetQueryBuilder:
     def __init__(self, config: QueryConfig):
@@ -38,6 +40,9 @@ class ResolvedQueries:
         types = ", ".join(f'"{t}"' if " " in t else t for t in self._c.issue_types)
         return f"{self._project()} AND issuetype IN ({types})"
 
+    def _yearly_base(self) -> str:
+        return f'{self._project()} AND issuetype != "{YEARLY_EXCLUDED_ISSUE_TYPE}"'
+
     def _closed(self) -> str:
         return ", ".join(f'"{s}"' for s in self._c.closed_statuses)
 
@@ -46,13 +51,13 @@ class ResolvedQueries:
 
     def w1_yearly_created(self) -> str:
         return (
-            f"{self._project()} "
+            f"{self._yearly_base()} "
             f"AND created >= \"{self._c.year_start}-01-01\""
         )
 
     def w2_yearly_resolved(self) -> str:
         return (
-            f"{self._project()} "
+            f"{self._yearly_base()} "
             f"AND resolved >= \"{self._c.year_start}-01-01\""
         )
 

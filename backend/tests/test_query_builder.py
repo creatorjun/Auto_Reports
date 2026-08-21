@@ -25,15 +25,17 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             datetime.datetime(2026, 8, 18)
         )
 
-    def test_yearly_created_counts_every_issue_type_in_project(self) -> None:
+    def test_yearly_created_excludes_license_requests(self) -> None:
         self.assertEqual(
-            'project = TACEA AND created >= "2026-01-01"',
+            'project = TACEA AND issuetype != "라이센스 요청" '
+            'AND created >= "2026-01-01"',
             self.queries.w1_yearly_created(),
         )
 
-    def test_yearly_resolved_counts_every_issue_type_in_project(self) -> None:
+    def test_yearly_resolved_excludes_license_requests(self) -> None:
         self.assertEqual(
-            'project = TACEA AND resolved >= "2026-01-01"',
+            'project = TACEA AND issuetype != "라이센스 요청" '
+            'AND resolved >= "2026-01-01"',
             self.queries.w2_yearly_resolved(),
         )
 
