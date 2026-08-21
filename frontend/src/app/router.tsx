@@ -7,6 +7,7 @@ import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import LazyErrorBoundary from '@/presentation/components/common/LazyErrorBoundary'
 
 const DashboardPage          = lazy(() => import('@/presentation/pages/DashboardPage'))
+const SlaDashboardPage       = lazy(() => import('@/presentation/pages/SlaDashboardPage'))
 const HistoryPage            = lazy(() => import('@/presentation/pages/HistoryPage'))
 const StoragePage            = lazy(() => import('@/presentation/pages/StoragePage'))
 const StoragePreviewPage     = lazy(() => import('@/presentation/pages/StoragePreviewPage'))
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true,            element: <Wrap><DashboardPage /></Wrap> },
+      { path: 'sla-dashboard',  element: <Wrap><SlaDashboardPage /></Wrap> },
       { path: 'history',        element: <Wrap><HistoryPage /></Wrap> },
       { path: 'reports/:id',    element: <Wrap><DashboardPage /></Wrap> },
       { path: 'partners',       element: <Wrap><PartnerManagementPage /></Wrap> },
