@@ -37,6 +37,13 @@ class JiraPort(ABC):
     ) -> list[dict[str, Any]]: ...
 
     @abstractmethod
+    async def get_issue_comments(
+        self,
+        issue_key: str,
+        max_results: int = 5,
+    ) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
     async def get_sla_field_ids(self) -> dict[str, str]: ...
 
     @abstractmethod

@@ -24,6 +24,7 @@ client는 Presentation store를 직접 import하지 않습니다. `main.tsx`가 
 | `siteApi.ts` | `SiteGateway` | 사이트 aggregate와 하위 이력 관리 |
 | `partnerApi.ts` | `PartnerGateway` | 파트너 조직, 멤버, 이슈 조회 |
 | `searchApi.ts` | `SearchGateway` | Jira 이슈 검색과 base URL 조회 |
+| `slaDashboardApi.ts` | `SlaDashboardGateway` | 최신 보고서 기반 이슈 활동과 티켓별 최근 댓글 조회 |
 | `storageApi.ts` | `StorageGateway` | 파일 목록, 업로드, 다운로드, 미리보기, 삭제 |
 
 각 adapter는 HTTP 응답을 Domain 모델로 반환합니다. 사이트 하위 리소스 변경 API는 백엔드 계약대로 갱신된 `SiteDetail` aggregate를 반환합니다.

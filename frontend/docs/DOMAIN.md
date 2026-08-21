@@ -12,6 +12,7 @@
 | `Report.ts` | `ReportSummary`, `ReportDetail`, `WidgetResult`, `AiAnalysis` |
 | `Search.ts` | Jira·Confluence 검색 표시용 `SearchResult` |
 | `Site.ts` | 사이트 aggregate, 하위 이력, create/update payload |
+| `SlaDashboard.ts` | 최근 이슈 활동과 최근 댓글 표시 계약 |
 | `Storage.ts` | `StorageItem`, `StorageFile`, `StorageQuota` |
 | `Dashboard.ts` | SLA·월별·상태별 widget 표시 모델 |
 | `WidgetId.ts` | 대시보드 최초 렌더 순서에 맞춘 widget ID 계약 |
@@ -21,6 +22,8 @@
 `ReportDetail`은 summary 필드에 widget map과 선택적 AI 분석을 추가합니다. 서버 widget의 서로 다른 breakdown 구조를 React component 내부에서 즉석 추론하지 않고 `useDashboardData`가 `Dashboard.ts`의 표시 모델로 변환합니다. 첫 번째 대시보드의 w1부터 w14까지 모든 위젯은 `라이센스 요청` 이슈를 제외한 결과를 사용합니다. w3 생성·완료 건수에는 보고서 쿼리의 시작일과 종료일을 포함한 기간 일수가 표시됩니다. w7 미완료 이슈 상세는 `WorkTypeOpenWidget`으로 분류되어 지원 요청, 개선 요청, 인시던트 보고, CVE의 현재 열린 요청 건수를 제공합니다.
 
 widget ID는 화면에서 데이터가 처음 렌더링되는 순서를 따릅니다.
+
+`SlaDashboardIssue`는 최신 보고서의 최근 이슈 티켓 번호, 최초 생성 시각, 댓글을 포함한 마지막 업데이트 시각, 진행 상태를 표현합니다. `SlaDashboardComment`는 접힌 티켓 행을 펼칠 때 조회하는 최근 댓글의 작성자, 본문, 작성·수정 시각을 표현합니다.
 
 | ID | 데이터 |
 |----|--------|

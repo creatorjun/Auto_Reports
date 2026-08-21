@@ -9,6 +9,7 @@ import { partnerApi } from '@/infrastructure/api/partnerApi'
 import { reportApi } from '@/infrastructure/api/reportApi'
 import { searchApi } from '@/infrastructure/api/searchApi'
 import { siteApi } from '@/infrastructure/api/siteApi'
+import { slaDashboardApi } from '@/infrastructure/api/slaDashboardApi'
 import { storageApi } from '@/infrastructure/api/storageApi'
 import { configureHttpClient } from '@/infrastructure/api/client'
 import { ApplicationServicesProvider } from '@/presentation/context/ApplicationServicesContext'
@@ -35,6 +36,7 @@ const services = {
   storage: storageApi,
   partners: partnerApi,
   search: searchApi,
+  slaDashboard: slaDashboardApi,
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -36,6 +37,10 @@ _COUNT_CACHE_STALE    = 120.0
 _ISSUES_CACHE_MAXSIZE = 128
 _ISSUES_CACHE_TTL     = 300.0
 _ISSUES_CACHE_STALE   = 60.0
+
+_COMMENTS_CACHE_MAXSIZE = 512
+_COMMENTS_CACHE_TTL     = 120.0
+_COMMENTS_CACHE_STALE   = 30.0
 
 
 class JiraClient(JiraPort, ServiceDeskPort):
@@ -80,6 +85,11 @@ class JiraClient(JiraPort, ServiceDeskPort):
             maxsize=_ISSUES_CACHE_MAXSIZE,
             ttl_seconds=_ISSUES_CACHE_TTL,
             stale_ttl_seconds=_ISSUES_CACHE_STALE,
+        )
+        self._comments_cache: LruCache[str, list[dict[str, Any]]] = LruCache(
+            maxsize=_COMMENTS_CACHE_MAXSIZE,
+            ttl_seconds=_COMMENTS_CACHE_TTL,
+            stale_ttl_seconds=_COMMENTS_CACHE_STALE,
         )
         self._org_name_cache: dict[str, str] = {}
 
@@ -214,6 +224,36 @@ class JiraClient(JiraPort, ServiceDeskPort):
             f[_TAC_ASSIGNEE_KEY] = f.get(self._tac_assignee_fid)
             f[_QA_ASSIGNEE_KEY]  = f.get(self._qa_assignee_fid)
         return issues
+
+    async def get_issue_comments(
+        self,
+        issue_key: str,
+        max_results: int = 5,
+    ) -> list[dict[str, Any]]:
+        limit = max(1, min(max_results, 100))
+        cache_key = f"{issue_key.upper()}|{limit}"
+        cached = await self._comments_cache.async_get(cache_key)
+        if cached is not None:
+            logger.debug(f"[cache-hit] comments: {issue_key}")
+            return cached
+
+        encoded_key = quote(issue_key, safe="")
+        url = f"{self._base_url}/rest/api/3/issue/{encoded_key}/comment"
+        try:
+            response = await self._client.get(
+                url,
+                params={"orderBy": "-created", "maxResults": limit},
+            )
+            response.raise_for_status()
+            data = response.json()
+            comments = data.get("comments") or data.get("values") or []
+        except httpx.HTTPError as error:
+            logger.error(f"Jira 댓글 조회 실패: {issue_key} -> {error}")
+            raise RuntimeError("Jira comments request failed") from error
+
+        result = list(comments)[:limit]
+        await self._comments_cache.async_set(cache_key, result)
+        return result
 
     async def get_sla_field_ids(self) -> dict[str, str]:
         if self._sla_field_ids_cache is not None:
@@ -385,6 +425,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
         await asyncio.gather(
             self._count_cache.aclose(),
             self._issues_cache.aclose(),
+            self._comments_cache.aclose(),
         )
         await self._client.aclose()
         await self._sd_client.aclose()

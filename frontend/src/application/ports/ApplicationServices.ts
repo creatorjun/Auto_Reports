@@ -5,6 +5,7 @@ import type { JobStatus, TriggerAccepted, TriggerParams } from '@/domain/Job'
 import type { PartnerIssue, PartnerMember, PartnerOrg } from '@/domain/Partner'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
 import type { SearchResult } from '@/domain/Search'
+import type { SlaDashboardComment, SlaDashboardIssue } from '@/domain/SlaDashboard'
 import type {
   DeploymentNodePayload,
   PatchHistoryPayload,
@@ -87,6 +88,11 @@ export interface SearchGateway {
   getJiraBaseUrl: () => Promise<string>
 }
 
+export interface SlaDashboardGateway {
+  getIssues: () => Promise<SlaDashboardIssue[]>
+  getComments: (issueKey: string) => Promise<SlaDashboardComment[]>
+}
+
 export interface ApplicationServices {
   auth: AuthGateway
   reports: ReportGateway
@@ -94,4 +100,5 @@ export interface ApplicationServices {
   storage: StorageGateway
   partners: PartnerGateway
   search: SearchGateway
+  slaDashboard: SlaDashboardGateway
 }

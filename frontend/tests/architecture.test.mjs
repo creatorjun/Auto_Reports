@@ -147,3 +147,28 @@ test('resolved issues modal omits the current status field', () => {
 
   assert.doesNotMatch(modal, /StatusBadge|현재 상태|d\.status/)
 })
+
+test('SLA dashboard exposes issue activity and expandable recent comments', () => {
+  const page = fs.readFileSync(
+    path.join(source, 'presentation/pages/SlaDashboardPage.tsx'),
+    'utf8',
+  )
+  const table = fs.readFileSync(
+    path.join(source, 'presentation/components/sla/SlaIssueActivityTable.tsx'),
+    'utf8',
+  )
+
+  assert.match(page, /useSlaDashboardIssues/)
+  for (const label of [
+    '티켓 번호',
+    '이슈 최초 생성 시간',
+    '댓글 포함 마지막 업데이트 시간',
+    '진행 상태',
+  ]) {
+    assert.match(table, new RegExp(label))
+  }
+  assert.match(table, /aria-expanded=/)
+  assert.match(table, /useSlaIssueComments/)
+  assert.match(table, /최근 작성된 댓글/)
+  assert.match(table, /최대 5개/)
+})

@@ -7,6 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from src.application.services.auth_service import AuthService
 from src.application.use_cases.get_report import GetReportUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
+from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.presentation.api.deps import ApiServices, get_api_services, get_auth
 
 _bearer = HTTPBearer(auto_error=False)
@@ -40,3 +41,14 @@ async def get_site_use_case(
 ) -> AsyncIterator[SiteUseCase]:
     async with services.get_site() as use_case:
         yield use_case
+
+
+async def get_sla_dashboard_use_case(
+    services: ApiServices = Depends(get_api_services),
+) -> AsyncIterator[SlaDashboardUseCase]:
+    async with services.get_report() as reports:
+        yield SlaDashboardUseCase(
+            reports=reports,
+            jira=services.jira,
+            project_key=services.project_key,
+        )

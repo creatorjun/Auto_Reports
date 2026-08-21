@@ -21,6 +21,7 @@ class ApiServices:
     audit: AuditPort
     jira: JiraPort
     jira_base_url: str
+    project_key: str
     job_runner: JobRunnerPort
     partner: PartnerUseCase
     storage: StorageUseCase

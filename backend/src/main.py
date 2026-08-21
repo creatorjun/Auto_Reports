@@ -49,6 +49,7 @@ def create_app(settings: Settings) -> FastAPI:
                     audit=audit,
                     jira=container.jira,
                     jira_base_url=container.jira_base_url,
+                    project_key=settings.project_key,
                     job_runner=job_runner,
                     partner=container.partner,
                     storage=container.storage,

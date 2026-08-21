@@ -22,6 +22,7 @@ frontend/
     │   ├── Report.ts
     │   ├── Search.ts
     │   ├── Site.ts
+    │   ├── SlaDashboard.ts
     │   ├── Storage.ts
     │   └── WidgetId.ts
     ├── application/
@@ -37,6 +38,7 @@ frontend/
     │       ├── partnerApi.ts
     │       ├── searchApi.ts
     │       ├── siteApi.ts
+    │       ├── slaDashboardApi.ts
     │       └── storageApi.ts
     └── presentation/
         ├── components/

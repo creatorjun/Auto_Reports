@@ -27,8 +27,12 @@ Base URL은 `/api/v1`입니다. `LOGIN=true`일 때 보호 라우트는 `Authori
 | POST | `/trigger/` | 선택적 start_date, end_date | 202와 job_id, 중복 실행이면 409 |
 | GET | `/trigger/{job_id}/status` | path id | pending/running/done/error 상태 |
 | GET | `/trigger/{job_id}/stream?_t=...` | path id와 token | SSE status/done/error/timeout |
+| GET | `/sla-dashboard/issues` | 없음 | 최신 보고서의 최근 이슈 티켓별 생성·최종 업데이트·상태 |
+| GET | `/sla-dashboard/issues/{issue_key}/comments` | 최근 이슈 key | 최근 작성 댓글 최대 5개 |
 
 SSE는 300초 timeout과 15초 keepalive를 사용합니다. 날짜를 생략하면 유스케이스가 기본 보고 범위를 계산합니다.
+
+SLA 대시보드 목록은 최신 보고서의 w7 티켓 집합을 기준으로 Jira의 현재 `created`, `updated`, `status`를 조회합니다. `updated`는 댓글 생성·수정·삭제를 포함한 Jira 최종 업데이트 시각이며, 댓글 본문은 Jira 문서 형식을 일반 텍스트로 변환해 반환합니다. 댓글 endpoint는 최신 보고서에 포함되지 않은 티켓 key를 404로 거부합니다.
 
 ## Sites
 
