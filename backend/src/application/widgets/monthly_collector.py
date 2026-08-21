@@ -7,7 +7,11 @@ from typing import Tuple
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
-from src.domain.entities.widget_data import MonthlyEntry, SlaMonthlyWidgetData
+from src.domain.entities.widget_data import (
+    MonthlyEntry,
+    SlaMonthlyTypeStats,
+    SlaMonthlyWidgetData,
+)
 from src.application.ports.jira_port import JiraPort
 from src.domain.constants import JIRA_MAX_RESULT
 
@@ -48,17 +52,31 @@ class MonthlyCollector(AbstractWidgetCollector):
         w11_entries: list[MonthlyEntry] = []
 
         for y, m, issues in month_results:
-            total     = len(issues)
-            init_viol = sum(
-                1 for i in issues
-                if self._breached((i.get("fields") or {}).get(_SLA_INITIAL_KEY))
-            )
-            res_viol = sum(
-                1 for i in issues
-                if self._breached((i.get("fields") or {}).get(_SLA_RESOLUTION_KEY))
-            )
-            init_met  = total - init_viol
-            res_met   = total - res_viol
+            init_by_type = {
+                issue_type: SlaMonthlyTypeStats(met=0, total=0)
+                for issue_type in self._q.issue_types
+            }
+            res_by_type = {
+                issue_type: SlaMonthlyTypeStats(met=0, total=0)
+                for issue_type in self._q.issue_types
+            }
+            for issue in issues:
+                fields = issue.get("fields") or {}
+                issue_type = (fields.get("issuetype") or {}).get("name", "기타")
+                if issue_type not in init_by_type:
+                    continue
+                init_stats = init_by_type[issue_type]
+                res_stats = res_by_type[issue_type]
+                init_stats.total += 1
+                res_stats.total += 1
+                if not self._breached(fields.get(_SLA_INITIAL_KEY)):
+                    init_stats.met += 1
+                if not self._breached(fields.get(_SLA_RESOLUTION_KEY)):
+                    res_stats.met += 1
+
+            total = sum(stats.total for stats in init_by_type.values())
+            init_met = sum(stats.met for stats in init_by_type.values())
+            res_met = sum(stats.met for stats in res_by_type.values())
             init_rate = round(init_met / total * 100, 1) if total > 0 else 0.0
             res_rate  = round(res_met  / total * 100, 1) if total > 0 else 0.0
 
@@ -66,10 +84,12 @@ class MonthlyCollector(AbstractWidgetCollector):
             w10_entries.append(MonthlyEntry(
                 month=label, year=y, month_num=m,
                 rate=init_rate, met=init_met, total=total,
+                by_type=init_by_type,
             ))
             w11_entries.append(MonthlyEntry(
                 month=label, year=y, month_num=m,
                 rate=res_rate, met=res_met, total=total,
+                by_type=res_by_type,
             ))
 
         logger.info(f"[w10/w11] 월별 SLA {self.MONTHS_BACK}개월 수집 완료")

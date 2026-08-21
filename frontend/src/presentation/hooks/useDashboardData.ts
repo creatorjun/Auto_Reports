@@ -17,6 +17,11 @@ import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
 import { WIDGET_ID } from '@/domain/WidgetId'
 
+interface TypeCountData {
+  issue_types?: string[]
+  by_type?: Record<string, number>
+}
+
 interface SlaMetData {
   initial_response_violations?: number
   resolution_violations?: number
@@ -59,108 +64,222 @@ function getInclusiveDayCount(start: string, end: string): number {
   return Math.floor((endTime - startTime) / 86_400_000) + 1
 }
 
-export function useDashboardData(report: ReportDetail) {
+function includesType(issueType: string, selectedTypes: ReadonlySet<string> | null): boolean {
+  return selectedTypes === null || selectedTypes.has(issueType)
+}
+
+function filterIssues<T extends { type: string }>(
+  issues: T[],
+  selectedTypes: ReadonlySet<string> | null,
+): T[] {
+  return selectedTypes === null
+    ? issues
+    : issues.filter((issue) => includesType(issue.type, selectedTypes))
+}
+
+function sumSelectedTypes(
+  byType: Record<string, number> | undefined,
+  fallback: number,
+  selectedTypes: ReadonlySet<string> | null,
+): number {
+  if (!byType) return fallback
+  return Object.entries(byType).reduce(
+    (total, [issueType, count]) => total + (includesType(issueType, selectedTypes) ? count : 0),
+    0,
+  )
+}
+
+function filterMonthlyCounts(
+  monthly: MonthlyCountEntry[],
+  selectedTypes: ReadonlySet<string> | null,
+): MonthlyCountEntry[] {
+  return monthly.map((entry) => ({
+    ...entry,
+    count: sumSelectedTypes(entry.by_type, entry.count, selectedTypes),
+  }))
+}
+
+function filterSlaMonthly(
+  monthly: MonthlyEntry[],
+  selectedTypes: ReadonlySet<string> | null,
+): MonthlyEntry[] {
+  return monthly.map((entry) => {
+    if (!entry.by_type) return entry
+    const stats = Object.entries(entry.by_type)
+      .filter(([issueType]) => includesType(issueType, selectedTypes))
+      .map(([, value]) => value)
+    const met = stats.reduce((total, value) => total + value.met, 0)
+    const total = stats.reduce((sum, value) => sum + value.total, 0)
+    return {
+      ...entry,
+      met,
+      total,
+      rate: total > 0 ? Math.round((met / total) * 1000) / 10 : 0,
+    }
+  })
+}
+
+function resolveIssueTypeContract(report: ReportDetail) {
+  const data = getData<TypeCountData>(report.widgets[WIDGET_ID.YEARLY_CREATED])
+  const issueTypes = data?.issue_types?.filter(Boolean) ?? []
+  return {
+    issueTypes,
+    supportsIssueTypeFiltering: issueTypes.length > 0 && data?.by_type !== undefined,
+  }
+}
+
+export function buildDashboardData(
+  report: ReportDetail,
+  requestedTypes: ReadonlySet<string> | null = null,
+) {
   const w = report.widgets
+  const filter = resolveIssueTypeContract(report)
+  const selectedTypes = filter.supportsIssueTypeFiltering ? requestedTypes : null
 
-  const weekly = useMemo(() => {
-    const w3Data = getData<CreatedVsResolvedData>(w[WIDGET_ID.CREATED_VS_RESOLVED])
-    return {
-      w3Created: w3Data?.created ?? 0,
-      w3Resolved: w3Data?.resolved ?? 0,
-      weeklyCreated: w3Data?.created_details ?? [],
-      weeklyResolved: w3Data?.resolved_details ?? [],
-      dateRange: report.week_start && report.week_end ? { start: report.week_start, end: report.week_end } : undefined,
-      rangeDays: getInclusiveDayCount(report.week_start, report.week_end),
-    }
-  }, [w[WIDGET_ID.CREATED_VS_RESOLVED], report.week_start, report.week_end])
+  const yearlyCreatedData = getData<TypeCountData>(w[WIDGET_ID.YEARLY_CREATED])
+  const yearlyResolvedData = getData<TypeCountData>(w[WIDGET_ID.YEARLY_RESOLVED])
+  const yearly = {
+    w1YearlyCreated: sumSelectedTypes(
+      yearlyCreatedData?.by_type,
+      w[WIDGET_ID.YEARLY_CREATED]?.total ?? 0,
+      selectedTypes,
+    ),
+    w2YearlyResolved: sumSelectedTypes(
+      yearlyResolvedData?.by_type,
+      w[WIDGET_ID.YEARLY_RESOLVED]?.total ?? 0,
+      selectedTypes,
+    ),
+  }
 
-  const slaMonthly = useMemo(() => {
-    const w10Data = getData<{ monthly: MonthlyEntry[] }>(w[WIDGET_ID.SLA_INITIAL_RESPONSE])
-    const w11Data = getData<{ monthly: MonthlyEntry[] }>(w[WIDGET_ID.SLA_RESOLUTION_MONTHLY])
-    const w10Monthly = w10Data?.monthly ?? []
-    const w11Monthly = w11Data?.monthly ?? []
-    return {
-      w10Monthly,
-      w11Monthly,
-      hasW10: w10Monthly.some((e) => e.total > 0),
-      hasW11: w11Monthly.some((e) => e.total > 0),
-    }
-  }, [w[WIDGET_ID.SLA_INITIAL_RESPONSE], w[WIDGET_ID.SLA_RESOLUTION_MONTHLY]])
+  const w3Data = getData<CreatedVsResolvedData>(w[WIDGET_ID.CREATED_VS_RESOLVED])
+  const weeklyCreated = filterIssues(w3Data?.created_details ?? [], selectedTypes)
+  const weeklyResolved = filterIssues(w3Data?.resolved_details ?? [], selectedTypes)
+  const weekly = {
+    w3Created: weeklyCreated.length,
+    w3Resolved: weeklyResolved.length,
+    weeklyCreated,
+    weeklyResolved,
+    dateRange: report.week_start && report.week_end
+      ? { start: report.week_start, end: report.week_end }
+      : undefined,
+    rangeDays: getInclusiveDayCount(report.week_start, report.week_end),
+  }
 
-  const monthlyCount = useMemo(() => {
-    const w8Data = getData<{ monthly: MonthlyCountEntry[] }>(w[WIDGET_ID.MONTHLY_CREATED])
-    const w9Data = getData<{ monthly: MonthlyCountEntry[] }>(w[WIDGET_ID.MONTHLY_RESOLVED])
-    const w8Monthly = w8Data?.monthly ?? []
-    const w9Monthly = w9Data?.monthly ?? []
-    return {
-      w8Monthly,
-      w9Monthly,
-      hasW8: w8Monthly.some((e) => e.count > 0),
-      hasW9: w9Monthly.some((e) => e.count > 0),
-    }
-  }, [w[WIDGET_ID.MONTHLY_CREATED], w[WIDGET_ID.MONTHLY_RESOLVED]])
+  const w10Data = getData<{ monthly: MonthlyEntry[] }>(w[WIDGET_ID.SLA_INITIAL_RESPONSE])
+  const w11Data = getData<{ monthly: MonthlyEntry[] }>(w[WIDGET_ID.SLA_RESOLUTION_MONTHLY])
+  const w10Monthly = filterSlaMonthly(w10Data?.monthly ?? [], selectedTypes)
+  const w11Monthly = filterSlaMonthly(w11Data?.monthly ?? [], selectedTypes)
+  const slaMonthly = {
+    w10Monthly,
+    w11Monthly,
+    hasW10: w10Monthly.some((entry) => entry.total > 0),
+    hasW11: w11Monthly.some((entry) => entry.total > 0),
+  }
 
-  const slaDonut = useMemo(() => {
-    const w12Data = getData<SlaMetData>(w[WIDGET_ID.SLA_MET_VS_VIOLATED])
-    return {
-      w12Total: w[WIDGET_ID.SLA_MET_VS_VIOLATED]?.total ?? 0,
-      w12Distribution: w12Data?.violation_distribution ?? [],
-    }
-  }, [w[WIDGET_ID.SLA_MET_VS_VIOLATED]])
+  const w8Data = getData<{ monthly: MonthlyCountEntry[] }>(w[WIDGET_ID.MONTHLY_CREATED])
+  const w9Data = getData<{ monthly: MonthlyCountEntry[] }>(w[WIDGET_ID.MONTHLY_RESOLVED])
+  const w8Monthly = filterMonthlyCounts(w8Data?.monthly ?? [], selectedTypes)
+  const w9Monthly = filterMonthlyCounts(w9Data?.monthly ?? [], selectedTypes)
+  const monthlyCount = {
+    w8Monthly,
+    w9Monthly,
+    hasW8: w8Monthly.some((entry) => entry.count > 0),
+    hasW9: w9Monthly.some((entry) => entry.count > 0),
+  }
 
-  const slaDelay = useMemo(() => {
-    const w13Data = getData<SlaDelayData>(w[WIDGET_ID.SLA_DELAY_REASON])
-    return {
-      w13ByStatus: w13Data?.by_status ?? {},
-      w13ByStatusDetails: w13Data?.by_status_details ?? {},
-    }
-  }, [w[WIDGET_ID.SLA_DELAY_REASON]])
-
-  const resolutionByType = useMemo(() => {
-    const w14Data = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w[WIDGET_ID.AVG_RESOLUTION_TYPE])
-    return w14Data?.by_type ?? {}
-  }, [w[WIDGET_ID.AVG_RESOLUTION_TYPE]])
-
-  const recentAndIncomplete = useMemo(() => {
-    const w7Data = getData<{ issue_details: RecentIssue[] }>(w[WIDGET_ID.RECENT_ISSUES])
-    const recentIssues = (w7Data?.issue_details ?? []).map((i) => ({
-      ...i,
-      reporter: i.reporter ?? '미지정',
-      tac_team: i.tac_team ?? '미지정',
-    }))
-    const incompleteIssues: IncompleteIssue[] = recentIssues.map((i) => ({
-      key: i.key,
-      summary: i.summary,
-      type: i.type,
-      status: i.status,
-      created: i.created,
-      elapsed_days: i.elapsed_days,
-    }))
-    return { recentIssues, incompleteIssues, incompleteTotal: incompleteIssues.length }
-  }, [w[WIDGET_ID.RECENT_ISSUES]])
-
-  const workTypeOpen = useMemo<WorkTypeOpenWidget[]>(() => (
-    WORK_TYPE_DEFINITIONS.map(({ key, label, jiraType }) => {
-      const issues = recentAndIncomplete.incompleteIssues.filter((issue) => issue.type === jiraType)
-      return {
-        key,
-        label,
-        count: issues.length,
-        issues,
-      }
+  const w12Data = getData<SlaMetData>(w[WIDGET_ID.SLA_MET_VS_VIOLATED])
+  const rawViolationDistribution = w12Data?.violation_distribution ?? []
+  const filteredViolationDistribution = rawViolationDistribution
+    .map((entry) => {
+      const issueDetails = filterIssues(entry.issue_details ?? [], selectedTypes)
+      return { ...entry, count: issueDetails.length, issue_details: issueDetails }
     })
-  ), [recentAndIncomplete])
+    .filter((entry) => entry.count > 0)
+  const w12Total = filteredViolationDistribution.reduce((total, entry) => total + entry.count, 0)
+  const w12Distribution = filteredViolationDistribution.map((entry) => ({
+    ...entry,
+    rate: w12Total > 0 ? Math.round((entry.count / w12Total) * 1000) / 10 : 0,
+  }))
+  const slaDonut = { w12Total, w12Distribution }
 
-  const statusIssues = useMemo(() => {
-    const w4Data = getData<{ issue_details: ReviewIssue[] }>(w[WIDGET_ID.ISSUE_REVIEW])
-    const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w[WIDGET_ID.DATA_REQUEST])
-    const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w[WIDGET_ID.RESULT_PENDING])
-    return {
-      reviewIssues: w4Data?.issue_details ?? [],
-      dataRequestIssues: w5Data?.issue_details ?? [],
-      resultPendingIssues: w6Data?.issue_details ?? [],
-    }
-  }, [w[WIDGET_ID.ISSUE_REVIEW], w[WIDGET_ID.DATA_REQUEST], w[WIDGET_ID.RESULT_PENDING]])
+  const w13Data = getData<SlaDelayData>(w[WIDGET_ID.SLA_DELAY_REASON])
+  const w13ByStatus: Record<string, number> = {}
+  const w13ByStatusDetails: Record<string, SlaDelayIssue[]> = {}
+  for (const [status, issues] of Object.entries(w13Data?.by_status_details ?? {})) {
+    const filteredIssues = filterIssues(issues, selectedTypes)
+    if (filteredIssues.length === 0) continue
+    w13ByStatus[status] = filteredIssues.length
+    w13ByStatusDetails[status] = filteredIssues
+  }
+  const slaDelay = { w13ByStatus, w13ByStatusDetails }
 
-  return { weekly, workTypeOpen, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues }
+  const w14Data = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w[WIDGET_ID.AVG_RESOLUTION_TYPE])
+  const resolutionByType = Object.fromEntries(
+    Object.entries(w14Data?.by_type ?? {})
+      .filter(([issueType]) => includesType(issueType, selectedTypes)),
+  )
+
+  const w7Data = getData<{ issue_details: RecentIssue[] }>(w[WIDGET_ID.RECENT_ISSUES])
+  const recentIssues = filterIssues(w7Data?.issue_details ?? [], selectedTypes).map((issue) => ({
+    ...issue,
+    reporter: issue.reporter ?? '미지정',
+    tac_team: issue.tac_team ?? '미지정',
+  }))
+  const incompleteIssues: IncompleteIssue[] = recentIssues.map((issue) => ({
+    key: issue.key,
+    summary: issue.summary,
+    type: issue.type,
+    status: issue.status,
+    created: issue.created,
+    elapsed_days: issue.elapsed_days,
+  }))
+  const recentAndIncomplete = {
+    recentIssues,
+    incompleteIssues,
+    incompleteTotal: incompleteIssues.length,
+  }
+
+  const workTypeOpen: WorkTypeOpenWidget[] = WORK_TYPE_DEFINITIONS.map(({ key, label, jiraType }) => {
+    const issues = incompleteIssues.filter((issue) => issue.type === jiraType)
+    return { key, label, count: issues.length, issues }
+  })
+
+  const w4Data = getData<{ issue_details: ReviewIssue[] }>(w[WIDGET_ID.ISSUE_REVIEW])
+  const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w[WIDGET_ID.DATA_REQUEST])
+  const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w[WIDGET_ID.RESULT_PENDING])
+  const reviewIssues = filterIssues(w4Data?.issue_details ?? [], selectedTypes)
+  const dataRequestIssues = filterIssues(w5Data?.issue_details ?? [], selectedTypes)
+  const resultPendingIssues = filterIssues(w6Data?.issue_details ?? [], selectedTypes)
+  const statusIssues = {
+    reviewIssues,
+    dataRequestIssues,
+    resultPendingIssues,
+    reviewTotal: reviewIssues.length,
+    dataRequestTotal: dataRequestIssues.length,
+    resultPendingTotal: resultPendingIssues.length,
+  }
+
+  return {
+    filter,
+    yearly,
+    weekly,
+    workTypeOpen,
+    slaMonthly,
+    monthlyCount,
+    slaDonut,
+    slaDelay,
+    resolutionByType,
+    recentAndIncomplete,
+    statusIssues,
+  }
+}
+
+export function useDashboardData(
+  report: ReportDetail,
+  selectedTypes: ReadonlySet<string> | null = null,
+) {
+  return useMemo(
+    () => buildDashboardData(report, selectedTypes),
+    [report, selectedTypes],
+  )
 }

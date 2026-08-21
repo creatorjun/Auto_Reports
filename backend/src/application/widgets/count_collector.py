@@ -1,5 +1,4 @@
 # backend/src/application/widgets/count_collector.py
-import asyncio
 import logging
 from datetime import datetime
 
@@ -13,6 +12,7 @@ from src.domain.entities.widget_data import (
     SlaMetVsViolatedEntry,
     SlaMetVsViolatedWidgetData,
     SlaViolationIssueDetail,
+    TypeCountWidgetData,
 )
 from src.application.ports.jira_port import JiraPort
 from src.domain.constants import (
@@ -26,16 +26,31 @@ _SLA_INITIAL_KEY    = "_sla_initial"
 _SLA_RESOLUTION_KEY = "_sla_resolution"
 
 
-class SimpleCountCollector(AbstractWidgetCollector):
-    def __init__(self, jira: JiraPort, name: str, jql: str):
+class TypeCountCollector(AbstractWidgetCollector):
+    def __init__(
+        self,
+        jira: JiraPort,
+        name: str,
+        jql: str,
+        queries_by_type: dict[str, str],
+    ):
         self._jira = jira
         self._name = name
         self._jql = jql
+        self._queries_by_type = queries_by_type
 
-    async def collect(self) -> WidgetResult[None]:
-        total = await self._jira.get_issue_count(self._jql)
+    async def collect(self) -> WidgetResult[TypeCountWidgetData]:
+        issue_types = list(self._queries_by_type)
+        counts = await self._jira.get_issue_counts_batch(list(self._queries_by_type.values()))
+        by_type = dict(zip(issue_types, counts))
+        total = sum(by_type.values())
         logger.info(f"[{self._name}] {total}건")
-        return WidgetResult(name=self._name, total=total, jql=self._jql)
+        return WidgetResult(
+            name=self._name,
+            total=total,
+            jql=self._jql,
+            data=TypeCountWidgetData(issue_types=issue_types, by_type=by_type),
+        )
 
 
 class SimpleWithDetailsCollector(AbstractWidgetCollector):

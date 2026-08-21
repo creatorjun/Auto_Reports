@@ -148,6 +148,42 @@ test('resolved issues modal omits the current status field', () => {
   assert.doesNotMatch(modal, /StatusBadge|현재 상태|d\.status/)
 })
 
+test('dashboard request type toggles drive every widget view from filterable report data', () => {
+  const page = fs.readFileSync(
+    path.join(source, 'presentation/pages/DashboardPage.tsx'),
+    'utf8',
+  )
+  const filter = fs.readFileSync(
+    path.join(source, 'presentation/components/common/IssueTypeFilter.tsx'),
+    'utf8',
+  )
+  const dashboardData = fs.readFileSync(
+    path.join(source, 'presentation/hooks/useDashboardData.ts'),
+    'utf8',
+  )
+
+  assert.match(page, /useState<Set<string> \| null>\(null\)/)
+  assert.match(page, /<IssueTypeFilter/)
+  assert.match(filter, /aria-pressed=\{selected\}/)
+  assert.match(filter, /전체 포함/)
+  for (const section of [
+    'yearly',
+    'weekly',
+    'slaMonthly',
+    'monthlyCount',
+    'slaDonut',
+    'slaDelay',
+    'resolutionByType',
+    'recentAndIncomplete',
+    'statusIssues',
+  ]) {
+    assert.match(dashboardData, new RegExp(`\\b${section}\\b`))
+  }
+  assert.match(dashboardData, /supportsIssueTypeFiltering/)
+  assert.match(dashboardData, /sumSelectedTypes/)
+  assert.match(dashboardData, /filterIssues/)
+})
+
 test('SLA dashboard exposes issue activity and expandable recent comments', () => {
   const page = fs.readFileSync(
     path.join(source, 'presentation/pages/SlaDashboardPage.tsx'),
@@ -168,6 +204,8 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
     assert.match(table, new RegExp(label))
   }
   assert.match(table, /aria-expanded=/)
+  assert.match(table, /useState<Set<string>>\(\(\) => new Set\(\)\)/)
+  assert.match(table, /expanded=\{!collapsedKeys\.has\(issue\.key\)\}/)
   assert.match(table, /useSlaIssueComments/)
   assert.match(table, /최근 작성된 댓글/)
   assert.match(table, /최대 5개/)

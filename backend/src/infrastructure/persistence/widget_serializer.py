@@ -12,12 +12,13 @@ from src.domain.entities.widget_data import (
     SlaDelayWidgetData,
     SlaMetVsViolatedWidgetData,
     SlaMonthlyWidgetData,
+    TypeCountWidgetData,
 )
 from src.domain.value_objects.widget_id import WidgetId
 
 _WIDGET_DATA_TYPE_MAP: dict[str, type] = {
-    WidgetId.YEARLY_CREATED:         None,
-    WidgetId.YEARLY_RESOLVED:        None,
+    WidgetId.YEARLY_CREATED:         TypeCountWidgetData,
+    WidgetId.YEARLY_RESOLVED:        TypeCountWidgetData,
     WidgetId.CREATED_VS_RESOLVED:    CreatedVsResolvedWidgetData,
     WidgetId.ISSUE_REVIEW:           SimpleIssueWidgetData,
     WidgetId.DATA_REQUEST:           SimpleIssueWidgetData,

@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     jira_tac_assignee_field_id: str = "customfield_10859"
     jira_qa_assignee_field_id: str = "customfield_12222"
     cors_origins: list[str] = ["*"]
-    issue_types: list[str] = ["\uc778\uc2dc\ub358\ud2b8", "\uac1c\uc120", "CVE", "\uc11c\ube44\uc2a4 \uc694\uccad"]
+    issue_types: list[str] = ["\uc778\uc2dc\ub358\ud2b8", "\uac1c\uc120", "CVE", "\uc11c\ube44\uc2a4 \uc694\uccad", "\ub77c\uc774\uc13c\uc2a4 \uc694\uccad"]
     active_statuses: list[str] = [
         "\ud560 \uc77c", "\uc774\uc288 \ub9ac\ubdf0 \uc911", "\uc5f0\uad6c\uc18c \ub300\uae30 \uc911", "\uc5f0\uad6c\uc18c \uac80\ud1a0 \uc911",
         "\uad6c\ud604 \uc911", "\ubc30\ud3ec \ud30c\uc77c \uac80\ud1a0 \uc911", "\uc790\ub8cc \uc694\uccad \uc911", "\uacb0\uacfc \ub300\uae30 \uc911",

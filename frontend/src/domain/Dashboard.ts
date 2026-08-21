@@ -29,6 +29,7 @@ export interface MonthlyEntry {
   rate: number
   met: number
   total: number
+  by_type?: Record<string, { met: number; total: number }>
 }
 
 export interface MonthlyCountEntry {
@@ -36,6 +37,7 @@ export interface MonthlyCountEntry {
   year: number
   month_num: number
   count: number
+  by_type?: Record<string, number>
 }
 
 export interface CreatedIssue {

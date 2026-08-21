@@ -15,7 +15,7 @@
 | Variable | Default | 설명 |
 |----------|---------|------|
 | `PROJECT_KEY` | `TACEA` | 집계 프로젝트 |
-| `ISSUE_TYPES` | 사내 기본 목록 | 집계 이슈 유형 JSON list |
+| `ISSUE_TYPES` | `["인시던트","개선","CVE","서비스 요청","라이센스 요청"]` | 대시보드 집계·필터 대상 이슈 유형 JSON list |
 | `ACTIVE_STATUSES` | 사내 기본 목록 | 활성 상태 JSON list |
 | `CLOSED_STATUSES` | 사내 기본 목록 | 종료 상태 JSON list |
 | `SLA_THRESHOLD_DAYS` | `30` | SLA 지연 기준 |
@@ -25,7 +25,7 @@
 | `JIRA_QA_ASSIGNEE_FIELD_ID` | `customfield_12222` | QA 담당자 field |
 | `REPORT_RETENTION_WEEKS` | `52` | 0이면 자동 정리 비활성 |
 
-첫 번째 대시보드의 w1부터 w14까지 모든 위젯은 각 집계 조건에 앞서 `라이센스 요청` 이슈 유형을 제외합니다.
+첫 번째 대시보드의 w1부터 w14까지 모든 위젯은 `ISSUE_TYPES`의 유형을 모두 포함해 생성됩니다. 연간·월별·SLA 집계에는 유형별 분해값도 함께 저장되므로 화면 최상단 토글로 Jira를 다시 조회하지 않고 즉시 포함·제외할 수 있습니다. 유형별 데이터 계약이 추가되기 전에 생성된 보고서는 새로 생성하거나 갱신해야 토글을 사용할 수 있습니다.
 
 ## Database
 

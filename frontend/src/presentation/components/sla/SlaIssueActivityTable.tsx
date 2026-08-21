@@ -173,8 +173,7 @@ function MobileIssueCard({
 export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboardIssue[] }) {
   const { jiraBase } = useJira()
   const [page, setPage] = useState(1)
-  const [desktopExpanded, setDesktopExpanded] = useState<string | null>(null)
-  const [mobileExpanded, setMobileExpanded] = useState<string | null>(null)
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(() => new Set())
   const totalPages = Math.max(1, Math.ceil(issues.length / TABLE_PAGE_SIZE))
 
   useEffect(() => {
@@ -184,10 +183,13 @@ export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboard
   const start = (page - 1) * TABLE_PAGE_SIZE
   const pageItems = issues.slice(start, start + TABLE_PAGE_SIZE)
 
-  const changePage = (nextPage: number) => {
-    setPage(nextPage)
-    setDesktopExpanded(null)
-    setMobileExpanded(null)
+  const toggleIssue = (issueKey: string) => {
+    setCollapsedKeys((current) => {
+      const next = new Set(current)
+      if (next.has(issueKey)) next.delete(issueKey)
+      else next.add(issueKey)
+      return next
+    })
   }
 
   return (
@@ -207,8 +209,8 @@ export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboard
               <DesktopIssueRow
                 key={issue.key}
                 issue={issue}
-                expanded={desktopExpanded === issue.key}
-                onToggle={() => setDesktopExpanded((current) => current === issue.key ? null : issue.key)}
+                expanded={!collapsedKeys.has(issue.key)}
+                onToggle={() => toggleIssue(issue.key)}
                 jiraBase={jiraBase}
               />
             ))}
@@ -221,8 +223,8 @@ export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboard
           <MobileIssueCard
             key={issue.key}
             issue={issue}
-            expanded={mobileExpanded === issue.key}
-            onToggle={() => setMobileExpanded((current) => current === issue.key ? null : issue.key)}
+            expanded={!collapsedKeys.has(issue.key)}
+            onToggle={() => toggleIssue(issue.key)}
             jiraBase={jiraBase}
           />
         ))}
@@ -240,7 +242,7 @@ export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboard
                 <button
                   key={pageNumber}
                   type="button"
-                  onClick={() => changePage(pageNumber)}
+                  onClick={() => setPage(pageNumber)}
                   className={`min-w-8 rounded-lg px-2.5 py-1 text-[12px] font-medium transition-colors ${
                     page === pageNumber
                       ? 'bg-brand-600 text-white'

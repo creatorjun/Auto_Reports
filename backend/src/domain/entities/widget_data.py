@@ -90,6 +90,12 @@ class SimpleIssueWidgetData:
 
 
 @dataclass
+class TypeCountWidgetData:
+    issue_types: list[str] = field(default_factory=list)
+    by_type: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
 class RecentIssueDetail:
     key: str
     summary: str
@@ -186,6 +192,12 @@ class CreatedVsResolvedWidgetData:
 
 
 @dataclass
+class SlaMonthlyTypeStats:
+    met: int
+    total: int
+
+
+@dataclass
 class MonthlyEntry:
     month: str
     year: int
@@ -193,6 +205,7 @@ class MonthlyEntry:
     rate: float
     met: int
     total: int
+    by_type: dict[str, SlaMonthlyTypeStats] = field(default_factory=dict)
 
 
 @dataclass
@@ -211,6 +224,7 @@ class MonthlyCountEntry:
     year: int
     month_num: int
     count: int
+    by_type: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass

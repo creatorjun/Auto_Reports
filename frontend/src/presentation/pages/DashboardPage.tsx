@@ -10,12 +10,12 @@ import SummaryCard, { SUMMARY_ICONS } from '@/presentation/components/cards/Summ
 import AiSummaryCard from '@/presentation/components/cards/AiSummaryCard'
 import WorkTypeSummaryCard from '@/presentation/components/cards/WorkTypeSummaryCard'
 import SectionTitle from '@/presentation/components/common/SectionTitle'
+import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
 import { ModalFallback, ChartFallback } from '@/presentation/components/common/DashboardFallbacks'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/constants'
 import type { ReportDetail } from '@/domain/Report'
 import type { SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
 import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
-import { WIDGET_ID } from '@/domain/WidgetId'
 
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
 const ReasonPieChart      = lazy(() => import('@/presentation/components/charts/ReasonPieChart'))
@@ -36,6 +36,7 @@ const SlaDelayModal       = lazy(() => import('@/presentation/components/tables/
 
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
+  const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
   const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
   const [workTypeOpen,       setWorkTypeOpen]       = useState<WorkTypeOpenWidget | null>(null)
@@ -47,19 +48,21 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const [slaDelayEntry,      setSlaDelayEntry]      = useState<{ status: string; issues: SlaDelayIssue[] } | null>(null)
 
   useEffect(() => {
+    setSelectedIssueTypes(null)
     setCurrentReport(report)
     return () => setCurrentReport(null)
   }, [report, setCurrentReport])
 
-  const { weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report)
+  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report, selectedIssueTypes)
+  const { issueTypes, supportsIssueTypeFiltering } = filter
+  const { w1YearlyCreated, w2YearlyResolved } = yearly
   const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeDays } = weekly
   const { w10Monthly, w11Monthly, hasW10, hasW11 } = slaMonthly
   const { w8Monthly, w9Monthly, hasW8, hasW9 } = monthlyCount
   const { w12Total, w12Distribution } = slaDonut
   const { w13ByStatus, w13ByStatusDetails } = slaDelay
   const { recentIssues, incompleteIssues, incompleteTotal } = recentAndIncomplete
-  const { reviewIssues, dataRequestIssues, resultPendingIssues } = statusIssues
-  const w = report.widgets
+  const { reviewIssues, dataRequestIssues, resultPendingIssues, reviewTotal, dataRequestTotal, resultPendingTotal } = statusIssues
 
   const slaModalIssues: SlaViolationIssue[] = useMemo(() => {
     if (!slaViolationEntry) return []
@@ -71,17 +74,33 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     else setShowWeeklyResolved(true)
   }
 
+  const handleIssueTypeToggle = (issueType: string) => {
+    setSelectedIssueTypes((current) => {
+      const next = new Set(current ?? issueTypes)
+      if (next.has(issueType)) next.delete(issueType)
+      else next.add(issueType)
+      return next.size === issueTypes.length ? null : next
+    })
+  }
+
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
-      {report.ai_analysis && <AiSummaryCard ai={report.ai_analysis} />}
+      <IssueTypeFilter
+        issueTypes={issueTypes}
+        selectedTypes={selectedIssueTypes}
+        supported={supportsIssueTypeFiltering}
+        onToggle={handleIssueTypeToggle}
+        onReset={() => setSelectedIssueTypes(null)}
+      />
+      {report.ai_analysis && selectedIssueTypes === null && <AiSummaryCard ai={report.ai_analysis} />}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
-        <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w[WIDGET_ID.YEARLY_CREATED]?.total ?? 0} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
-        <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w[WIDGET_ID.YEARLY_RESOLVED]?.total ?? 0} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
+        <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w1YearlyCreated} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
+        <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w2YearlyResolved} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
         <SummaryCard label={`최근 ${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
         <SummaryCard label={`최근 ${rangeDays}일 완료`} value={w3Resolved} color="green" icon={SUMMARY_ICONS.weekResolved} onClick={() => setShowWeeklyResolved(true)} />
-        <SummaryCard label="이슈 리뷰 중" value={w[WIDGET_ID.ISSUE_REVIEW]?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
-        <SummaryCard label="자료 요청 중" value={w[WIDGET_ID.DATA_REQUEST]?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.dataRequest}   onClick={() => setShowDataRequest(true)}   />
-        <SummaryCard label="결과 대기 중" value={w[WIDGET_ID.RESULT_PENDING]?.total ?? 0}  color="yellow" icon={SUMMARY_ICONS.resultPending} onClick={() => setShowResultPending(true)} />
+        <SummaryCard label="이슈 리뷰 중" value={reviewTotal}  color="yellow" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
+        <SummaryCard label="자료 요청 중" value={dataRequestTotal}  color="yellow" icon={SUMMARY_ICONS.dataRequest}   onClick={() => setShowDataRequest(true)}   />
+        <SummaryCard label="결과 대기 중" value={resultPendingTotal}  color="yellow" icon={SUMMARY_ICONS.resultPending} onClick={() => setShowResultPending(true)} />
         <SummaryCard label="미완료 이슈"  value={incompleteTotal}   color="red"    icon={SUMMARY_ICONS.incomplete}    onClick={() => setShowIncomplete(true)}    />
       </div>
 
@@ -107,17 +126,17 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       )}
       {showIssueReview && (
         <Suspense fallback={<ModalFallback />}>
-          <IssueReviewModal issues={reviewIssues} total={w[WIDGET_ID.ISSUE_REVIEW]?.total ?? 0} onClose={() => setShowIssueReview(false)} />
+          <IssueReviewModal issues={reviewIssues} total={reviewTotal} onClose={() => setShowIssueReview(false)} />
         </Suspense>
       )}
       {showDataRequest && (
         <Suspense fallback={<ModalFallback />}>
-          <DataRequestModal issues={dataRequestIssues} total={w[WIDGET_ID.DATA_REQUEST]?.total ?? 0} onClose={() => setShowDataRequest(false)} />
+          <DataRequestModal issues={dataRequestIssues} total={dataRequestTotal} onClose={() => setShowDataRequest(false)} />
         </Suspense>
       )}
       {showResultPending && (
         <Suspense fallback={<ModalFallback />}>
-          <ResultPendingModal issues={resultPendingIssues} total={w[WIDGET_ID.RESULT_PENDING]?.total ?? 0} onClose={() => setShowResultPending(false)} />
+          <ResultPendingModal issues={resultPendingIssues} total={resultPendingTotal} onClose={() => setShowResultPending(false)} />
         </Suspense>
       )}
       {showIncomplete && (

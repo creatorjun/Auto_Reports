@@ -4,8 +4,6 @@ from typing import Tuple
 
 from src.application.services.query_config import QueryConfig
 
-DASHBOARD_EXCLUDED_ISSUE_TYPE = "라이센스 요청"
-
 
 class WidgetQueryBuilder:
     def __init__(self, config: QueryConfig):
@@ -36,12 +34,26 @@ class ResolvedQueries:
     def _project(self) -> str:
         return f"project = {self._c.project_key}"
 
-    def _dashboard_project(self) -> str:
-        return f'{self._project()} AND issuetype != "{DASHBOARD_EXCLUDED_ISSUE_TYPE}"'
-
     def _base(self) -> str:
         types = ", ".join(f'"{t}"' if " " in t else t for t in self._c.issue_types)
-        return f"{self._dashboard_project()} AND issuetype IN ({types})"
+        return f"{self._project()} AND issuetype IN ({types})"
+
+    @property
+    def issue_types(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(self._c.issue_types))
+
+    def by_issue_type(self, jql: str) -> dict[str, str]:
+        order_marker = " ORDER BY "
+        if order_marker in jql:
+            conditions, order = jql.rsplit(order_marker, 1)
+        else:
+            conditions, order = jql, ""
+        queries: dict[str, str] = {}
+        for issue_type in self.issue_types:
+            escaped = issue_type.replace('"', '\\"')
+            typed = f'{conditions} AND issuetype = "{escaped}"'
+            queries[issue_type] = f"{typed}{order_marker}{order}" if order else typed
+        return queries
 
     def _closed(self) -> str:
         return ", ".join(f'"{s}"' for s in self._c.closed_statuses)
@@ -51,13 +63,13 @@ class ResolvedQueries:
 
     def w1_yearly_created(self) -> str:
         return (
-            f"{self._dashboard_project()} "
+            f"{self._base()} "
             f"AND created >= \"{self._c.year_start}-01-01\""
         )
 
     def w2_yearly_resolved(self) -> str:
         return (
-            f"{self._dashboard_project()} "
+            f"{self._base()} "
             f"AND resolved >= \"{self._c.year_start}-01-01\""
         )
 
@@ -87,7 +99,7 @@ class ResolvedQueries:
 
     def w7_recent(self) -> str:
         return (
-            f"{self._dashboard_project()} AND status NOT IN ({self._closed()}) "
+            f"{self._base()} AND status NOT IN ({self._closed()}) "
             f"ORDER BY issuekey DESC"
         )
 
