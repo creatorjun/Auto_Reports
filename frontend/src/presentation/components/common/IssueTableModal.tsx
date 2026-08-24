@@ -5,7 +5,7 @@ import { MODAL_CLS } from '@/presentation/config/ui'
 import { TABLE_PAGE_SIZE } from '@/presentation/config/constants'
 import IssueModalShell from '@/presentation/components/common/IssueModalShell'
 import type { ModalSize } from '@/presentation/config/ui'
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 
 export interface ColumnDef<T> {
   header: string
@@ -21,7 +21,7 @@ interface Props<T extends { key: string }> {
   columns: ColumnDef<T>[]
   paginate?: boolean
   headerSlot?: ReactNode
-  renderMobileRow?: (row: T, jiraBrowse: string) => ReactNode
+  renderMobileRow?: (row: T) => ReactNode
   onClose: () => void
 }
 
@@ -44,28 +44,42 @@ export default function IssueTableModal<T extends { key: string }>({
     ? data.slice((page - 1) * TABLE_PAGE_SIZE, page * TABLE_PAGE_SIZE)
     : data
 
+  const openIssue = (key: string) => {
+    window.open(`${jiraBrowse}/${key}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleIssueKeyDown = (event: KeyboardEvent, key: string) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    openIssue(key)
+  }
+
   return (
     <IssueModalShell title={title} subtitle={subtitle} size={size} onClose={onClose}>
       {headerSlot && <div className="mb-4">{headerSlot}</div>}
 
       <div className="hidden md:block overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-apple-divider/60">
+        <table className="w-full border-collapse">
+          <thead className="bg-apple-gray/60">
+            <tr className="border-b-2 border-apple-divider">
               {columns.map(col => (
                 <th key={col.header} className={MODAL_CLS.thCell}>{col.header}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-apple-divider/40">
+          <tbody className="divide-y divide-apple-divider/80">
             {rows.map(row => (
               <tr
                 key={row.key}
-                onClick={() => window.open(`${jiraBrowse}/${row.key}`, '_blank', 'noreferrer')}
-                className="hover:bg-apple-gray/50 transition-colors duration-150 cursor-pointer"
+                role="link"
+                tabIndex={0}
+                aria-label={`${row.key} Jira 티켓 새 탭으로 열기`}
+                onClick={() => openIssue(row.key)}
+                onKeyDown={(event) => handleIssueKeyDown(event, row.key)}
+                className="cursor-pointer transition-colors duration-150 hover:bg-apple-gray/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
               >
                 {columns.map(col => (
-                  <td key={col.header}>{col.renderCell(row)}</td>
+                  <td key={col.header} className="border-r border-apple-divider/80 last:border-r-0">{col.renderCell(row)}</td>
                 ))}
               </tr>
             ))}
@@ -73,20 +87,26 @@ export default function IssueTableModal<T extends { key: string }>({
         </table>
       </div>
 
-      <div className="md:hidden divide-y divide-apple-divider/40">
-        {rows.map(row =>
-          renderMobileRow
-            ? renderMobileRow(row, jiraBrowse)
-            : (
-              <div
-                key={row.key}
-                onClick={() => window.open(`${jiraBrowse}/${row.key}`, '_blank', 'noreferrer')}
-                className="py-3 flex flex-col gap-1 cursor-pointer hover:bg-apple-gray/50 rounded-lg px-2 transition-colors"
-              >
-                {columns[0]?.renderMobile?.(row)}
-              </div>
-            )
-        )}
+      <div className="md:hidden divide-y divide-apple-divider/80">
+        {rows.map(row => (
+          <div
+            key={row.key}
+            role="link"
+            tabIndex={0}
+            aria-label={`${row.key} Jira 티켓 새 탭으로 열기`}
+            onClick={() => openIssue(row.key)}
+            onKeyDown={(event) => handleIssueKeyDown(event, row.key)}
+            className="cursor-pointer rounded-lg transition-colors hover:bg-apple-gray/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
+          >
+            {renderMobileRow
+              ? renderMobileRow(row)
+              : (
+                <div className="flex flex-col gap-1 px-2 py-3">
+                  {columns[0]?.renderMobile?.(row)}
+                </div>
+              )}
+          </div>
+        ))}
       </div>
 
       {paginate && totalPages > 1 && (

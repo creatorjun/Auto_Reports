@@ -176,6 +176,43 @@ test('resolved issues modal omits the current status field', () => {
   assert.doesNotMatch(modal, /StatusBadge|현재 상태|d\.status/)
 })
 
+test('dashboard issue modals share accessible Jira new-tab row behavior', () => {
+  const commonModal = fs.readFileSync(
+    path.join(source, 'presentation/components/common/IssueTableModal.tsx'),
+    'utf8',
+  )
+  const uiConfig = fs.readFileSync(
+    path.join(source, 'presentation/config/ui.ts'),
+    'utf8',
+  )
+
+  assert.match(commonModal, /window\.open\(`\$\{jiraBrowse\}\/\$\{key\}`, '_blank', 'noopener,noreferrer'\)/)
+  assert.match(commonModal, /role="link"/)
+  assert.match(commonModal, /tabIndex=\{0\}/)
+  assert.match(commonModal, /event\.key !== 'Enter' && event\.key !== ' '/)
+  assert.match(commonModal, /border-b-2 border-apple-divider/)
+  assert.match(commonModal, /border-r border-apple-divider\/80 last:border-r-0/)
+  assert.match(uiConfig, /thCell:[^\n]*text-center/)
+
+  for (const filename of [
+    'DataRequestModal.tsx',
+    'IncompleteIssueModal.tsx',
+    'IssueReviewModal.tsx',
+    'ResultPendingModal.tsx',
+    'SlaDelayModal.tsx',
+    'SlaViolationModal.tsx',
+    'WeeklyCreatedModal.tsx',
+    'WeeklyResolvedModal.tsx',
+  ]) {
+    const modal = fs.readFileSync(
+      path.join(source, 'presentation/components/tables', filename),
+      'utf8',
+    )
+    assert.match(modal, /<IssueTableModal/)
+    assert.doesNotMatch(modal, /window\.open|jiraBrowse/)
+  }
+})
+
 test('dashboard request type and semester filters drive every widget view', () => {
   const page = fs.readFileSync(
     path.join(source, 'presentation/pages/DashboardPage.tsx'),

@@ -32,8 +32,8 @@ export default function WeeklyCreatedModal({ issues, total, title = '생성 이�
       subtitle={subtitle}
       data={issues}
       columns={COLUMNS}
-      renderMobileRow={(d, jiraBrowse) => (
-        <div key={d.key} onClick={() => window.open(`${jiraBrowse}/${d.key}`, '_blank', 'noreferrer')} className="py-3 flex flex-col gap-1 cursor-pointer hover:bg-apple-gray/50 rounded-lg px-2 transition-colors">
+      renderMobileRow={(d) => (
+        <div className="flex flex-col gap-1 px-2 py-3">
           <div className="flex items-center justify-between">
             <span className={MODAL_CLS.keyCell}>{d.key}</span>
             <span className="text-ui-xs text-apple-light tabular-nums">{d.created}</span>

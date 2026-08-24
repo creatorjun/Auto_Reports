@@ -26,8 +26,8 @@ export default function DataRequestModal({ issues, total, onClose }: Props) {
       subtitle={`SLA 초과 후 자료 대기 · 전체 ${total}건 (오래된 순)`}
       data={issues}
       columns={COLUMNS}
-      renderMobileRow={(d, jiraBrowse) => (
-        <div key={d.key} onClick={() => window.open(`${jiraBrowse}/${d.key}`, '_blank', 'noreferrer')} className="py-3 flex flex-col gap-1 cursor-pointer hover:bg-apple-gray/50 rounded-lg px-2 transition-colors">
+      renderMobileRow={(d) => (
+        <div className="flex flex-col gap-1 px-2 py-3">
           <div className="flex items-center justify-between">
             <span className={MODAL_CLS.keyCell}>{d.key}</span>
             <span className={MODAL_CLS.elapsedCell}>{d.elapsed_days}일 경과</span>
