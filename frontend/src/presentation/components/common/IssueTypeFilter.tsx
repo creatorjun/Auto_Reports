@@ -41,7 +41,7 @@ export default function IssueTypeFilter({
               )}
             </div>
             <p className="mt-1 text-sm text-apple-light">
-              선택한 유형만 실시간 반영되며, 토글에 없는 유형은 항상 포함됩니다.
+              현재 Jira에 등록된 모든 요청 유형을 실시간으로 포함하거나 제외할 수 있습니다.
             </p>
           </div>
         </div>

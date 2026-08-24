@@ -2,7 +2,7 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Callable
+from typing import Awaitable, Callable
 
 from src.application.services.query_builder import ResolvedQueries, WidgetQueryBuilder
 from src.application.widgets.collector_factory import CollectorEntry
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 BaseCollectorFactory = Callable[[ResolvedQueries, datetime], list[CollectorEntry]]
 MonthlyCollectorFactory = Callable[[ResolvedQueries, datetime], list[tuple[list[WidgetId], object]]]
+IssueTypeProvider = Callable[[], Awaitable[list[str]]]
 
 
 class ReportAssembler:
@@ -23,10 +24,12 @@ class ReportAssembler:
         query_builder: WidgetQueryBuilder,
         base_collector_factory: BaseCollectorFactory,
         monthly_collector_factory: MonthlyCollectorFactory,
+        issue_type_provider: IssueTypeProvider | None = None,
     ):
         self._qb = query_builder
         self._base_factory = base_collector_factory
         self._monthly_factory = monthly_collector_factory
+        self._issue_type_provider = issue_type_provider
 
     async def collect(
         self,
@@ -35,7 +38,21 @@ class ReportAssembler:
     ) -> NewReport:
         if now.tzinfo is None:
             now = now.replace(tzinfo=KST)
-        q = self._qb.build(now, week_start_override=week_start_override)
+        issue_types: list[str] | None = None
+        if self._issue_type_provider is not None:
+            try:
+                discovered_types = await self._issue_type_provider()
+                if discovered_types:
+                    issue_types = discovered_types
+                else:
+                    logger.warning("Jira 요청 유형 목록이 비어 있어 ISSUE_TYPES 기본값을 사용합니다.")
+            except Exception as exc:
+                logger.warning(f"Jira 요청 유형 조회 실패로 ISSUE_TYPES 기본값을 사용합니다: {exc}")
+        q = self._qb.build(
+            now,
+            week_start_override=week_start_override,
+            issue_types_override=issue_types,
+        )
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 
         entries: list[CollectorEntry] = self._base_factory(q, now)

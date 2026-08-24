@@ -166,7 +166,7 @@ test('dashboard request type toggles drive every widget view from filterable rep
   assert.match(page, /<IssueTypeFilter/)
   assert.match(filter, /aria-pressed=\{selected\}/)
   assert.match(filter, /전체 포함/)
-  assert.match(filter, /토글에 없는 유형은 항상 포함/)
+  assert.match(filter, /현재 Jira에 등록된 모든 요청 유형/)
   assert.match(filter, /'라이선스': '라이센스 요청'/)
   for (const section of [
     'yearly',

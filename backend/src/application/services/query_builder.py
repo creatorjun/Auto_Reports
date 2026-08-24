@@ -13,8 +13,14 @@ class WidgetQueryBuilder:
         self,
         now: datetime,
         week_start_override: datetime | None = None,
+        issue_types_override: list[str] | None = None,
     ) -> "ResolvedQueries":
-        return ResolvedQueries(now, self._c, week_start_override)
+        return ResolvedQueries(
+            now,
+            self._c,
+            week_start_override,
+            issue_types_override,
+        )
 
 
 class ResolvedQueries:
@@ -23,6 +29,7 @@ class ResolvedQueries:
         now: datetime,
         c: QueryConfig,
         week_start_override: datetime | None = None,
+        issue_types_override: list[str] | None = None,
     ):
         self._now = now
         self._c = c
@@ -30,6 +37,12 @@ class ResolvedQueries:
         self.week_start = week_start_override if week_start_override else now - timedelta(days=6)
         self.date_start = self.week_start.strftime("%Y-%m-%d")
         self.date_end = self.week_end.strftime("%Y-%m-%d")
+        raw_issue_types = c.issue_types if issue_types_override is None else issue_types_override
+        self._issue_types = tuple(dict.fromkeys(
+            issue_type.strip()
+            for issue_type in raw_issue_types
+            if issue_type.strip()
+        ))
 
     def _project(self) -> str:
         return f"project = {self._c.project_key}"
@@ -39,7 +52,7 @@ class ResolvedQueries:
 
     @property
     def issue_types(self) -> tuple[str, ...]:
-        return tuple(dict.fromkeys(self._c.issue_types))
+        return self._issue_types
 
     @staticmethod
     def _escape_issue_type(issue_type: str) -> str:

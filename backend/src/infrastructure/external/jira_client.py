@@ -93,6 +93,18 @@ class JiraClient(JiraPort, ServiceDeskPort):
         )
         self._org_name_cache: dict[str, str] = {}
 
+    async def get_project_issue_types(self, project_key: str) -> list[str]:
+        encoded_key = quote(project_key, safe="")
+        url = f"{self._base_url}/rest/api/3/project/{encoded_key}"
+        resp = await self._client.get(url, params={"expand": "issueTypes"})
+        resp.raise_for_status()
+        names = [
+            str(issue_type.get("name", "")).strip()
+            for issue_type in resp.json().get("issueTypes", [])
+            if not issue_type.get("subtask")
+        ]
+        return list(dict.fromkeys(name for name in names if name))
+
     async def get_issue_count(self, jql: str) -> int:
         cached = await self._count_cache.async_get(jql)
         if cached is not None:

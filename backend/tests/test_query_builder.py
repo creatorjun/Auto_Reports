@@ -13,7 +13,7 @@ from src.domain.value_objects.widget_id import WidgetId
 
 class WidgetQueryBuilderTest(unittest.TestCase):
     def setUp(self) -> None:
-        config = QueryConfig(
+        self.config = QueryConfig(
             project_key="TACEA",
             issue_types=["인시던트", "개선", "CVE", "서비스 요청", "라이선스"],
             active_statuses=["처리 중"],
@@ -21,7 +21,7 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             sla_threshold_days=30,
             year_start=2026,
         )
-        self.queries = WidgetQueryBuilder(config).build(
+        self.queries = WidgetQueryBuilder(self.config).build(
             datetime.datetime(2026, 8, 18)
         )
 
@@ -84,6 +84,21 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             'AND issuetype NOT IN ("인시던트", "개선", "CVE", "서비스 요청", "라이선스") '
             'ORDER BY issuekey DESC',
             query,
+        )
+
+    def test_runtime_issue_types_replace_configured_fallback(self) -> None:
+        queries = WidgetQueryBuilder(self.config).build(
+            datetime.datetime(2026, 8, 18),
+            issue_types_override=["인시던트", "H/W 장애 요청", "승인된 서비스 요청"],
+        )
+
+        self.assertEqual(
+            ("인시던트", "H/W 장애 요청", "승인된 서비스 요청"),
+            queries.issue_types,
+        )
+        self.assertEqual(
+            ["인시던트", "H/W 장애 요청", "승인된 서비스 요청"],
+            list(queries.by_issue_type(queries.w1_yearly_created())),
         )
 
     def test_widget_ids_follow_dashboard_render_order(self) -> None:

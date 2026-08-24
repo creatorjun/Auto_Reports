@@ -7,6 +7,9 @@ class JiraPort(ABC):
     MAX_RESULTS: int = 100
 
     @abstractmethod
+    async def get_project_issue_types(self, project_key: str) -> list[str]: ...
+
+    @abstractmethod
     async def get_issue_count(self, jql: str) -> int: ...
 
     @abstractmethod
