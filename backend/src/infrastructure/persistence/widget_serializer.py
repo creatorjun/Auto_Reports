@@ -81,8 +81,7 @@ def _coerce_field(type_hint: Any, value: Any) -> Any:
     if origin is dict:
         if isinstance(value, dict) and args and len(args) == 2:
             val_type = args[1]
-            if dataclasses.is_dataclass(val_type):
-                return {k: _dict_to_dataclass(val_type, v) for k, v in value.items()}
+            return {k: _coerce_field(val_type, item) for k, item in value.items()}
         return value if value is not None else {}
 
     if isinstance(type_hint, type) and dataclasses.is_dataclass(type_hint) and isinstance(value, dict):

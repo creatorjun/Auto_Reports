@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class MonthlyCountCollector(AbstractWidgetCollector):
-    MONTHS_BACK = 6
+    MONTHS_PER_YEAR = 12
 
     def __init__(self, jira: JiraPort, q: ResolvedQueries, now: datetime):
         self._jira = jira
@@ -21,14 +21,10 @@ class MonthlyCountCollector(AbstractWidgetCollector):
         self._now = now
 
     async def collect(self) -> Tuple[WidgetResult, WidgetResult]:
-        year, month = self._now.year, self._now.month
-        months: list[tuple[int, int]] = []
-        for _ in range(self.MONTHS_BACK):
-            months.insert(0, (year, month))
-            month -= 1
-            if month == 0:
-                month = 12
-                year -= 1
+        months = [
+            (self._now.year, month)
+            for month in range(1, self.MONTHS_PER_YEAR + 1)
+        ]
 
         created_jqls = [self._q.w8_monthly_created(y, m) for y, m in months]
         resolved_jqls = [self._q.w9_monthly_resolved(y, m) for y, m in months]
@@ -79,7 +75,7 @@ class MonthlyCountCollector(AbstractWidgetCollector):
             ))
 
         logger.info(
-            f"[w8/w9] 월별 등록/해결 {self.MONTHS_BACK}개월 수집 완료 "
+            f"[w8/w9] 월별 등록/해결 {self._now.year}년 수집 완료 "
             f"(배치 {len(all_jqls)}건 JQL → 단일 gather)"
         )
         return (

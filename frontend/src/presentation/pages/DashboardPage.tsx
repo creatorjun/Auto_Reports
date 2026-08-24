@@ -14,7 +14,7 @@ import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
 import { ModalFallback, ChartFallback } from '@/presentation/components/common/DashboardFallbacks'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/constants'
 import type { ReportDetail } from '@/domain/Report'
-import type { SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
+import type { Semester, SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
 import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
 
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
@@ -37,6 +37,7 @@ const SlaDelayModal       = lazy(() => import('@/presentation/components/tables/
 function DashboardContent({ report }: { report: ReportDetail }) {
   const { setCurrentReport } = useReportStore()
   const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
+  const [selectedSemester,   setSelectedSemester]   = useState<Semester | null>(null)
   const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
   const [workTypeOpen,       setWorkTypeOpen]       = useState<WorkTypeOpenWidget | null>(null)
@@ -49,12 +50,13 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   useEffect(() => {
     setSelectedIssueTypes(null)
+    setSelectedSemester(null)
     setCurrentReport(report)
     return () => setCurrentReport(null)
   }, [report, setCurrentReport])
 
-  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report, selectedIssueTypes)
-  const { issueTypes, supportsIssueTypeFiltering } = filter
+  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report, selectedIssueTypes, selectedSemester)
+  const { issueTypes, supportsIssueTypeFiltering, supportsSemesterFiltering, semesterLabel } = filter
   const { w1YearlyCreated, w2YearlyResolved } = yearly
   const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeDays } = weekly
   const { w10Monthly, w11Monthly, hasW10, hasW11 } = slaMonthly
@@ -88,14 +90,20 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       <IssueTypeFilter
         issueTypes={issueTypes}
         selectedTypes={selectedIssueTypes}
+        selectedSemester={selectedSemester}
         supported={supportsIssueTypeFiltering}
+        semesterSupported={supportsSemesterFiltering}
         onToggle={handleIssueTypeToggle}
-        onReset={() => setSelectedIssueTypes(null)}
+        onSemesterChange={setSelectedSemester}
+        onReset={() => {
+          setSelectedIssueTypes(null)
+          setSelectedSemester(null)
+        }}
       />
-      {report.ai_analysis && selectedIssueTypes === null && <AiSummaryCard ai={report.ai_analysis} />}
+      {report.ai_analysis && selectedIssueTypes === null && selectedSemester === null && <AiSummaryCard ai={report.ai_analysis} />}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
-        <SummaryCard label={`${new Date().getFullYear()} 생성`} value={w1YearlyCreated} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
-        <SummaryCard label={`${new Date().getFullYear()} 해결`} value={w2YearlyResolved} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
+        <SummaryCard label={`${semesterLabel} 생성`} value={w1YearlyCreated} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
+        <SummaryCard label={`${semesterLabel} 해결`} value={w2YearlyResolved} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
         <SummaryCard label={`최근 ${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
         <SummaryCard label={`최근 ${rangeDays}일 완료`} value={w3Resolved} color="green" icon={SUMMARY_ICONS.weekResolved} onClick={() => setShowWeeklyResolved(true)} />
         <SummaryCard label="이슈 리뷰 중" value={reviewTotal}  color="yellow" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
@@ -178,26 +186,26 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
       {(hasW8 || hasW9) && (
         <div className="space-y-1">
-          <SectionTitle icon={BarChart2} title="월별 이슈 현황" subtitle="최근 6개월" />
+          <SectionTitle icon={BarChart2} title="월별 이슈 현황" subtitle={semesterLabel} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
             <Suspense fallback={<ChartFallback />}>
-              <MonthlyCountChart title="월별 등록 건수" subtitle="최근 6개월" monthly={w8Monthly} color={MONTHLY_COUNT_COLORS.created}  />
+              <MonthlyCountChart title="월별 등록 건수" subtitle={semesterLabel} monthly={w8Monthly} color={MONTHLY_COUNT_COLORS.created}  />
             </Suspense>
             <Suspense fallback={<ChartFallback />}>
-              <MonthlyCountChart title="월별 해결 건수" subtitle="최근 6개월" monthly={w9Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
+              <MonthlyCountChart title="월별 해결 건수" subtitle={semesterLabel} monthly={w9Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
             </Suspense>
           </div>
         </div>
       )}
       {(hasW10 || hasW11) && (
         <div className="space-y-1">
-          <SectionTitle icon={ShieldAlert} title="SLA 준수율" subtitle="최근 6개월" />
+          <SectionTitle icon={ShieldAlert} title="SLA 준수율" subtitle={semesterLabel} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
             <Suspense fallback={<ChartFallback />}>
-              <SlaMonthlyLineChart title="최초응답 SLA" subtitle="최근 6개월 · 응답시간 위반 여부" monthly={w10Monthly} color={SLA_MONTHLY_COLORS.initial}    />
+              <SlaMonthlyLineChart title="최초응답 SLA" subtitle={`${semesterLabel} · 응답시간 위반 여부`} monthly={w10Monthly} color={SLA_MONTHLY_COLORS.initial}    />
             </Suspense>
             <Suspense fallback={<ChartFallback />}>
-              <SlaMonthlyLineChart title="해결시간 SLA" subtitle="최근 6개월 · 해결시간 위반 여부" monthly={w11Monthly} color={SLA_MONTHLY_COLORS.resolution} />
+              <SlaMonthlyLineChart title="해결시간 SLA" subtitle={`${semesterLabel} · 해결시간 위반 여부`} monthly={w11Monthly} color={SLA_MONTHLY_COLORS.resolution} />
             </Suspense>
           </div>
         </div>

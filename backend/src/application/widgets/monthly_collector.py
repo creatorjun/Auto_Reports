@@ -22,7 +22,7 @@ _SLA_RESOLUTION_KEY = "_sla_resolution"
 
 
 class MonthlyCollector(AbstractWidgetCollector):
-    MONTHS_BACK = 6
+    MONTHS_PER_YEAR = 12
 
     def __init__(self, jira: JiraPort, q: ResolvedQueries, now: datetime):
         self._jira = jira
@@ -30,14 +30,10 @@ class MonthlyCollector(AbstractWidgetCollector):
         self._now = now
 
     async def collect(self) -> Tuple[WidgetResult, WidgetResult]:
-        year, month = self._now.year, self._now.month
-        months: list[tuple[int, int]] = []
-        for _ in range(self.MONTHS_BACK):
-            months.insert(0, (year, month))
-            month -= 1
-            if month == 0:
-                month = 12
-                year -= 1
+        months = [
+            (self._now.year, month)
+            for month in range(1, self.MONTHS_PER_YEAR + 1)
+        ]
 
         async def _fetch_month(y: int, m: int) -> tuple[int, int, list]:
             jql = self._q.w10_w11_monthly_candidates(y, m)
@@ -94,7 +90,7 @@ class MonthlyCollector(AbstractWidgetCollector):
                 always_included=res_always_included,
             ))
 
-        logger.info(f"[w10/w11] 월별 SLA {self.MONTHS_BACK}개월 수집 완료")
+        logger.info(f"[w10/w11] 월별 SLA {self._now.year}년 수집 완료")
         return (
             WidgetResult(name="최초응답 SLA 월별", total=0, data=SlaMonthlyWidgetData(monthly=w10_entries)),
             WidgetResult(name="해결시간 SLA 월별", total=0, data=SlaMonthlyWidgetData(monthly=w11_entries)),

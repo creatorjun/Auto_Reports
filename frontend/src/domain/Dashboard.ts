@@ -33,6 +33,8 @@ export interface MonthlyEntry {
   always_included?: { met: number; total: number } | null
 }
 
+export type Semester = 'h1' | 'h2'
+
 export interface MonthlyCountEntry {
   month: string
   year: number

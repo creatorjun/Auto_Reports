@@ -94,6 +94,12 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
 
         first_created = created.data.monthly[0]
         first_resolved = resolved.data.monthly[0]
+        self.assertEqual(12, len(created.data.monthly))
+        self.assertEqual((2026, 1), (first_created.year, first_created.month_num))
+        self.assertEqual((2026, 12), (
+            created.data.monthly[-1].year,
+            created.data.monthly[-1].month_num,
+        ))
         self.assertEqual(8, first_created.count)
         self.assertEqual({"인시던트": 3, "라이선스": 2}, first_created.by_type)
         self.assertEqual(3, first_created.always_included)
@@ -116,6 +122,12 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
 
         initial_entry = initial.data.monthly[0]
         resolution_entry = resolution.data.monthly[0]
+        self.assertEqual(12, len(initial.data.monthly))
+        self.assertEqual((2026, 1), (initial_entry.year, initial_entry.month_num))
+        self.assertEqual((2026, 12), (
+            initial.data.monthly[-1].year,
+            initial.data.monthly[-1].month_num,
+        ))
         self.assertEqual((1, 1), (
             initial_entry.by_type["인시던트"].met,
             initial_entry.by_type["인시던트"].total,

@@ -31,7 +31,7 @@ class CreatedVsResolvedCollector(AbstractWidgetCollector):
             ),
             self._jira.get_issues(
                 resolved_jql, max_results=JIRA_MAX_RESULT,
-                fields="summary,issuetype,updated",
+                fields="summary,issuetype,resolutiondate",
             ),
         )
         now_ts = datetime.now()
@@ -49,12 +49,12 @@ class CreatedVsResolvedCollector(AbstractWidgetCollector):
 
         def _to_resolved(issue: dict) -> ResolvedIssueDetail:
             fields = issue.get("fields") or {}
-            updated = fields.get("updated", "") or ""
+            resolved = fields.get("resolutiondate", "") or ""
             return ResolvedIssueDetail(
                 key=issue.get("key", ""),
                 summary=(fields.get("summary") or "")[:60],
                 type=(fields.get("issuetype") or {}).get("name", "기타"),
-                resolved=updated[:16].replace("T", " ") if updated else "",
+                resolved=resolved[:16].replace("T", " ") if resolved else "",
             )
 
         created_details  = [_to_created(i)  for i in created_issues]

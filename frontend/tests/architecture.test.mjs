@@ -148,7 +148,7 @@ test('resolved issues modal omits the current status field', () => {
   assert.doesNotMatch(modal, /StatusBadge|현재 상태|d\.status/)
 })
 
-test('dashboard request type toggles drive every widget view from filterable report data', () => {
+test('dashboard request type and semester filters drive every widget view', () => {
   const page = fs.readFileSync(
     path.join(source, 'presentation/pages/DashboardPage.tsx'),
     'utf8',
@@ -163,10 +163,13 @@ test('dashboard request type toggles drive every widget view from filterable rep
   )
 
   assert.match(page, /useState<Set<string> \| null>\(null\)/)
+  assert.match(page, /useState<Semester \| null>\(null\)/)
   assert.match(page, /<IssueTypeFilter/)
   assert.match(filter, /aria-pressed=\{selected\}/)
-  assert.match(filter, /전체 포함/)
-  assert.match(filter, /현재 Jira에 등록된 모든 요청 유형/)
+  assert.match(filter, /상반기/)
+  assert.match(filter, /하반기/)
+  assert.match(filter, /초기화/)
+  assert.doesNotMatch(filter, /ListFilter|현재 Jira에 등록된 모든 요청 유형/)
   assert.match(filter, /'라이선스': '라이센스 요청'/)
   for (const section of [
     'yearly',
@@ -182,6 +185,9 @@ test('dashboard request type toggles drive every widget view from filterable rep
     assert.match(dashboardData, new RegExp(`\\b${section}\\b`))
   }
   assert.match(dashboardData, /supportsIssueTypeFiltering/)
+  assert.match(dashboardData, /supportsSemesterFiltering/)
+  assert.match(dashboardData, /semesterIncludesMonth/)
+  assert.match(dashboardData, /dateIsInSemester/)
   assert.match(dashboardData, /sumSelectedTypes/)
   assert.match(dashboardData, /filterIssues/)
   assert.match(dashboardData, /!controlledTypes\.has\(issueType\)/)

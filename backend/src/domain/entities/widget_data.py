@@ -133,6 +133,7 @@ class ResolutionTypeEntry:
 @dataclass
 class ResolutionTypeWidgetData:
     by_type: dict[str, ResolutionTypeEntry] = field(default_factory=dict)
+    by_semester: dict[str, dict[str, ResolutionTypeEntry]] = field(default_factory=dict)
 
 
 @dataclass
