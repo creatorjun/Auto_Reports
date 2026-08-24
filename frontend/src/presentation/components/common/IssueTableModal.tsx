@@ -67,7 +67,7 @@ export default function IssueTableModal<T extends { key: string }>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-apple-divider/80">
+          <tbody>
             {rows.map(row => (
               <tr
                 key={row.key}
@@ -79,7 +79,7 @@ export default function IssueTableModal<T extends { key: string }>({
                 className="cursor-pointer transition-colors duration-150 hover:bg-apple-gray/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
               >
                 {columns.map(col => (
-                  <td key={col.header} className="border-r border-apple-divider/80 last:border-r-0">{col.renderCell(row)}</td>
+                  <td key={col.header}>{col.renderCell(row)}</td>
                 ))}
               </tr>
             ))}
@@ -87,7 +87,7 @@ export default function IssueTableModal<T extends { key: string }>({
         </table>
       </div>
 
-      <div className="md:hidden divide-y divide-apple-divider/80">
+      <div className="md:hidden">
         {rows.map(row => (
           <div
             key={row.key}

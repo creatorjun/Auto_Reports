@@ -191,8 +191,11 @@ test('dashboard issue modals share accessible Jira new-tab row behavior', () => 
   assert.match(commonModal, /tabIndex=\{0\}/)
   assert.match(commonModal, /event\.key !== 'Enter' && event\.key !== ' '/)
   assert.match(commonModal, /border-b-2 border-apple-divider/)
-  assert.match(commonModal, /border-r border-apple-divider\/80 last:border-r-0/)
   assert.match(uiConfig, /thCell:[^\n]*text-center/)
+  assert.match(uiConfig, /thCell:[^\n]*border-r border-apple-divider\/90/)
+  assert.doesNotMatch(commonModal, /<tbody[^>]*divide-y/)
+  assert.doesNotMatch(commonModal, /<td[^>]*border-r/)
+  assert.doesNotMatch(commonModal, /className="md:hidden divide-y/)
 
   for (const filename of [
     'DataRequestModal.tsx',
