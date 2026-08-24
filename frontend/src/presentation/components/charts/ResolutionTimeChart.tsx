@@ -89,19 +89,19 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
   return (
     <div
       onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
-      className="flex flex-col gap-2 px-4 py-3 border-b border-apple-divider/60 last:border-0 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
+      className="flex flex-col items-center gap-2 px-4 py-3 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-center justify-center gap-2">
         <span className="font-mono text-[11px] text-blue-500 flex-shrink-0">{issue.key}</span>
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${style.bg} ${style.text}`}>{issue.status}</span>
       </div>
-      <p className="text-[13px] text-apple-dark leading-snug line-clamp-2">{issue.summary}</p>
-      <div className="flex items-center gap-2 text-[11px] text-apple-light">
+      <p className="w-full text-[13px] text-apple-dark leading-snug line-clamp-2">{issue.summary}</p>
+      <div className="flex items-center justify-center gap-2 text-[11px] text-apple-light">
         <span>{issue.reporter}</span>
         <span className="text-apple-divider">·</span>
         <span>{issue.tac_team}</span>
       </div>
-      <div className="flex items-center gap-1 text-[11px] text-apple-light">
+      <div className="flex items-center justify-center gap-1 text-[11px] text-apple-light">
         <span className="tabular-nums">{createdDate}</span>
         <span className="text-apple-divider">·</span>
         <span className="tabular-nums font-medium text-amber-600">{issue.elapsed_days}일 경과</span>
@@ -168,7 +168,7 @@ export default function ResolutionTimeChart({ details }: Props) {
 
   return (
     <div className="card p-0 overflow-hidden">
-      <div className="md:hidden divide-y divide-apple-divider/40">
+      <div className="md:hidden">
         {pageItems.map((issue) => (
           <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase} />
         ))}
@@ -197,15 +197,15 @@ export default function ResolutionTimeChart({ details }: Props) {
               const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
               return (
                 <tr key={issue.key} onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
-                  className="cursor-pointer border-b border-apple-divider/80 transition-colors last:border-0 hover:bg-gray-50">
-                  <td className="overflow-hidden border-r border-apple-divider/80 py-2 pr-3"><span className="block truncate font-mono text-ui-sm text-blue-500">{issue.key}</span></td>
-                  <td className="overflow-hidden border-r border-apple-divider/80 py-2 pr-3"><span className="block truncate text-apple-primary" title={issue.summary}>{issue.summary}</span></td>
-                  <td className="overflow-hidden border-r border-apple-divider/80 py-2 pr-3">
+                  className="cursor-pointer transition-colors hover:bg-gray-50">
+                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate font-mono text-ui-sm text-blue-500">{issue.key}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-apple-primary" title={issue.summary}>{issue.summary}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-ui-sm font-medium ${style.bg} ${style.text} whitespace-nowrap`}>{issue.status}</span>
                   </td>
-                  <td className="overflow-hidden border-r border-apple-divider/80 py-2 pr-3"><span className="block truncate text-ui-sm text-apple-light">{issue.reporter}</span></td>
-                  <td className="overflow-hidden border-r border-apple-divider/80 py-2 pr-3"><span className="block truncate text-ui-sm text-apple-light">{issue.tac_team}</span></td>
-                  <td className="whitespace-nowrap py-2 text-right text-apple-light">
+                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light">{issue.reporter}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light">{issue.tac_team}</span></td>
+                  <td className="whitespace-nowrap px-3 py-2 text-center text-apple-light">
                     <span className="tabular-nums">{createdDate}</span>
                     <span className="text-ui-xs text-apple-divider mx-1">·</span>
                     <span className="tabular-nums">{issue.elapsed_days}일</span>

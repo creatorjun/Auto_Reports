@@ -223,6 +223,23 @@ test('dashboard issue modals share accessible Jira new-tab row behavior', () => 
   }
 })
 
+test('recent issue list centers body content without cell dividers', () => {
+  const table = fs.readFileSync(
+    path.join(source, 'presentation/components/charts/ResolutionTimeChart.tsx'),
+    'utf8',
+  )
+  const tbody = table.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] ?? ''
+  const mobileCard = table.match(/function MobileIssueCard[\s\S]*?\n}\n\nexport default/)?.[0] ?? ''
+  const tableCells = [...tbody.matchAll(/<td className="([^"]+)"/g)]
+
+  assert.equal(tableCells.length, 6)
+  for (const cell of tableCells) assert.match(cell[1], /\btext-center\b/)
+  assert.doesNotMatch(tbody, /\bborder-r\b|\bborder-b\b/)
+  assert.match(table, /className="flex flex-col items-center[^\"]*text-center/)
+  assert.doesNotMatch(table, /md:hidden[^\n]*divide-y/)
+  assert.doesNotMatch(mobileCard, /\bborder-b\b/)
+})
+
 test('dashboard request type and semester filters drive every widget view', () => {
   const page = fs.readFileSync(
     path.join(source, 'presentation/pages/DashboardPage.tsx'),
