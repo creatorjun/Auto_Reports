@@ -59,7 +59,7 @@ function ResizeHandle({ onDrag, tableWidth }: { onDrag: (frac: number) => void; 
       className="absolute right-0 top-0 h-full w-[6px] cursor-col-resize select-none flex items-center justify-center group z-10"
       title="드래그하여 너비 조절"
     >
-      <span className="w-[2px] h-4 rounded bg-apple-divider group-hover:bg-brand-500 transition-colors" />
+      <span className="h-6 w-[2px] rounded bg-apple-mid/60 transition-colors group-hover:bg-brand-500" />
     </span>
   )
 }
@@ -157,13 +157,13 @@ export default function ResolutionTimeChart({ details }: Props) {
   const totalPages = Math.ceil(sortedDetails.length / TABLE_PAGE_SIZE)
   const pageItems  = sortedDetails.slice((page - 1) * TABLE_PAGE_SIZE, page * TABLE_PAGE_SIZE)
 
-  const headers: { key: ColKey; label: string; rightCol?: ColKey; alignRight?: boolean }[] = [
+  const headers: { key: ColKey; label: string; rightCol?: ColKey }[] = [
     { key: 'key',      label: '이슈',          rightCol: 'summary'  },
     { key: 'summary',  label: '제목',          rightCol: 'status'   },
     { key: 'status',   label: '진행 상태',     rightCol: 'reporter' },
     { key: 'reporter', label: '보고자',        rightCol: 'tac'      },
     { key: 'tac',      label: '담당자',        rightCol: 'elapsed'  },
-    { key: 'elapsed',  label: '생성일 (경과)', alignRight: true },
+    { key: 'elapsed',  label: '생성일 (경과)' },
   ]
 
   return (
@@ -177,12 +177,14 @@ export default function ResolutionTimeChart({ details }: Props) {
       <div className="hidden md:block overflow-x-auto px-4 md:px-5">
         <table ref={tableRef} className="w-full text-ui-base border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>{COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * 100).toFixed(2)}%` }} />)}</colgroup>
-          <thead>
-            <tr className="border-b border-apple-divider text-ui-sm text-apple-light">
-              {headers.map(({ key, label, rightCol, alignRight }) => (
+          <thead className="bg-apple-gray/60">
+            <tr className="border-b-2 border-apple-divider text-ui-sm text-apple-mid">
+              {headers.map(({ key, label, rightCol }) => (
                 <th key={key} onClick={() => handleSort(key)}
-                  className={['pt-3 pb-1.5 font-medium whitespace-nowrap relative pr-5 select-none cursor-pointer hover:text-apple-primary transition-colors', alignRight ? 'text-right' : 'text-left', sortKey === key ? 'text-apple-primary' : ''].join(' ')}>
-                  {label}<SortIcon dir={sortKey === key ? sortDir : null} />
+                  className={['relative cursor-pointer select-none whitespace-nowrap border-r border-apple-divider/90 px-5 pb-2.5 pt-3 text-center font-semibold transition-colors last:border-r-0 hover:bg-apple-gray hover:text-apple-primary', sortKey === key ? 'text-apple-primary' : ''].join(' ')}>
+                  <span className="inline-flex items-center justify-center">
+                    {label}<SortIcon dir={sortKey === key ? sortDir : null} />
+                  </span>
                   {rightCol && <ResizeHandle tableWidth={getTableWidth()} onDrag={(df) => resize(key, rightCol, df)} />}
                 </th>
               ))}
@@ -195,15 +197,15 @@ export default function ResolutionTimeChart({ details }: Props) {
               const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
               return (
                 <tr key={issue.key} onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
-                  className="border-b border-apple-divider last:border-0 hover:bg-gray-50 transition-colors cursor-pointer">
-                  <td className="py-2 pr-3 overflow-hidden"><span className="font-mono text-ui-sm text-blue-500 truncate block">{issue.key}</span></td>
-                  <td className="py-2 pr-3 overflow-hidden"><span className="text-apple-primary truncate block" title={issue.summary}>{issue.summary}</span></td>
-                  <td className="py-2 pr-3 overflow-hidden">
+                  className="cursor-pointer border-b border-apple-divider/80 transition-colors last:border-0 hover:bg-gray-50">
+                  <td className="overflow-hidden border-r border-apple-divider/80 py-2 pr-3"><span className="block truncate font-mono text-ui-sm text-blue-500">{issue.key}</span></td>
+                  <td className="overflow-hidden border-r border-apple-divider/80 py-2 pr-3"><span className="block truncate text-apple-primary" title={issue.summary}>{issue.summary}</span></td>
+                  <td className="overflow-hidden border-r border-apple-divider/80 py-2 pr-3">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-ui-sm font-medium ${style.bg} ${style.text} whitespace-nowrap`}>{issue.status}</span>
                   </td>
-                  <td className="py-2 pr-3 overflow-hidden"><span className="text-ui-sm text-apple-light truncate block">{issue.reporter}</span></td>
-                  <td className="py-2 pr-3 overflow-hidden"><span className="text-ui-sm text-apple-light truncate block">{issue.tac_team}</span></td>
-                  <td className="py-2 text-right text-apple-light whitespace-nowrap">
+                  <td className="overflow-hidden border-r border-apple-divider/80 py-2 pr-3"><span className="block truncate text-ui-sm text-apple-light">{issue.reporter}</span></td>
+                  <td className="overflow-hidden border-r border-apple-divider/80 py-2 pr-3"><span className="block truncate text-ui-sm text-apple-light">{issue.tac_team}</span></td>
+                  <td className="whitespace-nowrap py-2 text-right text-apple-light">
                     <span className="tabular-nums">{createdDate}</span>
                     <span className="text-ui-xs text-apple-divider mx-1">·</span>
                     <span className="tabular-nums">{issue.elapsed_days}일</span>
