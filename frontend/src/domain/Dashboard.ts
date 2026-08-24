@@ -30,6 +30,7 @@ export interface MonthlyEntry {
   met: number
   total: number
   by_type?: Record<string, { met: number; total: number }>
+  always_included?: { met: number; total: number } | null
 }
 
 export interface MonthlyCountEntry {
@@ -38,6 +39,7 @@ export interface MonthlyCountEntry {
   month_num: number
   count: number
   by_type?: Record<string, number>
+  always_included?: number | null
 }
 
 export interface CreatedIssue {

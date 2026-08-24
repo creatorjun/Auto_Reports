@@ -33,23 +33,33 @@ class TypeCountCollector(AbstractWidgetCollector):
         name: str,
         jql: str,
         queries_by_type: dict[str, str],
+        always_included_jql: str,
     ):
         self._jira = jira
         self._name = name
         self._jql = jql
         self._queries_by_type = queries_by_type
+        self._always_included_jql = always_included_jql
 
     async def collect(self) -> WidgetResult[TypeCountWidgetData]:
         issue_types = list(self._queries_by_type)
-        counts = await self._jira.get_issue_counts_batch(list(self._queries_by_type.values()))
-        by_type = dict(zip(issue_types, counts))
-        total = sum(by_type.values())
+        counts = await self._jira.get_issue_counts_batch([
+            *self._queries_by_type.values(),
+            self._always_included_jql,
+        ])
+        by_type = dict(zip(issue_types, counts[:-1]))
+        always_included = counts[-1]
+        total = sum(by_type.values()) + always_included
         logger.info(f"[{self._name}] {total}건")
         return WidgetResult(
             name=self._name,
             total=total,
             jql=self._jql,
-            data=TypeCountWidgetData(issue_types=issue_types, by_type=by_type),
+            data=TypeCountWidgetData(
+                issue_types=issue_types,
+                by_type=by_type,
+                always_included=always_included,
+            ),
         )
 
 

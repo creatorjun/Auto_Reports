@@ -35,25 +35,45 @@ class ResolvedQueries:
         return f"project = {self._c.project_key}"
 
     def _base(self) -> str:
-        types = ", ".join(f'"{t}"' if " " in t else t for t in self._c.issue_types)
-        return f"{self._project()} AND issuetype IN ({types})"
+        return self._project()
 
     @property
     def issue_types(self) -> tuple[str, ...]:
         return tuple(dict.fromkeys(self._c.issue_types))
 
-    def by_issue_type(self, jql: str) -> dict[str, str]:
+    @staticmethod
+    def _escape_issue_type(issue_type: str) -> str:
+        return issue_type.replace('"', '\\"')
+
+    def _formatted_issue_types(self) -> str:
+        escaped_types = [self._escape_issue_type(issue_type) for issue_type in self.issue_types]
+        return ", ".join(f'"{issue_type}"' for issue_type in escaped_types)
+
+    @staticmethod
+    def _with_condition(jql: str, condition: str) -> str:
         order_marker = " ORDER BY "
-        if order_marker in jql:
-            conditions, order = jql.rsplit(order_marker, 1)
-        else:
-            conditions, order = jql, ""
+        if order_marker not in jql:
+            return f"{jql} AND {condition}"
+        conditions, order = jql.rsplit(order_marker, 1)
+        return f"{conditions} AND {condition}{order_marker}{order}"
+
+    def by_issue_type(self, jql: str) -> dict[str, str]:
         queries: dict[str, str] = {}
         for issue_type in self.issue_types:
-            escaped = issue_type.replace('"', '\\"')
-            typed = f'{conditions} AND issuetype = "{escaped}"'
-            queries[issue_type] = f"{typed}{order_marker}{order}" if order else typed
+            escaped = self._escape_issue_type(issue_type)
+            queries[issue_type] = self._with_condition(
+                jql,
+                f'issuetype = "{escaped}"',
+            )
         return queries
+
+    def outside_issue_types(self, jql: str) -> str:
+        if not self.issue_types:
+            return jql
+        return self._with_condition(
+            jql,
+            f"issuetype NOT IN ({self._formatted_issue_types()})",
+        )
 
     def _closed(self) -> str:
         return ", ".join(f'"{s}"' for s in self._c.closed_statuses)

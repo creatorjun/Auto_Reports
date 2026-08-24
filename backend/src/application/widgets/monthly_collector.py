@@ -60,13 +60,13 @@ class MonthlyCollector(AbstractWidgetCollector):
                 issue_type: SlaMonthlyTypeStats(met=0, total=0)
                 for issue_type in self._q.issue_types
             }
+            init_always_included = SlaMonthlyTypeStats(met=0, total=0)
+            res_always_included = SlaMonthlyTypeStats(met=0, total=0)
             for issue in issues:
                 fields = issue.get("fields") or {}
                 issue_type = (fields.get("issuetype") or {}).get("name", "기타")
-                if issue_type not in init_by_type:
-                    continue
-                init_stats = init_by_type[issue_type]
-                res_stats = res_by_type[issue_type]
+                init_stats = init_by_type.get(issue_type, init_always_included)
+                res_stats = res_by_type.get(issue_type, res_always_included)
                 init_stats.total += 1
                 res_stats.total += 1
                 if not self._breached(fields.get(_SLA_INITIAL_KEY)):
@@ -74,9 +74,9 @@ class MonthlyCollector(AbstractWidgetCollector):
                 if not self._breached(fields.get(_SLA_RESOLUTION_KEY)):
                     res_stats.met += 1
 
-            total = sum(stats.total for stats in init_by_type.values())
-            init_met = sum(stats.met for stats in init_by_type.values())
-            res_met = sum(stats.met for stats in res_by_type.values())
+            total = sum(stats.total for stats in init_by_type.values()) + init_always_included.total
+            init_met = sum(stats.met for stats in init_by_type.values()) + init_always_included.met
+            res_met = sum(stats.met for stats in res_by_type.values()) + res_always_included.met
             init_rate = round(init_met / total * 100, 1) if total > 0 else 0.0
             res_rate  = round(res_met  / total * 100, 1) if total > 0 else 0.0
 
@@ -85,11 +85,13 @@ class MonthlyCollector(AbstractWidgetCollector):
                 month=label, year=y, month_num=m,
                 rate=init_rate, met=init_met, total=total,
                 by_type=init_by_type,
+                always_included=init_always_included,
             ))
             w11_entries.append(MonthlyEntry(
                 month=label, year=y, month_num=m,
                 rate=res_rate, met=res_met, total=total,
                 by_type=res_by_type,
+                always_included=res_always_included,
             ))
 
         logger.info(f"[w10/w11] 월별 SLA {self.MONTHS_BACK}개월 수집 완료")

@@ -166,6 +166,8 @@ test('dashboard request type toggles drive every widget view from filterable rep
   assert.match(page, /<IssueTypeFilter/)
   assert.match(filter, /aria-pressed=\{selected\}/)
   assert.match(filter, /전체 포함/)
+  assert.match(filter, /토글에 없는 유형은 항상 포함/)
+  assert.match(filter, /'라이선스': '라이센스 요청'/)
   for (const section of [
     'yearly',
     'weekly',
@@ -182,6 +184,8 @@ test('dashboard request type toggles drive every widget view from filterable rep
   assert.match(dashboardData, /supportsIssueTypeFiltering/)
   assert.match(dashboardData, /sumSelectedTypes/)
   assert.match(dashboardData, /filterIssues/)
+  assert.match(dashboardData, /!controlledTypes\.has\(issueType\)/)
+  assert.match(dashboardData, /always_included/)
 })
 
 test('SLA dashboard exposes issue activity and expandable recent comments', () => {

@@ -9,6 +9,10 @@ interface Props {
   onReset: () => void
 }
 
+const ISSUE_TYPE_LABELS: Record<string, string> = {
+  '라이선스': '라이센스 요청',
+}
+
 export default function IssueTypeFilter({
   issueTypes,
   selectedTypes,
@@ -37,7 +41,7 @@ export default function IssueTypeFilter({
               )}
             </div>
             <p className="mt-1 text-sm text-apple-light">
-              선택한 유형만 모든 위젯에 실시간으로 반영됩니다.
+              선택한 유형만 실시간 반영되며, 토글에 없는 유형은 항상 포함됩니다.
             </p>
           </div>
         </div>
@@ -75,7 +79,7 @@ export default function IssueTypeFilter({
                 }`}>
                   {selected && <Check size={13} strokeWidth={3} aria-hidden="true" />}
                 </span>
-                {issueType}
+                {ISSUE_TYPE_LABELS[issueType] ?? issueType}
               </button>
             )
           })}

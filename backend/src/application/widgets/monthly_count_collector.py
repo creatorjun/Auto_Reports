@@ -30,22 +30,26 @@ class MonthlyCountCollector(AbstractWidgetCollector):
                 month = 12
                 year -= 1
 
-        created_queries = [
-            self._q.by_issue_type(self._q.w8_monthly_created(y, m))
-            for y, m in months
+        created_jqls = [self._q.w8_monthly_created(y, m) for y, m in months]
+        resolved_jqls = [self._q.w9_monthly_resolved(y, m) for y, m in months]
+        base_jqls = created_jqls + resolved_jqls
+        query_groups = [
+            [
+                *self._q.by_issue_type(jql).values(),
+                self._q.outside_issue_types(jql),
+            ]
+            for jql in base_jqls
         ]
-        resolved_queries = [
-            self._q.by_issue_type(self._q.w9_monthly_resolved(y, m))
-            for y, m in months
-        ]
-        query_groups = created_queries + resolved_queries
-        all_jqls = [jql for queries in query_groups for jql in queries.values()]
+        all_jqls = [jql for queries in query_groups for jql in queries]
 
         all_counts = await self._jira.get_issue_counts_batch(all_jqls)
         issue_types = list(self._q.issue_types)
-        group_size = len(issue_types)
+        group_size = len(issue_types) + 1
         grouped_counts = [
-            dict(zip(issue_types, all_counts[index:index + group_size]))
+            (
+                dict(zip(issue_types, all_counts[index:index + group_size - 1])),
+                all_counts[index + group_size - 1],
+            )
             for index in range(0, len(all_counts), group_size)
         ]
         created_counts = grouped_counts[:len(months)]
@@ -53,21 +57,25 @@ class MonthlyCountCollector(AbstractWidgetCollector):
 
         w8_entries: list[MonthlyCountEntry] = []
         w9_entries: list[MonthlyCountEntry] = []
-        for (y, m), created_by_type, resolved_by_type in zip(months, created_counts, resolved_counts):
+        for (y, m), created, resolved in zip(months, created_counts, resolved_counts):
+            created_by_type, created_always_included = created
+            resolved_by_type, resolved_always_included = resolved
             label = f"{m}월"
             w8_entries.append(MonthlyCountEntry(
                 month=label,
                 year=y,
                 month_num=m,
-                count=sum(created_by_type.values()),
+                count=sum(created_by_type.values()) + created_always_included,
                 by_type=created_by_type,
+                always_included=created_always_included,
             ))
             w9_entries.append(MonthlyCountEntry(
                 month=label,
                 year=y,
                 month_num=m,
-                count=sum(resolved_by_type.values()),
+                count=sum(resolved_by_type.values()) + resolved_always_included,
                 by_type=resolved_by_type,
+                always_included=resolved_always_included,
             ))
 
         logger.info(

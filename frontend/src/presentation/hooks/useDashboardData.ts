@@ -20,6 +20,7 @@ import { WIDGET_ID } from '@/domain/WidgetId'
 interface TypeCountData {
   issue_types?: string[]
   by_type?: Record<string, number>
+  always_included?: number | null
 }
 
 interface SlaMetData {
@@ -64,28 +65,34 @@ function getInclusiveDayCount(start: string, end: string): number {
   return Math.floor((endTime - startTime) / 86_400_000) + 1
 }
 
-function includesType(issueType: string, selectedTypes: ReadonlySet<string> | null): boolean {
-  return selectedTypes === null || selectedTypes.has(issueType)
+function includesType(
+  issueType: string,
+  selectedTypes: ReadonlySet<string> | null,
+  controlledTypes: ReadonlySet<string>,
+): boolean {
+  return selectedTypes === null || !controlledTypes.has(issueType) || selectedTypes.has(issueType)
 }
 
 function filterIssues<T extends { type: string }>(
   issues: T[],
   selectedTypes: ReadonlySet<string> | null,
+  controlledTypes: ReadonlySet<string>,
 ): T[] {
   return selectedTypes === null
     ? issues
-    : issues.filter((issue) => includesType(issue.type, selectedTypes))
+    : issues.filter((issue) => includesType(issue.type, selectedTypes, controlledTypes))
 }
 
 function sumSelectedTypes(
   byType: Record<string, number> | undefined,
   fallback: number,
   selectedTypes: ReadonlySet<string> | null,
+  alwaysIncluded: number | null | undefined,
 ): number {
-  if (!byType) return fallback
+  if (!byType || selectedTypes === null) return fallback
   return Object.entries(byType).reduce(
-    (total, [issueType, count]) => total + (includesType(issueType, selectedTypes) ? count : 0),
-    0,
+    (total, [issueType, count]) => total + (selectedTypes.has(issueType) ? count : 0),
+    alwaysIncluded ?? 0,
   )
 }
 
@@ -95,7 +102,12 @@ function filterMonthlyCounts(
 ): MonthlyCountEntry[] {
   return monthly.map((entry) => ({
     ...entry,
-    count: sumSelectedTypes(entry.by_type, entry.count, selectedTypes),
+    count: sumSelectedTypes(
+      entry.by_type,
+      entry.count,
+      selectedTypes,
+      entry.always_included,
+    ),
   }))
 }
 
@@ -105,9 +117,12 @@ function filterSlaMonthly(
 ): MonthlyEntry[] {
   return monthly.map((entry) => {
     if (!entry.by_type) return entry
-    const stats = Object.entries(entry.by_type)
-      .filter(([issueType]) => includesType(issueType, selectedTypes))
-      .map(([, value]) => value)
+    const stats = [
+      ...(entry.always_included ? [entry.always_included] : []),
+      ...Object.entries(entry.by_type)
+        .filter(([issueType]) => selectedTypes === null || selectedTypes.has(issueType))
+        .map(([, value]) => value),
+    ]
     const met = stats.reduce((total, value) => total + value.met, 0)
     const total = stats.reduce((sum, value) => sum + value.total, 0)
     return {
@@ -124,7 +139,11 @@ function resolveIssueTypeContract(report: ReportDetail) {
   const issueTypes = data?.issue_types?.filter(Boolean) ?? []
   return {
     issueTypes,
-    supportsIssueTypeFiltering: issueTypes.length > 0 && data?.by_type !== undefined,
+    supportsIssueTypeFiltering: (
+      issueTypes.length > 0
+      && data?.by_type !== undefined
+      && typeof data.always_included === 'number'
+    ),
   }
 }
 
@@ -135,6 +154,7 @@ export function buildDashboardData(
   const w = report.widgets
   const filter = resolveIssueTypeContract(report)
   const selectedTypes = filter.supportsIssueTypeFiltering ? requestedTypes : null
+  const controlledTypes = new Set(filter.issueTypes)
 
   const yearlyCreatedData = getData<TypeCountData>(w[WIDGET_ID.YEARLY_CREATED])
   const yearlyResolvedData = getData<TypeCountData>(w[WIDGET_ID.YEARLY_RESOLVED])
@@ -143,17 +163,19 @@ export function buildDashboardData(
       yearlyCreatedData?.by_type,
       w[WIDGET_ID.YEARLY_CREATED]?.total ?? 0,
       selectedTypes,
+      yearlyCreatedData?.always_included,
     ),
     w2YearlyResolved: sumSelectedTypes(
       yearlyResolvedData?.by_type,
       w[WIDGET_ID.YEARLY_RESOLVED]?.total ?? 0,
       selectedTypes,
+      yearlyResolvedData?.always_included,
     ),
   }
 
   const w3Data = getData<CreatedVsResolvedData>(w[WIDGET_ID.CREATED_VS_RESOLVED])
-  const weeklyCreated = filterIssues(w3Data?.created_details ?? [], selectedTypes)
-  const weeklyResolved = filterIssues(w3Data?.resolved_details ?? [], selectedTypes)
+  const weeklyCreated = filterIssues(w3Data?.created_details ?? [], selectedTypes, controlledTypes)
+  const weeklyResolved = filterIssues(w3Data?.resolved_details ?? [], selectedTypes, controlledTypes)
   const weekly = {
     w3Created: weeklyCreated.length,
     w3Resolved: weeklyResolved.length,
@@ -191,7 +213,7 @@ export function buildDashboardData(
   const rawViolationDistribution = w12Data?.violation_distribution ?? []
   const filteredViolationDistribution = rawViolationDistribution
     .map((entry) => {
-      const issueDetails = filterIssues(entry.issue_details ?? [], selectedTypes)
+      const issueDetails = filterIssues(entry.issue_details ?? [], selectedTypes, controlledTypes)
       return { ...entry, count: issueDetails.length, issue_details: issueDetails }
     })
     .filter((entry) => entry.count > 0)
@@ -206,7 +228,7 @@ export function buildDashboardData(
   const w13ByStatus: Record<string, number> = {}
   const w13ByStatusDetails: Record<string, SlaDelayIssue[]> = {}
   for (const [status, issues] of Object.entries(w13Data?.by_status_details ?? {})) {
-    const filteredIssues = filterIssues(issues, selectedTypes)
+    const filteredIssues = filterIssues(issues, selectedTypes, controlledTypes)
     if (filteredIssues.length === 0) continue
     w13ByStatus[status] = filteredIssues.length
     w13ByStatusDetails[status] = filteredIssues
@@ -216,11 +238,11 @@ export function buildDashboardData(
   const w14Data = getData<{ by_type: Record<string, ResolutionTypeEntry> }>(w[WIDGET_ID.AVG_RESOLUTION_TYPE])
   const resolutionByType = Object.fromEntries(
     Object.entries(w14Data?.by_type ?? {})
-      .filter(([issueType]) => includesType(issueType, selectedTypes)),
+      .filter(([issueType]) => includesType(issueType, selectedTypes, controlledTypes)),
   )
 
   const w7Data = getData<{ issue_details: RecentIssue[] }>(w[WIDGET_ID.RECENT_ISSUES])
-  const recentIssues = filterIssues(w7Data?.issue_details ?? [], selectedTypes).map((issue) => ({
+  const recentIssues = filterIssues(w7Data?.issue_details ?? [], selectedTypes, controlledTypes).map((issue) => ({
     ...issue,
     reporter: issue.reporter ?? '미지정',
     tac_team: issue.tac_team ?? '미지정',
@@ -247,9 +269,9 @@ export function buildDashboardData(
   const w4Data = getData<{ issue_details: ReviewIssue[] }>(w[WIDGET_ID.ISSUE_REVIEW])
   const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w[WIDGET_ID.DATA_REQUEST])
   const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w[WIDGET_ID.RESULT_PENDING])
-  const reviewIssues = filterIssues(w4Data?.issue_details ?? [], selectedTypes)
-  const dataRequestIssues = filterIssues(w5Data?.issue_details ?? [], selectedTypes)
-  const resultPendingIssues = filterIssues(w6Data?.issue_details ?? [], selectedTypes)
+  const reviewIssues = filterIssues(w4Data?.issue_details ?? [], selectedTypes, controlledTypes)
+  const dataRequestIssues = filterIssues(w5Data?.issue_details ?? [], selectedTypes, controlledTypes)
+  const resultPendingIssues = filterIssues(w6Data?.issue_details ?? [], selectedTypes, controlledTypes)
   const statusIssues = {
     reviewIssues,
     dataRequestIssues,
