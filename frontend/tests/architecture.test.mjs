@@ -94,6 +94,15 @@ test('deployment keeps critical report generation available across releases', ()
   assert.match(nginx, /location \/assets\/\s*\{[^}]*max-age=31536000, immutable/s)
 })
 
+test('desktop sidebar starts collapsed', () => {
+  const layout = fs.readFileSync(
+    path.join(source, 'presentation/components/layout/Layout.tsx'),
+    'utf8',
+  )
+
+  assert.match(layout, /useState\(true\)/)
+})
+
 test('dashboard widget ids follow first render order', () => {
   const contract = fs.readFileSync(path.join(source, 'domain/WidgetId.ts'), 'utf8')
   const entries = [...contract.matchAll(/^\s+([A-Z_]+): '(w\d+)',$/gm)]
