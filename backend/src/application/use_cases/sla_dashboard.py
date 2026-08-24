@@ -73,7 +73,7 @@ class SlaDashboardUseCase:
         if not keys:
             return []
 
-        jql = f"issuekey IN ({', '.join(keys)}) ORDER BY issuekey DESC"
+        jql = f"issuekey IN ({', '.join(keys)}) ORDER BY created ASC, issuekey ASC"
         issues = await self._jira.get_issues(
             jql,
             max_results=JIRA_MAX_RESULT,
@@ -102,7 +102,10 @@ class SlaDashboardUseCase:
                     status=status,
                 )
             )
-        return result
+        return sorted(
+            result,
+            key=lambda issue: (not issue.created, issue.created, issue.key),
+        )
 
     async def list_recent_comments(self, issue_key: str) -> list[SlaDashboardComment]:
         normalized_key = issue_key.upper()

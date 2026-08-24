@@ -48,14 +48,18 @@ class FakeJira:
         return self.comments
 
 
-def recent_detail(key: str, status: str = "할 일") -> RecentIssueDetail:
+def recent_detail(
+    key: str,
+    status: str = "할 일",
+    created: str = "2026-08-20 09:00",
+) -> RecentIssueDetail:
     return RecentIssueDetail(
         key=key,
         summary="요약",
         type="인시던트",
         status=status,
         stage_index=0,
-        created="2026-08-20 09:00",
+        created=created,
         elapsed_days=1,
     )
 
@@ -81,8 +85,12 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.jira = FakeJira()
         self.reports = FakeReports(
             latest_report(
-                recent_detail("TACEA-4501"),
-                recent_detail("TACEA-4500", status="이슈 리뷰 중"),
+                recent_detail("TACEA-4501", created="2026-08-17 09:00"),
+                recent_detail(
+                    "TACEA-4500",
+                    status="이슈 리뷰 중",
+                    created="2026-08-18 09:00",
+                ),
                 recent_detail("OTHER-1"),
             )
         )
@@ -106,16 +114,17 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
 
         issues = await self.use_case.list_recent_issues()
 
-        self.assertEqual(["TACEA-4501", "TACEA-4500"], [issue.key for issue in issues])
-        self.assertEqual("2026-08-20 09:10", issues[0].created)
-        self.assertEqual("2026-08-21 14:15", issues[0].updated)
-        self.assertEqual("구현 중", issues[0].status)
-        self.assertEqual("2026-08-20 09:00", issues[1].created)
-        self.assertEqual("", issues[1].updated)
-        self.assertEqual("이슈 리뷰 중", issues[1].status)
+        self.assertEqual(["TACEA-4500", "TACEA-4501"], [issue.key for issue in issues])
+        self.assertEqual("2026-08-18 09:00", issues[0].created)
+        self.assertEqual("", issues[0].updated)
+        self.assertEqual("이슈 리뷰 중", issues[0].status)
+        self.assertEqual("2026-08-20 09:10", issues[1].created)
+        self.assertEqual("2026-08-21 14:15", issues[1].updated)
+        self.assertEqual("구현 중", issues[1].status)
         self.assertEqual(
             (
-                "issuekey IN (TACEA-4501, TACEA-4500) ORDER BY issuekey DESC",
+                "issuekey IN (TACEA-4501, TACEA-4500) "
+                "ORDER BY created ASC, issuekey ASC",
                 500,
                 "created,updated,status",
             ),
