@@ -26,7 +26,7 @@ interface Props {
 
 const COLUMNS: ColumnDef<SlaViolationIssue>[] = [
   { header: '이슈 번호',  renderCell: d => <span className={MODAL_CLS.keyCell}>{d.key}</span> },
-  { header: '제목',      renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span> },
+  { header: '제목', width: 'wide', renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span> },
   { header: '유형',      renderCell: d => <span className={MODAL_CLS.metaCell}>{d.type}</span> },
   { header: '현재 상태',  renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><StatusBadge status={d.status} /></div> },
   { header: '생성일시',  renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.created}</span> },
@@ -55,7 +55,7 @@ export default function SlaViolationModal({ stage, issues, total, onClose }: Pro
             <span className={MODAL_CLS.keyCell}>{d.key}</span>
             <StatusBadge status={d.status} />
           </div>
-          <p className="text-ui-sm text-apple-dark/80 leading-snug">{d.summary}</p>
+          <p className="truncate text-ui-sm text-apple-dark/80">{d.summary}</p>
           <div className="flex flex-wrap gap-2 items-center text-ui-xs text-apple-light">
             <span>{d.type}</span><span>·</span><span>{d.created}</span>
           </div>

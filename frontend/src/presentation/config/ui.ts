@@ -64,7 +64,7 @@ export const MODAL_CLS = {
   closeText:     'px-4 py-1.5 rounded-lg text-ui-base font-medium bg-apple-gray hover:bg-apple-divider text-apple-dark transition-colors',
   thCell:        'border-r border-apple-divider/90 px-4 py-3 text-center text-ui-xs font-semibold text-apple-mid uppercase tracking-wider whitespace-nowrap last:border-r-0',
   keyCell:       'py-2.5 pr-4 text-ui-sm font-mono font-medium text-brand-600 whitespace-nowrap',
-  bodyCell:      'py-2.5 text-ui-sm text-apple-dark/80 pr-4 min-w-0 break-words',
+  bodyCell:      'py-2.5 text-ui-sm text-apple-dark/80 pr-4 min-w-0 whitespace-nowrap',
   metaCell:      'py-2.5 text-ui-sm text-apple-light whitespace-nowrap pr-4',
   elapsedCell:   'text-ui-sm font-medium text-red-500 tabular-nums',
 } as const

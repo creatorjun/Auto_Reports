@@ -9,6 +9,7 @@ import type { KeyboardEvent, ReactNode } from 'react'
 
 export interface ColumnDef<T> {
   header: string
+  width?: 'wide'
   renderCell: (row: T) => ReactNode
   renderMobile?: (row: T) => ReactNode
 }
@@ -59,11 +60,11 @@ export default function IssueTableModal<T extends { key: string }>({
       {headerSlot && <div className="mb-4">{headerSlot}</div>}
 
       <div className="hidden md:block overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full table-fixed border-collapse">
           <thead className="bg-apple-gray/60">
             <tr className="border-b-2 border-apple-divider">
               {columns.map(col => (
-                <th key={col.header} className={MODAL_CLS.thCell}>{col.header}</th>
+                <th key={col.header} className={`${MODAL_CLS.thCell} ${col.width === 'wide' ? 'w-[40%]' : ''}`}>{col.header}</th>
               ))}
             </tr>
           </thead>
@@ -79,7 +80,9 @@ export default function IssueTableModal<T extends { key: string }>({
                 className="cursor-pointer transition-colors duration-150 hover:bg-apple-gray/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
               >
                 {columns.map(col => (
-                  <td key={col.header}>{col.renderCell(row)}</td>
+                  <td key={col.header} className="min-w-0 overflow-hidden whitespace-nowrap">
+                    <div className="min-w-0 truncate">{col.renderCell(row)}</div>
+                  </td>
                 ))}
               </tr>
             ))}
