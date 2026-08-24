@@ -103,6 +103,25 @@ test('desktop sidebar starts collapsed', () => {
   assert.match(layout, /useState\(true\)/)
 })
 
+test('partner issue rows open configured Jira tickets in a new tab', () => {
+  const panel = fs.readFileSync(
+    path.join(source, 'presentation/components/partner/PartnerIssuePanel.tsx'),
+    'utf8',
+  )
+  const row = fs.readFileSync(
+    path.join(source, 'presentation/components/partner/PartnerIssueRow.tsx'),
+    'utf8',
+  )
+
+  assert.match(panel, /const \{ jiraBrowse \} = useJira\(\)/)
+  assert.match(panel, /<PartnerIssueRow[^>]+jiraBrowse=\{jiraBrowse\}/)
+  assert.match(row, /href=\{`\$\{jiraBrowse\}\/\$\{issue\.key\}`\}/)
+  assert.match(row, /target="_blank"/)
+  assert.match(row, /rel="noopener noreferrer"/)
+  assert.match(row, /issue\.stage_index/)
+  assert.doesNotMatch(row, /issue\.(url|stage)\b/)
+})
+
 test('dashboard widget ids follow first render order', () => {
   const contract = fs.readFileSync(path.join(source, 'domain/WidgetId.ts'), 'utf8')
   const entries = [...contract.matchAll(/^\s+([A-Z_]+): '(w\d+)',$/gm)]

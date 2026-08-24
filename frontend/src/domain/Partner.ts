@@ -12,7 +12,4 @@ export interface PartnerMember {
   email: string
 }
 
-export interface PartnerIssue extends BaseIssue {
-  url:   string
-  stage: number
-}
+export type PartnerIssue = BaseIssue
