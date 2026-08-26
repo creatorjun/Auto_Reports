@@ -6,7 +6,7 @@ from urllib.parse import quote
 
 import httpx
 
-from src.application.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraAttachmentContent, JiraPort
 from src.application.ports.service_desk_port import ServiceDeskPort
 from src.domain.constants import JIRA_MAX_RESULT
 from src.infrastructure.cache.lru_cache import LruCache
@@ -41,6 +41,16 @@ _ISSUES_CACHE_STALE   = 60.0
 _COMMENTS_CACHE_MAXSIZE = 512
 _COMMENTS_CACHE_TTL     = 120.0
 _COMMENTS_CACHE_STALE   = 30.0
+
+_COMMENT_IMAGE_MAX_BYTES = 20 * 1024 * 1024
+_COMMENT_IMAGE_MEDIA_TYPES = frozenset({
+    "image/avif",
+    "image/bmp",
+    "image/gif",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+})
 
 
 class JiraClient(JiraPort, ServiceDeskPort):
@@ -254,7 +264,11 @@ class JiraClient(JiraPort, ServiceDeskPort):
         try:
             response = await self._client.get(
                 url,
-                params={"orderBy": "-created", "maxResults": limit},
+                params={
+                    "orderBy": "-created",
+                    "maxResults": limit,
+                    "expand": "renderedBody",
+                },
             )
             response.raise_for_status()
             data = response.json()
@@ -266,6 +280,35 @@ class JiraClient(JiraPort, ServiceDeskPort):
         result = list(comments)[:limit]
         await self._comments_cache.async_set(cache_key, result)
         return result
+
+    async def get_attachment_content(
+        self,
+        attachment_id: str,
+    ) -> JiraAttachmentContent:
+        if not attachment_id.isdigit():
+            raise RuntimeError("Invalid Jira attachment id")
+        encoded_id = quote(attachment_id, safe="")
+        url = f"{self._base_url}/rest/api/3/attachment/content/{encoded_id}"
+        try:
+            response = await self._client.get(
+                url,
+                params={"redirect": "false"},
+                headers={"Accept": "image/*"},
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as error:
+            logger.error(f"Jira 댓글 이미지 조회 실패: {attachment_id} -> {error}")
+            raise RuntimeError("Jira attachment request failed") from error
+
+        media_type = response.headers.get("Content-Type", "").split(";", 1)[0].lower()
+        content_length = response.headers.get("Content-Length")
+        if media_type not in _COMMENT_IMAGE_MEDIA_TYPES:
+            raise RuntimeError("Unsupported Jira attachment image type")
+        if content_length and int(content_length) > _COMMENT_IMAGE_MAX_BYTES:
+            raise RuntimeError("Jira attachment image is too large")
+        if len(response.content) > _COMMENT_IMAGE_MAX_BYTES:
+            raise RuntimeError("Jira attachment image is too large")
+        return JiraAttachmentContent(data=response.content, media_type=media_type)
 
     async def get_sla_field_ids(self) -> dict[str, str]:
         if self._sla_field_ids_cache is not None:

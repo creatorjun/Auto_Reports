@@ -5,9 +5,17 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class SlaDashboardIssue:
     key: str
+    type: str
+    summary: str
     created: str
     updated: str
     status: str
+
+
+@dataclass(frozen=True)
+class SlaDashboardCommentImage:
+    attachment_id: str
+    alt: str
 
 
 @dataclass(frozen=True)
@@ -17,3 +25,4 @@ class SlaDashboardComment:
     body: str
     created: str
     updated: str
+    images: tuple[SlaDashboardCommentImage, ...]

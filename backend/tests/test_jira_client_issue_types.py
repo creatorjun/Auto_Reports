@@ -30,3 +30,35 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
             await client.aclose()
 
         self.assertEqual(["인시던트", "H/W 장애 요청"], result)
+
+    async def test_requests_rendered_comments_and_downloads_supported_image(self) -> None:
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.path.endswith("/comment"):
+                return httpx.Response(200, json={"comments": [{"id": "10001"}]})
+            return httpx.Response(
+                200,
+                content=b"png-data",
+                headers={"Content-Type": "image/png"},
+            )
+
+        client = JiraClient("https://jira.example.com", "user", "token")
+        await client._client.aclose()
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            comments = await client.get_issue_comments("TACEA-4501")
+            image = await client.get_attachment_content("10017")
+        finally:
+            await client.aclose()
+
+        self.assertEqual([{"id": "10001"}], comments)
+        self.assertEqual("renderedBody", requests[0].url.params["expand"])
+        self.assertEqual(
+            "/rest/api/3/attachment/content/10017",
+            requests[1].url.path,
+        )
+        self.assertEqual("false", requests[1].url.params["redirect"])
+        self.assertEqual(b"png-data", image.data)
+        self.assertEqual("image/png", image.media_type)

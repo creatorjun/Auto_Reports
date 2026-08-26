@@ -1,5 +1,5 @@
 # backend/src/presentation/api/v1/sla_dashboard.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.presentation.api.v1.deps import get_sla_dashboard_use_case
@@ -33,3 +33,31 @@ async def list_recent_comments(
             status_code=502,
             detail="Jira 댓글을 불러오지 못했습니다.",
         ) from error
+
+
+@router.get(
+    "/issues/{issue_key}/comments/{comment_id}/images/{attachment_id}",
+    response_class=Response,
+)
+async def get_comment_image(
+    issue_key: str,
+    comment_id: str,
+    attachment_id: str,
+    use_case: SlaDashboardUseCase = Depends(get_sla_dashboard_use_case),
+):
+    try:
+        image = await use_case.get_comment_image(
+            issue_key,
+            comment_id,
+            attachment_id,
+        )
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=502,
+            detail="Jira 댓글 이미지를 불러오지 못했습니다.",
+        ) from error
+    return Response(
+        content=image.data,
+        media_type=image.media_type,
+        headers={"Cache-Control": "private, max-age=120"},
+    )

@@ -1,16 +1,52 @@
 # backend/src/application/use_cases/sla_dashboard.py
 import re
+from html.parser import HTMLParser
 from typing import Any
 
 from src.application.errors import EntityNotFoundError
-from src.application.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraAttachmentContent, JiraPort
 from src.application.use_cases.get_report import GetReportUseCase
 from src.domain.constants import JIRA_MAX_RESULT
-from src.domain.entities.sla_dashboard import SlaDashboardComment, SlaDashboardIssue
+from src.domain.entities.sla_dashboard import (
+    SlaDashboardComment,
+    SlaDashboardCommentImage,
+    SlaDashboardIssue,
+)
 from src.domain.entities.widget_data import RecentIssueDetail, RecentIssueWidgetData
 from src.domain.value_objects.widget_id import WidgetId
 
 _RECENT_COMMENT_LIMIT = 5
+_ATTACHMENT_ID_PATTERN = re.compile(
+    r"/(?:rest/api/[23]/attachment/content|secure/attachment)/(\d+)(?:[/?#]|$)",
+    re.IGNORECASE,
+)
+
+
+class _CommentImageParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.images: list[SlaDashboardCommentImage] = []
+        self._seen: set[str] = set()
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        if tag.lower() != "img":
+            return
+        values = {name.lower(): value or "" for name, value in attrs}
+        match = _ATTACHMENT_ID_PATTERN.search(values.get("src", ""))
+        if match is None or match.group(1) in self._seen:
+            return
+        attachment_id = match.group(1)
+        self._seen.add(attachment_id)
+        self.images.append(
+            SlaDashboardCommentImage(
+                attachment_id=attachment_id,
+                alt=values.get("alt") or values.get("title") or "댓글 첨부 이미지",
+            )
+        )
 
 
 def _format_timestamp(value: object) -> str:
@@ -50,6 +86,15 @@ def _comment_body(value: object) -> str:
     return _adf_text(value).strip()
 
 
+def _comment_images(value: object) -> tuple[SlaDashboardCommentImage, ...]:
+    if not isinstance(value, str) or not value:
+        return ()
+    parser = _CommentImageParser()
+    parser.feed(value)
+    parser.close()
+    return tuple(parser.images)
+
+
 class SlaDashboardUseCase:
     def __init__(
         self,
@@ -77,7 +122,7 @@ class SlaDashboardUseCase:
         issues = await self._jira.get_issues(
             jql,
             max_results=JIRA_MAX_RESULT,
-            fields="created,updated,status",
+            fields="summary,issuetype,created,updated,status",
         )
         live_by_key = {
             str(issue.get("key", "")).upper(): issue
@@ -95,6 +140,10 @@ class SlaDashboardUseCase:
             result.append(
                 SlaDashboardIssue(
                     key=key,
+                    type=str(
+                        (fields.get("issuetype") or {}).get("name") or detail.type
+                    ),
+                    summary=str(fields.get("summary") or detail.summary),
                     created=(
                         _format_timestamp(fields.get("created")) or detail.created
                     ),
@@ -129,6 +178,23 @@ class SlaDashboardUseCase:
         )[:_RECENT_COMMENT_LIMIT]
         return [self._to_comment(comment) for comment in ordered]
 
+    async def get_comment_image(
+        self,
+        issue_key: str,
+        comment_id: str,
+        attachment_id: str,
+    ) -> JiraAttachmentContent:
+        comments = await self.list_recent_comments(issue_key)
+        allowed = {
+            image.attachment_id
+            for comment in comments
+            if comment.id == comment_id
+            for image in comment.images
+        }
+        if attachment_id not in allowed:
+            raise EntityNotFoundError("Comment image", attachment_id)
+        return await self._jira.get_attachment_content(attachment_id)
+
     async def _recent_issue_details(self) -> list[RecentIssueDetail]:
         report = await self._reports.get_latest()
         if report is None:
@@ -152,4 +218,5 @@ class SlaDashboardUseCase:
             body=_comment_body(comment.get("body")),
             created=_format_timestamp(comment.get("created")),
             updated=_format_timestamp(comment.get("updated")),
+            images=_comment_images(comment.get("renderedBody")),
         )

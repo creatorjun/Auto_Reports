@@ -8,6 +8,7 @@ from typing import Any
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.errors import EntityNotFoundError
+from src.application.ports.jira_port import JiraAttachmentContent
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.domain.entities.report import Report
 from src.domain.entities.widget import WidgetResult
@@ -29,6 +30,8 @@ class FakeJira:
         self.comments: list[dict[str, Any]] = []
         self.issue_requests: list[tuple[str, int, str]] = []
         self.comment_requests: list[tuple[str, int]] = []
+        self.attachment_requests: list[str] = []
+        self.attachment = JiraAttachmentContent(b"image", "image/png")
 
     async def get_issues(
         self,
@@ -46,6 +49,13 @@ class FakeJira:
     ) -> list[dict[str, Any]]:
         self.comment_requests.append((issue_key, max_results))
         return self.comments
+
+    async def get_attachment_content(
+        self,
+        attachment_id: str,
+    ) -> JiraAttachmentContent:
+        self.attachment_requests.append(attachment_id)
+        return self.attachment
 
 
 def recent_detail(
@@ -105,6 +115,8 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
             {
                 "key": "TACEA-4501",
                 "fields": {
+                    "summary": "실시간 티켓 제목",
+                    "issuetype": {"name": "서비스 요청"},
                     "created": "2026-08-20T09:10:11.000+0900",
                     "updated": "2026-08-21T14:15:16.000+0900",
                     "status": {"name": "구현 중"},
@@ -115,6 +127,10 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
         issues = await self.use_case.list_recent_issues()
 
         self.assertEqual(["TACEA-4500", "TACEA-4501"], [issue.key for issue in issues])
+        self.assertEqual("인시던트", issues[0].type)
+        self.assertEqual("서비스 요청", issues[1].type)
+        self.assertEqual("요약", issues[0].summary)
+        self.assertEqual("실시간 티켓 제목", issues[1].summary)
         self.assertEqual("2026-08-18 09:00", issues[0].created)
         self.assertEqual("", issues[0].updated)
         self.assertEqual("이슈 리뷰 중", issues[0].status)
@@ -126,7 +142,7 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
                 "issuekey IN (TACEA-4501, TACEA-4500) "
                 "ORDER BY created ASC, issuekey ASC",
                 500,
-                "created,updated,status",
+                "summary,issuetype,created,updated,status",
             ),
             self.jira.issue_requests[0],
         )
@@ -151,6 +167,11 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
                 },
                 "created": f"2026-08-{index + 10:02d}T10:00:00.000+0900",
                 "updated": f"2026-08-{index + 10:02d}T11:00:00.000+0900",
+                "renderedBody": (
+                    f'<p>댓글 {index}</p><img '
+                    f'src="/rest/api/3/attachment/content/{10000 + index}" '
+                    f'alt="캡처 {index}">'
+                ),
             }
             for index in range(6)
         ]
@@ -161,7 +182,41 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("댓글 5\n@담당자", comments[0].body)
         self.assertEqual("작성자 5", comments[0].author)
         self.assertEqual("2026-08-15 10:00", comments[0].created)
+        self.assertEqual("10005", comments[0].images[0].attachment_id)
+        self.assertEqual("캡처 5", comments[0].images[0].alt)
         self.assertEqual([("TACEA-4501", 5)], self.jira.comment_requests)
+
+    async def test_returns_only_an_image_referenced_by_the_recent_comment(self) -> None:
+        self.jira.comments = [
+            {
+                "id": "10001",
+                "author": {"displayName": "작성자"},
+                "body": {"type": "doc", "content": []},
+                "created": "2026-08-20T10:00:00.000+0900",
+                "updated": "2026-08-20T10:00:00.000+0900",
+                "renderedBody": (
+                    '<img src="https://jira.example.com/secure/attachment/'
+                    '10017/capture.png" title="화면 캡처">'
+                ),
+            }
+        ]
+
+        image = await self.use_case.get_comment_image(
+            "TACEA-4501",
+            "10001",
+            "10017",
+        )
+
+        self.assertEqual(b"image", image.data)
+        self.assertEqual("image/png", image.media_type)
+        self.assertEqual(["10017"], self.jira.attachment_requests)
+
+        with self.assertRaises(EntityNotFoundError):
+            await self.use_case.get_comment_image(
+                "TACEA-4501",
+                "10001",
+                "99999",
+            )
 
     async def test_rejects_comment_lookup_outside_latest_issue_set(self) -> None:
         with self.assertRaises(EntityNotFoundError):

@@ -12,4 +12,18 @@ export const slaDashboardApi = {
     const response = await client.get<SlaDashboardComment[]>(`/sla-dashboard/issues/${key}/comments`)
     return response.data
   },
+  getCommentImage: async (
+    issueKey: string,
+    commentId: string,
+    attachmentId: string,
+  ): Promise<Blob> => {
+    const key = encodeURIComponent(issueKey)
+    const comment = encodeURIComponent(commentId)
+    const attachment = encodeURIComponent(attachmentId)
+    const response = await client.get<Blob>(
+      `/sla-dashboard/issues/${key}/comments/${comment}/images/${attachment}`,
+      { responseType: 'blob' },
+    )
+    return response.data
+  },
 }

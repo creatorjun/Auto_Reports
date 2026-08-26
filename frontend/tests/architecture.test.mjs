@@ -295,20 +295,57 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
     path.join(source, 'presentation/components/sla/SlaIssueActivityTable.tsx'),
     'utf8',
   )
+  const api = fs.readFileSync(
+    path.join(source, 'infrastructure/api/slaDashboardApi.ts'),
+    'utf8',
+  )
 
   assert.match(page, /useSlaDashboardIssues/)
   for (const label of [
     '티켓 번호',
-    '이슈 최초 생성 시간',
-    '댓글 포함 마지막 업데이트 시간',
-    '진행 상태',
+    '티켓 제목',
+    '생성일',
+    '진행상태',
   ]) {
     assert.match(table, new RegExp(label))
   }
+  assert.doesNotMatch(table, /issue\.updated/)
+  assert.doesNotMatch(table, /댓글 포함 마지막 업데이트 시간/)
   assert.match(table, /aria-expanded=/)
   assert.match(table, /useState<Set<string>>\(\(\) => new Set\(\)\)/)
   assert.match(table, /expanded=\{!collapsedKeys\.has\(issue\.key\)\}/)
   assert.match(table, /useSlaIssueComments/)
   assert.match(table, /최근 작성된 댓글/)
   assert.match(table, /최대 5개/)
+  assert.match(table, /comment\.images\.map/)
+  assert.match(table, /URL\.createObjectURL/)
+  assert.match(table, /<IssueTypeIcon type=\{issue\.type\} \/>/)
+  assert.match(api, /getCommentImage/)
+  assert.match(api, /responseType: 'blob'/)
+})
+
+test('portrait displays use the compact navigation and SLA card layout', () => {
+  const layout = fs.readFileSync(
+    path.join(source, 'presentation/components/layout/Layout.tsx'),
+    'utf8',
+  )
+  const header = fs.readFileSync(
+    path.join(source, 'presentation/components/layout/Header.tsx'),
+    'utf8',
+  )
+  const mobileTabs = fs.readFileSync(
+    path.join(source, 'presentation/components/layout/MobileTabBar.tsx'),
+    'utf8',
+  )
+  const table = fs.readFileSync(
+    path.join(source, 'presentation/components/sla/SlaIssueActivityTable.tsx'),
+    'utf8',
+  )
+
+  assert.match(layout, /hidden xl:flex/)
+  assert.match(header, /xl:hidden/)
+  assert.match(header, /xl:flex/)
+  assert.match(mobileTabs, /xl:hidden/)
+  assert.match(table, /overflow-x-auto xl:block/)
+  assert.match(table, /divide-y[^\n]+xl:hidden/)
 })

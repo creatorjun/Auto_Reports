@@ -45,7 +45,7 @@ export default function Header() {
 
   return (
     <header className="bg-white flex-shrink-0 border-b border-apple-divider/60">
-      <div className="md:hidden flex flex-col">
+      <div className="flex flex-col xl:hidden">
         <div className="flex items-center justify-center px-4 pt-3 pb-1">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-brand-600 flex items-center justify-center flex-shrink-0">
@@ -77,7 +77,7 @@ export default function Header() {
         </div>
       </div>
 
-      <div className="hidden md:flex h-14 3xl:h-16 items-center justify-between px-4">
+      <div className="hidden h-14 items-center justify-between px-4 xl:flex 3xl:h-16">
         <div className="w-[28rem] 3xl:w-[32rem] flex items-center gap-3 overflow-hidden">
           {currentReport && (
             <>

@@ -1,6 +1,13 @@
 # backend/src/application/ports/jira_port.py
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any
+
+
+@dataclass(frozen=True)
+class JiraAttachmentContent:
+    data: bytes
+    media_type: str
 
 
 class JiraPort(ABC):
@@ -45,6 +52,12 @@ class JiraPort(ABC):
         issue_key: str,
         max_results: int = 5,
     ) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    async def get_attachment_content(
+        self,
+        attachment_id: str,
+    ) -> JiraAttachmentContent: ...
 
     @abstractmethod
     async def get_sla_field_ids(self) -> dict[str, str]: ...

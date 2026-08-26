@@ -91,6 +91,7 @@ export interface SearchGateway {
 export interface SlaDashboardGateway {
   getIssues: () => Promise<SlaDashboardIssue[]>
   getComments: (issueKey: string) => Promise<SlaDashboardComment[]>
+  getCommentImage: (issueKey: string, commentId: string, attachmentId: string) => Promise<Blob>
 }
 
 export interface ApplicationServices {
