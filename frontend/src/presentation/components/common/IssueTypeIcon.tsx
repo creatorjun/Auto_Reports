@@ -1,58 +1,54 @@
 // frontend/src/presentation/components/common/IssueTypeIcon.tsx
-import {
-  AlertTriangle,
-  BadgeCheck,
-  HardDrive,
-  Headset,
-  KeyRound,
-  Lightbulb,
-  ShieldAlert,
-  Tag,
-  type LucideIcon,
-} from 'lucide-react'
+import { Tag } from 'lucide-react'
+import cveIcon from '@/presentation/assets/issue-types/cve.svg'
+import hardwareReplacementIcon from '@/presentation/assets/issue-types/hardware-replacement.svg'
+import improvementIcon from '@/presentation/assets/issue-types/improvement.svg'
+import incidentIcon from '@/presentation/assets/issue-types/incident.png'
+import licenseRequestIcon from '@/presentation/assets/issue-types/license-request.png'
+import serviceRequestIcon from '@/presentation/assets/issue-types/service-request.png'
 
 interface IssueTypeVisual {
-  icon: LucideIcon
+  src: string | null
   label: string
-  className: string
 }
 
 function getVisual(type: string): IssueTypeVisual {
   if (type.includes('승인된 서비스 요청')) {
-    return { icon: BadgeCheck, label: '승인된 서비스 요청', className: 'bg-emerald-50 text-emerald-600 ring-emerald-200' }
+    return { src: serviceRequestIcon, label: '승인된 서비스 요청' }
   }
   if (type.includes('서비스 요청')) {
-    return { icon: Headset, label: '서비스 요청', className: 'bg-blue-50 text-blue-600 ring-blue-200' }
+    return { src: serviceRequestIcon, label: '서비스 요청' }
   }
   if (type.includes('개선')) {
-    return { icon: Lightbulb, label: '개선 요청', className: 'bg-amber-50 text-amber-600 ring-amber-200' }
+    return { src: improvementIcon, label: '개선 요청' }
   }
   if (type.includes('인시던트')) {
-    return { icon: AlertTriangle, label: '인시던트', className: 'bg-red-50 text-red-600 ring-red-200' }
+    return { src: incidentIcon, label: '인시던트' }
   }
   if (type.toUpperCase().includes('CVE')) {
-    return { icon: ShieldAlert, label: 'CVE', className: 'bg-violet-50 text-violet-600 ring-violet-200' }
+    return { src: cveIcon, label: 'CVE' }
   }
   if (type.includes('라이선스') || type.includes('라이센스')) {
-    return { icon: KeyRound, label: '라이선스 요청', className: 'bg-indigo-50 text-indigo-600 ring-indigo-200' }
+    return { src: licenseRequestIcon, label: '라이선스 요청' }
   }
-  if (type.includes('H/W') || type.includes('하드웨어')) {
-    return { icon: HardDrive, label: 'H/W 장애 요청', className: 'bg-orange-50 text-orange-600 ring-orange-200' }
+  if (type.includes('H/W') || type.toUpperCase().includes('HW') || type.includes('하드웨어')) {
+    return { src: hardwareReplacementIcon, label: 'H/W 요청' }
   }
-  return { icon: Tag, label: type || '기타 요청', className: 'bg-gray-50 text-gray-600 ring-gray-200' }
+  return { src: null, label: type || '기타 요청' }
 }
 
 export function IssueTypeIcon({ type }: { type: string }) {
   const visual = getVisual(type)
-  const Icon = visual.icon
   return (
     <span
       role="img"
       aria-label={`${visual.label} 유형`}
       title={visual.label}
-      className={`inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md ring-1 ring-inset ${visual.className}`}
+      className={`inline-flex h-6 w-6 flex-shrink-0 items-center justify-center ${visual.src ? '' : 'rounded-md bg-gray-50 text-gray-600 ring-1 ring-inset ring-gray-200'}`}
     >
-      <Icon size={13} aria-hidden="true" />
+      {visual.src
+        ? <img src={visual.src} alt="" aria-hidden="true" draggable={false} className="h-4 w-4 object-contain" />
+        : <Tag size={13} aria-hidden="true" />}
     </span>
   )
 }

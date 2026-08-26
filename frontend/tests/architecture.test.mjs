@@ -299,6 +299,10 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
     path.join(source, 'infrastructure/api/slaDashboardApi.ts'),
     'utf8',
   )
+  const issueTypeIcon = fs.readFileSync(
+    path.join(source, 'presentation/components/common/IssueTypeIcon.tsx'),
+    'utf8',
+  )
 
   assert.match(page, /useSlaDashboardIssues/)
   for (const label of [
@@ -322,6 +326,20 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
   assert.match(table, /<IssueTypeIcon type=\{issue\.type\} \/>/)
   assert.match(api, /getCommentImage/)
   assert.match(api, /responseType: 'blob'/)
+  for (const filename of [
+    'cve.svg',
+    'hardware-replacement.svg',
+    'improvement.svg',
+    'incident.png',
+    'license-request.png',
+    'service-request.png',
+  ]) {
+    const asset = path.join(source, 'presentation/assets/issue-types', filename)
+    assert.equal(fs.statSync(asset).size > 0, true)
+    assert.match(issueTypeIcon, new RegExp(filename.replace('.', '\\.')))
+  }
+  assert.match(issueTypeIcon, /<img[^>]*className="h-4 w-4 object-contain"/)
+  assert.doesNotMatch(issueTypeIcon, /AlertTriangle|Headset|KeyRound|Lightbulb|ShieldAlert/)
 })
 
 test('portrait displays use the compact navigation and SLA card layout', () => {
