@@ -38,6 +38,8 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
             requests.append(request)
             if request.url.path.endswith("/comment"):
                 return httpx.Response(200, json={"comments": [{"id": "10001"}]})
+            if request.headers["Accept"] == "image/*":
+                return httpx.Response(406)
             return httpx.Response(
                 200,
                 content=b"png-data",
@@ -60,5 +62,6 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
             requests[1].url.path,
         )
         self.assertEqual("false", requests[1].url.params["redirect"])
+        self.assertEqual("*/*", requests[1].headers["Accept"])
         self.assertEqual(b"png-data", image.data)
         self.assertEqual("image/png", image.media_type)

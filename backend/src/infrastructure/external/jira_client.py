@@ -293,7 +293,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
             response = await self._client.get(
                 url,
                 params={"redirect": "false"},
-                headers={"Accept": "image/*"},
+                headers={"Accept": "*/*"},
             )
             response.raise_for_status()
         except httpx.HTTPError as error:
