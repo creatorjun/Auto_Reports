@@ -94,13 +94,13 @@ test('deployment keeps critical report generation available across releases', ()
   assert.match(nginx, /location \/assets\/\s*\{[^}]*max-age=31536000, immutable/s)
 })
 
-test('desktop sidebar starts collapsed', () => {
+test('desktop sidebar starts expanded', () => {
   const layout = fs.readFileSync(
     path.join(source, 'presentation/components/layout/Layout.tsx'),
     'utf8',
   )
 
-  assert.match(layout, /useState\(true\)/)
+  assert.match(layout, /useState\(false\)/)
 })
 
 test('partner issue rows open configured Jira tickets in a new tab', () => {
