@@ -10,6 +10,25 @@ const STAGE_COLORS: Record<string, string> = {
   '둘 다 위반':    '#8b5cf6',
 }
 
+const RADIAN = Math.PI / 180
+
+function CustomLabel({
+  cx, cy, midAngle, innerRadius, outerRadius, percent
+}: {
+  cx: number; cy: number; midAngle: number
+  innerRadius: number; outerRadius: number; percent: number
+}) {
+  if (percent < 0.05) return null
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.55
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
+      {`${Math.round(percent * 100)}%`}
+    </text>
+  )
+}
+
 interface Props {
   total: number
   distribution: ViolationEntry[]
@@ -28,8 +47,6 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
     )
   }
 
-  const distSum = distribution.reduce((s, d) => s + d.count, 0)
-
   const handleClick = (chartData: { name: string }) => {
     if (!onSliceClick) return
     const found = distribution.find((d) => d.stage === chartData.name)
@@ -39,62 +56,53 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
   return (
     <div className="card">
       <h3 className="text-sm font-semibold text-gray-700 mb-4">🎯 SLA 위반 분포</h3>
-      <div className="relative">
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="45%"
-              innerRadius={80}
-              outerRadius={130}
-              dataKey="value"
-              label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
-              labelLine={false}
-              onClick={onSliceClick ? handleClick : undefined}
-              style={onSliceClick ? { cursor: 'pointer' } : undefined}
-            >
-              {data.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={STAGE_COLORS[entry.name] ?? PIE_COLORS[i % PIE_COLORS.length]}
-                />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(v: number, name: string) => {
-                const entry = distribution.find((d) => d.stage === name)
-                return [`${v}건 (${entry?.rate ?? 0}%)`, name]
-              }}
-            />
-            <Legend
-              layout="horizontal"
-              verticalAlign="bottom"
-              align="center"
-              iconType="circle"
-              iconSize={CHART_LEGEND_ICON_SIZE}
-              formatter={(value: string) => (
-                <span
-                  style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR, cursor: onSliceClick ? 'pointer' : 'default' }}
-                  onClick={() => {
-                    if (!onSliceClick) return
-                    const found = distribution.find((d) => d.stage === value)
-                    if (found) onSliceClick(found)
-                  }}
-                >
-                  {value}
-                </span>
-              )}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center mt-4">
-            <p className="text-2xl font-bold text-gray-800">{distSum}</p>
-            <p className="text-xs text-gray-400">이슈 단위 위반</p>
-          </div>
-        </div>
-      </div>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="45%"
+            outerRadius={125}
+            dataKey="value"
+            labelLine={false}
+            label={CustomLabel}
+            onClick={onSliceClick ? handleClick : undefined}
+            style={onSliceClick ? { cursor: 'pointer' } : undefined}
+          >
+            {data.map((entry, i) => (
+              <Cell
+                key={i}
+                fill={STAGE_COLORS[entry.name] ?? PIE_COLORS[i % PIE_COLORS.length]}
+              />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(v: number, name: string) => {
+              const entry = distribution.find((d) => d.stage === name)
+              return [`${v}건 (${entry?.rate ?? 0}%)`, name]
+            }}
+          />
+          <Legend
+            layout="horizontal"
+            verticalAlign="bottom"
+            align="center"
+            iconType="circle"
+            iconSize={CHART_LEGEND_ICON_SIZE}
+            formatter={(value: string) => (
+              <span
+                style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR, cursor: onSliceClick ? 'pointer' : 'default' }}
+                onClick={() => {
+                  if (!onSliceClick) return
+                  const found = distribution.find((d) => d.stage === value)
+                  if (found) onSliceClick(found)
+                }}
+              >
+                {value}
+              </span>
+            )}
+          />
+        </PieChart>
+      </ResponsiveContainer>
       {onSliceClick && (
         <p className="text-center text-[11px] text-apple-light mt-1">영역을 클릭하면 상세 이슈를 확인할 수 있습니다</p>
       )}
