@@ -71,12 +71,14 @@ export default function SiteCreatePage() {
       ): Credential | undefined => {
         const resolvedUsername = u || existingCred?.username
         const resolvedPassword = p || existingCred?.password
-        if (!resolvedUsername || !resolvedPassword) return undefined
+        const resolvedIp = ip || existingCred?.ip
+        const resolvedPort = port || existingCred?.port
+        if (!resolvedUsername && !resolvedPassword && !resolvedIp && !resolvedPort) return undefined
         return {
-          username: resolvedUsername,
-          password: resolvedPassword,
-          ip:   ip   || existingCred?.ip   || undefined,
-          port: port || existingCred?.port || undefined,
+          username: resolvedUsername || undefined,
+          password: resolvedPassword || undefined,
+          ip: resolvedIp || undefined,
+          port: resolvedPort || undefined,
         }
       }
 

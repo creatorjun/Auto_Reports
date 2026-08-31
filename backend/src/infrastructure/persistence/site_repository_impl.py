@@ -243,31 +243,35 @@ class SiteRepositoryImpl(SiteRepository):
 
     def _creds_to_domain(self, orm: AccessCredentialsORM) -> AccessCredentials:
         return AccessCredentials(
-            cli=Credential(
-                username=orm.cli_username,
-                password=self._dec_pw(orm.cli_password),
-                ip=orm.cli_ip,
-                port=orm.cli_port,
-            ) if orm.cli_username else None,
-            web=Credential(
-                username=orm.web_username,
-                password=self._dec_pw(orm.web_password),
-                ip=orm.web_ip,
-                port=orm.web_port,
-            ) if orm.web_username else None,
-            db=Credential(
-                username=orm.db_username,
-                password=self._dec_pw(orm.db_password),
-                ip=orm.db_ip,
-                port=orm.db_port,
-            ) if orm.db_username else None,
-            vpn=Credential(
-                username=orm.vpn_username,
-                password=self._dec_pw(orm.vpn_password),
-                ip=orm.vpn_ip,
-                port=orm.vpn_port,
-            ) if orm.vpn_username else None,
+            cli=self._credential_to_domain(
+                orm.cli_username, orm.cli_password, orm.cli_ip, orm.cli_port
+            ),
+            web=self._credential_to_domain(
+                orm.web_username, orm.web_password, orm.web_ip, orm.web_port
+            ),
+            db=self._credential_to_domain(
+                orm.db_username, orm.db_password, orm.db_ip, orm.db_port
+            ),
+            vpn=self._credential_to_domain(
+                orm.vpn_username, orm.vpn_password, orm.vpn_ip, orm.vpn_port
+            ),
             note=orm.note,
+        )
+
+    def _credential_to_domain(
+        self,
+        username: str | None,
+        password: str | None,
+        ip: str | None,
+        port: str | None,
+    ) -> Credential | None:
+        if not any((username, password, ip, port)):
+            return None
+        return Credential(
+            username=username,
+            password=self._dec_pw(password),
+            ip=ip,
+            port=port,
         )
 
     async def _apply_domain(self, orm: SiteORM, site: Site) -> None:

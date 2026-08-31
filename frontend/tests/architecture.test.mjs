@@ -472,3 +472,25 @@ test('site detail and inline forms adapt to narrow and wide screens', () => {
   assert.match(patchForm, /xl:grid-cols-4/)
   assert.match(visitForm, /xl:grid-cols-4/)
 })
+
+test('site access info preserves and renders partial connection data', () => {
+  const site = fs.readFileSync(path.join(source, 'domain/Site.ts'), 'utf8')
+  const createPage = fs.readFileSync(
+    path.join(source, 'presentation/pages/SiteCreatePage.tsx'),
+    'utf8',
+  )
+  const detailShared = fs.readFileSync(
+    path.join(source, 'presentation/components/site/detail/SiteDetailShared.tsx'),
+    'utf8',
+  )
+
+  assert.match(site, /username\?: string/)
+  assert.match(site, /password\?: string/)
+  assert.match(
+    createPage,
+    /if \(!resolvedUsername && !resolvedPassword && !resolvedIp && !resolvedPort\) return undefined/,
+  )
+  assert.match(detailShared, /\{cred\.username &&/)
+  assert.match(detailShared, /\{cred\.password &&/)
+  assert.match(detailShared, /\{\(cred\.ip \|\| cred\.port\) &&/)
+})
