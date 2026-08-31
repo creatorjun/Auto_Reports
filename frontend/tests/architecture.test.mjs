@@ -122,6 +122,37 @@ test('partner issue rows open configured Jira tickets in a new tab', () => {
   assert.doesNotMatch(row, /issue\.(url|stage)\b/)
 })
 
+test('partner management filters organizations and members with one search query', () => {
+  const page = fs.readFileSync(
+    path.join(source, 'presentation/pages/PartnerManagementPage.tsx'),
+    'utf8',
+  )
+  const searchInput = fs.readFileSync(
+    path.join(source, 'presentation/components/partner/PartnerSearchInput.tsx'),
+    'utf8',
+  )
+  const orgPanel = fs.readFileSync(
+    path.join(source, 'presentation/components/partner/PartnerOrgPanel.tsx'),
+    'utf8',
+  )
+  const memberPanel = fs.readFileSync(
+    path.join(source, 'presentation/components/partner/PartnerMemberPanel.tsx'),
+    'utf8',
+  )
+  const partner = fs.readFileSync(path.join(source, 'domain/Partner.ts'), 'utf8')
+
+  assert.match(searchInput, /파트너사 또는 직원명 검색/)
+  assert.match(searchInput, /aria-label="파트너사 또는 직원명 검색"/)
+  assert.match(page, /searchQuery=\{searchQuery\}/)
+  assert.match(orgPanel, /useQueries/)
+  assert.match(orgPanel, /member\.display_name/)
+  assert.match(orgPanel, /visibleOrgs\.map/)
+  assert.match(memberPanel, /visibleMembers\.map/)
+  assert.match(memberPanel, /matchesPartnerSearch\(orgName, normalizedQuery\)/)
+  assert.match(partner, /normalize\('NFKC'\)/)
+  assert.match(partner, /toLocaleLowerCase\('ko-KR'\)/)
+})
+
 test('dashboard widget ids follow first render order', () => {
   const contract = fs.readFileSync(path.join(source, 'domain/WidgetId.ts'), 'utf8')
   const entries = [...contract.matchAll(/^\s+([A-Z_]+): '(w\d+)',$/gm)]
@@ -366,4 +397,29 @@ test('portrait displays use the compact navigation and SLA card layout', () => {
   assert.match(mobileTabs, /xl:hidden/)
   assert.match(table, /overflow-x-auto xl:block/)
   assert.match(table, /divide-y[^\n]+xl:hidden/)
+})
+
+test('site management uses the available width across responsive breakpoints', () => {
+  const page = fs.readFileSync(
+    path.join(source, 'presentation/pages/SiteManagementPage.tsx'),
+    'utf8',
+  )
+
+  assert.doesNotMatch(page, /max-w-xl/)
+  assert.match(page, /max-w-content/)
+  assert.match(page, /3xl:max-w-none/)
+  for (const columns of [
+    'grid-cols-1',
+    'sm:grid-cols-2',
+    'xl:grid-cols-3',
+    '2xl:grid-cols-4',
+    '3xl:grid-cols-5',
+  ]) {
+    assert.match(page, new RegExp(columns))
+  }
+  assert.match(page, /xl:hidden/)
+  assert.match(page, /hidden[^\n]+xl:flex/)
+  assert.match(page, /xl:bottom-8/)
+  assert.match(page, /aria-label="사이트명 검색"/)
+  assert.match(page, /aria-label="새 사이트 등록"/)
 })

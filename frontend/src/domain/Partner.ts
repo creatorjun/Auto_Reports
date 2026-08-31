@@ -13,3 +13,11 @@ export interface PartnerMember {
 }
 
 export type PartnerIssue = BaseIssue
+
+export function normalizePartnerSearch(value: string): string {
+  return value.normalize('NFKC').trim().toLocaleLowerCase('ko-KR')
+}
+
+export function matchesPartnerSearch(value: string, normalizedQuery: string): boolean {
+  return normalizePartnerSearch(value).includes(normalizedQuery)
+}

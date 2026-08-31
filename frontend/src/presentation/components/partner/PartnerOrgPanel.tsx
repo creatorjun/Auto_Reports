@@ -1,14 +1,20 @@
 // frontend/src/presentation/components/partner/PartnerOrgPanel.tsx
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import PartnerPanelHeader from './PartnerPanelHeader'
-import type { PartnerOrg } from '@/domain/Partner'
+import {
+  matchesPartnerSearch,
+  normalizePartnerSearch,
+  type PartnerOrg,
+} from '@/domain/Partner'
 
 export default function PartnerOrgPanel({
   selectedOrgId,
+  searchQuery,
   onSelect,
 }: {
   selectedOrgId: string | null
+  searchQuery: string
   onSelect: (org: PartnerOrg) => void
 }) {
   const { partners } = useApplicationServices()
@@ -17,12 +23,31 @@ export default function PartnerOrgPanel({
     queryFn: partners.getOrganizations,
     staleTime: 5 * 60_000,
   })
+  const normalizedQuery = normalizePartnerSearch(searchQuery)
+  const memberQueries = useQueries({
+    queries: normalizedQuery
+      ? orgs.map((org) => ({
+          queryKey: ['partner-members', org.id],
+          queryFn: () => partners.getMembers(org.id),
+          staleTime: 5 * 60_000,
+        }))
+      : [],
+  })
+  const isSearching = normalizedQuery.length > 0 && memberQueries.some((query) => query.isLoading)
+  const visibleOrgs = normalizedQuery
+    ? orgs.filter((org, index) => (
+        matchesPartnerSearch(org.name, normalizedQuery)
+        || (memberQueries[index]?.data ?? []).some((member) => (
+          matchesPartnerSearch(member.display_name, normalizedQuery)
+        ))
+      ))
+    : orgs
 
   return (
     <div className="flex flex-col h-full">
-      <PartnerPanelHeader title="파트너 조직" count={orgs.length} loading={isLoading} />
+      <PartnerPanelHeader title="파트너 조직" count={visibleOrgs.length} loading={isLoading || isSearching} />
       <div className="flex-1 overflow-y-auto">
-        {orgs.map((org) => (
+        {visibleOrgs.map((org) => (
           <button
             key={org.id}
             onClick={() => onSelect(org)}
@@ -43,8 +68,10 @@ export default function PartnerOrgPanel({
             </div>
           </button>
         ))}
-        {!isLoading && orgs.length === 0 && (
-          <p className="px-4 py-6 text-sm text-apple-light text-center">조직 정보 없음</p>
+        {!isLoading && !isSearching && visibleOrgs.length === 0 && (
+          <p className="px-4 py-6 text-sm text-apple-light text-center">
+            {normalizedQuery ? '검색 결과 없음' : '조직 정보 없음'}
+          </p>
         )}
       </div>
     </div>
