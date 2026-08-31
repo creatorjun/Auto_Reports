@@ -423,3 +423,52 @@ test('site management uses the available width across responsive breakpoints', (
   assert.match(page, /aria-label="사이트명 검색"/)
   assert.match(page, /aria-label="새 사이트 등록"/)
 })
+
+test('site detail and inline forms adapt to narrow and wide screens', () => {
+  const page = fs.readFileSync(
+    path.join(source, 'presentation/pages/SiteDetailPage.tsx'),
+    'utf8',
+  )
+  const shared = fs.readFileSync(
+    path.join(source, 'presentation/components/site/detail/SiteDetailShared.tsx'),
+    'utf8',
+  )
+  const sections = fs.readFileSync(
+    path.join(source, 'presentation/components/site/detail/SiteDetailSections.tsx'),
+    'utf8',
+  )
+  const nodeForm = fs.readFileSync(
+    path.join(source, 'presentation/components/site/detail/NodeForm.tsx'),
+    'utf8',
+  )
+  const patchForm = fs.readFileSync(
+    path.join(source, 'presentation/components/site/detail/PatchForm.tsx'),
+    'utf8',
+  )
+  const visitForm = fs.readFileSync(
+    path.join(source, 'presentation/components/site/detail/VisitForm.tsx'),
+    'utf8',
+  )
+
+  assert.doesNotMatch(page, /max-w-2xl/)
+  assert.match(page, /max-w-content/)
+  assert.match(page, /3xl:max-w-none/)
+  assert.match(page, /sm:flex-row/)
+  assert.match(page, /aria-label="사이트 목록으로 돌아가기"/)
+  assert.match(shared, /sm:w-36/)
+  assert.match(shared, /sm:flex-row/)
+  assert.match(shared, /break-words/)
+  assert.match(sections, /md:grid-cols-2/)
+  assert.match(sections, /2xl:grid-cols-4/)
+  assert.match(sections, /xl:grid-cols-2/)
+  assert.match(sections, /3xl:grid-cols-3/)
+  for (const form of [nodeForm, patchForm, visitForm]) {
+    assert.doesNotMatch(form, /grid grid-cols-2/)
+    assert.match(form, /grid grid-cols-1/)
+    assert.match(form, /sm:grid-cols-2/)
+    assert.match(form, /flex-col-reverse/)
+  }
+  assert.match(nodeForm, /xl:grid-cols-3/)
+  assert.match(patchForm, /xl:grid-cols-4/)
+  assert.match(visitForm, /xl:grid-cols-4/)
+})

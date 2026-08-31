@@ -80,12 +80,12 @@ export default function NodeForm({
   return (
     <form
       onSubmit={handleSubmit((v) => mutateAsync(v))}
-      className="mb-4 rounded-2xl border border-blue-200 bg-blue-50/40 px-5 py-4 flex flex-col gap-3"
+      className="mb-4 flex flex-col gap-3 rounded-2xl border border-blue-200 bg-blue-50/40 px-4 py-4 sm:px-5 3xl:p-6"
     >
       <p className="text-xs font-semibold text-blue-700">
         {initial ? '하드웨어 수정' : '새 하드웨어 추가'}
       </p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 3xl:gap-4">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-apple-light">호스트명</label>
           <input {...register('hostname')} className={inputCls} placeholder="server-01" />
@@ -150,24 +150,24 @@ export default function NodeForm({
             placeholder="120"
           />
         </div>
-        <div className="col-span-2 flex flex-col gap-1">
+        <div className="flex flex-col gap-1 sm:col-span-2 xl:col-span-3 3xl:col-span-4">
           <label className="text-xs font-medium text-apple-light">패키지</label>
           <input {...register('pkg_version')} className={inputCls} placeholder="v1.0.0" />
         </div>
       </div>
       {isError && <p className="text-xs text-red-500">저장 중 오류가 발생했습니다</p>}
-      <div className="flex gap-2 justify-end pt-1">
+      <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-1.5 rounded-xl text-xs text-apple-light border border-apple-divider hover:bg-apple-gray transition-colors"
+          className="w-full rounded-xl border border-apple-divider px-4 py-2 text-xs text-apple-light transition-colors hover:bg-apple-gray sm:w-auto sm:py-1.5"
         >
           취소
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="px-4 py-1.5 rounded-xl text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="w-full rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-auto sm:py-1.5"
         >
           {isSubmitting ? '저장 중...' : '저장'}
         </button>

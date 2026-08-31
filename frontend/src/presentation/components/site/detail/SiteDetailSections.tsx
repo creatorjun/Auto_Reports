@@ -11,14 +11,16 @@ import VisitForm from './VisitForm'
 export function SiteBasicInfo({ site }: { site: SiteDetail }) {
   return (
     <Section title="기본 정보" defaultOpen>
-      <Row label="사이트 ID"   value={site.id} />
-      <Row label="사이트명"    value={site.site_name} />
-      <Row label="유지보수 업체" value={site.maintenance_company} />
-      <Row label="라이센스 유형" value={site.contract_type} />
-      <Row label="계약 시작"   value={site.contract_start_date} />
-      <Row label="계약 종료"   value={site.contract_end_date} />
-      <Row label="등록일"      value={site.created_at?.slice(0, 10)} />
-      <Row label="최종수정"    value={site.updated_at?.slice(0, 10)} />
+      <div className="grid grid-cols-1 gap-x-6 md:grid-cols-2 2xl:grid-cols-4 3xl:gap-x-8">
+        <Row label="사이트 ID"   value={site.id} />
+        <Row label="사이트명"    value={site.site_name} />
+        <Row label="유지보수 업체" value={site.maintenance_company} />
+        <Row label="라이센스 유형" value={site.contract_type} />
+        <Row label="계약 시작"   value={site.contract_start_date} />
+        <Row label="계약 종료"   value={site.contract_end_date} />
+        <Row label="등록일"      value={site.created_at?.slice(0, 10)} />
+        <Row label="최종수정"    value={site.updated_at?.slice(0, 10)} />
+      </div>
     </Section>
   )
 }
@@ -26,25 +28,29 @@ export function SiteBasicInfo({ site }: { site: SiteDetail }) {
 export function SiteContactInfo({ site }: { site: SiteDetail }) {
   return (
     <Section title="담당자 정보" defaultOpen={false}>
-      {site.customer_info && (
-        <>
-          <p className="text-xs font-semibold text-apple-light mb-1.5 mt-1">고객사</p>
-          <Row label="이름"   value={site.customer_info.name} />
-          <Row label="연락처" value={site.customer_info.phone} />
-          <Row label="이메일" value={site.customer_info.email} />
-        </>
-      )}
-      {site.maintenance_info && (
-        <>
-          <p className="text-xs font-semibold text-apple-light mb-1.5 mt-3">유지보수</p>
-          <Row label="이름" value={site.maintenance_info.name} />
-          <Row label="소속" value={site.maintenance_info.company} />
-          <Row label="연락처" value={site.maintenance_info.phone} />
-          <Row label="이메일" value={site.maintenance_info.email} />
-        </>
-      )}
       {!site.customer_info && !site.maintenance_info && (
         <p className="text-sm text-apple-light">등록된 담당자 정보가 없습니다</p>
+      )}
+      {(site.customer_info || site.maintenance_info) && (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 3xl:gap-5">
+          {site.customer_info && (
+            <div className="min-w-0 rounded-xl bg-apple-gray/50 px-4 py-3">
+              <p className="mb-1.5 text-xs font-semibold text-apple-light">고객사</p>
+              <Row label="이름"   value={site.customer_info.name} />
+              <Row label="연락처" value={site.customer_info.phone} />
+              <Row label="이메일" value={site.customer_info.email} />
+            </div>
+          )}
+          {site.maintenance_info && (
+            <div className="min-w-0 rounded-xl bg-apple-gray/50 px-4 py-3">
+              <p className="mb-1.5 text-xs font-semibold text-apple-light">유지보수</p>
+              <Row label="이름" value={site.maintenance_info.name} />
+              <Row label="소속" value={site.maintenance_info.company} />
+              <Row label="연락처" value={site.maintenance_info.phone} />
+              <Row label="이메일" value={site.maintenance_info.email} />
+            </div>
+          )}
+        </div>
       )}
     </Section>
   )
@@ -64,7 +70,7 @@ export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
 
   return (
     <Section title="하드웨어" badge={site.nodes?.length ?? 0} defaultOpen={false}>
-      <div className="flex justify-end mb-4">
+      <div className="mb-4 flex justify-end">
         <AddBtn
           onClick={() => {
             setShowAddForm((v) => !v)
@@ -86,9 +92,12 @@ export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
       {!site.nodes || site.nodes.length === 0 ? (
         <p className="text-sm text-apple-light">등록된 하드웨어가 없습니다</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 3xl:grid-cols-3 3xl:gap-5">
           {site.nodes.map((node, i) => (
-            <div key={node.id ?? i}>
+            <div
+              key={node.id ?? i}
+              className={editTarget === node.id ? 'xl:col-span-2 3xl:col-span-3' : 'min-w-0'}
+            >
               {editTarget === node.id ? (
                 <NodeForm
                   siteId={site.id}
@@ -148,20 +157,20 @@ export function SiteAccessInfo({ site }: { site: SiteDetail }) {
       {!creds ? (
         <p className="text-sm text-apple-light">등록된 접속 정보가 없습니다</p>
       ) : (
-        <>
+        <div className="grid grid-cols-1 gap-x-6 xl:grid-cols-2 3xl:grid-cols-4 3xl:gap-x-8">
           <CredRow label="CLI" cred={creds.cli} />
           <CredRow label="WEB" cred={creds.web} />
           <CredRow label="DB"  cred={creds.db} />
           <CredRow label="VPN" cred={creds.vpn} />
           {creds.note && (
-            <div className="mt-3 rounded-xl bg-apple-gray/60 px-4 py-3 text-sm text-apple-dark whitespace-pre-wrap">
+            <div className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-apple-gray/60 px-4 py-3 text-sm text-apple-dark xl:col-span-2 3xl:col-span-4">
               {creds.note}
             </div>
           )}
           {!creds.cli && !creds.web && !creds.db && !creds.vpn && !creds.note && (
             <p className="text-sm text-apple-light">입력된 접속 정보가 없습니다</p>
           )}
-        </>
+        </div>
       )}
     </Section>
   )
@@ -181,7 +190,7 @@ export function SitePatchHistory({ site }: { site: SiteDetail }) {
 
   return (
     <Section title="패치 히스토리" badge={site.patch_histories.length} defaultOpen={false}>
-      <div className="flex justify-end mb-4">
+      <div className="mb-4 flex justify-end">
         <AddBtn
           onClick={() => {
             setShowAddForm((v) => !v)
@@ -203,9 +212,12 @@ export function SitePatchHistory({ site }: { site: SiteDetail }) {
       {site.patch_histories.length === 0 ? (
         <p className="text-sm text-apple-light">패치 이력이 없습니다</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 3xl:grid-cols-3 3xl:gap-5">
           {[...site.patch_histories].reverse().map((p, i) => (
-            <div key={p.id ?? i}>
+            <div
+              key={p.id ?? i}
+              className={editTarget?.id === p.id ? 'xl:col-span-2 3xl:col-span-3' : 'min-w-0'}
+            >
               {editTarget?.id === p.id ? (
                 <PatchForm
                   siteId={site.id}
@@ -218,8 +230,8 @@ export function SitePatchHistory({ site }: { site: SiteDetail }) {
                 />
               ) : (
                 <div className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-sm">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
+                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold text-apple-dark">
                         {p.patch_date ?? '—'}
                       </span>
@@ -265,7 +277,7 @@ export function SiteVisitHistory({ site }: { site: SiteDetail }) {
 
   return (
     <Section title="방문 히스토리" badge={site.visit_histories.length} defaultOpen={false}>
-      <div className="flex justify-end mb-4">
+      <div className="mb-4 flex justify-end">
         <AddBtn
           onClick={() => {
             setShowAddForm((v) => !v)
@@ -287,9 +299,12 @@ export function SiteVisitHistory({ site }: { site: SiteDetail }) {
       {site.visit_histories.length === 0 ? (
         <p className="text-sm text-apple-light">방문 이력이 없습니다</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 3xl:grid-cols-3 3xl:gap-5">
           {[...site.visit_histories].reverse().map((v, i) => (
-            <div key={v.id ?? i}>
+            <div
+              key={v.id ?? i}
+              className={editTarget?.id === v.id ? 'xl:col-span-2 3xl:col-span-3' : 'min-w-0'}
+            >
               {editTarget?.id === v.id ? (
                 <VisitForm
                   siteId={site.id}
@@ -302,8 +317,8 @@ export function SiteVisitHistory({ site }: { site: SiteDetail }) {
                 />
               ) : (
                 <div className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-sm">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
+                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold text-apple-dark">
                         {v.visit_datetime
                           ? v.visit_datetime.replace('T', ' ').slice(0, 16)
