@@ -56,7 +56,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   }, [report, setCurrentReport])
 
   const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report, selectedIssueTypes, selectedSemester)
-  const { issueTypes, supportsIssueTypeFiltering, supportsSemesterFiltering, semesterLabel } = filter
+  const { issueTypes, reportYear, supportsIssueTypeFiltering, supportsSemesterFiltering, semesterLabel } = filter
   const { w1YearlyCreated, w2YearlyResolved } = yearly
   const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeDays } = weekly
   const { w10Monthly, w11Monthly, hasW10, hasW11 } = slaMonthly
@@ -102,8 +102,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       />
       {report.ai_analysis && selectedIssueTypes === null && selectedSemester === null && <AiSummaryCard ai={report.ai_analysis} />}
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
-        <SummaryCard label="생성" value={w1YearlyCreated} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
-        <SummaryCard label="해결" value={w2YearlyResolved} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
+        <SummaryCard label={`${reportYear} 생성`} value={w1YearlyCreated} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
+        <SummaryCard label={`${reportYear} 해결`} value={w2YearlyResolved} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
         <SummaryCard label={`최근 ${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
         <SummaryCard label={`최근 ${rangeDays}일 완료`} value={w3Resolved} color="green" icon={SUMMARY_ICONS.weekResolved} onClick={() => setShowWeeklyResolved(true)} />
         <SummaryCard label="이슈 리뷰 중" value={reviewTotal}  color="yellow" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
