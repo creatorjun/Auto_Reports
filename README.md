@@ -44,7 +44,7 @@ docker compose logs -f tac_backend
 ```
 
 ```bash
- git pull && docker compose down && docker compose build --no-cache && docker compose up -d && docker logs -f tac_backend
+git pull && docker compose down && docker compose build --no-cache && docker compose up -d && docker logs -f tac_backend
 ```
 
 기본 접속 주소는 `http://localhost`이고 백엔드 상태 확인은 `GET /api/health`입니다. 환경 변수는 [backend/docs/04_environment_and_config.md](backend/docs/04_environment_and_config.md)를 참고하세요.
