@@ -31,7 +31,7 @@ class WidgetCollectorFactory:
             CollectorEntry(WidgetId.YEARLY_CREATED,      TypeCountCollector(jira, f"{now.year}\ub144 \ub204\uc801 \uc0dd\uc131", yearly_created_jql, q.by_issue_type(yearly_created_jql), q.outside_issue_types(yearly_created_jql))),
             CollectorEntry(WidgetId.YEARLY_RESOLVED,     TypeCountCollector(jira, f"{now.year}\ub144 \ub204\uc801 \ud574\uacb0", yearly_resolved_jql, q.by_issue_type(yearly_resolved_jql), q.outside_issue_types(yearly_resolved_jql))),
             CollectorEntry(WidgetId.CREATED_VS_RESOLVED, CreatedVsResolvedCollector(jira, q)),
-            CollectorEntry(WidgetId.ISSUE_REVIEW,        SimpleWithDetailsCollector(jira, "\uc774\uc288 \ub9ac\ubdf0 \uc911", q.w4_issue_review())),
+            CollectorEntry(WidgetId.ISSUE_REVIEW,        SimpleWithDetailsCollector(jira, "\uc774\uc288 \ub9ac\ubdf0 \uc911", q.w4_issue_review(), max_results=None)),
             CollectorEntry(WidgetId.DATA_REQUEST,        SimpleWithDetailsCollector(jira, "\uc790\ub8cc \uc694\uccad \uc911", q.w5_data_request())),
             CollectorEntry(WidgetId.RESULT_PENDING,      SimpleWithDetailsCollector(jira, "\uacb0\uacfc \ub300\uae30 \uc911", q.w6_result_pending())),
             CollectorEntry(WidgetId.RECENT_ISSUES,       RecentCollector(jira, q)),

@@ -137,7 +137,7 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             [(widget_id.name, widget_id.value) for widget_id in WidgetId],
         )
 
-    def test_redeployment_queries_use_the_report_year_and_dashboard_filters(self) -> None:
+    def test_redeployment_queries_use_the_report_year_and_field_ids(self) -> None:
         historical = WidgetQueryBuilder(self.config).build(
             datetime.datetime(2024, 12, 31)
         )
@@ -149,7 +149,7 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             historical.w15_redeployment_resolved(),
         )
         self.assertEqual(
-            'project = TACEA AND status = Closed AND "\uc7ac\ubc30\ud3ec \uc5ec\ubd80[Dropdown]" = Y '
+            'project = TACEA AND status = Closed AND cf[11819] = Y '
             'AND resolved >= "2024-01-01" AND resolved < "2025-01-01"',
             historical.w15_redeployment_issues(),
         )

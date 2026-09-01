@@ -64,15 +64,22 @@ class TypeCountCollector(AbstractWidgetCollector):
 
 
 class SimpleWithDetailsCollector(AbstractWidgetCollector):
-    def __init__(self, jira: JiraPort, name: str, jql: str):
+    def __init__(
+        self,
+        jira: JiraPort,
+        name: str,
+        jql: str,
+        max_results: int | None = JIRA_MAX_RESULT,
+    ):
         self._jira = jira
         self._name = name
         self._jql = jql
+        self._max_results = max_results
 
     async def collect(self) -> WidgetResult[SimpleIssueWidgetData]:
         issues = await self._jira.get_issues(
             self._jql,
-            max_results=JIRA_MAX_RESULT,
+            max_results=self._max_results,
             fields="summary,issuetype,status,created",
         )
         now_ts = datetime.now()

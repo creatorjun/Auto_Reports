@@ -260,11 +260,11 @@ class RedeploymentMonthlyEntry:
 
 @dataclass
 class RedeploymentAnalyticsWidgetData:
-    dashboard_id: str
     resolved_total: int
     redeployment_total: int
     redeployment_rate: float
     analytics_total: int
+    classification_complete: bool
     monthly: list[RedeploymentMonthlyEntry] = field(default_factory=list)
     by_cause: dict[str, int] = field(default_factory=dict)
     by_assignee: dict[str, int] = field(default_factory=dict)

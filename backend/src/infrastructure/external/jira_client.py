@@ -167,13 +167,13 @@ class JiraClient(JiraPort, ServiceDeskPort):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return [], None
 
-    def _issues_cache_key(self, jql: str, max_results: int, fields: str) -> str:
+    def _issues_cache_key(self, jql: str, max_results: int | None, fields: str) -> str:
         return f"{jql}|{max_results}|{fields}"
 
     async def get_issues(
         self,
         jql: str,
-        max_results: int = JIRA_MAX_RESULT,
+        max_results: int | None = JIRA_MAX_RESULT,
         fields: str = "",
     ) -> list[dict[str, Any]]:
         cache_key = self._issues_cache_key(jql, max_results, fields)
@@ -183,7 +183,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
             return cached
 
         field_list = [f.strip() for f in fields.split(",") if f.strip()] if fields else None
-        page_size = min(_FETCH_PAGE_SIZE, max_results)
+        page_size = _FETCH_PAGE_SIZE if max_results is None else min(_FETCH_PAGE_SIZE, max_results)
 
         first_page, first_token = await self._fetch_page(jql, field_list, None, page_size)
         logger.info(f"JQL 첫 페이지 수신: {len(first_page)}건, nextPageToken={first_token is not None}")
@@ -192,7 +192,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
             await self._issues_cache.async_set(cache_key, [])
             return []
 
-        if len(first_page) >= max_results:
+        if max_results is not None and len(first_page) >= max_results:
             result = first_page[:max_results]
             await self._issues_cache.async_set(cache_key, result)
             return result
@@ -204,7 +204,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
 
         all_issues = list(first_page)
         next_token: str | None = first_token
-        while next_token and len(all_issues) < max_results:
+        while next_token and (max_results is None or len(all_issues) < max_results):
             page, next_token = await self._fetch_page(jql, field_list, next_token, page_size)
             all_issues.extend(page)
             logger.info(f"JQL 순차 페이지: 수신={len(page)}, 누적={len(all_issues)}")
@@ -212,7 +212,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
                 break
 
         logger.info(f"JQL 수집 완료: 총={len(all_issues)}건")
-        result = all_issues[:max_results]
+        result = all_issues if max_results is None else all_issues[:max_results]
         await self._issues_cache.async_set(cache_key, result)
         return result
 

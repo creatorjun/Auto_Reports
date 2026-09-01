@@ -26,7 +26,7 @@ class JiraPort(ABC):
     async def get_issues(
         self,
         jql: str,
-        max_results: int = MAX_RESULTS,
+        max_results: int | None = MAX_RESULTS,
         fields: str = "",
     ) -> list[dict[str, Any]]: ...
 

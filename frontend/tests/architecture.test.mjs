@@ -147,13 +147,34 @@ test('annual reports render every redeployment dashboard view', () => {
     '담당자별 재배포',
     '파트너사별 재배포 히트맵',
     '최근 완료 재배포 이슈',
-    '적용된 JQL 보기',
+    '집계 불가',
+    '원천 데이터가 기록되지 않았습니다',
   ]) {
     assert.match(section, new RegExp(label))
   }
-  assert.match(section, /jira\/dashboards\/\$\{data\.dashboard_id\}/)
+  assert.doesNotMatch(section, /dashboard_id/)
+  assert.doesNotMatch(section, /Quality analytics/)
+  assert.doesNotMatch(section, /연도 고정형 지표/)
+  assert.doesNotMatch(section, /원본 JQL과 동일하게/)
+  assert.doesNotMatch(section, /적용된 JQL 보기/)
+  assert.doesNotMatch(section, /source_jqls/)
+  assert.match(section, /classification_complete/)
   assert.match(page, /WIDGET_ID\.REDEPLOYMENT_ANALYTICS/)
-  assert.match(page, /<RedeploymentAnnualSection/)
+  assert.match(
+    page,
+    /<RedeploymentAnnualSection[\s\S]*?<SectionTitle icon={Pin} title="최근 이슈 현황"/,
+  )
+})
+
+test('w3 and w4 cards omit only the recent prefix', () => {
+  const page = fs.readFileSync(
+    path.join(source, 'presentation/pages/DashboardPage.tsx'),
+    'utf8',
+  )
+
+  assert.match(page, /label={`\$\{rangeDays\}일 생성`}/)
+  assert.match(page, /label={`\$\{rangeDays\}일 완료`}/)
+  assert.doesNotMatch(page, /label={`최근 \$\{rangeDays\}일 (?:생성|완료)`}/)
 })
 
 test('theme palette and persisted mode stay centralized in presentation', () => {

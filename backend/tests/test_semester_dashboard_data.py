@@ -5,6 +5,7 @@ import unittest
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
 from src.application.widgets.created_vs_resolved_collector import CreatedVsResolvedCollector
+from src.application.widgets.count_collector import SimpleWithDetailsCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
 from src.domain.entities.widget_data import ResolutionTypeEntry
 from src.domain.value_objects.widget_id import WidgetId
@@ -32,7 +33,9 @@ class ResolutionJira:
 
 
 class CreatedResolvedJira:
-    async def get_issues(self, jql: str, max_results: int, fields: str) -> list[dict]:
+    async def get_issues(self, jql: str, max_results: int | None, fields: str) -> list[dict]:
+        if max_results is not None:
+            raise AssertionError("w3 collection must not be capped")
         if "resolved >=" in jql:
             if "resolutiondate" not in fields:
                 raise AssertionError("resolutiondate is required")
@@ -53,6 +56,13 @@ class CreatedResolvedJira:
                 "created": "2026-02-15T09:00:00.000+0900",
             },
         }]
+
+
+class UnlimitedReviewJira:
+    async def get_issues(self, jql: str, max_results: int | None, fields: str) -> list[dict]:
+        if max_results is not None:
+            raise AssertionError("w4 collection must not be capped")
+        return []
 
 
 class SemesterDashboardDataTest(unittest.IsolatedAsyncioTestCase):
@@ -93,3 +103,13 @@ class SemesterDashboardDataTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual("2026-02-15 09:00", result.data.created_details[0].created)
         self.assertEqual("2026-07-15 12:30", result.data.resolved_details[0].resolved)
+
+    async def test_issue_review_details_can_be_collected_without_a_limit(self) -> None:
+        result = await SimpleWithDetailsCollector(
+            UnlimitedReviewJira(),
+            "이슈 리뷰 중",
+            self.queries.w4_issue_review(),
+            max_results=None,
+        ).collect()
+
+        self.assertEqual(0, result.total)

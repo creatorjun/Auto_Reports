@@ -6,7 +6,7 @@ from typing import Any
 from src.application.ports.jira_port import JiraPort
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
-from src.domain.constants import JIRA_MAX_RESULT, SUMMARY_TRUNCATE_LEN
+from src.domain.constants import REDEPLOYMENT_CLASSIFICATION_START_YEAR, SUMMARY_TRUNCATE_LEN
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import (
     RedeploymentAnalyticsWidgetData,
@@ -14,7 +14,6 @@ from src.domain.entities.widget_data import (
     RedeploymentMonthlyEntry,
 )
 
-_DASHBOARD_ID = "11218"
 _MONTH_FIELD = "customfield_12421"
 _CAUSE_FIELD = "customfield_11885"
 _PARTNER_FIELD = "customfield_10859"
@@ -30,12 +29,11 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
         resolved_jql = self._queries.w15_redeployment_resolved()
         redeployment_jql = self._queries.w15_redeployment_issues()
         analytics_jql = self._queries.w15_redeployment_analytics()
-        resolved_total, redeployment_total, issues = await asyncio.gather(
+        resolved_total, issues = await asyncio.gather(
             self._jira.get_issue_count(resolved_jql),
-            self._jira.get_issue_count(redeployment_jql),
             self._jira.get_issues(
                 f"{redeployment_jql} ORDER BY resolved DESC",
-                max_results=JIRA_MAX_RESULT,
+                max_results=None,
                 fields=(
                     "summary,issuetype,priority,resolutiondate,assignee,"
                     f"{_MONTH_FIELD},{_CAUSE_FIELD},{_PARTNER_FIELD}"
@@ -46,6 +44,7 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
         asset_labels = await self._jira.get_asset_object_labels(references)
         details = [self._to_detail(issue, asset_labels) for issue in issues]
         details.sort(key=lambda issue: issue.resolved, reverse=True)
+        redeployment_total = len(details)
         analytics_details = [issue for issue in details if issue.type in _ANALYTICS_TYPES]
         monthly = self._monthly(analytics_details, self._queries.week_end.year)
         by_cause = dict(Counter(issue.cause for issue in analytics_details).most_common())
@@ -57,11 +56,13 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
             total=redeployment_total,
             jql=redeployment_jql,
             data=RedeploymentAnalyticsWidgetData(
-                dashboard_id=_DASHBOARD_ID,
                 resolved_total=resolved_total,
                 redeployment_total=redeployment_total,
                 redeployment_rate=rate,
                 analytics_total=len(analytics_details),
+                classification_complete=(
+                    self._queries.week_end.year >= REDEPLOYMENT_CLASSIFICATION_START_YEAR
+                ),
                 monthly=monthly,
                 by_cause=by_cause,
                 by_assignee=by_assignee,
@@ -71,7 +72,6 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
                     "resolved": resolved_jql,
                     "redeployed": redeployment_jql,
                     "analytics": analytics_jql,
-                    "kpi_reference": "project = SLCQA AND issuekey = SLCQA-181",
                 },
             ),
         )

@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/annual/RedeploymentAnnualSection.tsx
-import { BarChart3, CheckCircle2, ExternalLink, Percent, RotateCcw } from 'lucide-react'
+import { AlertTriangle, BarChart3, CheckCircle2, Percent, RotateCcw } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -30,13 +30,6 @@ interface Props {
   year: number
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  resolved: '전체 해결 이슈',
-  redeployed: '해결 이슈 중 재배포',
-  analytics: '월별·원인·담당자 통계',
-  kpi_reference: '기존 KPI 표시 이슈',
-}
-
 function KpiCard({
   label,
   value,
@@ -45,7 +38,7 @@ function KpiCard({
   tone,
 }: {
   label: string
-  value: number
+  value: number | string
   unit: string
   icon: React.ReactNode
   tone: string
@@ -55,8 +48,8 @@ function KpiCard({
       <div>
         <p className="text-[12px] font-medium text-apple-light">{label}</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums text-apple-dark">
-          {value.toLocaleString('ko-KR')}
-          <span className="ml-1 text-sm font-medium text-apple-light">{unit}</span>
+          {typeof value === 'number' ? value.toLocaleString('ko-KR') : value}
+          {unit && <span className="ml-1 text-sm font-medium text-apple-light">{unit}</span>}
         </p>
       </div>
       <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone}`}>
@@ -226,26 +219,24 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
 }
 
 export default function RedeploymentAnnualSection({ data, year }: Props) {
-  const { jiraBase } = useJira()
+  const classificationComplete = data.classification_complete
   return (
     <section className="space-y-4 md:space-y-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-brand-600"><BarChart3 size={18} /><span className="text-[12px] font-semibold uppercase tracking-[0.12em]">Quality analytics</span></div>
-          <h2 className="mt-1 text-xl font-semibold text-apple-dark">{year}년 재배포 품질 지표</h2>
-          <p className="mt-1 text-ui-sm text-apple-light">Jira 대시보드의 8개 가젯을 연도 고정형 지표로 재구성했습니다.</p>
-        </div>
-        <a href={`${jiraBase}/jira/dashboards/${data.dashboard_id}`} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-1.5 text-ui-xs font-medium text-brand-600 hover:underline">원본 대시보드 <ExternalLink size={12} /></a>
+      <div className="flex items-center gap-2">
+        <BarChart3 size={18} className="text-brand-600" />
+        <h2 className="text-xl font-semibold text-apple-dark">{year}년 재배포 품질 지표</h2>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <KpiCard label="전체 해결 이슈" value={data.resolved_total} unit="건" icon={<CheckCircle2 size={21} />} tone="bg-green-50 text-green-600" />
-        <KpiCard label="재배포 이슈" value={data.redeployment_total} unit="건" icon={<RotateCcw size={21} />} tone="bg-red-50 text-red-500" />
-        <KpiCard label="재배포율" value={data.redeployment_rate} unit="%" icon={<Percent size={21} />} tone="bg-brand-50 text-brand-600" />
+        <KpiCard label="재배포 이슈" value={classificationComplete ? data.redeployment_total : '집계 불가'} unit={classificationComplete ? '건' : ''} icon={<RotateCcw size={21} />} tone="bg-red-50 text-red-500" />
+        <KpiCard label="재배포율" value={classificationComplete ? data.redeployment_rate : '집계 불가'} unit={classificationComplete ? '%' : ''} icon={<Percent size={21} />} tone="bg-brand-50 text-brand-600" />
       </div>
-      <div className="rounded-2xl border border-brand-100 bg-brand-50/70 px-4 py-3 text-ui-xs leading-5 text-brand-800">
-        원본 JQL과 동일하게 전체 해결·월별·원인·담당자 통계는 개선·인시던트·서비스 요청을 대상으로 하며, 재배포 건수와 파트너사 교차 통계는 전체 요청 유형을 대상으로 합니다.
-      </div>
-      {data.redeployment_total > 0 ? (
+      {!classificationComplete ? (
+        <div className="card flex min-h-44 flex-col items-center justify-center gap-2 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-50 text-amber-600"><AlertTriangle size={22} /></span>
+          <p className="text-ui-base font-semibold text-apple-dark">{year}년 재배포 원천 데이터가 기록되지 않았습니다</p>
+        </div>
+      ) : data.redeployment_total > 0 ? (
         <>
           <MonthlyRedeploymentChart data={data} />
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -259,20 +250,8 @@ export default function RedeploymentAnnualSection({ data, year }: Props) {
         <div className="card flex min-h-40 flex-col items-center justify-center gap-2 text-center">
           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-green-50 text-green-600"><CheckCircle2 size={22} /></span>
           <p className="text-ui-base font-semibold text-apple-dark">{year}년 재배포 이슈가 없습니다</p>
-          <p className="text-ui-xs text-apple-light">분포·파트너·최신 이슈 시각화에 표시할 데이터가 없습니다.</p>
         </div>
       )}
-      <details className="card group">
-        <summary className="cursor-pointer text-ui-sm font-semibold text-apple-dark">적용된 JQL 보기</summary>
-        <div className="mt-4 space-y-3">
-          {Object.entries(data.source_jqls).map(([key, jql]) => (
-            <div key={key}>
-              <p className="mb-1 text-ui-xs font-medium text-apple-light">{SOURCE_LABELS[key] ?? key}</p>
-              <code className="block whitespace-pre-wrap break-words rounded-xl bg-apple-gray px-3 py-2 text-[11px] leading-5 text-apple-dark">{jql}</code>
-            </div>
-          ))}
-        </div>
-      </details>
     </section>
   )
 }

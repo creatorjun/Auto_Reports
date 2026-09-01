@@ -51,7 +51,9 @@ class RedeploymentJira:
     async def get_issue_count(self, jql: str) -> int:
         return 3 if "\uc7ac\ubc30\ud3ec \uc5ec\ubd80" in jql else 10
 
-    async def get_issues(self, jql: str, max_results: int, fields: str) -> list[dict]:
+    async def get_issues(self, jql: str, max_results: int | None, fields: str) -> list[dict]:
+        if max_results is not None:
+            raise AssertionError("redeployment collection must not be capped")
         return self.issues
 
     async def get_asset_object_labels(
@@ -83,6 +85,7 @@ class RedeploymentCollectorTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(3, data.redeployment_total)
         self.assertEqual(30.0, data.redeployment_rate)
         self.assertEqual(2, data.analytics_total)
+        self.assertFalse(data.classification_complete)
         self.assertEqual(1, data.monthly[0].total)
         self.assertEqual(1, data.monthly[1].total)
         self.assertEqual({"\ubc30\ud3ec \uc2e4\uc218": 1, "\uc694\uad6c\uc0ac\ud56d \ubcc0\uacbd": 1}, data.by_cause)
@@ -90,6 +93,7 @@ class RedeploymentCollectorTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({"CVE": 1}, data.partner_matrix["\ud30c\ud2b8\ub108 B"])
         self.assertEqual(["TACEA-2", "TACEA-1"], [item.key for item in data.latest_issues])
         self.assertIn('resolved >= "2024-01-01"', data.source_jqls["redeployed"])
+        self.assertIn("cf[11819] = Y", data.source_jqls["redeployed"])
 
         restored = deserialize_widget(
             WidgetId.REDEPLOYMENT_ANALYTICS,

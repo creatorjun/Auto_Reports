@@ -1,4 +1,5 @@
 # backend/tests/test_jira_client_issue_types.py
+import json
 import unittest
 
 import httpx
@@ -7,6 +8,38 @@ from src.infrastructure.external.jira_client import JiraClient
 
 
 class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
+    async def test_unlimited_issue_search_reads_every_page(self) -> None:
+        requests: list[dict] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            payload = json.loads(request.content)
+            requests.append(payload)
+            if "nextPageToken" not in payload:
+                return httpx.Response(
+                    200,
+                    json={
+                        "issues": [{"key": f"TACEA-{index}"} for index in range(1, 101)],
+                        "nextPageToken": "page-2",
+                    },
+                )
+            return httpx.Response(200, json={"issues": [{"key": "TACEA-101"}]})
+
+        client = JiraClient("https://jira.example.com", "user", "token")
+        await client._client.aclose()
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            result = await client.get_issues(
+                "project = TACEA",
+                max_results=None,
+                fields="summary",
+            )
+        finally:
+            await client.aclose()
+
+        self.assertEqual(101, len(result))
+        self.assertEqual(2, len(requests))
+        self.assertEqual("page-2", requests[1]["nextPageToken"])
+
     async def test_returns_unique_non_subtask_project_issue_types(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             self.assertEqual("/rest/api/3/project/TACEA", request.url.path)

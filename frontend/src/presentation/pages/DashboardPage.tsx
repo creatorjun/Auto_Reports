@@ -134,8 +134,8 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label={`${reportYear} 생성`} value={w1YearlyCreated} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
         <SummaryCard label={`${reportYear} 해결`} value={w2YearlyResolved} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
-        <SummaryCard label={`최근 ${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
-        <SummaryCard label={`최근 ${rangeDays}일 완료`} value={w3Resolved} color="green" icon={SUMMARY_ICONS.weekResolved} onClick={() => setShowWeeklyResolved(true)} />
+        <SummaryCard label={`${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
+        <SummaryCard label={`${rangeDays}일 완료`} value={w3Resolved} color="green" icon={SUMMARY_ICONS.weekResolved} onClick={() => setShowWeeklyResolved(true)} />
         <SummaryCard label="이슈 리뷰 중" value={reviewTotal}  color="yellow" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
         <SummaryCard label="자료 요청 중" value={dataRequestTotal}  color="yellow" icon={SUMMARY_ICONS.dataRequest}   onClick={() => setShowDataRequest(true)}   />
         <SummaryCard label="결과 대기 중" value={resultPendingTotal}  color="yellow" icon={SUMMARY_ICONS.resultPending} onClick={() => setShowResultPending(true)} />
@@ -214,12 +214,6 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         ))}
       </div>
 
-      {redeploymentData && report.report_year != null && (
-        <Suspense fallback={<ChartFallback />}>
-          <RedeploymentAnnualSection data={redeploymentData} year={report.report_year} />
-        </Suspense>
-      )}
-
       {(hasW8 || hasW9) && (
         <div className="space-y-1">
           <SectionTitle icon={BarChart2} title="월별 이슈 현황" subtitle={semesterLabel} />
@@ -275,6 +269,11 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           </Suspense>
         </div>
       </div>
+      {redeploymentData && report.report_year != null && (
+        <Suspense fallback={<ChartFallback />}>
+          <RedeploymentAnnualSection data={redeploymentData} year={report.report_year} />
+        </Suspense>
+      )}
       <div className="space-y-1">
         <SectionTitle icon={Pin} title="최근 이슈 현황" subtitle={`최신 ${recentIssues.length}건`} />
         <Suspense fallback={<ChartFallback />}>

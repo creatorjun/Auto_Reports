@@ -88,11 +88,11 @@ export interface RedeploymentMonthlyEntry {
 }
 
 export interface RedeploymentAnalytics {
-  dashboard_id: string
   resolved_total: number
   redeployment_total: number
   redeployment_rate: number
   analytics_total: number
+  classification_complete: boolean
   monthly: RedeploymentMonthlyEntry[]
   by_cause: Record<string, number>
   by_assignee: Record<string, number>

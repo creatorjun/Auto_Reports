@@ -182,7 +182,7 @@ class ResolvedQueries:
         year = self._now.year
         return (
             f"{self._base()} AND status = Closed "
-            f"AND \"\uc7ac\ubc30\ud3ec \uc5ec\ubd80[Dropdown]\" = Y "
+            f"AND cf[11819] = Y "
             f"AND resolved >= \"{year}-01-01\" AND resolved < \"{year + 1}-01-01\""
         )
 
