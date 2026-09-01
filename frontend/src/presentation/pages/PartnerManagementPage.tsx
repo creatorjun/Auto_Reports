@@ -31,12 +31,12 @@ export default function PartnerManagementPage() {
 
   return (
     <div className="flex flex-col w-full h-full px-6 py-6 gap-4">
-      <div className="flex flex-shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="grid flex-shrink-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)_minmax(0,1fr)] sm:items-center">
         <div>
           <h1 className="text-xl font-semibold text-apple-dark">파트너 관리</h1>
           <p className="mt-1 text-xs text-apple-light">파트너사명과 직원명을 한 번에 검색할 수 있습니다.</p>
         </div>
-        <div className="w-full sm:max-w-sm">
+        <div className="w-full sm:col-start-2">
           <PartnerSearchInput value={searchQuery} onChange={handleSearchChange} />
         </div>
       </div>

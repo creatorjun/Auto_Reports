@@ -183,6 +183,7 @@ test('partner management filters organizations and members with one search query
 
   assert.match(searchInput, /파트너사 또는 직원명 검색/)
   assert.match(searchInput, /aria-label="파트너사 또는 직원명 검색"/)
+  assert.match(page, /sm:col-start-2/)
   assert.match(page, /searchQuery=\{searchQuery\}/)
   assert.match(orgPanel, /useQueries/)
   assert.match(orgPanel, /member\.display_name/)
