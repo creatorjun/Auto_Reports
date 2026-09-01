@@ -15,6 +15,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { RedeploymentAnalytics } from '@/domain/Dashboard'
+import { isDashboardExcludedIssueType } from '@/domain/DashboardIssueTypePolicy'
 import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
 import { useJira } from '@/presentation/context/JiraContext'
 import {
@@ -63,12 +64,21 @@ function KpiCard({
 }
 
 function MonthlyRedeploymentChart({ data }: { data: RedeploymentAnalytics }) {
-  const issueTypes = Array.from(new Set(data.monthly.flatMap((entry) => Object.keys(entry.by_type))))
-  const chartData = data.monthly.map((entry) => ({
-    month: entry.month,
-    total: entry.total,
-    ...entry.by_type,
-  }))
+  const issueTypes = Array.from(new Set(
+    data.monthly.flatMap((entry) => Object.keys(entry.by_type))
+      .filter((issueType) => !isDashboardExcludedIssueType(issueType)),
+  ))
+  const chartData = data.monthly.map((entry) => {
+    const byType = Object.fromEntries(
+      Object.entries(entry.by_type)
+        .filter(([issueType]) => !isDashboardExcludedIssueType(issueType)),
+    )
+    return {
+      month: entry.month,
+      total: Object.values(byType).reduce((sum, count) => sum + count, 0),
+      ...byType,
+    }
+  })
   return (
     <div className="card">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
@@ -139,7 +149,13 @@ function AssigneeChart({ values }: { values: Record<string, number> }) {
 }
 
 function PartnerMatrix({ matrix }: { matrix: Record<string, Record<string, number>> }) {
-  const partners = Object.entries(matrix)
+  const partners = Object.entries(matrix).map(([partner, counts]) => ([
+    partner,
+    Object.fromEntries(
+      Object.entries(counts)
+        .filter(([issueType]) => !isDashboardExcludedIssueType(issueType)),
+    ),
+  ] as const)).filter(([, counts]) => Object.keys(counts).length > 0)
   const issueTypes = Array.from(new Set(partners.flatMap(([, counts]) => Object.keys(counts))))
   const maxCount = Math.max(1, ...partners.flatMap(([, counts]) => Object.values(counts)))
   return (
@@ -184,9 +200,10 @@ function PartnerMatrix({ matrix }: { matrix: Record<string, Record<string, numbe
 function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
   const { jiraBrowse } = useJira()
   const [page, setPage] = useState(1)
-  const totalPages = Math.max(1, Math.ceil(data.latest_issues.length / REDEPLOYMENT_PAGE_SIZE))
+  const issues = data.latest_issues.filter((issue) => !isDashboardExcludedIssueType(issue.type))
+  const totalPages = Math.max(1, Math.ceil(issues.length / REDEPLOYMENT_PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
-  const visibleIssues = data.latest_issues.slice(
+  const visibleIssues = issues.slice(
     (currentPage - 1) * REDEPLOYMENT_PAGE_SIZE,
     currentPage * REDEPLOYMENT_PAGE_SIZE,
   )
@@ -194,9 +211,9 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
     <div className="card overflow-hidden">
       <div className="mb-4">
         <h3 className="text-ui-base font-semibold text-apple-dark">최근 완료 재배포 이슈</h3>
-        <p className="mt-0.5 text-ui-xs text-apple-light">완료 월 기준 · 총 {data.latest_issues.length.toLocaleString('ko-KR')}건</p>
+        <p className="mt-0.5 text-ui-xs text-apple-light">완료 월 기준 · 총 {issues.length.toLocaleString('ko-KR')}건</p>
       </div>
-      {data.latest_issues.length ? (
+      {issues.length ? (
         <>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse text-ui-sm">
@@ -227,7 +244,7 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
           {totalPages > 1 && (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-apple-divider pt-4">
               <span className="text-ui-xs tabular-nums text-apple-light">
-                {(currentPage - 1) * REDEPLOYMENT_PAGE_SIZE + 1}–{Math.min(currentPage * REDEPLOYMENT_PAGE_SIZE, data.latest_issues.length)} / {data.latest_issues.length}건
+                {(currentPage - 1) * REDEPLOYMENT_PAGE_SIZE + 1}–{Math.min(currentPage * REDEPLOYMENT_PAGE_SIZE, issues.length)} / {issues.length}건
               </span>
               <div className="flex flex-wrap gap-1">
                 {Array.from({ length: totalPages }).map((_, index) => {

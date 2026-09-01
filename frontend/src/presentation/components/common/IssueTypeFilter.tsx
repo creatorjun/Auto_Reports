@@ -13,10 +13,6 @@ interface Props {
   onReset: () => void
 }
 
-const ISSUE_TYPE_LABELS: Record<string, string> = {
-  '라이선스': '라이센스 요청',
-}
-
 export default function IssueTypeFilter({
   issueTypes,
   selectedTypes,
@@ -78,7 +74,7 @@ export default function IssueTypeFilter({
                     }`}>
                       {selected && <Check size={12} strokeWidth={3} aria-hidden="true" />}
                     </span>
-                    {ISSUE_TYPE_LABELS[issueType] ?? issueType}
+                    {issueType}
                   </button>
                 )
               })}

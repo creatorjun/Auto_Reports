@@ -19,7 +19,7 @@ class ReportAssemblerIssueTypesTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.query_builder = WidgetQueryBuilder(QueryConfig(
             project_key="TACEA",
-            issue_types=["기본 유형"],
+            issue_types=["기본 유형", "라이선스"],
             active_statuses=[],
             closed_statuses=["Closed"],
             sla_threshold_days=30,
@@ -30,7 +30,7 @@ class ReportAssemblerIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         captured_types: list[str] = []
 
         async def issue_type_provider() -> list[str]:
-            return ["인시던트", "H/W 장애 요청", "승인된 서비스 요청"]
+            return ["인시던트", "라이선스", "H/W 장애 요청", "승인된 서비스 요청"]
 
         def base_factory(queries, now):
             captured_types.extend(queries.issue_types)

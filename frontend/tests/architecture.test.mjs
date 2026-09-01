@@ -159,7 +159,9 @@ test('annual reports render every redeployment dashboard view', () => {
   assert.doesNotMatch(section, /적용된 JQL 보기/)
   assert.doesNotMatch(section, /source_jqls/)
   assert.match(section, /REDEPLOYMENT_PAGE_SIZE = 5/)
-  assert.match(section, /latest_issues\.slice/)
+  assert.match(section, /latest_issues\.filter/)
+  assert.match(section, /issues\.slice/)
+  assert.match(section, /isDashboardExcludedIssueType/)
   assert.match(section, /Array\.from\(\{ length: totalPages \}\)/)
   assert.match(section, /onClick=\{\(\) => setPage\(pageNumber\)\}/)
   assert.match(section, /classification_complete/)
@@ -240,7 +242,7 @@ test('partner issue rows open configured Jira tickets in a new tab', () => {
   assert.doesNotMatch(row, /issue\.(url|stage)\b/)
 })
 
-test('partner management filters organizations and members with one search query', () => {
+test('partner management filters organizations members and issues independently', () => {
   const page = fs.readFileSync(
     path.join(source, 'presentation/pages/PartnerManagementPage.tsx'),
     'utf8',
@@ -257,17 +259,34 @@ test('partner management filters organizations and members with one search query
     path.join(source, 'presentation/components/partner/PartnerMemberPanel.tsx'),
     'utf8',
   )
+  const issuePanel = fs.readFileSync(
+    path.join(source, 'presentation/components/partner/PartnerIssuePanel.tsx'),
+    'utf8',
+  )
   const partner = fs.readFileSync(path.join(source, 'domain/Partner.ts'), 'utf8')
 
-  assert.match(searchInput, /파트너사 또는 직원명 검색/)
-  assert.match(searchInput, /aria-label="파트너사 또는 직원명 검색"/)
-  assert.match(page, /sm:col-start-2/)
-  assert.match(page, /searchQuery=\{searchQuery\}/)
-  assert.match(orgPanel, /useQueries/)
-  assert.match(orgPanel, /member\.display_name/)
+  assert.match(searchInput, /placeholder: string/)
+  assert.match(searchInput, /ariaLabel: string/)
+  assert.match(searchInput, /disabled\?: boolean/)
+  assert.match(page, /organizationQuery/)
+  assert.match(page, /memberQuery/)
+  assert.match(page, /issueQuery/)
+  assert.match(page, /searchQuery=\{organizationQuery\}/)
+  assert.match(page, /searchQuery=\{memberQuery\}/)
+  assert.match(page, /searchQuery=\{issueQuery\}/)
+  assert.doesNotMatch(page, /파트너사명과 직원명을 한 번에/)
+  assert.match(orgPanel, /placeholder="파트너 조직 필터"/)
+  assert.match(orgPanel, /matchesPartnerSearch\(org\.name, normalizedQuery\)/)
+  assert.doesNotMatch(orgPanel, /useQueries|member\.display_name/)
   assert.match(orgPanel, /visibleOrgs\.map/)
+  assert.match(memberPanel, /placeholder="멤버 필터"/)
   assert.match(memberPanel, /visibleMembers\.map/)
-  assert.match(memberPanel, /matchesPartnerSearch\(orgName, normalizedQuery\)/)
+  assert.match(memberPanel, /matchesPartnerSearch\(member\.display_name, normalizedQuery\)/)
+  assert.match(memberPanel, /matchesPartnerSearch\(member\.email, normalizedQuery\)/)
+  assert.match(issuePanel, /placeholder="이슈 번호·제목 필터"/)
+  assert.match(issuePanel, /matchesPartnerSearch\(issue\.key, normalizedQuery\)/)
+  assert.match(issuePanel, /matchesPartnerSearch\(issue\.summary, normalizedQuery\)/)
+  assert.match(issuePanel, /visibleIssues\.map/)
   assert.match(partner, /normalize\('NFKC'\)/)
   assert.match(partner, /toLocaleLowerCase\('ko-KR'\)/)
 })
@@ -421,6 +440,10 @@ test('dashboard request type and semester filters drive every widget view', () =
     path.join(source, 'presentation/hooks/useDashboardData.ts'),
     'utf8',
   )
+  const issueTypePolicy = fs.readFileSync(
+    path.join(source, 'domain/DashboardIssueTypePolicy.ts'),
+    'utf8',
+  )
 
   assert.match(page, /useState<Set<string> \| null>\(null\)/)
   assert.match(page, /useState<Semester \| null>\(null\)/)
@@ -430,7 +453,9 @@ test('dashboard request type and semester filters drive every widget view', () =
   assert.match(filter, /하반기/)
   assert.match(filter, /초기화/)
   assert.doesNotMatch(filter, /ListFilter|현재 Jira에 등록된 모든 요청 유형/)
-  assert.match(filter, /'라이선스': '라이센스 요청'/)
+  assert.doesNotMatch(filter, /라이선스|라이센스/)
+  assert.match(issueTypePolicy, /'라이선스'/)
+  assert.match(issueTypePolicy, /'라이센스 요청'/)
   for (const section of [
     'yearly',
     'weekly',
@@ -450,6 +475,9 @@ test('dashboard request type and semester filters drive every widget view', () =
   assert.match(dashboardData, /dateIsInSemester/)
   assert.match(dashboardData, /sumSelectedTypes/)
   assert.match(dashboardData, /filterIssues/)
+  assert.match(dashboardData, /isDashboardExcludedIssueType/)
+  assert.match(dashboardData, /if \(!byType\) return fallback/)
+  assert.doesNotMatch(dashboardData, /!byType \|\| selectedTypes === null/)
   assert.match(dashboardData, /!controlledTypes\.has\(issueType\)/)
   assert.match(dashboardData, /always_included/)
 })

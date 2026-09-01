@@ -17,6 +17,7 @@ import type {
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
 import { WIDGET_ID } from '@/domain/WidgetId'
+import { isDashboardExcludedIssueType } from '@/domain/DashboardIssueTypePolicy'
 
 interface TypeCountData {
   issue_types?: string[]
@@ -91,7 +92,8 @@ function includesType(
   selectedTypes: ReadonlySet<string> | null,
   controlledTypes: ReadonlySet<string>,
 ): boolean {
-  return selectedTypes === null || !controlledTypes.has(issueType) || selectedTypes.has(issueType)
+  return !isDashboardExcludedIssueType(issueType)
+    && (selectedTypes === null || !controlledTypes.has(issueType) || selectedTypes.has(issueType))
 }
 
 function filterIssues<T extends { type: string }>(
@@ -118,9 +120,14 @@ function sumSelectedTypes(
   selectedTypes: ReadonlySet<string> | null,
   alwaysIncluded: number | null | undefined,
 ): number {
-  if (!byType || selectedTypes === null) return fallback
+  if (!byType) return fallback
   return Object.entries(byType).reduce(
-    (total, [issueType, count]) => total + (selectedTypes.has(issueType) ? count : 0),
+    (total, [issueType, count]) => total + (
+      !isDashboardExcludedIssueType(issueType)
+      && (selectedTypes === null || selectedTypes.has(issueType))
+        ? count
+        : 0
+    ),
     alwaysIncluded ?? 0,
   )
 }
@@ -167,7 +174,10 @@ function filterSlaMonthly(
     const stats = [
       ...(entry.always_included ? [entry.always_included] : []),
       ...Object.entries(entry.by_type)
-        .filter(([issueType]) => selectedTypes === null || selectedTypes.has(issueType))
+        .filter(([issueType]) => (
+          !isDashboardExcludedIssueType(issueType)
+          && (selectedTypes === null || selectedTypes.has(issueType))
+        ))
         .map(([, value]) => value),
     ]
     const met = stats.reduce((total, value) => total + value.met, 0)
@@ -186,7 +196,9 @@ function resolveFilterContract(report: ReportDetail) {
   const monthlyData = getData<{ monthly: MonthlyCountEntry[] }>(
     report.widgets[WIDGET_ID.MONTHLY_CREATED],
   )
-  const issueTypes = data?.issue_types?.filter(Boolean) ?? []
+  const issueTypes = data?.issue_types?.filter((issueType) => (
+    Boolean(issueType) && !isDashboardExcludedIssueType(issueType)
+  )) ?? []
   const reportYear = getReportYear(report)
   const availableMonths = new Set(
     (monthlyData?.monthly ?? [])

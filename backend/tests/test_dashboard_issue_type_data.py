@@ -18,23 +18,20 @@ from src.infrastructure.persistence.widget_serializer import deserialize_widget,
 
 class BatchCountJira:
     async def get_issue_counts_batch(self, jqls: list[str]) -> list[int]:
-        return [2 if 'issuetype = "라이선스"' in jql else 3 for jql in jqls]
+        if any('issuetype = "라이선스"' in jql for jql in jqls):
+            raise AssertionError("라이선스 유형은 분해 쿼리에 포함되면 안 됩니다")
+        return [3 for _ in jqls]
 
 
 class SlaJira:
     async def get_issues_with_sla(self, jql: str, max_results: int, extra_fields: str = "") -> list[dict]:
+        if 'issuetype != "라이선스"' not in jql:
+            raise AssertionError("라이선스 제외 조건이 필요합니다")
         return [
             {
                 "fields": {
                     "issuetype": {"name": "인시던트"},
                     "_sla_initial": {"completedCycles": [{"breached": False}]},
-                    "_sla_resolution": {"completedCycles": [{"breached": False}]},
-                },
-            },
-            {
-                "fields": {
-                    "issuetype": {"name": "라이선스"},
-                    "_sla_initial": {"completedCycles": [{"breached": True}]},
                     "_sla_resolution": {"completedCycles": [{"breached": False}]},
                 },
             },
@@ -61,7 +58,7 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
         self.now = datetime.datetime(2026, 8, 21)
         self.queries = WidgetQueryBuilder(config).build(self.now)
 
-    async def test_yearly_counts_keep_every_issue_type(self) -> None:
+    async def test_yearly_counts_exclude_license_requests(self) -> None:
         jql = self.queries.w1_yearly_created()
         collector = TypeCountCollector(
             BatchCountJira(),
@@ -73,10 +70,10 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
 
         result = await collector.collect()
 
-        self.assertEqual(8, result.total)
+        self.assertEqual(6, result.total)
         self.assertIsInstance(result.data, TypeCountWidgetData)
-        self.assertEqual(["인시던트", "라이선스"], result.data.issue_types)
-        self.assertEqual({"인시던트": 3, "라이선스": 2}, result.data.by_type)
+        self.assertEqual(["인시던트"], result.data.issue_types)
+        self.assertEqual({"인시던트": 3}, result.data.by_type)
         self.assertEqual(3, result.data.always_included)
 
         restored = deserialize_widget(
@@ -100,11 +97,11 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
             created.data.monthly[-1].year,
             created.data.monthly[-1].month_num,
         ))
-        self.assertEqual(8, first_created.count)
-        self.assertEqual({"인시던트": 3, "라이선스": 2}, first_created.by_type)
+        self.assertEqual(6, first_created.count)
+        self.assertEqual({"인시던트": 3}, first_created.by_type)
         self.assertEqual(3, first_created.always_included)
-        self.assertEqual(8, first_resolved.count)
-        self.assertEqual({"인시던트": 3, "라이선스": 2}, first_resolved.by_type)
+        self.assertEqual(6, first_resolved.count)
+        self.assertEqual({"인시던트": 3}, first_resolved.by_type)
         self.assertEqual(3, first_resolved.always_included)
 
         restored = deserialize_widget(
@@ -132,14 +129,8 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
             initial_entry.by_type["인시던트"].met,
             initial_entry.by_type["인시던트"].total,
         ))
-        self.assertEqual((0, 1), (
-            initial_entry.by_type["라이선스"].met,
-            initial_entry.by_type["라이선스"].total,
-        ))
-        self.assertEqual((1, 1), (
-            resolution_entry.by_type["라이선스"].met,
-            resolution_entry.by_type["라이선스"].total,
-        ))
+        self.assertNotIn("라이선스", initial_entry.by_type)
+        self.assertNotIn("라이선스", resolution_entry.by_type)
         self.assertEqual((1, 1), (
             initial_entry.always_included.met,
             initial_entry.always_included.total,
@@ -153,7 +144,6 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
             WidgetId.SLA_INITIAL_RESPONSE,
             serialize_widget(initial),
         )
-        restored_stats = restored.data.monthly[0].by_type["라이선스"]
-        self.assertEqual((0, 1), (restored_stats.met, restored_stats.total))
+        self.assertNotIn("라이선스", restored.data.monthly[0].by_type)
         restored_always = restored.data.monthly[0].always_included
         self.assertEqual((1, 1), (restored_always.met, restored_always.total))

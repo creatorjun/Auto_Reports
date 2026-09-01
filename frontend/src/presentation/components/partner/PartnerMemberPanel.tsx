@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import PartnerPanelHeader from './PartnerPanelHeader'
+import PartnerSearchInput from './PartnerSearchInput'
 import {
   matchesPartnerSearch,
   normalizePartnerSearch,
@@ -13,12 +14,14 @@ export default function PartnerMemberPanel({
   orgName,
   selectedAccountId,
   searchQuery,
+  onSearchChange,
   onSelect,
 }: {
   orgId: string | null
   orgName: string
   selectedAccountId: string | null
   searchQuery: string
+  onSearchChange: (value: string) => void
   onSelect: (member: PartnerMember | null) => void
 }) {
   const { partners } = useApplicationServices()
@@ -29,17 +32,26 @@ export default function PartnerMemberPanel({
     staleTime: 5 * 60_000,
   })
   const normalizedQuery = normalizePartnerSearch(searchQuery)
-  const organizationMatches = normalizedQuery.length > 0
-    && matchesPartnerSearch(orgName, normalizedQuery)
-  const filterMembers = normalizedQuery.length > 0 && !organizationMatches
-  const visibleMembers = filterMembers
-    ? members.filter((member) => matchesPartnerSearch(member.display_name, normalizedQuery))
+  const visibleMembers = normalizedQuery
+    ? members.filter((member) => (
+        matchesPartnerSearch(member.display_name, normalizedQuery)
+        || matchesPartnerSearch(member.email, normalizedQuery)
+      ))
     : members
 
   if (!orgId) {
     return (
       <div className="flex flex-col h-full">
         <PartnerPanelHeader title="멤버" />
+        <div className="border-b border-apple-divider px-3 py-2.5">
+          <PartnerSearchInput
+            value={searchQuery}
+            onChange={onSearchChange}
+            placeholder="멤버 필터"
+            ariaLabel="멤버 필터"
+            disabled
+          />
+        </div>
         <div className="flex-1 flex items-center justify-center">
           <p className="text-sm text-apple-light">← 조직을 선택하세요</p>
         </div>
@@ -50,8 +62,16 @@ export default function PartnerMemberPanel({
   return (
     <div className="flex flex-col h-full">
       <PartnerPanelHeader title={orgName} count={visibleMembers.length} loading={isLoading} />
+      <div className="border-b border-apple-divider px-3 py-2.5">
+        <PartnerSearchInput
+          value={searchQuery}
+          onChange={onSearchChange}
+          placeholder="멤버 필터"
+          ariaLabel="멤버 필터"
+        />
+      </div>
       <div className="flex-1 overflow-y-auto">
-        {!filterMembers && (
+        {!normalizedQuery && (
           <button
             onClick={() => onSelect(null)}
             className={[
@@ -88,7 +108,7 @@ export default function PartnerMemberPanel({
         ))}
         {!isLoading && visibleMembers.length === 0 && (
           <p className="px-4 py-6 text-sm text-apple-light text-center">
-            {filterMembers ? '검색 결과 없음' : '멤버 없음'}
+            {normalizedQuery ? '검색 결과 없음' : '멤버 없음'}
           </p>
         )}
       </div>
