@@ -5,8 +5,10 @@ import os
 import shutil
 import uuid
 import zipfile
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from functools import lru_cache
+from typing import AsyncIterator
 
 import aiofiles
 from src.application.ports.storage_port import AsyncBinaryReader, StorageEntry, StoragePort
@@ -21,7 +23,7 @@ class LocalStorageAdapter(StoragePort):
     def __init__(self, base_dir: str) -> None:
         self._base = os.path.realpath(base_dir)
         os.makedirs(self._base, exist_ok=True)
-        self._path_locks: dict[str, asyncio.Lock] = {}
+        self._path_locks: dict[str, tuple[asyncio.Lock, int]] = {}
         self._meta_lock = asyncio.Lock()
         self._archive_dir = os.path.join(self._base, _ARCHIVE_DIR_NAME)
         shutil.rmtree(self._archive_dir, ignore_errors=True)
@@ -62,11 +64,26 @@ class LocalStorageAdapter(StoragePort):
             entries.append((name, path))
         return entries
 
-    async def _get_path_lock(self, dest: str) -> asyncio.Lock:
+    @asynccontextmanager
+    async def _path_lock(self, dest: str) -> AsyncIterator[None]:
         async with self._meta_lock:
-            if dest not in self._path_locks:
-                self._path_locks[dest] = asyncio.Lock()
-            return self._path_locks[dest]
+            lock, references = self._path_locks.get(dest, (asyncio.Lock(), 0))
+            self._path_locks[dest] = (lock, references + 1)
+        acquired = False
+        try:
+            await lock.acquire()
+            acquired = True
+            yield
+        finally:
+            if acquired:
+                lock.release()
+            async with self._meta_lock:
+                current = self._path_locks.get(dest)
+                if current is not None and current[0] is lock:
+                    if current[1] <= 1:
+                        self._path_locks.pop(dest, None)
+                    else:
+                        self._path_locks[dest] = (lock, current[1] - 1)
 
     def list_entries(self, folder: str) -> list[StorageEntry]:
         dir_path = self._resolve(folder)
@@ -187,8 +204,7 @@ class LocalStorageAdapter(StoragePort):
     async def save_file(self, folder: str, filename: str, data: bytes) -> StorageEntry:
         dest = self._resolve(folder, filename)
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        path_lock = await self._get_path_lock(dest)
-        async with path_lock:
+        async with self._path_lock(dest):
             async with aiofiles.open(dest, "wb") as f:
                 await f.write(data)
             stat = os.stat(dest)
@@ -202,8 +218,7 @@ class LocalStorageAdapter(StoragePort):
     async def save_file_streaming(self, folder: str, filename: str, upload: AsyncBinaryReader) -> StorageEntry:
         dest = self._resolve(folder, filename)
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        path_lock = await self._get_path_lock(dest)
-        async with path_lock:
+        async with self._path_lock(dest):
             async with aiofiles.open(dest, "wb") as f:
                 while chunk := await upload.read(CHUNK_SIZE):
                     await f.write(chunk)

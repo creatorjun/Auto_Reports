@@ -124,3 +124,12 @@ class Site:
     access_credentials:  Optional[AccessCredentials] = None
     created_at:          datetime                    = field(default_factory=_utc_now)
     updated_at:          datetime                    = field(default_factory=_utc_now)
+
+
+@dataclass(frozen=True)
+class SiteSummary:
+    id:                int
+    site_name:         str
+    customer_name:     Optional[str] = None
+    status:            Optional[SiteStatus] = None
+    contract_end_date: Optional[date] = None

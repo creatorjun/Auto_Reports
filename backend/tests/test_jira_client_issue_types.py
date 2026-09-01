@@ -1,4 +1,5 @@
 # backend/tests/test_jira_client_issue_types.py
+import asyncio
 import json
 import unittest
 
@@ -8,6 +9,37 @@ from src.infrastructure.external.jira_client import JiraClient
 
 
 class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
+    async def test_concurrent_identical_queries_share_inflight_requests(self) -> None:
+        requests = {"issues": 0, "counts": 0}
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/search/jql"):
+                requests["issues"] += 1
+                await asyncio.sleep(0.01)
+                return httpx.Response(200, json={"issues": [{"key": "TACEA-1"}]})
+            requests["counts"] += 1
+            await asyncio.sleep(0.01)
+            return httpx.Response(200, json={"count": 7})
+
+        client = JiraClient("https://jira.example.com", "user", "token")
+        await client._client.aclose()
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            issue_results = await asyncio.gather(*(
+                client.get_issues("project = TACEA", fields="summary")
+                for _ in range(20)
+            ))
+            count_results = await asyncio.gather(*(
+                client.get_issue_count("project = TACEA")
+                for _ in range(20)
+            ))
+        finally:
+            await client.aclose()
+
+        self.assertTrue(all(result == [{"key": "TACEA-1"}] for result in issue_results))
+        self.assertEqual([7] * 20, count_results)
+        self.assertEqual({"issues": 1, "counts": 1}, requests)
+
     async def test_unlimited_issue_search_reads_every_page(self) -> None:
         requests: list[dict] = []
 

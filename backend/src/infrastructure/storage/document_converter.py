@@ -60,6 +60,6 @@ class LibreOfficeDocumentConverter(DocumentConverterPort):
             _log.error("libreoffice exited 0 but pdf not found: %s", error_text)
             raise RuntimeError("PDF conversion failed: output file not found")
         try:
-            return converted.read_bytes()
+            return await asyncio.to_thread(converted.read_bytes)
         finally:
             converted.unlink(missing_ok=True)

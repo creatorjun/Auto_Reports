@@ -1,4 +1,5 @@
 # backend/tests/test_local_storage.py
+import asyncio
 import os
 import pathlib
 import sys
@@ -119,3 +120,15 @@ class LocalStorageMoveTest(unittest.TestCase):
             self.storage.delete_entries("", ["summary.txt", "missing.txt"])
 
         self.assertTrue(os.path.exists(source))
+
+
+class LocalStorageConcurrencyTest(unittest.IsolatedAsyncioTestCase):
+    async def test_completed_uploads_release_path_locks(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            storage = LocalStorageAdapter(temp_dir)
+            await asyncio.gather(*(
+                storage.save_file("", f"report-{index}.txt", b"content")
+                for index in range(200)
+            ))
+
+            self.assertEqual({}, storage._path_locks)

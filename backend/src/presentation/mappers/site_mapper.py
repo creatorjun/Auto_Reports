@@ -6,6 +6,7 @@ from src.domain.entities.site import (
     DeploymentNode,
     PatchHistory,
     Site,
+    SiteSummary,
     VisitHistory,
 )
 from src.presentation.schemas.site_schema import (
@@ -119,11 +120,11 @@ def site_to_response(site: Site) -> SiteResponse:
     )
 
 
-def site_to_summary(site: Site) -> SiteSummaryResponse:
+def site_to_summary(site: SiteSummary) -> SiteSummaryResponse:
     return SiteSummaryResponse(
         id=site.id,
         site_name=site.site_name,
-        customer_name=site.customer_contact.name if site.customer_contact else None,
+        customer_name=site.customer_name,
         status=site.status.value if site.status else None,
         contract_end_date=site.contract_end_date,
     )

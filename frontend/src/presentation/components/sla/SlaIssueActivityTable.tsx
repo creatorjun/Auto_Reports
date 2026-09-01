@@ -13,6 +13,24 @@ import type {
   SlaDashboardIssue,
 } from '@/domain/SlaDashboard'
 
+const SLA_DESKTOP_MEDIA_QUERY = '(min-width: 1280px)'
+
+function useIsDesktopSlaLayout(): boolean {
+  const [isDesktop, setIsDesktop] = useState(
+    () => window.matchMedia(SLA_DESKTOP_MEDIA_QUERY).matches,
+  )
+
+  useEffect(() => {
+    const media = window.matchMedia(SLA_DESKTOP_MEDIA_QUERY)
+    const update = (event: MediaQueryListEvent) => setIsDesktop(event.matches)
+    setIsDesktop(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  return isDesktop
+}
+
 function CommentImage({
   issueKey,
   commentId,
@@ -259,6 +277,7 @@ function MobileIssueCard({
 
 export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboardIssue[] }) {
   const { jiraBase } = useJira()
+  const isDesktopLayout = useIsDesktopSlaLayout()
   const [page, setPage] = useState(1)
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(() => new Set())
   const totalPages = Math.max(1, Math.ceil(issues.length / TABLE_PAGE_SIZE))
@@ -281,41 +300,43 @@ export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboard
 
   return (
     <div className="overflow-hidden rounded-2xl border border-apple-divider/70 bg-apple-surface shadow-apple">
-      <div className="hidden overflow-x-auto xl:block">
-        <table className="w-full min-w-[900px] border-collapse">
-          <thead className="bg-apple-gray/70">
-            <tr className="border-b border-apple-divider/70">
-              <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">티켓 번호</th>
-              <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">티켓 제목</th>
-              <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">생성일</th>
-              <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">진행상태</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageItems.map((issue) => (
-              <DesktopIssueRow
-                key={issue.key}
-                issue={issue}
-                expanded={!collapsedKeys.has(issue.key)}
-                onToggle={() => toggleIssue(issue.key)}
-                jiraBase={jiraBase}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="divide-y divide-apple-divider/40 xl:hidden">
-        {pageItems.map((issue) => (
-          <MobileIssueCard
-            key={issue.key}
-            issue={issue}
-            expanded={!collapsedKeys.has(issue.key)}
-            onToggle={() => toggleIssue(issue.key)}
-            jiraBase={jiraBase}
-          />
-        ))}
-      </div>
+      {isDesktopLayout ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] border-collapse">
+            <thead className="bg-apple-gray/70">
+              <tr className="border-b border-apple-divider/70">
+                <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">티켓 번호</th>
+                <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">티켓 제목</th>
+                <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">생성일</th>
+                <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">진행상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageItems.map((issue) => (
+                <DesktopIssueRow
+                  key={issue.key}
+                  issue={issue}
+                  expanded={!collapsedKeys.has(issue.key)}
+                  onToggle={() => toggleIssue(issue.key)}
+                  jiraBase={jiraBase}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="divide-y divide-apple-divider/40">
+          {pageItems.map((issue) => (
+            <MobileIssueCard
+              key={issue.key}
+              issue={issue}
+              expanded={!collapsedKeys.has(issue.key)}
+              onToggle={() => toggleIssue(issue.key)}
+              jiraBase={jiraBase}
+            />
+          ))}
+        </div>
+      )}
 
       {totalPages > 1 && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-apple-divider/70 px-4 py-3 md:px-5">

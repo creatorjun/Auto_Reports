@@ -3,14 +3,14 @@ from dataclasses import replace
 
 from src.application.errors import EntityNotFoundError
 from src.application.ports.site_repository import SiteRepository
-from src.domain.entities.site import DeploymentNode, PatchHistory, Site, VisitHistory
+from src.domain.entities.site import DeploymentNode, PatchHistory, Site, SiteSummary, VisitHistory
 
 
 class SiteUseCase:
     def __init__(self, repository: SiteRepository) -> None:
         self._repo = repository
 
-    async def get_all(self) -> list[Site]:
+    async def get_all(self) -> list[SiteSummary]:
         return await self._repo.get_all()
 
     async def get_by_id(self, site_id: int) -> Site | None:
@@ -29,10 +29,10 @@ class SiteUseCase:
     async def delete(self, site_id: int) -> bool:
         return await self._repo.delete(site_id)
 
-    async def search(self, query: str, limit: int = 10) -> list[Site]:
+    async def search(self, query: str, limit: int = 10) -> list[SiteSummary]:
         return await self._repo.search(query, limit)
 
-    async def get_recent(self, limit: int = 5) -> list[Site]:
+    async def get_recent(self, limit: int = 5) -> list[SiteSummary]:
         return await self._repo.get_recent(limit)
 
     async def add_node(self, site_id: int, node: DeploymentNode) -> Site:

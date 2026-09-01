@@ -560,8 +560,11 @@ test('portrait displays use the compact navigation and SLA card layout', () => {
   assert.match(header, /xl:hidden/)
   assert.match(header, /xl:flex/)
   assert.match(mobileTabs, /xl:hidden/)
-  assert.match(table, /overflow-x-auto xl:block/)
-  assert.match(table, /divide-y[^\n]+xl:hidden/)
+  assert.match(table, /SLA_DESKTOP_MEDIA_QUERY = '\(min-width: 1280px\)'/)
+  assert.match(table, /window\.matchMedia\(SLA_DESKTOP_MEDIA_QUERY\)/)
+  assert.match(table, /\{isDesktopLayout \? \(/)
+  assert.doesNotMatch(table, /hidden overflow-x-auto xl:block/)
+  assert.doesNotMatch(table, /divide-y[^\n]+xl:hidden/)
 })
 
 test('site management uses the available width across responsive breakpoints', () => {

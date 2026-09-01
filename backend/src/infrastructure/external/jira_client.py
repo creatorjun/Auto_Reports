@@ -117,24 +117,20 @@ class JiraClient(JiraPort, ServiceDeskPort):
         return list(dict.fromkeys(name for name in names if name))
 
     async def get_issue_count(self, jql: str) -> int:
-        cached = await self._count_cache.async_get(jql)
-        if cached is not None:
-            logger.debug(f"[cache-hit] count: {jql[:60]}")
-            return cached
+        async def fetch(_: str) -> int:
+            url = f"{self._base_url}/rest/api/3/search/approximate-count"
+            try:
+                resp = await self._client.post(url, json={"jql": jql})
+                resp.raise_for_status()
+                return int(resp.json().get("count", 0))
+            except httpx.HTTPError as e:
+                logger.error(f"JQL 카운트 실패: {jql[:80]}... -> {e}")
+                if isinstance(e, httpx.HTTPStatusError):
+                    logger.error(f"응답 상세: {e.response.text[:200]}")
+                return 0
 
-        url = f"{self._base_url}/rest/api/3/search/approximate-count"
-        try:
-            resp = await self._client.post(url, json={"jql": jql})
-            resp.raise_for_status()
-            count = resp.json().get("count", 0)
-        except httpx.HTTPError as e:
-            logger.error(f"JQL 카운트 실패: {jql[:80]}... -> {e}")
-            if isinstance(e, httpx.HTTPStatusError):
-                logger.error(f"응답 상세: {e.response.text[:200]}")
-            count = 0
-
-        await self._count_cache.async_set(jql, count)
-        return count
+        count = await self._count_cache.async_get(jql, refresh_fn=fetch)
+        return count if count is not None else 0
 
     async def get_issue_counts_batch(self, jqls: list[str]) -> list[int]:
         return list(await asyncio.gather(*[self.get_issue_count(jql) for jql in jqls]))
@@ -177,11 +173,18 @@ class JiraClient(JiraPort, ServiceDeskPort):
         fields: str = "",
     ) -> list[dict[str, Any]]:
         cache_key = self._issues_cache_key(jql, max_results, fields)
-        cached = await self._issues_cache.async_get(cache_key)
-        if cached is not None:
-            logger.debug(f"[cache-hit] issues: {jql[:60]}")
-            return cached
+        issues = await self._issues_cache.async_get(
+            cache_key,
+            refresh_fn=lambda _: self._load_issues(jql, max_results, fields),
+        )
+        return issues if issues is not None else []
 
+    async def _load_issues(
+        self,
+        jql: str,
+        max_results: int | None,
+        fields: str,
+    ) -> list[dict[str, Any]]:
         field_list = [f.strip() for f in fields.split(",") if f.strip()] if fields else None
         page_size = _FETCH_PAGE_SIZE if max_results is None else min(_FETCH_PAGE_SIZE, max_results)
 
@@ -189,17 +192,13 @@ class JiraClient(JiraPort, ServiceDeskPort):
         logger.info(f"JQL 첫 페이지 수신: {len(first_page)}건, nextPageToken={first_token is not None}")
 
         if not first_page:
-            await self._issues_cache.async_set(cache_key, [])
             return []
 
         if max_results is not None and len(first_page) >= max_results:
-            result = first_page[:max_results]
-            await self._issues_cache.async_set(cache_key, result)
-            return result
+            return first_page[:max_results]
 
         if first_token is None:
             logger.info(f"JQL 단일 페이지 완료: {len(first_page)}건 (nextPageToken 없음)")
-            await self._issues_cache.async_set(cache_key, first_page)
             return first_page
 
         all_issues = list(first_page)
@@ -212,9 +211,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
                 break
 
         logger.info(f"JQL 수집 완료: 총={len(all_issues)}건")
-        result = all_issues if max_results is None else all_issues[:max_results]
-        await self._issues_cache.async_set(cache_key, result)
-        return result
+        return all_issues if max_results is None else all_issues[:max_results]
 
     async def get_issues_with_sla(
         self,

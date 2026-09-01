@@ -18,6 +18,7 @@ from src.domain.entities.site import (
     PatchResultStatus,
     PatchType,
     Site,
+    SiteSummary,
     SiteStatus,
     VisitHistory,
 )
@@ -69,14 +70,33 @@ class SiteRepositoryImpl(SiteRepository):
             return value
         return self._enc.decrypt(value)
 
-    async def get_all(self) -> list[Site]:
+    @staticmethod
+    def _summary_columns():
+        return (
+            SiteORM.id,
+            SiteORM.site_name,
+            SiteORM.customer_name,
+            SiteORM.status,
+            SiteORM.contract_end_date,
+        )
+
+    @staticmethod
+    def _to_summary(row) -> SiteSummary:
+        return SiteSummary(
+            id=row.id,
+            site_name=row.site_name,
+            customer_name=row.customer_name,
+            status=_safe_enum(SiteStatus, row.status),
+            contract_end_date=row.contract_end_date,
+        )
+
+    async def get_all(self) -> list[SiteSummary]:
         result = await self._session.execute(
-            select(SiteORM)
-            .options(*self._opts())
+            select(*self._summary_columns())
             .order_by(SiteORM.site_name)
             .limit(_GET_ALL_LIMIT)
         )
-        return [self._to_domain(orm) for orm in result.scalars().all()]
+        return [self._to_summary(row) for row in result.all()]
 
     async def get_by_id(self, site_id: int) -> Optional[Site]:
         result = await self._session.execute(
@@ -129,22 +149,21 @@ class SiteRepositoryImpl(SiteRepository):
         await self._session.flush()
         return True
 
-    async def search(self, query: str, limit: int = 10) -> list[Site]:
+    async def search(self, query: str, limit: int = 10) -> list[SiteSummary]:
         normalized = query.strip().lower()
         result = await self._session.execute(
-            select(SiteORM)
+            select(*self._summary_columns())
             .where(func.lower(func.trim(SiteORM.site_name)).contains(normalized))
-            .options(*self._opts())
             .order_by(SiteORM.site_name)
             .limit(limit)
         )
-        return [self._to_domain(orm) for orm in result.scalars().all()]
+        return [self._to_summary(row) for row in result.all()]
 
-    async def get_recent(self, limit: int = 5) -> list[Site]:
+    async def get_recent(self, limit: int = 5) -> list[SiteSummary]:
         result = await self._session.execute(
-            select(SiteORM).options(*self._opts()).order_by(SiteORM.updated_at.desc()).limit(limit)
+            select(*self._summary_columns()).order_by(SiteORM.updated_at.desc()).limit(limit)
         )
-        return [self._to_domain(orm) for orm in result.scalars().all()]
+        return [self._to_summary(row) for row in result.all()]
 
     async def find_by_id(self, site_id: int) -> Optional[Site]:
         return await self.get_by_id(site_id)
@@ -285,12 +304,14 @@ class SiteRepositoryImpl(SiteRepository):
         orm.contract_type               = site.contract_type.value if site.contract_type else None
         orm.status                      = site.status.value if site.status else None
 
+        existing_nodes = list(orm.nodes or [])
+        nodes_by_id = {node.id: node for node in existing_nodes if node.id is not None}
         incoming_node_ids = {n.id for n in site.nodes if n.id is not None}
-        for n in list(orm.nodes or []):
+        for n in existing_nodes:
             if n.id not in incoming_node_ids:
                 await self._session.delete(n)
         for n in site.nodes:
-            node_orm = next((x for x in (orm.nodes or []) if x.id == n.id), None) if n.id else None
+            node_orm = nodes_by_id.get(n.id) if n.id is not None else None
             if node_orm is None:
                 node_orm = DeploymentNodeORM(site=orm)
                 if orm.nodes is None:
@@ -309,12 +330,14 @@ class SiteRepositoryImpl(SiteRepository):
             node_orm.disk_updated_at = n.disk_updated_at
             node_orm.pkg_version     = n.pkg_version
 
+        existing_patches = list(orm.patch_histories or [])
+        patches_by_id = {patch.id: patch for patch in existing_patches if patch.id is not None}
         incoming_patch_ids = {p.id for p in site.patch_histories if p.id is not None}
-        for p in list(orm.patch_histories or []):
+        for p in existing_patches:
             if p.id not in incoming_patch_ids:
                 await self._session.delete(p)
         for p in site.patch_histories:
-            patch_orm = next((x for x in (orm.patch_histories or []) if x.id == p.id), None) if p.id else None
+            patch_orm = patches_by_id.get(p.id) if p.id is not None else None
             if patch_orm is None:
                 patch_orm = PatchHistoryORM(site=orm)
                 if orm.patch_histories is None:
@@ -329,12 +352,14 @@ class SiteRepositoryImpl(SiteRepository):
             patch_orm.rollback_date   = p.rollback_date
             patch_orm.note            = p.note
 
+        existing_visits = list(orm.visit_histories or [])
+        visits_by_id = {visit.id: visit for visit in existing_visits if visit.id is not None}
         incoming_visit_ids = {v.id for v in site.visit_histories if v.id is not None}
-        for v in list(orm.visit_histories or []):
+        for v in existing_visits:
             if v.id not in incoming_visit_ids:
                 await self._session.delete(v)
         for v in site.visit_histories:
-            visit_orm = next((x for x in (orm.visit_histories or []) if x.id == v.id), None) if v.id else None
+            visit_orm = visits_by_id.get(v.id) if v.id is not None else None
             if visit_orm is None:
                 visit_orm = VisitHistoryORM(site=orm)
                 if orm.visit_histories is None:
