@@ -115,7 +115,8 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
                 str(partner.get("objectId") or ""),
             )
             if all(reference):
-                partners.append(asset_labels.get(reference, f"\ud30c\ud2b8\ub108 \uac1d\uccb4 {reference[1]}"))
+                partner_name = asset_labels.get(reference, f"\ud30c\ud2b8\ub108 \uac1d\uccb4 {reference[1]}")
+                partners.append("\uc2dc\ud050\ub808\uc774\uc5b4" if partner_name == "\ubbf8\uc9c0\uc815" else partner_name)
         return RedeploymentIssueDetail(
             key=str(issue.get("key") or ""),
             summary=str(fields.get("summary") or "")[:SUMMARY_TRUNCATE_LEN],
@@ -128,7 +129,7 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
                 "\ubbf8\uc9c0\uc815",
             ),
             assignee=str((fields.get("assignee") or {}).get("displayName") or "\ubbf8\uc9c0\uc815"),
-            partners=list(dict.fromkeys(partners)) or ["\ubbf8\uc9c0\uc815"],
+            partners=list(dict.fromkeys(partners)) or ["\uc2dc\ud050\ub808\uc774\uc5b4"],
         )
 
     @staticmethod

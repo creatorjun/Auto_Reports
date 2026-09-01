@@ -67,6 +67,36 @@ class RedeploymentJira:
 
 
 class RedeploymentCollectorTest(unittest.IsolatedAsyncioTestCase):
+    def test_maps_unassigned_partner_to_seculayer(self) -> None:
+        empty_partner_issue = issue(
+            "TACEA-4",
+            "\uac1c\uc120",
+            "2026-08-20T10:00:00.000+0900",
+            "2026-08",
+            "\uae30\ud0c0",
+            "\ub2f4\ub2f9\uc790 D",
+            "4",
+        )
+        empty_partner_issue["fields"]["customfield_10859"] = []
+        unassigned_label_issue = issue(
+            "TACEA-5",
+            "\uac1c\uc120",
+            "2026-08-21T10:00:00.000+0900",
+            "2026-08",
+            "\uae30\ud0c0",
+            "\ub2f9\ub2f9\uc790 E",
+            "5",
+        )
+
+        empty_detail = RedeploymentAnalyticsCollector._to_detail(empty_partner_issue, {})
+        label_detail = RedeploymentAnalyticsCollector._to_detail(
+            unassigned_label_issue,
+            {("workspace", "5"): "\ubbf8\uc9c0\uc815"},
+        )
+
+        self.assertEqual(["\uc2dc\ud050\ub808\uc774\uc5b4"], empty_detail.partners)
+        self.assertEqual(["\uc2dc\ud050\ub808\uc774\uc5b4"], label_detail.partners)
+
     async def test_collects_every_dashboard_view_with_year_fixed_jql(self) -> None:
         config = QueryConfig(
             project_key="TACEA",
