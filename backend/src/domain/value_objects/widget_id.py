@@ -17,3 +17,4 @@ class WidgetId(StrEnum):
     SLA_MET_VS_VIOLATED    = "w12"
     SLA_DELAY_REASON       = "w13"
     AVG_RESOLUTION_TYPE    = "w14"
+    REDEPLOYMENT_ANALYTICS = "w15"

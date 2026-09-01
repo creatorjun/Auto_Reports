@@ -128,6 +128,34 @@ test('annual report menus and refresh policy stay explicit', () => {
   assert.match(reportHook, /refetchInterval: refreshable \? REPORT_REFRESH_INTERVAL_MS : false/)
 })
 
+test('annual reports render every redeployment dashboard view', () => {
+  const section = fs.readFileSync(
+    path.join(source, 'presentation/components/annual/RedeploymentAnnualSection.tsx'),
+    'utf8',
+  )
+  const page = fs.readFileSync(
+    path.join(source, 'presentation/pages/DashboardPage.tsx'),
+    'utf8',
+  )
+
+  for (const label of [
+    '전체 해결 이슈',
+    '재배포 이슈',
+    '재배포율',
+    '월별 재배포 추이',
+    '재배포 원인',
+    '담당자별 재배포',
+    '파트너사별 재배포 히트맵',
+    '최근 완료 재배포 이슈',
+    '적용된 JQL 보기',
+  ]) {
+    assert.match(section, new RegExp(label))
+  }
+  assert.match(section, /jira\/dashboards\/\$\{data\.dashboard_id\}/)
+  assert.match(page, /WIDGET_ID\.REDEPLOYMENT_ANALYTICS/)
+  assert.match(page, /<RedeploymentAnnualSection/)
+})
+
 test('theme palette and persisted mode stay centralized in presentation', () => {
   const palette = fs.readFileSync(
     path.join(source, 'presentation/styles/palette.css'),
@@ -238,6 +266,7 @@ test('dashboard widget ids follow first render order', () => {
     ['SLA_MET_VS_VIOLATED', 'w12'],
     ['SLA_DELAY_REASON', 'w13'],
     ['AVG_RESOLUTION_TYPE', 'w14'],
+    ['REDEPLOYMENT_ANALYTICS', 'w15'],
   ])
 
   for (const relative of [

@@ -234,3 +234,40 @@ class MonthlyCountEntry:
 @dataclass
 class MonthlyCountWidgetData:
     monthly: list[MonthlyCountEntry] = field(default_factory=list)
+
+
+@dataclass
+class RedeploymentIssueDetail:
+    key: str
+    summary: str
+    type: str
+    priority: str
+    resolved: str
+    month: str
+    cause: str
+    assignee: str
+    partners: list[str] = field(default_factory=list)
+
+
+@dataclass
+class RedeploymentMonthlyEntry:
+    month: str
+    year: int
+    month_num: int
+    total: int
+    by_type: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
+class RedeploymentAnalyticsWidgetData:
+    dashboard_id: str
+    resolved_total: int
+    redeployment_total: int
+    redeployment_rate: float
+    analytics_total: int
+    monthly: list[RedeploymentMonthlyEntry] = field(default_factory=list)
+    by_cause: dict[str, int] = field(default_factory=dict)
+    by_assignee: dict[str, int] = field(default_factory=dict)
+    partner_matrix: dict[str, dict[str, int]] = field(default_factory=dict)
+    latest_issues: list[RedeploymentIssueDetail] = field(default_factory=list)
+    source_jqls: dict[str, str] = field(default_factory=dict)

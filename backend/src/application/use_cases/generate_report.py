@@ -46,11 +46,12 @@ class GenerateReportUseCase:
         now = now or datetime.now(tz=KST)
         logger.info(f"\ubcf4\uace0\uc11c \uc0dd\uc131 \uc2dc\uc791: {now}")
 
+        scope, report_year = self._resolve_scope(start_date, end_date, now)
         new_report = await self._assembler.collect(
             now=end_date or now,
             week_start_override=start_date,
+            annual_report_year=report_year,
         )
-        scope, report_year = self._resolve_scope(start_date, end_date, now)
         new_report = dataclasses.replace(
             new_report,
             scope=scope,

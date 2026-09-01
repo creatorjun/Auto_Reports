@@ -169,3 +169,26 @@ class ResolvedQueries:
             f"{self._base()} AND resolved >= \"{self.date_start}\" "
             f"AND resolved <= \"{self.date_end}\" ORDER BY resolved DESC"
         )
+
+    def w15_redeployment_resolved(self) -> str:
+        year = self._now.year
+        return (
+            f"{self._base()} AND status = Closed AND resolution != Unresolved "
+            f"AND resolved >= \"{year}-01-01\" AND resolved < \"{year + 1}-01-01\" "
+            f"AND type IN (\uac1c\uc120, \uc778\uc2dc\ub358\ud2b8, \"\uc11c\ube44\uc2a4 \uc694\uccad\")"
+        )
+
+    def w15_redeployment_issues(self) -> str:
+        year = self._now.year
+        return (
+            f"{self._base()} AND status = Closed "
+            f"AND \"\uc7ac\ubc30\ud3ec \uc5ec\ubd80[Dropdown]\" = Y "
+            f"AND resolved >= \"{year}-01-01\" AND resolved < \"{year + 1}-01-01\""
+        )
+
+    def w15_redeployment_analytics(self) -> str:
+        return (
+            f"{self.w15_redeployment_issues()} "
+            f"AND type IN (\uac1c\uc120, \uc778\uc2dc\ub358\ud2b8, \"\uc11c\ube44\uc2a4 \uc694\uccad\") "
+            f"ORDER BY cf[12421] DESC, resolved DESC"
+        )

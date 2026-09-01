@@ -63,6 +63,12 @@ class JiraPort(ABC):
     async def get_sla_field_ids(self) -> dict[str, str]: ...
 
     @abstractmethod
+    async def get_asset_object_labels(
+        self,
+        references: list[tuple[str, str]],
+    ) -> dict[tuple[str, str], str]: ...
+
+    @abstractmethod
     async def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]: ...
 
     @abstractmethod

@@ -102,6 +102,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
             stale_ttl_seconds=_COMMENTS_CACHE_STALE,
         )
         self._org_name_cache: dict[str, str] = {}
+        self._asset_object_label_cache: dict[tuple[str, str], str] = {}
 
     async def get_project_issue_types(self, project_key: str) -> list[str]:
         encoded_key = quote(project_key, safe="")
@@ -356,6 +357,36 @@ class JiraClient(JiraPort, ServiceDeskPort):
 
         self._sla_field_ids_cache = result
         return result
+
+    async def get_asset_object_labels(
+        self,
+        references: list[tuple[str, str]],
+    ) -> dict[tuple[str, str], str]:
+        unique_references = list(dict.fromkeys(references))
+
+        async def resolve(reference: tuple[str, str]) -> tuple[tuple[str, str], str]:
+            cached = self._asset_object_label_cache.get(reference)
+            if cached is not None:
+                return reference, cached
+            workspace_id, object_id = reference
+            workspace = quote(workspace_id, safe="")
+            object_key = quote(object_id, safe="")
+            url = (
+                f"{self._base_url}/gateway/api/jsm/assets/workspace/"
+                f"{workspace}/v1/object/{object_key}"
+            )
+            label = f"\ud30c\ud2b8\ub108 \uac1d\uccb4 {object_id}"
+            try:
+                response = await self._client.get(url)
+                response.raise_for_status()
+                label = str(response.json().get("label") or label)
+            except httpx.HTTPError as error:
+                logger.warning(f"Assets \uac1d\uccb4 \uc870\ud68c \uc2e4\ud328: {object_id} -> {error}")
+            self._asset_object_label_cache[reference] = label
+            return reference, label
+
+        resolved = await asyncio.gather(*(resolve(reference) for reference in unique_references))
+        return dict(resolved)
 
     async def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
         jira_url = f"{self._base_url}/rest/api/3/search/jql"

@@ -67,6 +67,40 @@ export interface WorkTypeOpenWidget {
   issues: IncompleteIssue[]
 }
 
+export interface RedeploymentIssue {
+  key: string
+  summary: string
+  type: string
+  priority: string
+  resolved: string
+  month: string
+  cause: string
+  assignee: string
+  partners: string[]
+}
+
+export interface RedeploymentMonthlyEntry {
+  month: string
+  year: number
+  month_num: number
+  total: number
+  by_type: Record<string, number>
+}
+
+export interface RedeploymentAnalytics {
+  dashboard_id: string
+  resolved_total: number
+  redeployment_total: number
+  redeployment_rate: number
+  analytics_total: number
+  monthly: RedeploymentMonthlyEntry[]
+  by_cause: Record<string, number>
+  by_assignee: Record<string, number>
+  partner_matrix: Record<string, Record<string, number>>
+  latest_issues: RedeploymentIssue[]
+  source_jqls: Record<string, string>
+}
+
 export interface StatusIssue {
   key: string
   summary: string

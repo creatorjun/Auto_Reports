@@ -73,6 +73,7 @@ class RefreshReportUseCase:
         refreshed = await self._assembler.collect(
             now=end_at,
             week_start_override=start_at,
+            annual_report_year=report.report_year if report.scope == ReportScope.ANNUAL else None,
         )
         refreshed = dataclasses.replace(
             refreshed,

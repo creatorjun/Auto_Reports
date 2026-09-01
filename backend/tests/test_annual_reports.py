@@ -94,6 +94,7 @@ class RecordingAssembler:
         self,
         now: datetime.datetime,
         week_start_override: datetime.datetime | None = None,
+        annual_report_year: int | None = None,
     ) -> NewReport:
         self.calls.append((now, week_start_override))
         return NewReport(

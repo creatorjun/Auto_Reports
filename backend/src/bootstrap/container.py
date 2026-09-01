@@ -56,6 +56,7 @@ class Container:
             query_builder=query_builder,
             base_collector_factory=collectors.base_collectors,
             monthly_collector_factory=collectors.monthly_collectors,
+            annual_collector_factory=collectors.annual_collectors,
             issue_type_provider=lambda: self._jira.get_project_issue_types(settings.project_key),
         )
         self._analyzer = AiAnalyzer(ai=ai, enabled=settings.ai_enabled)

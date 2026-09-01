@@ -132,6 +132,28 @@ class WidgetQueryBuilderTest(unittest.TestCase):
                 ("SLA_MET_VS_VIOLATED", "w12"),
                 ("SLA_DELAY_REASON", "w13"),
                 ("AVG_RESOLUTION_TYPE", "w14"),
+                ("REDEPLOYMENT_ANALYTICS", "w15"),
             ],
             [(widget_id.name, widget_id.value) for widget_id in WidgetId],
         )
+
+    def test_redeployment_queries_use_the_report_year_and_dashboard_filters(self) -> None:
+        historical = WidgetQueryBuilder(self.config).build(
+            datetime.datetime(2024, 12, 31)
+        )
+
+        self.assertEqual(
+            'project = TACEA AND status = Closed AND resolution != Unresolved '
+            'AND resolved >= "2024-01-01" AND resolved < "2025-01-01" '
+            'AND type IN (\uac1c\uc120, \uc778\uc2dc\ub358\ud2b8, "\uc11c\ube44\uc2a4 \uc694\uccad")',
+            historical.w15_redeployment_resolved(),
+        )
+        self.assertEqual(
+            'project = TACEA AND status = Closed AND "\uc7ac\ubc30\ud3ec \uc5ec\ubd80[Dropdown]" = Y '
+            'AND resolved >= "2024-01-01" AND resolved < "2025-01-01"',
+            historical.w15_redeployment_issues(),
+        )
+        self.assertTrue(historical.w15_redeployment_analytics().endswith(
+            'AND type IN (\uac1c\uc120, \uc778\uc2dc\ub358\ud2b8, "\uc11c\ube44\uc2a4 \uc694\uccad") '
+            'ORDER BY cf[12421] DESC, resolved DESC'
+        ))

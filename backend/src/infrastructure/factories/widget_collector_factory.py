@@ -12,6 +12,7 @@ from src.application.widgets.created_vs_resolved_collector import CreatedVsResol
 from src.application.widgets.monthly_collector import MonthlyCollector
 from src.application.widgets.monthly_count_collector import MonthlyCountCollector
 from src.application.widgets.recent_collector import RecentCollector
+from src.application.widgets.redeployment_collector import RedeploymentAnalyticsCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
 from src.application.widgets.sla_delay_collector import SlaDelayCollector
 from src.application.ports.jira_port import JiraPort
@@ -44,4 +45,12 @@ class WidgetCollectorFactory:
         return [
             ([WidgetId.MONTHLY_CREATED, WidgetId.MONTHLY_RESOLVED],             MonthlyCountCollector(jira, q, now)),
             ([WidgetId.SLA_INITIAL_RESPONSE, WidgetId.SLA_RESOLUTION_MONTHLY], MonthlyCollector(jira, q, now)),
+        ]
+
+    def annual_collectors(self, q: ResolvedQueries, now: datetime) -> list[CollectorEntry]:
+        return [
+            CollectorEntry(
+                WidgetId.REDEPLOYMENT_ANALYTICS,
+                RedeploymentAnalyticsCollector(self._jira, q),
+            )
         ]

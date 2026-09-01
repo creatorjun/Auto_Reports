@@ -14,6 +14,7 @@ export const WIDGET_ID = {
   SLA_MET_VS_VIOLATED: 'w12',
   SLA_DELAY_REASON: 'w13',
   AVG_RESOLUTION_TYPE: 'w14',
+  REDEPLOYMENT_ANALYTICS: 'w15',
 } as const
 
 export type WidgetId = (typeof WIDGET_ID)[keyof typeof WIDGET_ID]

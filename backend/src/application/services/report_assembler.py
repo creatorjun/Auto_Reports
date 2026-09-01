@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 BaseCollectorFactory = Callable[[ResolvedQueries, datetime], list[CollectorEntry]]
 MonthlyCollectorFactory = Callable[[ResolvedQueries, datetime], list[tuple[list[WidgetId], object]]]
+AnnualCollectorFactory = Callable[[ResolvedQueries, datetime], list[CollectorEntry]]
 IssueTypeProvider = Callable[[], Awaitable[list[str]]]
 
 
@@ -24,17 +25,20 @@ class ReportAssembler:
         query_builder: WidgetQueryBuilder,
         base_collector_factory: BaseCollectorFactory,
         monthly_collector_factory: MonthlyCollectorFactory,
+        annual_collector_factory: AnnualCollectorFactory | None = None,
         issue_type_provider: IssueTypeProvider | None = None,
     ):
         self._qb = query_builder
         self._base_factory = base_collector_factory
         self._monthly_factory = monthly_collector_factory
+        self._annual_factory = annual_collector_factory
         self._issue_type_provider = issue_type_provider
 
     async def collect(
         self,
         now: datetime,
         week_start_override: datetime | None = None,
+        annual_report_year: int | None = None,
     ) -> NewReport:
         if now.tzinfo is None:
             now = now.replace(tzinfo=KST)
@@ -56,6 +60,8 @@ class ReportAssembler:
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 
         entries: list[CollectorEntry] = self._base_factory(q, now)
+        if annual_report_year is not None and self._annual_factory is not None:
+            entries.extend(self._annual_factory(q, now))
         monthly_pairs = self._monthly_factory(q, now)
 
         base_coros = [e.collector.collect() for e in entries]

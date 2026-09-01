@@ -14,9 +14,10 @@ import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
 import { ModalFallback, ChartFallback } from '@/presentation/components/common/DashboardFallbacks'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/constants'
 import type { ReportDetail } from '@/domain/Report'
-import type { Semester, SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
+import type { RedeploymentAnalytics, Semester, SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
 import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
 import { isRefreshableAnnualReport } from '@/presentation/config/annualReports'
+import { WIDGET_ID } from '@/domain/WidgetId'
 
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
 const ReasonPieChart      = lazy(() => import('@/presentation/components/charts/ReasonPieChart'))
@@ -25,6 +26,7 @@ const ResolutionTimeChart = lazy(() => import('@/presentation/components/charts/
 const TrendLineChart      = lazy(() => import('@/presentation/components/charts/TrendLineChart'))
 const SlaMonthlyLineChart = lazy(() => import('@/presentation/components/charts/SlaMonthlyLineChart'))
 const MonthlyCountChart   = lazy(() => import('@/presentation/components/charts/MonthlyCountChart'))
+const RedeploymentAnnualSection = lazy(() => import('@/presentation/components/annual/RedeploymentAnnualSection'))
 
 const WeeklyCreatedModal  = lazy(() => import('@/presentation/components/tables/WeeklyCreatedModal'))
 const WeeklyResolvedModal = lazy(() => import('@/presentation/components/tables/WeeklyResolvedModal'))
@@ -66,6 +68,9 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const { w13ByStatus, w13ByStatusDetails } = slaDelay
   const { recentIssues, incompleteIssues, incompleteTotal } = recentAndIncomplete
   const { reviewIssues, dataRequestIssues, resultPendingIssues, reviewTotal, dataRequestTotal, resultPendingTotal } = statusIssues
+  const redeploymentData = report.scope === 'annual'
+    ? report.widgets[WIDGET_ID.REDEPLOYMENT_ANALYTICS]?.data as unknown as RedeploymentAnalytics | null
+    : null
 
   const slaModalIssues: SlaViolationIssue[] = useMemo(() => {
     if (!slaViolationEntry) return []
@@ -208,6 +213,12 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           />
         ))}
       </div>
+
+      {redeploymentData && report.report_year != null && (
+        <Suspense fallback={<ChartFallback />}>
+          <RedeploymentAnnualSection data={redeploymentData} year={report.report_year} />
+        </Suspense>
+      )}
 
       {(hasW8 || hasW9) && (
         <div className="space-y-1">
