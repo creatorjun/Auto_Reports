@@ -16,7 +16,7 @@ const COLUMNS: ColumnDef<ResolvedIssue>[] = [
   { header: '이슈 번호',  renderCell: d => <span className={MODAL_CLS.keyCell}>{d.key}</span>, mobile: { slot: 'primary', render: d => d.key } },
   { header: '제목', width: 'wide', renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span>, mobile: { slot: 'summary', render: d => d.summary } },
   { header: '유형',      renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><IssueTypeBadge type={d.type} /></div>, mobile: { slot: 'detail', render: d => <IssueTypeBadge type={d.type} /> } },
-  { header: '해결일시',  renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.resolved}</span>, mobile: { slot: 'secondary', render: d => d.resolved } },
+  { header: '해결일시', width: 'date', renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.resolved}</span>, mobile: { slot: 'secondary', render: d => d.resolved } },
 ]
 
 export default function WeeklyResolvedModal({ issues, total, title = '완료 이슈', dateRange, onClose }: Props) {

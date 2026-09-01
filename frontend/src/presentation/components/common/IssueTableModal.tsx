@@ -9,7 +9,7 @@ import type { KeyboardEvent, ReactNode } from 'react'
 
 export interface ColumnDef<T> {
   header: string
-  width?: 'wide'
+  width?: 'wide' | 'date'
   renderCell: (row: T) => ReactNode
   mobile: {
     slot: 'primary' | 'secondary' | 'summary' | 'detail' | 'hidden'
@@ -31,7 +31,7 @@ interface Props<T extends { key: string }> {
 export default function IssueTableModal<T extends { key: string }>({
   title,
   subtitle,
-  size,
+  size = 'lg',
   data,
   columns,
   paginate = false,
@@ -74,7 +74,12 @@ export default function IssueTableModal<T extends { key: string }>({
           <thead className="bg-apple-gray/60">
             <tr className="border-b-2 border-apple-divider">
               {columns.map(col => (
-                <th key={col.header} className={`${MODAL_CLS.thCell} ${col.width === 'wide' ? 'w-[40%]' : ''}`}>{col.header}</th>
+                <th
+                  key={col.header}
+                  className={`${MODAL_CLS.thCell} ${col.width === 'wide' ? 'w-[40%]' : col.width === 'date' ? 'w-48' : ''}`}
+                >
+                  {col.header}
+                </th>
               ))}
             </tr>
           </thead>
@@ -90,8 +95,18 @@ export default function IssueTableModal<T extends { key: string }>({
                 className="cursor-pointer transition-colors duration-150 hover:bg-apple-gray/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
               >
                 {columns.map(col => (
-                  <td key={col.header} className="min-w-0 overflow-hidden whitespace-nowrap px-4 text-center align-middle">
-                    <div className="min-w-0 truncate text-center [&>*]:pr-0">{col.renderCell(row)}</div>
+                  <td
+                    key={col.header}
+                    className={col.width === 'date'
+                      ? 'w-48 min-w-48 whitespace-nowrap px-4 text-center align-middle'
+                      : 'min-w-0 overflow-hidden whitespace-nowrap px-4 text-center align-middle'}
+                  >
+                    <div className={col.width === 'date'
+                      ? 'whitespace-nowrap text-center [&>*]:pr-0'
+                      : 'min-w-0 truncate text-center [&>*]:pr-0'}
+                    >
+                      {col.renderCell(row)}
+                    </div>
                   </td>
                 ))}
               </tr>

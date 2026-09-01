@@ -22,7 +22,7 @@ const COLUMNS: ColumnDef<OverdueIssue>[] = [
   { header: '이슈 번호', renderCell: d => <span className={MODAL_CLS.keyCell}>{d.key}</span>, mobile: { slot: 'primary', render: d => d.key } },
   { header: '제목', width: 'wide', renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span>, mobile: { slot: 'summary', render: d => d.summary } },
   { header: '유형', renderCell: d => <span className={MODAL_CLS.metaCell}>{d.type}</span>, mobile: { slot: 'detail', render: d => d.type } },
-  { header: '생성일시', renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.created}</span>, mobile: { slot: 'detail', render: d => d.created } },
+  { header: '생성일시', width: 'date', renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.created}</span>, mobile: { slot: 'detail', render: d => d.created } },
   { header: '현재 상태', renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><StatusBadge status={d.resp_status} /></div>, mobile: { slot: 'detail', render: d => <StatusBadge status={d.resp_status} /> } },
   { header: '초과시간', renderCell: d => <span className={MODAL_CLS.elapsedCell}>+{d.over_h}h</span>, mobile: { slot: 'secondary', render: d => <span className={MODAL_CLS.elapsedCell}>+{d.over_h}h</span> } },
 ]

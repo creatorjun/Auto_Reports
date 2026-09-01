@@ -67,6 +67,34 @@ class RedeploymentJira:
 
 
 class RedeploymentCollectorTest(unittest.IsolatedAsyncioTestCase):
+    async def test_keeps_every_redeployment_issue_for_frontend_pagination(self) -> None:
+        jira = RedeploymentJira()
+        jira.issues.extend([
+            issue(
+                f"TACEA-{index}",
+                "\uac1c\uc120",
+                f"2026-08-{index + 10:02d}T10:00:00.000+0900",
+                "2026-08",
+                "\uae30\ud0c0",
+                "\ub2f4\ub2f9\uc790 D",
+                str(index),
+            )
+            for index in range(4, 8)
+        ])
+        config = QueryConfig(
+            project_key="TACEA",
+            issue_types=[],
+            active_statuses=[],
+            closed_statuses=[],
+            sla_threshold_days=30,
+            year_start=2026,
+        )
+        queries = WidgetQueryBuilder(config).build(datetime.datetime(2026, 12, 31))
+
+        result = await RedeploymentAnalyticsCollector(jira, queries).collect()
+
+        self.assertEqual(6, len(result.data.latest_issues))
+
     def test_maps_unassigned_partner_to_seculayer(self) -> None:
         empty_partner_issue = issue(
             "TACEA-4",

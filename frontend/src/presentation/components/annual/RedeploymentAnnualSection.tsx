@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/annual/RedeploymentAnnualSection.tsx
+import { useState } from 'react'
 import { AlertTriangle, BarChart3, CheckCircle2, Percent, RotateCcw } from 'lucide-react'
 import {
   Bar,
@@ -29,6 +30,8 @@ interface Props {
   data: RedeploymentAnalytics
   year: number
 }
+
+const REDEPLOYMENT_PAGE_SIZE = 5
 
 function KpiCard({
   label,
@@ -180,39 +183,75 @@ function PartnerMatrix({ matrix }: { matrix: Record<string, Record<string, numbe
 
 function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
   const { jiraBrowse } = useJira()
+  const [page, setPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil(data.latest_issues.length / REDEPLOYMENT_PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const visibleIssues = data.latest_issues.slice(
+    (currentPage - 1) * REDEPLOYMENT_PAGE_SIZE,
+    currentPage * REDEPLOYMENT_PAGE_SIZE,
+  )
   return (
     <div className="card overflow-hidden">
       <div className="mb-4">
         <h3 className="text-ui-base font-semibold text-apple-dark">최근 완료 재배포 이슈</h3>
-        <p className="mt-0.5 text-ui-xs text-apple-light">완료 월 기준 최신 5건</p>
+        <p className="mt-0.5 text-ui-xs text-apple-light">완료 월 기준 · 총 {data.latest_issues.length.toLocaleString('ko-KR')}건</p>
       </div>
       {data.latest_issues.length ? (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-ui-sm">
-            <thead className="border-y border-apple-divider/70 bg-apple-gray/50 text-apple-mid">
-              <tr>
-                <th className="px-3 py-3 text-center text-ui-xs font-semibold">완료 월</th>
-                <th className="px-3 py-3 text-center text-ui-xs font-semibold">유형</th>
-                <th className="px-3 py-3 text-center text-ui-xs font-semibold">티켓</th>
-                <th className="px-3 py-3 text-left text-ui-xs font-semibold">제목</th>
-                <th className="px-3 py-3 text-center text-ui-xs font-semibold">우선순위</th>
-                <th className="px-3 py-3 text-center text-ui-xs font-semibold">재배포 원인</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.latest_issues.map((issue) => (
-                <tr key={issue.key} className="border-b border-apple-divider/60 transition-colors hover:bg-brand-50/40">
-                  <td className="px-3 py-3 text-center tabular-nums text-apple-light">{issue.month}</td>
-                  <td className="px-3 py-3 text-center"><IssueTypeBadge type={issue.type} /></td>
-                  <td className="px-3 py-3 text-center"><a className="font-mono font-medium text-brand-600 hover:underline" href={`${jiraBrowse}/${issue.key}`} target="_blank" rel="noopener noreferrer">{issue.key}</a></td>
-                  <td className="max-w-[360px] truncate px-3 py-3 text-apple-dark" title={issue.summary}>{issue.summary}</td>
-                  <td className="px-3 py-3 text-center text-apple-light">{issue.priority}</td>
-                  <td className="px-3 py-3 text-center text-apple-light">{issue.cause}</td>
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] border-collapse text-ui-sm">
+              <thead className="border-y border-apple-divider/70 bg-apple-gray/50 text-apple-mid">
+                <tr>
+                  <th className="px-3 py-3 text-center text-ui-xs font-semibold">완료 월</th>
+                  <th className="px-3 py-3 text-center text-ui-xs font-semibold">유형</th>
+                  <th className="px-3 py-3 text-center text-ui-xs font-semibold">티켓</th>
+                  <th className="px-3 py-3 text-left text-ui-xs font-semibold">제목</th>
+                  <th className="px-3 py-3 text-center text-ui-xs font-semibold">우선순위</th>
+                  <th className="px-3 py-3 text-center text-ui-xs font-semibold">재배포 원인</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {visibleIssues.map((issue) => (
+                  <tr key={issue.key} className="border-b border-apple-divider/60 transition-colors hover:bg-brand-50/40">
+                    <td className="px-3 py-3 text-center tabular-nums text-apple-light">{issue.month}</td>
+                    <td className="px-3 py-3 text-center"><IssueTypeBadge type={issue.type} /></td>
+                    <td className="px-3 py-3 text-center"><a className="font-mono font-medium text-brand-600 hover:underline" href={`${jiraBrowse}/${issue.key}`} target="_blank" rel="noopener noreferrer">{issue.key}</a></td>
+                    <td className="max-w-[360px] truncate px-3 py-3 text-apple-dark" title={issue.summary}>{issue.summary}</td>
+                    <td className="px-3 py-3 text-center text-apple-light">{issue.priority}</td>
+                    <td className="px-3 py-3 text-center text-apple-light">{issue.cause}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {totalPages > 1 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-apple-divider pt-4">
+              <span className="text-ui-xs tabular-nums text-apple-light">
+                {(currentPage - 1) * REDEPLOYMENT_PAGE_SIZE + 1}–{Math.min(currentPage * REDEPLOYMENT_PAGE_SIZE, data.latest_issues.length)} / {data.latest_issues.length}건
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {Array.from({ length: totalPages }).map((_, index) => {
+                  const pageNumber = index + 1
+                  return (
+                    <button
+                      key={pageNumber}
+                      type="button"
+                      aria-label={`${pageNumber}페이지`}
+                      onClick={() => setPage(pageNumber)}
+                      className={`min-w-8 rounded-lg px-2.5 py-1.5 text-ui-sm font-medium transition-colors ${
+                        currentPage === pageNumber
+                          ? 'bg-brand-500 text-white'
+                          : 'bg-apple-gray text-apple-mid hover:bg-brand-50 hover:text-brand-600'
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </>
       ) : <p className="py-12 text-center text-ui-sm text-apple-light">완료된 재배포 이슈가 없습니다</p>}
     </div>
   )
@@ -244,7 +283,7 @@ export default function RedeploymentAnnualSection({ data, year }: Props) {
             <AssigneeChart values={data.by_assignee} />
           </div>
           <PartnerMatrix matrix={data.partner_matrix} />
-          <LatestIssues data={data} />
+          <LatestIssues key={year} data={data} />
         </>
       ) : (
         <div className="card flex min-h-40 flex-col items-center justify-center gap-2 text-center">

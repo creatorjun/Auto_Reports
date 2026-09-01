@@ -67,7 +67,7 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
                 by_cause=by_cause,
                 by_assignee=by_assignee,
                 partner_matrix=partner_matrix,
-                latest_issues=analytics_details[:5],
+                latest_issues=analytics_details,
                 source_jqls={
                     "resolved": resolved_jql,
                     "redeployed": redeployment_jql,
