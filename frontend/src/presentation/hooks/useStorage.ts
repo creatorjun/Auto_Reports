@@ -1,8 +1,18 @@
 // frontend/src/presentation/hooks/useStorage.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
+import type { UploadSource } from '@/application/ports/ApplicationServices'
 import type { StorageItem, StorageQuota } from '@/domain/Storage'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
+
+function toUploadSource(file: File): UploadSource {
+  return {
+    name: file.name,
+    size: file.size,
+    mediaType: file.type,
+    read: (start, end) => file.slice(start, end).arrayBuffer(),
+  }
+}
 
 export const useStorageItems = (folder: string) => {
   const { storage } = useApplicationServices()
@@ -89,7 +99,7 @@ export const useUploadFile = (folder: string) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ file, overwrite }: { file: File; overwrite: boolean }) =>
-      storage.upload(file, folder, overwrite),
+      storage.upload(toUploadSource(file), folder, overwrite),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['storage', folder] })
     },
@@ -144,7 +154,7 @@ export const useUploadFiles = (folder: string) => {
     setProgressList(files.map(f => ({ name: f.name, percent: 0, done: false })))
     await Promise.allSettled(
       files.map((file, idx) =>
-        storage.upload(file, folder, overwrite, (percent) => {
+        storage.upload(toUploadSource(file), folder, overwrite, (percent) => {
           setProgressList(prev =>
             prev.map((p, i) => i === idx ? { ...p, percent } : p)
           )

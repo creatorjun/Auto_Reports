@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const source = path.join(root, 'src')
@@ -25,8 +26,69 @@ function projectCodeFiles(directory) {
   })
 }
 
-function imports(content) {
-  return [...content.matchAll(/from\s+['"](@\/[^'"]+)['"]/g)].map((match) => match[1])
+function parsedSource(file) {
+  return ts.createSourceFile(
+    file,
+    fs.readFileSync(file, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  )
+}
+
+function imports(file) {
+  const dependencies = []
+  const visit = (node) => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node))
+      && node.moduleSpecifier
+      && ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      dependencies.push(node.moduleSpecifier.text)
+    }
+    if (
+      ts.isCallExpression(node)
+      && node.expression.kind === ts.SyntaxKind.ImportKeyword
+      && node.arguments.length === 1
+      && ts.isStringLiteral(node.arguments[0])
+    ) {
+      dependencies.push(node.arguments[0].text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(parsedSource(file))
+  return dependencies
+}
+
+function dependencyLayer(file, dependency) {
+  if (dependency.startsWith('@/')) return dependency.slice(2).split('/')[0]
+  if (!dependency.startsWith('.')) return null
+  const target = path.resolve(path.dirname(file), dependency)
+  const relative = path.relative(source, target).replaceAll('\\', '/')
+  return relative.startsWith('../') ? null : relative.split('/')[0]
+}
+
+function transportUsages(file) {
+  const violations = []
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node)
+      && ts.isIdentifier(node.expression)
+      && node.expression.text === 'fetch'
+    ) {
+      violations.push(`${path.relative(source, file)}:${node.getStart()}:fetch`)
+    }
+    if (
+      ts.isNewExpression(node)
+      && ts.isIdentifier(node.expression)
+      && ['EventSource', 'XMLHttpRequest'].includes(node.expression.text)
+    ) {
+      violations.push(`${path.relative(source, file)}:${node.getStart()}:${node.expression.text}`)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(parsedSource(file))
+  return violations
 }
 
 test('dependency rule', () => {
@@ -34,14 +96,16 @@ test('dependency rule', () => {
     domain: ['application', 'infrastructure', 'presentation', 'app'],
     application: ['infrastructure', 'presentation', 'app'],
     infrastructure: ['presentation', 'app'],
+    presentation: ['infrastructure', 'app'],
+    app: ['infrastructure'],
   }
   const violations = []
   for (const file of files(source)) {
     const relative = path.relative(source, file).replaceAll('\\', '/')
     const layer = relative.split('/')[0]
     if (!(layer in forbidden)) continue
-    for (const dependency of imports(fs.readFileSync(file, 'utf8'))) {
-      if (forbidden[layer].some((target) => dependency.startsWith(`@/${target}/`))) {
+    for (const dependency of imports(file)) {
+      if (forbidden[layer].includes(dependencyLayer(file, dependency))) {
         violations.push(`${relative}:${dependency}`)
       }
     }
@@ -51,11 +115,78 @@ test('dependency rule', () => {
 
 test('presentation depends on application contracts instead of infrastructure', () => {
   const violations = files(path.join(source, 'presentation')).flatMap((file) =>
-    imports(fs.readFileSync(file, 'utf8'))
-      .filter((dependency) => dependency.startsWith('@/infrastructure'))
+    imports(file)
+      .filter((dependency) => dependencyLayer(file, dependency) === 'infrastructure')
       .map((dependency) => `${path.relative(source, file)}:${dependency}`),
   )
   assert.deepEqual(violations, [])
+})
+
+test('presentation delegates network transport to application gateways', () => {
+  const violations = files(path.join(source, 'presentation')).flatMap(transportUsages)
+  assert.deepEqual(violations, [])
+})
+
+test('application contracts stay independent from browser platform objects', () => {
+  const services = fs.readFileSync(
+    path.join(source, 'application/ports/ApplicationServices.ts'),
+    'utf8',
+  )
+  assert.match(services, /interface BinaryContent/)
+  assert.match(services, /interface UploadSource/)
+  assert.doesNotMatch(services, /\b(?:AbortSignal|Blob|File)\b/)
+})
+
+test('domain and application import only internal modules', () => {
+  const violations = ['domain', 'application'].flatMap((layer) =>
+    files(path.join(source, layer)).flatMap((file) =>
+      imports(file)
+        .filter((dependency) => dependencyLayer(file, dependency) === null)
+        .map((dependency) => `${path.relative(source, file)}:${dependency}`),
+    ),
+  )
+  assert.deepEqual(violations, [])
+})
+
+test('infrastructure owns job streaming and file preview transport', () => {
+  const reportApi = fs.readFileSync(
+    path.join(source, 'infrastructure/api/reportApi.ts'),
+    'utf8',
+  )
+  const jobHook = fs.readFileSync(
+    path.join(source, 'presentation/hooks/useJobStream.ts'),
+    'utf8',
+  )
+  const storageApi = fs.readFileSync(
+    path.join(source, 'infrastructure/api/storageApi.ts'),
+    'utf8',
+  )
+  const preview = fs.readFileSync(
+    path.join(source, 'presentation/components/storage/FilePreviewModal.tsx'),
+    'utf8',
+  )
+  const binaryContent = fs.readFileSync(
+    path.join(source, 'infrastructure/api/binaryContent.ts'),
+    'utf8',
+  )
+  const reportHook = fs.readFileSync(
+    path.join(source, 'presentation/hooks/useReport.ts'),
+    'utf8',
+  )
+  assert.match(reportApi, /new EventSource\(/)
+  assert.match(reportApi, /setTimeout\(tick, delay\)/)
+  assert.match(reportApi, /deadlineTimer = setTimeout\(/)
+  assert.match(reportApi, /clearTimeout\(deadlineTimer\)/)
+  assert.match(jobHook, /reports\.watchJob\(/)
+  assert.doesNotMatch(jobHook, /EventSource|getJobStreamUrl|getJobStatus/)
+  assert.match(reportHook, /REFRESH_TIMEOUT_MS = 180_000/)
+  assert.match(storageApi, /readPreview:/)
+  assert.match(storageApi, /convertPreview:/)
+  assert.match(preview, /storage\.readPreview\(/)
+  assert.match(preview, /storage\.convertPreview\(/)
+  assert.match(binaryContent, /URL\.createObjectURL\(data\)/)
+  assert.match(binaryContent, /if \(!active\) return/)
+  assert.match(binaryContent, /URL\.revokeObjectURL\(url\)/)
 })
 
 test('source comments follow project rule', () => {
@@ -518,10 +649,8 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
   assert.match(table, /최근 작성된 댓글/)
   assert.match(table, /최대 5개/)
   assert.match(table, /comment\.images\.map/)
-  assert.match(table, /URL\.createObjectURL/)
   assert.match(table, /<IssueTypeIcon type=\{issue\.type\} \/>/)
   assert.match(api, /getCommentImage/)
-  assert.match(api, /responseType: 'blob'/)
   for (const filename of [
     'cve.svg',
     'hardware-replacement.svg',
@@ -536,6 +665,9 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
   }
   assert.match(issueTypeIcon, /<img[^>]*className="h-4 w-4 object-contain"/)
   assert.doesNotMatch(issueTypeIcon, /AlertTriangle|Headset|KeyRound|Lightbulb|ShieldAlert/)
+  assert.match(api, /responseType: 'blob'/)
+  assert.match(api, /createBinaryContent\(response\.data\)/)
+  assert.match(table, /content\.createObjectUrl\(\)/)
 })
 
 test('portrait displays use the compact navigation and SLA card layout', () => {

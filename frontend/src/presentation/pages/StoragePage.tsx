@@ -37,7 +37,7 @@ import {
   STORAGE_ENTRY_DRAG_TYPE,
   type DraggedStorageEntry,
 } from '@/presentation/components/storage/StorageDrag'
-import { isPreviewable, formatBytes, joinPath, saveBlob } from '@/presentation/components/storage/StorageUtils'
+import { isPreviewable, formatBytes, joinPath, saveBinaryContent } from '@/presentation/components/storage/StorageUtils'
 
 type ConfirmTarget = { name: string; isDir: boolean } | null
 type FolderHistory = { entries: string[]; index: number }
@@ -224,9 +224,9 @@ export default function StoragePage() {
     const names = [...selectedNames]
     if (!names.length) return
     downloadSelection(names, {
-      onSuccess: (blob) => {
+      onSuccess: (content) => {
         const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
-        saveBlob(blob, `storage-selection-${timestamp}.zip`)
+        saveBinaryContent(content, `storage-selection-${timestamp}.zip`)
         showFeedback({ type: 'success', message: `${names.length}개 항목 다운로드 준비 완료` })
       },
       onError: (error) => {

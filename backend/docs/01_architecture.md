@@ -61,9 +61,13 @@
 
 `src/presentation/api`는 FastAPI 라우터와 명시적 `ApiServices` 의존성을 사용합니다. Pydantic 변환은 `presentation/mappers`, 요청·응답 모델은 `presentation/schemas`, HTTP 보조 로직은 `presentation/http`에 있습니다. Application은 이 타입을 import하지 않습니다.
 
+Presentation dependency는 이미 조립된 유스케이스 또는 요청 단위 factory만 소비합니다. SLA 대시보드처럼 보고서 저장소와 Jira 포트가 함께 필요한 유스케이스도 라우터에서 생성하지 않고 `Container.get_sla_dashboard()`가 조립합니다.
+
 ### Bootstrap
 
 `src/bootstrap/container.py`는 설정에 맞는 adapter와 유스케이스 factory를 구성합니다. 전역 singleton이나 `app.state.container` service locator로 노출하지 않습니다. `main.py`가 프로세스 수준 `Database`, `Container`, `JobRunner`, scheduler와 `ApiServices`를 만들고 lifespan 종료 순서에 맞게 닫습니다.
+
+런타임 설정은 `main.py`에서 한 번 해석해 adapter 생성자에 전달합니다. Infrastructure adapter는 `get_settings()`를 다시 호출하거나 자체 singleton factory를 만들지 않습니다.
 
 ## 트랜잭션과 리소스 수명
 

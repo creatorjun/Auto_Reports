@@ -24,14 +24,52 @@ export interface AuthGateway {
   me: () => Promise<MeResponse>
 }
 
+export interface JobStreamCallbacks {
+  onStatus?: (status: JobStatus) => void
+  onComplete: (reportId: number | null) => void
+  onError: (message: string) => void
+  onTransportError?: (error: unknown) => void
+  onTimeout: () => void
+}
+
+export interface JobStreamSubscription {
+  close: () => void
+}
+
+export interface BinaryContent {
+  read: () => Promise<ArrayBuffer>
+  createObjectUrl: () => BinaryObjectUrl
+}
+
+export interface BinaryObjectUrl {
+  url: string
+  close: () => void
+}
+
+export interface UploadSource {
+  name: string
+  size: number
+  mediaType: string
+  read: (start: number, end: number) => Promise<ArrayBuffer>
+}
+
+export interface CancellationSignal {
+  readonly aborted: boolean
+  addEventListener: (type: 'abort', listener: () => void) => void
+  removeEventListener: (type: 'abort', listener: () => void) => void
+}
+
 export interface ReportGateway {
   getLatest: () => Promise<ReportDetail | null>
   getAnnual: (year: number) => Promise<ReportDetail>
   getById: (id: number) => Promise<ReportDetail>
   getAll: (limit?: number, offset?: number) => Promise<ReportSummary[]>
   trigger: (params?: TriggerParams) => Promise<TriggerAccepted>
-  getJobStatus: (jobId: string) => Promise<JobStatus>
-  getJobStreamUrl: (jobId: string, token?: string) => string
+  watchJob: (
+    jobId: string,
+    callbacks: JobStreamCallbacks,
+    timeoutMs?: number,
+  ) => JobStreamSubscription
   delete: (id: number) => Promise<void>
   getConfig: () => Promise<AppConfig>
 }
@@ -60,14 +98,16 @@ export interface StorageGateway {
   createFolder: (name: string, folder?: string) => Promise<void>
   deleteFolder: (name: string, folder?: string) => Promise<void>
   move: (name: string, sourceFolder: string, destinationFolder: string) => Promise<void>
-  downloadSelection: (folder: string, names: string[]) => Promise<Blob>
+  downloadSelection: (folder: string, names: string[]) => Promise<BinaryContent>
   deleteSelection: (folder: string, names: string[]) => Promise<void>
   upload: (
-    file: File,
+    file: UploadSource,
     folder?: string,
     overwrite?: boolean,
     onProgress?: (percent: number) => void,
   ) => Promise<StorageItem>
+  readPreview: (name: string, folder?: string) => Promise<BinaryContent>
+  convertPreview: (name: string, folder?: string) => Promise<BinaryContent>
   preview: (name: string, folder?: string) => string
   download: (name: string, folder?: string) => string
   deleteFile: (name: string, folder?: string) => Promise<void>
@@ -84,7 +124,7 @@ export interface SearchGateway {
   search: (
     query: string,
     limit?: number,
-    signal?: AbortSignal,
+    signal?: CancellationSignal,
   ) => Promise<SearchResult[]>
   getJiraBaseUrl: () => Promise<string>
 }
@@ -92,7 +132,7 @@ export interface SearchGateway {
 export interface SlaDashboardGateway {
   getIssues: () => Promise<SlaDashboardIssue[]>
   getComments: (issueKey: string) => Promise<SlaDashboardComment[]>
-  getCommentImage: (issueKey: string, commentId: string, attachmentId: string) => Promise<Blob>
+  getCommentImage: (issueKey: string, commentId: string, attachmentId: string) => Promise<BinaryContent>
 }
 
 export interface ApplicationServices {

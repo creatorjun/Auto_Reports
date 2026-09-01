@@ -1,6 +1,6 @@
 # Clean Architecture Audit
 
-검수 기준일: 2026-08-12
+검수 기준일: 2026-09-01
 검수 범위: `backend/src`, 실행 진입점, 비동기 경계, 리소스 수명, 테스트와 문서
 
 ## 수정한 위반
@@ -19,6 +19,9 @@
 | 불변식 위반 | Presentation이 frozen 하위 dataclass를 `setattr`로 변경 | SiteUseCase가 `replace`로 aggregate를 갱신 |
 | 오류 매핑 | 유스케이스의 존재하지 않음 처리가 HTTP 예외와 결합 | Application 오류를 전역 HTTP handler가 404/409로 매핑 |
 | 수명 관리 | HTTP client, cache background task, DB engine 종료 책임 불명확 | 각 adapter의 `aclose`와 lifespan 종료 순서를 명시 |
+| 설정 결합 | LocalStorage adapter 모듈이 `get_settings()`를 호출하는 미사용 singleton factory를 보유 | 설정 해석을 `main.py`와 `Container`로 한정하고 adapter는 생성자 값만 사용 |
+| 조립 위치 | FastAPI dependency가 SLA 유스케이스와 하위 의존성을 직접 생성 | `Container.get_sla_dashboard()` 요청 factory로 이동하고 Presentation은 완성된 유스케이스만 소비 |
+| 검사 사각지대 | 상대 import와 Presentation 내부 유스케이스 생성이 기존 테스트를 우회 가능 | 상대 import를 실제 모듈 경로로 해석하고 조립·설정 규칙을 별도 테스트로 강제 |
 
 ## 유지해야 할 운영 보안 조건
 

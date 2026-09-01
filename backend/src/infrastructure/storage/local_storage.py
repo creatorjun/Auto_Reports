@@ -7,12 +7,10 @@ import uuid
 import zipfile
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from functools import lru_cache
 from typing import AsyncIterator
 
 import aiofiles
 from src.application.ports.storage_port import AsyncBinaryReader, StorageEntry, StoragePort
-from src.infrastructure.config.settings import get_settings
 
 CHUNK_SIZE = 1024 * 1024
 _TEMP_PREFIX = ".chunked_"
@@ -297,8 +295,3 @@ class LocalStorageAdapter(StoragePort):
         path = self._resolve(folder, name)
         mime, _ = mimetypes.guess_type(path)
         return mime or "application/octet-stream"
-
-
-@lru_cache
-def get_local_storage_adapter() -> LocalStorageAdapter:
-    return LocalStorageAdapter(get_settings().storage_dir)

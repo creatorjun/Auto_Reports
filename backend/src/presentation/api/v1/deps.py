@@ -46,9 +46,5 @@ async def get_site_use_case(
 async def get_sla_dashboard_use_case(
     services: ApiServices = Depends(get_api_services),
 ) -> AsyncIterator[SlaDashboardUseCase]:
-    async with services.get_report() as reports:
-        yield SlaDashboardUseCase(
-            reports=reports,
-            jira=services.jira,
-            project_key=services.project_key,
-        )
+    async with services.get_sla_dashboard() as use_case:
+        yield use_case

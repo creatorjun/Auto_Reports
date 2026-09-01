@@ -18,6 +18,7 @@ from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase
 from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.refresh_report import RefreshReportUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
+from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
@@ -133,6 +134,15 @@ class Container:
         async with self._database.session() as session:
             yield SiteUseCase(
                 SiteRepositoryImpl(session, self._credential_encryptor)
+            )
+
+    @asynccontextmanager
+    async def get_sla_dashboard(self) -> AsyncIterator[SlaDashboardUseCase]:
+        async with self.get_report() as reports:
+            yield SlaDashboardUseCase(
+                reports=reports,
+                jira=self._jira,
+                project_key=self._settings.project_key,
             )
 
     async def generate_report(

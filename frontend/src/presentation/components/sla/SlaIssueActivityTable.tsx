@@ -7,6 +7,7 @@ import { TABLE_PAGE_SIZE } from '@/presentation/config/constants'
 import { useJira } from '@/presentation/context/JiraContext'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import { useSlaIssueComments } from '@/presentation/hooks/useSlaDashboard'
+import type { BinaryObjectUrl } from '@/application/ports/ApplicationServices'
 import type {
   SlaDashboardComment,
   SlaDashboardCommentImage,
@@ -46,21 +47,21 @@ function CommentImage({
 
   useEffect(() => {
     let active = true
-    let objectUrl = ''
+    let objectUrl: BinaryObjectUrl | null = null
     setSource('')
     setFailed(false)
     slaDashboard.getCommentImage(issueKey, commentId, image.attachment_id)
-      .then((blob) => {
+      .then((content) => {
         if (!active) return
-        objectUrl = URL.createObjectURL(blob)
-        setSource(objectUrl)
+        objectUrl = content.createObjectUrl()
+        setSource(objectUrl.url)
       })
       .catch(() => {
         if (active) setFailed(true)
       })
     return () => {
       active = false
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      objectUrl?.close()
     }
   }, [commentId, image.attachment_id, issueKey, slaDashboard])
 

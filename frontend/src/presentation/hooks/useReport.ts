@@ -1,5 +1,4 @@
 // frontend/src/presentation/hooks/useReport.ts
-import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RequestError } from '@/application/errors/RequestError'
 import { QUERY_KEYS } from '@/presentation/config/queryKeys'
@@ -7,6 +6,7 @@ import type { ReportDetail, ReportSummary } from '@/domain/Report'
 import type { TriggerParams } from '@/domain/Job'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import { isRefreshableAnnualReport, REPORT_REFRESH_INTERVAL_MS } from '@/presentation/config/annualReports'
+import { useJobStream } from '@/presentation/hooks/useJobStream'
 
 export const useLatestReport = () => {
   const { reports } = useApplicationServices()
@@ -72,8 +72,7 @@ interface RefreshCallbacks {
   onTimeout:  () => void
 }
 
-const POLL_INTERVAL_MS = 2000
-const POLL_TIMEOUT_MS  = 180000
+const REFRESH_TIMEOUT_MS = 180_000
 
 function resolveTriggerError(err: unknown): string {
   if (err instanceof RequestError) {
@@ -94,49 +93,21 @@ function resolveTriggerError(err: unknown): string {
 export const useRefreshReport = (callbacks?: RefreshCallbacks) => {
   const { reports } = useApplicationServices()
   const queryClient = useQueryClient()
-  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null)
-  const elapsedRef  = useRef<number>(0)
-
-  const stopPolling = () => {
-    if (timerRef.current !== null) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-    elapsedRef.current = 0
-  }
-
-  const startPolling = (jobId: string) => {
-    stopPolling()
-    elapsedRef.current = 0
-    timerRef.current = setInterval(async () => {
-      elapsedRef.current += POLL_INTERVAL_MS
-      if (elapsedRef.current >= POLL_TIMEOUT_MS) {
-        stopPolling()
-        callbacks?.onTimeout()
-        return
-      }
-      try {
-        const status = await reports.getJobStatus(jobId)
-        if (status.status === 'done') {
-          stopPolling()
-          await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.allReportsBase() })
-          callbacks?.onComplete(status.report_id)
-        } else if (status.status === 'error') {
-          stopPolling()
-          callbacks?.onError(status.error ?? '알 수 없는 오류')
-        }
-      } catch (err) {
-        stopPolling()
-        callbacks?.onError(resolveTriggerError(err))
-      }
-    }, POLL_INTERVAL_MS)
-  }
+  const { start, stop } = useJobStream({
+    onComplete: async (reportId) => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.allReportsBase() })
+      callbacks?.onComplete(reportId)
+    },
+    onError: (message) => callbacks?.onError(message),
+    onTransportError: (error) => callbacks?.onError(resolveTriggerError(error)),
+    onTimeout: () => callbacks?.onTimeout(),
+  }, REFRESH_TIMEOUT_MS)
 
   return useMutation({
     mutationFn: (params?: TriggerParams | void) => reports.trigger(params ?? undefined),
-    onSuccess: (data) => startPolling(data.job_id),
+    onSuccess: (data) => start(data.job_id),
     onError: (err) => {
-      stopPolling()
+      stop()
       callbacks?.onError(resolveTriggerError(err))
     },
   })

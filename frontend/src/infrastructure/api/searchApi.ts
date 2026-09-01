@@ -1,11 +1,12 @@
 // frontend/src/infrastructure/api/searchApi.ts
 import client from './client'
+import type { CancellationSignal } from '@/application/ports/ApplicationServices'
 import type { SearchResult } from '@/domain/Search'
 
 async function fetchSearchResults(
   query: string,
   limit = 5,
-  signal?: AbortSignal,
+  signal?: CancellationSignal,
 ): Promise<SearchResult[]> {
   const { data } = await client.get<SearchResult[]>('/search', {
     params: { q: query, limit },

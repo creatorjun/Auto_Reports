@@ -1,5 +1,7 @@
 // frontend/src/infrastructure/api/slaDashboardApi.ts
 import client from './client'
+import { createBinaryContent } from './binaryContent'
+import type { BinaryContent } from '@/application/ports/ApplicationServices'
 import type { SlaDashboardComment, SlaDashboardIssue } from '@/domain/SlaDashboard'
 
 export const slaDashboardApi = {
@@ -16,7 +18,7 @@ export const slaDashboardApi = {
     issueKey: string,
     commentId: string,
     attachmentId: string,
-  ): Promise<Blob> => {
+  ): Promise<BinaryContent> => {
     const key = encodeURIComponent(issueKey)
     const comment = encodeURIComponent(commentId)
     const attachment = encodeURIComponent(attachmentId)
@@ -24,6 +26,6 @@ export const slaDashboardApi = {
       `/sla-dashboard/issues/${key}/comments/${comment}/images/${attachment}`,
       { responseType: 'blob' },
     )
-    return response.data
+    return createBinaryContent(response.data)
   },
 }

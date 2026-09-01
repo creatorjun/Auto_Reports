@@ -12,6 +12,7 @@ from src.application.services.auth_service import AuthService
 from src.application.use_cases.get_report import GetReportUseCase
 from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
+from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 
 
@@ -27,6 +28,7 @@ class ApiServices:
     storage: StorageUseCase
     get_report: Callable[[], AsyncContextManager[GetReportUseCase]]
     get_site: Callable[[], AsyncContextManager[SiteUseCase]]
+    get_sla_dashboard: Callable[[], AsyncContextManager[SlaDashboardUseCase]]
 
 
 def get_api_services(request: Request) -> ApiServices:

@@ -5,8 +5,10 @@ import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github.css'
 import '@/presentation/styles/markdown.css'
-import { useAuthStore } from '@/presentation/state/authStore'
-import type { StorageGateway } from '@/application/ports/ApplicationServices'
+import type {
+  BinaryObjectUrl,
+  StorageGateway,
+} from '@/application/ports/ApplicationServices'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 
 type PreviewType =
@@ -14,6 +16,12 @@ type PreviewType =
   | 'text' | 'markdown' | 'csv' | 'json'
   | 'xlsx' | 'docx' | 'pptx'
   | 'archive' | 'unsupported'
+
+interface ContentPreviewProps {
+  name: string
+  folder: string
+  storage: StorageGateway
+}
 
 function detectType(name: string): PreviewType {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
@@ -218,34 +226,27 @@ function PptxPreview({ name, folder, storage, onPageChange }: { name: string; fo
   const [errMsg, setErrMsg] = useState('')
 
   useEffect(() => {
-    const p = new URLSearchParams({ name, ...(folder ? { folder } : {}) })
-    const token = useAuthStore.getState().accessToken
-    if (token) p.set('_t', token)
-    const url = `/api/v1/storage/preview-converted?${p.toString()}`
-    let objUrl: string | null = null
+    let active = true
+    let objectUrl: BinaryObjectUrl | null = null
 
-    fetch(url)
-      .then(async res => {
-        if (!res.ok) {
-          let detail = `HTTP ${res.status}`
-          try {
-            const body = await res.json()
-            if (body?.detail) detail = String(body.detail)
-          } catch {
-            try {
-              const text = await res.text()
-              if (text) detail = text.slice(0, 200)
-            } catch {}
-          }
-          throw new Error(detail)
-        }
-        return res.blob()
+    storage.convertPreview(name, folder)
+      .then((content) => {
+        if (!active) return
+        objectUrl = content.createObjectUrl()
+        setPdfUrl(objectUrl.url)
+        setStatus('ready')
       })
-      .then(blob => { objUrl = URL.createObjectURL(blob); setPdfUrl(objUrl); setStatus('ready') })
-      .catch((e) => { setErrMsg(e?.message ?? '알 수 없는 오류'); setStatus('error') })
+      .catch((error: unknown) => {
+        if (!active) return
+        setErrMsg(error instanceof Error ? error.message : '알 수 없는 오류')
+        setStatus('error')
+      })
 
-    return () => { if (objUrl) URL.revokeObjectURL(objUrl) }
-  }, [name, folder])
+    return () => {
+      active = false
+      objectUrl?.close()
+    }
+  }, [folder, name, storage])
 
   if (status === 'loading') {
     return (
@@ -276,17 +277,19 @@ function PptxPreview({ name, folder, storage, onPageChange }: { name: string; fo
   return <PdfViewer url={pdfUrl!} onPageChange={onPageChange} />
 }
 
-function TextPreview({ url }: { url: string }) {
+function TextPreview({ name, folder, storage }: ContentPreviewProps) {
   const [content, setContent] = useState<string | null>(null)
   useEffect(() => {
-    fetch(url).then(r => r.arrayBuffer()).then(buf => {
+    let active = true
+    storage.readPreview(name, folder).then((content) => content.read()).then((buf) => {
       const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
       let text = ''
       try { text = tryDecode('utf-8') }
       catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
-      setContent(text)
+      if (active) setContent(text)
     })
-  }, [url])
+    return () => { active = false }
+  }, [folder, name, storage])
   if (content === null) return <LoadingSpinnerSmall />
   return (
     <div className="w-full h-full overflow-auto bg-black/60">
@@ -295,17 +298,19 @@ function TextPreview({ url }: { url: string }) {
   )
 }
 
-function MarkdownPreview({ url }: { url: string }) {
+function MarkdownPreview({ name, folder, storage }: ContentPreviewProps) {
   const [content, setContent] = useState<string | null>(null)
   useEffect(() => {
-    fetch(url).then(r => r.arrayBuffer()).then(buf => {
+    let active = true
+    storage.readPreview(name, folder).then((content) => content.read()).then((buf) => {
       const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
       let text = ''
       try { text = tryDecode('utf-8') }
       catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
-      setContent(text)
+      if (active) setContent(text)
     })
-  }, [url])
+    return () => { active = false }
+  }, [folder, name, storage])
   if (content === null) return <LoadingSpinnerSmall />
   return (
     <div className="overflow-auto h-full bg-apple-bg">
@@ -321,17 +326,19 @@ function MarkdownPreview({ url }: { url: string }) {
   )
 }
 
-function CsvPreview({ url }: { url: string }) {
+function CsvPreview({ name, folder, storage }: ContentPreviewProps) {
   const [rows, setRows] = useState<string[][] | null>(null)
   useEffect(() => {
-    fetch(url).then(r => r.arrayBuffer()).then(buf => {
+    let active = true
+    storage.readPreview(name, folder).then((content) => content.read()).then((buf) => {
       const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
       let text = ''
       try { text = tryDecode('utf-8') }
       catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
-      setRows(text.trim().split('\n').map(l => l.split(',')))
+      if (active) setRows(text.trim().split('\n').map(l => l.split(',')))
     })
-  }, [url])
+    return () => { active = false }
+  }, [folder, name, storage])
   if (rows === null) return <LoadingSpinnerSmall />
   return (
     <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
@@ -377,23 +384,27 @@ const XLSX_TABLE_STYLE = `
   }
 `
 
-function XlsxPreview({ url }: { url: string }) {
+function XlsxPreview({ name, folder, storage }: ContentPreviewProps) {
   const [sheets, setSheets] = useState<{ name: string; html: string }[]>([])
   const [activeSheet, setActiveSheet] = useState(0)
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    fetch(url).then(r => r.arrayBuffer()).then(async buf => {
+    let active = true
+    storage.readPreview(name, folder).then((content) => content.read()).then(async (buf) => {
       const XLSX = await import('xlsx')
       const wb = XLSX.read(buf, { type: 'array', codepage: 949, cellStyles: true })
       const result = wb.SheetNames.map(sheetName => ({
         name: sheetName,
         html: XLSX.utils.sheet_to_html(wb.Sheets[sheetName], { header: '', footer: '' }),
       }))
-      setSheets(result)
-      setActiveSheet(0)
-    }).catch(() => setError(true))
-  }, [url])
+      if (active) {
+        setSheets(result)
+        setActiveSheet(0)
+      }
+    }).catch(() => { if (active) setError(true) })
+    return () => { active = false }
+  }, [folder, name, storage])
 
   if (error) return (
     <div className="flex items-center justify-center h-full bg-black/60">
@@ -426,16 +437,18 @@ function XlsxPreview({ url }: { url: string }) {
   )
 }
 
-function DocxPreview({ url }: { url: string }) {
+function DocxPreview({ name, folder, storage }: ContentPreviewProps) {
   const [html, setHtml] = useState<string | null>(null)
   const [error, setError] = useState(false)
   useEffect(() => {
-    fetch(url).then(r => r.arrayBuffer()).then(async buf => {
+    let active = true
+    storage.readPreview(name, folder).then((content) => content.read()).then(async (buf) => {
       const mammoth = await import('mammoth')
       const result = await mammoth.convertToHtml({ arrayBuffer: buf })
-      setHtml(result.value)
-    }).catch(() => setError(true))
-  }, [url])
+      if (active) setHtml(result.value)
+    }).catch(() => { if (active) setError(true) })
+    return () => { active = false }
+  }, [folder, name, storage])
   if (error) return <div className="flex items-center justify-center h-full bg-black/60"><p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p></div>
   if (html === null) return <LoadingSpinnerSmall />
   return (
@@ -563,11 +576,11 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
         )
       case 'pdf': return <PdfViewer url={url} onPageChange={handlePdfPageChange} />
       case 'text':
-      case 'json': return <TextPreview url={url} />
-      case 'markdown': return <MarkdownPreview url={url} />
-      case 'csv': return <CsvPreview url={url} />
-      case 'xlsx': return <XlsxPreview url={url} />
-      case 'docx': return <DocxPreview url={url} />
+      case 'json': return <TextPreview name={name} folder={folder} storage={storage} />
+      case 'markdown': return <MarkdownPreview name={name} folder={folder} storage={storage} />
+      case 'csv': return <CsvPreview name={name} folder={folder} storage={storage} />
+      case 'xlsx': return <XlsxPreview name={name} folder={folder} storage={storage} />
+      case 'docx': return <DocxPreview name={name} folder={folder} storage={storage} />
       case 'pptx': return <PptxPreview name={name} folder={folder} storage={storage} onPageChange={handlePdfPageChange} />
       case 'archive': return <ArchivePreview name={name} folder={folder} storage={storage} />
       default:

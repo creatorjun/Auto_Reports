@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/storage/StorageUtils.tsx
+import type { BinaryContent } from '@/application/ports/ApplicationServices'
 export function isPreviewable(name: string): boolean {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
   return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'pdf', 'mp4', 'webm', 'mp3', 'wav', 'txt', 'md', 'xlsx', 'xls', 'docx', 'doc', 'pptx', 'ppt'].includes(ext)
@@ -16,15 +17,15 @@ export function joinPath(...parts: string[]): string {
   return parts.filter(Boolean).join('/').replace(/\/+/g, '/')
 }
 
-export function saveBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob)
+export function saveBinaryContent(content: BinaryContent, filename: string): void {
+  const objectUrl = content.createObjectUrl()
   const anchor = document.createElement('a')
-  anchor.href = url
+  anchor.href = objectUrl.url
   anchor.download = filename
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  window.setTimeout(objectUrl.close, 1000)
 }
 
 export async function copyToClipboard(text: string): Promise<boolean> {
