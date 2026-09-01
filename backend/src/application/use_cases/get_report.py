@@ -42,6 +42,12 @@ class GetReportUseCase:
             await self._cache.set_latest_id(report.id)
         return report
 
+    async def get_annual(self, year: int) -> Optional[Report]:
+        report = await self._repository.find_annual(year)
+        if report:
+            await self._cache.set(report.id, report)
+        return report
+
     async def get_all(self, limit: int = 20, offset: int = 0) -> list[Report]:
         return await self._repository.find_all(limit=limit, offset=offset)
 

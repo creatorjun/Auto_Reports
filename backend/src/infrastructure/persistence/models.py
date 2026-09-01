@@ -18,12 +18,15 @@ class ReportORM(Base):
     report_date: Mapped[str] = mapped_column(String, nullable=False)
     widgets: Mapped[dict] = mapped_column(JSONB, nullable=False)
     ai_analysis: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    scope: Mapped[str] = mapped_column(String, nullable=False, default="standard")
+    report_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     __table_args__ = (
         Index("ix_reports_created_at", "created_at"),
+        Index("ix_reports_scope_year_created_at", "scope", "report_year", "created_at"),
     )
 
 

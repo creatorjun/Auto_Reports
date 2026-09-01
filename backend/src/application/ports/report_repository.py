@@ -17,6 +17,9 @@ class ReportRepository(ABC):
     async def find_latest(self) -> Optional[Report]: ...
 
     @abstractmethod
+    async def find_annual(self, year: int) -> Optional[Report]: ...
+
+    @abstractmethod
     async def find_all(self, limit: int = 20, offset: int = 0) -> list[Report]: ...
 
     @abstractmethod

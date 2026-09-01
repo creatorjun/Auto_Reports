@@ -6,15 +6,32 @@ import { QUERY_KEYS } from '@/presentation/config/queryKeys'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
 import type { TriggerParams } from '@/domain/Job'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
+import { isRefreshableAnnualReport, REPORT_REFRESH_INTERVAL_MS } from '@/presentation/config/annualReports'
 
 export const useLatestReport = () => {
   const { reports } = useApplicationServices()
   return useQuery<ReportDetail | null>({
     queryKey: QUERY_KEYS.latestReport(),
     queryFn: reports.getLatest,
-    staleTime: 1000 * 60 * 5,
-    refetchInterval: 1000 * 60 * 10,
+    staleTime: REPORT_REFRESH_INTERVAL_MS,
+    refetchInterval: REPORT_REFRESH_INTERVAL_MS,
     refetchIntervalInBackground: false,
+  })
+}
+
+export const useAnnualReport = (year: number) => {
+  const { reports } = useApplicationServices()
+  const refreshable = isRefreshableAnnualReport(year)
+  return useQuery<ReportDetail>({
+    queryKey: QUERY_KEYS.annualReport(year),
+    queryFn: () => reports.getAnnual(year),
+    enabled: Number.isInteger(year) && year > 0,
+    staleTime: refreshable ? REPORT_REFRESH_INTERVAL_MS : Infinity,
+    refetchInterval: refreshable ? REPORT_REFRESH_INTERVAL_MS : false,
+    refetchIntervalInBackground: false,
+    refetchOnMount: refreshable,
+    refetchOnWindowFocus: refreshable,
+    refetchOnReconnect: refreshable,
   })
 }
 

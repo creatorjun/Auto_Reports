@@ -1,8 +1,8 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
 import { lazy, Suspense, useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import { BarChart2, ShieldAlert, Activity, Pin } from 'lucide-react'
-import { useLatestReport, useReportById } from '@/presentation/hooks/useReport'
+import { BarChart2, ShieldAlert, Activity, Pin, CalendarRange, RefreshCw, Archive } from 'lucide-react'
+import { useAnnualReport, useLatestReport, useReportById } from '@/presentation/hooks/useReport'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useDashboardData } from '@/presentation/hooks/useDashboardData'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
@@ -16,6 +16,7 @@ import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/
 import type { ReportDetail } from '@/domain/Report'
 import type { Semester, SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
 import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
+import { isRefreshableAnnualReport } from '@/presentation/config/annualReports'
 
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
 const ReasonPieChart      = lazy(() => import('@/presentation/components/charts/ReasonPieChart'))
@@ -87,6 +88,30 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 
   return (
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
+      {report.scope === 'annual' && report.report_year != null && (
+        <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+              <CalendarRange size={20} />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold text-apple-dark">{report.report_year} 연간 보고서</h1>
+              <p className="mt-0.5 text-[12px] text-apple-light">{report.week_start} – {report.week_end}</p>
+            </div>
+          </div>
+          {isRefreshableAnnualReport(report.report_year) ? (
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-[11px] font-medium text-brand-700">
+              <RefreshCw size={12} />
+              5분마다 자동 갱신
+            </span>
+          ) : (
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-apple-gray px-3 py-1.5 text-[11px] font-medium text-apple-light">
+              <Archive size={12} />
+              확정 보고서 · 자동 갱신 없음
+            </span>
+          )}
+        </div>
+      )}
       <IssueTypeFilter
         issueTypes={issueTypes}
         selectedTypes={selectedIssueTypes}
@@ -250,13 +275,26 @@ function DashboardContent({ report }: { report: ReportDetail }) {
 }
 
 export default function DashboardPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id, year } = useParams<{ id: string; year: string }>()
+  const annualYear = Number(year)
   const latestQuery = useLatestReport()
   const byIdQuery   = useReportById(Number(id))
-  const { data, isLoading, error } = id ? byIdQuery : latestQuery
+  const annualQuery = useAnnualReport(annualYear)
+  const { data, isLoading, error } = year ? annualQuery : id ? byIdQuery : latestQuery
 
   if (isLoading) return <LoadingSpinner text="보고서 로딩 중..." />
-  if (error)     return <div className="card text-ui-base text-red-500">데이터를 불러올 수 없습니다.</div>
+  if (error && year) return (
+    <div className="card text-center py-16">
+      <CalendarRange className="mx-auto mb-3 text-apple-light" size={28} />
+      <p className="text-ui-base font-medium text-apple-dark">{annualYear} 연간 보고서가 아직 생성되지 않았습니다.</p>
+      <p className="mt-2 text-[12px] text-apple-light">
+        {annualYear === 2026
+          ? '2026-01-01부터 오늘까지의 기간으로 보고서를 생성하면 자동으로 연결됩니다.'
+          : `${annualYear}-01-01부터 ${annualYear}-12-31까지의 기간으로 보고서를 생성하면 자동으로 연결됩니다.`}
+      </p>
+    </div>
+  )
+  if (error) return <div className="card text-ui-base text-red-500">데이터를 불러올 수 없습니다.</div>
   if (!data)     return (
     <div className="card text-ui-base text-apple-light text-center py-16">
       생성된 보고서가 없습니다. <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 누르세요.

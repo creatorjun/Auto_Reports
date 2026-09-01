@@ -21,6 +21,8 @@ class ReportMapper:
             report_date=report.report_date,
             created_at=report.created_at,
             sentiment=report.ai_analysis.sentiment if report.ai_analysis else None,
+            scope=report.scope.value,
+            report_year=report.report_year,
         )
 
     @staticmethod
@@ -56,4 +58,6 @@ class ReportMapper:
             created_at=report.created_at,
             widgets=widgets,
             ai_analysis=ai,
+            scope=report.scope.value,
+            report_year=report.report_year,
         )

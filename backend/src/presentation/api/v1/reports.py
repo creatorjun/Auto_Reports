@@ -32,6 +32,17 @@ async def get_latest_report(use_case: GetReportUseCase = Depends(get_get_use_cas
     return ReportMapper.to_detail(report)
 
 
+@router.get("/annual/{year}", response_model=ReportDetailSchema)
+async def get_annual_report(
+    year: int,
+    use_case: GetReportUseCase = Depends(get_get_use_case),
+):
+    report = await use_case.get_annual(year)
+    if not report:
+        raise HTTPException(status_code=404, detail="Annual report not found")
+    return ReportMapper.to_detail(report)
+
+
 @router.get("/{report_id}", response_model=ReportDetailSchema)
 async def get_report(
     report_id: int,

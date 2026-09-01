@@ -22,7 +22,7 @@ export default function RefreshButton() {
     },
   })
 
-  if (!currentReport) return null
+  if (!currentReport || currentReport.scope !== 'standard') return null
 
   const isDisabled = isTriggerLoading || isPending
 

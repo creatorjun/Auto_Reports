@@ -103,6 +103,31 @@ test('desktop sidebar starts expanded', () => {
   assert.match(layout, /useState\(false\)/)
 })
 
+test('annual report menus and refresh policy stay explicit', () => {
+  const sidebar = fs.readFileSync(
+    path.join(source, 'presentation/components/layout/Sidebar.tsx'),
+    'utf8',
+  )
+  const annualConfig = fs.readFileSync(
+    path.join(source, 'presentation/config/annualReports.ts'),
+    'utf8',
+  )
+  const reportHook = fs.readFileSync(
+    path.join(source, 'presentation/hooks/useReport.ts'),
+    'utf8',
+  )
+  const router = fs.readFileSync(path.join(source, 'app/router.tsx'), 'utf8')
+
+  assert.match(annualConfig, /ANNUAL_REPORT_YEARS = \[2024, 2025, 2026\]/)
+  assert.match(annualConfig, /REFRESHABLE_ANNUAL_REPORT_YEAR = 2026/)
+  assert.match(annualConfig, /1000 \* 60 \* 5/)
+  assert.match(sidebar, /`\$\{year\} 연간 보고서`/)
+  assert.match(sidebar, /`\/reports\/annual\/\$\{year\}`/)
+  assert.match(router, /reports\/annual\/:year/)
+  assert.match(reportHook, /staleTime: refreshable \? REPORT_REFRESH_INTERVAL_MS : Infinity/)
+  assert.match(reportHook, /refetchInterval: refreshable \? REPORT_REFRESH_INTERVAL_MS : false/)
+})
+
 test('theme palette and persisted mode stay centralized in presentation', () => {
   const palette = fs.readFileSync(
     path.join(source, 'presentation/styles/palette.css'),

@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import delete, desc, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.entities.report import NewReport, Report
+from src.domain.entities.report import NewReport, Report, ReportScope
 from src.application.ports.report_repository import ReportRepository
 from src.domain.value_objects.ai_analysis import AiAnalysis
 from src.infrastructure.persistence.models import ReportORM
@@ -29,6 +29,8 @@ class ReportRepositoryImpl(ReportRepository):
             report_date=report.report_date,
             widgets=widgets_dict,
             ai_analysis=ai_dict,
+            scope=report.scope.value,
+            report_year=report.report_year,
         )
         self._session.add(orm)
         await self._session.flush()
@@ -40,6 +42,8 @@ class ReportRepositoryImpl(ReportRepository):
             report_date=report.report_date,
             widgets=report.widgets,
             ai_analysis=report.ai_analysis,
+            scope=report.scope,
+            report_year=report.report_year,
             created_at=self._to_kst(orm.created_at),
         )
 
@@ -52,7 +56,23 @@ class ReportRepositoryImpl(ReportRepository):
 
     async def find_latest(self) -> Optional[Report]:
         result = await self._session.execute(
-            select(ReportORM).order_by(desc(ReportORM.created_at)).limit(1)
+            select(ReportORM)
+            .where(ReportORM.scope == ReportScope.STANDARD.value)
+            .order_by(desc(ReportORM.created_at))
+            .limit(1)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_entity(orm) if orm else None
+
+    async def find_annual(self, year: int) -> Optional[Report]:
+        result = await self._session.execute(
+            select(ReportORM)
+            .where(
+                ReportORM.scope == ReportScope.ANNUAL.value,
+                ReportORM.report_year == year,
+            )
+            .order_by(desc(ReportORM.created_at))
+            .limit(1)
         )
         orm = result.scalar_one_or_none()
         return self._to_entity(orm) if orm else None
@@ -71,7 +91,10 @@ class ReportRepositoryImpl(ReportRepository):
         return result.rowcount > 0
 
     async def delete_before(self, cutoff: date) -> list[int]:
-        select_stmt = select(ReportORM.id).where(ReportORM.week_start < cutoff)
+        select_stmt = select(ReportORM.id).where(
+            ReportORM.scope == ReportScope.STANDARD.value,
+            ReportORM.week_start < cutoff,
+        )
         id_result = await self._session.execute(select_stmt)
         expired_ids: list[int] = list(id_result.scalars().all())
 
@@ -95,6 +118,8 @@ class ReportRepositoryImpl(ReportRepository):
             .where(ReportORM.id == report_id)
             .values(
                 widgets=widgets_dict,
+                week_start=report.week_start,
+                week_end=report.week_end,
                 report_date=report.report_date,
             )
         )
@@ -124,5 +149,7 @@ class ReportRepositoryImpl(ReportRepository):
             report_date=orm.report_date,
             widgets=widgets,
             ai_analysis=ai,
+            scope=ReportScope(orm.scope),
+            report_year=orm.report_year,
             created_at=ReportRepositoryImpl._to_kst(orm.created_at),
         )

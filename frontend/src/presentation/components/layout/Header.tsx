@@ -32,7 +32,7 @@ export default function Header() {
       e.preventDefault()
       e.stopPropagation()
       e.stopImmediatePropagation()
-      if (!currentReport || isTriggerLoading || isPending) return
+      if (!currentReport || currentReport.scope !== 'standard' || isTriggerLoading || isPending) return
       setTriggerLoading(true)
       setTriggerMessage(null)
       mutate()
@@ -69,7 +69,7 @@ export default function Header() {
         <div className="flex items-center gap-2 px-4 pb-2.5 pt-1 overflow-hidden">
           {currentReport && (
             <div className="flex items-center gap-2 flex-shrink-0">
-              <RefreshButton />
+              {currentReport.scope === 'standard' && <RefreshButton />}
               <p className="text-[11px] text-apple-light tabular-nums truncate max-w-[160px]">
                 {currentReport.week_start} – {currentReport.week_end}
               </p>
@@ -85,9 +85,11 @@ export default function Header() {
         <div className="w-[28rem] 3xl:w-[32rem] flex items-center gap-3 overflow-hidden">
           {currentReport && (
             <>
-              <div className="flex-shrink-0">
-                <RefreshButton />
-              </div>
+              {currentReport.scope === 'standard' && (
+                <div className="flex-shrink-0">
+                  <RefreshButton />
+                </div>
+              )}
               <p className="hidden sm:block text-ui-xs 3xl:text-ui-sm text-apple-light tabular-nums truncate">
                 {currentReport.week_start} – {currentReport.week_end}
               </p>

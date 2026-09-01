@@ -26,6 +26,7 @@ export interface AuthGateway {
 
 export interface ReportGateway {
   getLatest: () => Promise<ReportDetail | null>
+  getAnnual: (year: number) => Promise<ReportDetail>
   getById: (id: number) => Promise<ReportDetail>
   getAll: (limit?: number, offset?: number) => Promise<ReportSummary[]>
   trigger: (params?: TriggerParams) => Promise<TriggerAccepted>

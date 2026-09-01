@@ -2,6 +2,7 @@
 export const QUERY_KEYS = {
   me:            () => ['me'] as const,
   latestReport:  () => ['reports', 'latest'] as const,
+  annualReport:  (year: number) => ['reports', 'annual', year] as const,
   reportById:    (id: number) => ['reports', id] as const,
   allReports:    (page: number, size: number) => ['reports', 'list', page, size] as const,
   allReportsBase: () => ['reports'] as const,

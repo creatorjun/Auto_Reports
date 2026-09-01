@@ -8,7 +8,7 @@ from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.notify_tac_assigned import NotifyTacAssignedUseCase
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase, extract_todo_issues
-from src.domain.entities.report import Report
+from src.domain.entities.report import Report, ReportScope
 from src.application.ports.report_analyzer_port import ReportAnalyzerPort
 from src.application.ports.report_repository import ReportRepository
 from src.domain.constants import KST
@@ -50,6 +50,12 @@ class GenerateReportUseCase:
             now=end_date or now,
             week_start_override=start_date,
         )
+        scope, report_year = self._resolve_scope(start_date, end_date, now)
+        new_report = dataclasses.replace(
+            new_report,
+            scope=scope,
+            report_year=report_year,
+        )
 
         analysis = None
         try:
@@ -61,7 +67,8 @@ class GenerateReportUseCase:
         saved = await self._repository.save(report_with_analysis)
 
         await self._cache.set(saved.id, saved)
-        await self._cache.set_latest_id(saved.id)
+        if saved.scope == ReportScope.STANDARD:
+            await self._cache.set_latest_id(saved.id)
         logger.info(f"\ubcf4\uace0\uc11c \uc800\uc7a5 \uc644\ub8cc \ubc0f \uce90\uc2dc \uac31\uc2e0: ID={saved.id}")
 
         await self._purge_expired(now)
@@ -81,6 +88,24 @@ class GenerateReportUseCase:
                 logger.error(f"[GenerateReport] TAC \ub2f4\ub2f9\uc790 \uba54\uc77c \uc2e4\ud328: {exc}")
 
         return saved
+
+    @staticmethod
+    def _resolve_scope(
+        start_date: datetime | None,
+        end_date: datetime | None,
+        now: datetime,
+    ) -> tuple[ReportScope, int | None]:
+        if start_date is None or end_date is None:
+            return ReportScope.STANDARD, None
+        start = start_date.date()
+        end = end_date.date()
+        starts_on_january_first = start.month == 1 and start.day == 1
+        same_year = start.year == end.year
+        is_completed_year = end.month == 12 and end.day == 31
+        is_current_year = start.year == now.year
+        if starts_on_january_first and same_year and (is_completed_year or is_current_year):
+            return ReportScope.ANNUAL, start.year
+        return ReportScope.STANDARD, None
 
     async def _purge_expired(self, now: datetime) -> None:
         if self._retention_weeks == _RETENTION_DISABLED:

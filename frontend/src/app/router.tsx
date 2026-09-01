@@ -39,6 +39,7 @@ export const router = createBrowserRouter([
       { index: true,            element: <Wrap><DashboardPage /></Wrap> },
       { path: 'sla-dashboard',  element: <Wrap><SlaDashboardPage /></Wrap> },
       { path: 'history',        element: <Wrap><HistoryPage /></Wrap> },
+      { path: 'reports/annual/:year', element: <Wrap><DashboardPage /></Wrap> },
       { path: 'reports/:id',    element: <Wrap><DashboardPage /></Wrap> },
       { path: 'partners',       element: <Wrap><PartnerManagementPage /></Wrap> },
       { path: 'storage',        element: <Wrap><StoragePage /></Wrap> },

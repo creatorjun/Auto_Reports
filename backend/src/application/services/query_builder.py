@@ -95,15 +95,19 @@ class ResolvedQueries:
         return self._c.sla_threshold_days
 
     def w1_yearly_created(self) -> str:
+        year = self._now.year
         return (
             f"{self._base()} "
-            f"AND created >= \"{self._c.year_start}-01-01\""
+            f"AND created >= \"{year}-01-01\" "
+            f"AND created < \"{year + 1}-01-01\""
         )
 
     def w2_yearly_resolved(self) -> str:
+        year = self._now.year
         return (
             f"{self._base()} "
-            f"AND resolved >= \"{self._c.year_start}-01-01\""
+            f"AND resolved >= \"{year}-01-01\" "
+            f"AND resolved < \"{year + 1}-01-01\""
         )
 
     def w3_created_vs_resolved(self) -> Tuple[str, str]:

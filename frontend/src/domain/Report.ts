@@ -20,6 +20,8 @@ export interface ReportSummary {
   report_date: string
   created_at: string
   sentiment: 'good' | 'warning' | 'critical' | null
+  scope: 'standard' | 'annual'
+  report_year: number | null
 }
 
 export interface ReportDetail extends ReportSummary {

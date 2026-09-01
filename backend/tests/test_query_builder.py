@@ -27,14 +27,28 @@ class WidgetQueryBuilderTest(unittest.TestCase):
 
     def test_yearly_created_uses_every_project_request_type(self) -> None:
         self.assertEqual(
-            'project = TACEA AND created >= "2026-01-01"',
+            'project = TACEA AND created >= "2026-01-01" AND created < "2027-01-01"',
             self.queries.w1_yearly_created(),
         )
 
     def test_yearly_resolved_uses_every_project_request_type(self) -> None:
         self.assertEqual(
-            'project = TACEA AND resolved >= "2026-01-01"',
+            'project = TACEA AND resolved >= "2026-01-01" AND resolved < "2027-01-01"',
             self.queries.w2_yearly_resolved(),
+        )
+
+    def test_historical_report_uses_the_requested_year(self) -> None:
+        historical = WidgetQueryBuilder(self.config).build(
+            datetime.datetime(2024, 12, 31)
+        )
+
+        self.assertEqual(
+            'project = TACEA AND created >= "2024-01-01" AND created < "2025-01-01"',
+            historical.w1_yearly_created(),
+        )
+        self.assertEqual(
+            'project = TACEA AND resolved >= "2024-01-01" AND resolved < "2025-01-01"',
+            historical.w2_yearly_resolved(),
         )
 
     def test_incomplete_issues_use_every_project_request_type(self) -> None:

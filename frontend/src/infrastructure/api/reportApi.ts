@@ -11,6 +11,10 @@ export const reportApi = {
     const res = await client.get<ReportDetail>('/reports/latest')
     return res.data
   },
+  getAnnual: async (year: number): Promise<ReportDetail> => {
+    const res = await client.get<ReportDetail>(`/reports/annual/${year}`)
+    return res.data
+  },
   getById: async (id: number): Promise<ReportDetail> => {
     const res = await client.get<ReportDetail>(`/reports/${id}`)
     return res.data
