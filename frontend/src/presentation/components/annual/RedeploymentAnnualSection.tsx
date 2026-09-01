@@ -23,7 +23,6 @@ import {
   CHART_LEGEND_COLOR,
   CHART_LEGEND_ICON_SIZE,
   CHART_TICK_FONT_SIZE,
-  PIE_COLORS,
 } from '@/presentation/config/constants'
 import { CHART_COLORS } from '@/presentation/config/ui'
 
@@ -33,6 +32,14 @@ interface Props {
 }
 
 const REDEPLOYMENT_PAGE_SIZE = 5
+const REDEPLOYMENT_CHART_COLORS = [
+  'rgb(var(--color-chart-muted-steel))',
+  'rgb(var(--color-chart-muted-sage))',
+  'rgb(var(--color-chart-muted-taupe))',
+  'rgb(var(--color-chart-muted-mauve))',
+  'rgb(var(--color-chart-muted-olive))',
+  'rgb(var(--color-chart-muted-teal))',
+] as const
 
 function KpiCard({
   label,
@@ -86,7 +93,7 @@ function MonthlyRedeploymentChart({ data }: { data: RedeploymentAnalytics }) {
           <h3 className="text-ui-base font-semibold text-apple-dark">월별 재배포 추이</h3>
           <p className="mt-0.5 text-ui-xs text-apple-light">요청 유형별 누적 막대</p>
         </div>
-        <span className="text-ui-xs font-medium tabular-nums text-brand-600">통계 대상 {data.analytics_total}건</span>
+        <span className="text-ui-xs font-medium tabular-nums text-[rgb(var(--color-chart-muted-steel))]">통계 대상 {data.analytics_total}건</span>
       </div>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <BarChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
@@ -96,7 +103,7 @@ function MonthlyRedeploymentChart({ data }: { data: RedeploymentAnalytics }) {
           <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString('ko-KR')}건`, String(name)]} />
           <Legend iconType="circle" iconSize={CHART_LEGEND_ICON_SIZE} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: 11 }}>{value}</span>} />
           {issueTypes.map((issueType, index) => (
-            <Bar key={issueType} dataKey={issueType} stackId="redeployment" fill={PIE_COLORS[index % PIE_COLORS.length]} radius={index === issueTypes.length - 1 ? [5, 5, 0, 0] : 0} />
+            <Bar key={issueType} dataKey={issueType} stackId="redeployment" fill={REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length]} radius={index === issueTypes.length - 1 ? [5, 5, 0, 0] : 0} />
           ))}
         </BarChart>
       </ResponsiveContainer>
@@ -113,8 +120,8 @@ function CauseChart({ values }: { values: Record<string, number> }) {
       {data.length ? (
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" innerRadius={72} outerRadius={118} paddingAngle={2}>
-              {data.map((entry, index) => <Cell key={entry.name} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+            <Pie data={data} dataKey="value" nameKey="name" outerRadius={118} paddingAngle={1}>
+              {data.map((entry, index) => <Cell key={entry.name} fill={REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length]} />)}
             </Pie>
             <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString('ko-KR')}건`, String(name)]} />
             <Legend iconType="circle" iconSize={CHART_LEGEND_ICON_SIZE} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: 11 }}>{value}</span>} />
@@ -139,7 +146,7 @@ function AssigneeChart({ values }: { values: Record<string, number> }) {
             <YAxis type="category" dataKey="name" width={92} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
             <Tooltip formatter={(value) => [`${Number(value).toLocaleString('ko-KR')}건`, '재배포']} />
             <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-              {data.map((entry, index) => <Cell key={entry.name} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+              {data.map((entry, index) => <Cell key={entry.name} fill={REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length]} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -182,10 +189,10 @@ function PartnerMatrix({ matrix }: { matrix: Record<string, Record<string, numbe
                     <th className="max-w-[260px] truncate px-4 py-3 text-left font-medium text-apple-dark" title={partner}>{partner}</th>
                     {issueTypes.map((issueType) => {
                       const count = counts[issueType] ?? 0
-                      const opacity = count ? 0.14 + (count / maxCount) * 0.72 : 0
-                      return <td key={issueType} className="px-3 py-3 font-semibold tabular-nums" style={{ backgroundColor: `rgba(37, 99, 235, ${opacity})`, color: opacity > 0.48 ? 'white' : undefined }}>{count || '–'}</td>
+                      const opacity = count ? 0.12 + (count / maxCount) * 0.54 : 0
+                      return <td key={issueType} className="px-3 py-3 font-semibold tabular-nums text-apple-dark" style={{ backgroundColor: `rgb(var(--color-chart-muted-steel) / ${opacity})` }}>{count || '–'}</td>
                     })}
-                    <td className="px-3 py-3 font-semibold tabular-nums text-brand-600">{total}</td>
+                    <td className="px-3 py-3 font-semibold tabular-nums text-[rgb(var(--color-chart-muted-steel))]">{total}</td>
                   </tr>
                 )
               })}
@@ -229,10 +236,10 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
               </thead>
               <tbody>
                 {visibleIssues.map((issue) => (
-                  <tr key={issue.key} className="border-b border-apple-divider/60 transition-colors hover:bg-brand-50/40">
+                  <tr key={issue.key} className="border-b border-apple-divider/60 transition-colors hover:bg-[rgb(var(--color-chart-muted-steel)/0.08)]">
                     <td className="px-3 py-3 text-center tabular-nums text-apple-light">{issue.month}</td>
                     <td className="px-3 py-3 text-center"><IssueTypeBadge type={issue.type} /></td>
-                    <td className="px-3 py-3 text-center"><a className="font-mono font-medium text-brand-600 hover:underline" href={`${jiraBrowse}/${issue.key}`} target="_blank" rel="noopener noreferrer">{issue.key}</a></td>
+                    <td className="px-3 py-3 text-center"><a className="font-mono font-medium text-[rgb(var(--color-chart-muted-steel))] hover:underline" href={`${jiraBrowse}/${issue.key}`} target="_blank" rel="noopener noreferrer">{issue.key}</a></td>
                     <td className="max-w-[360px] truncate px-3 py-3 text-apple-dark" title={issue.summary}>{issue.summary}</td>
                     <td className="px-3 py-3 text-center text-apple-light">{issue.priority}</td>
                     <td className="px-3 py-3 text-center text-apple-light">{issue.cause}</td>
@@ -257,8 +264,8 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
                       onClick={() => setPage(pageNumber)}
                       className={`min-w-8 rounded-lg px-2.5 py-1.5 text-ui-sm font-medium transition-colors ${
                         currentPage === pageNumber
-                          ? 'bg-brand-500 text-white'
-                          : 'bg-apple-gray text-apple-mid hover:bg-brand-50 hover:text-brand-600'
+                          ? 'bg-[rgb(var(--color-chart-muted-steel))] text-white'
+                          : 'bg-apple-gray text-apple-mid hover:bg-[rgb(var(--color-chart-muted-steel)/0.12)] hover:text-[rgb(var(--color-chart-muted-steel))]'
                       }`}
                     >
                       {pageNumber}
@@ -279,17 +286,17 @@ export default function RedeploymentAnnualSection({ data, year }: Props) {
   return (
     <section className="space-y-4 md:space-y-5">
       <div className="flex items-center gap-2">
-        <BarChart3 size={18} className="text-brand-600" />
+        <BarChart3 size={18} className="text-[rgb(var(--color-chart-muted-steel))]" />
         <h2 className="text-xl font-semibold text-apple-dark">{year}년 재배포 품질 지표</h2>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <KpiCard label="전체 해결 이슈" value={data.resolved_total} unit="건" icon={<CheckCircle2 size={21} />} tone="bg-green-50 text-green-600" />
-        <KpiCard label="재배포 이슈" value={classificationComplete ? data.redeployment_total : '집계 불가'} unit={classificationComplete ? '건' : ''} icon={<RotateCcw size={21} />} tone="bg-red-50 text-red-500" />
-        <KpiCard label="재배포율" value={classificationComplete ? data.redeployment_rate : '집계 불가'} unit={classificationComplete ? '%' : ''} icon={<Percent size={21} />} tone="bg-brand-50 text-brand-600" />
+        <KpiCard label="전체 해결 이슈" value={data.resolved_total} unit="건" icon={<CheckCircle2 size={21} />} tone="bg-[rgb(var(--color-chart-muted-sage)/0.16)] text-[rgb(var(--color-chart-muted-sage))]" />
+        <KpiCard label="재배포 이슈" value={classificationComplete ? data.redeployment_total : '집계 불가'} unit={classificationComplete ? '건' : ''} icon={<RotateCcw size={21} />} tone="bg-[rgb(var(--color-chart-muted-taupe)/0.16)] text-[rgb(var(--color-chart-muted-taupe))]" />
+        <KpiCard label="재배포율" value={classificationComplete ? data.redeployment_rate : '집계 불가'} unit={classificationComplete ? '%' : ''} icon={<Percent size={21} />} tone="bg-[rgb(var(--color-chart-muted-steel)/0.16)] text-[rgb(var(--color-chart-muted-steel))]" />
       </div>
       {!classificationComplete ? (
         <div className="card flex min-h-44 flex-col items-center justify-center gap-2 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-50 text-amber-600"><AlertTriangle size={22} /></span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgb(var(--color-chart-muted-olive)/0.16)] text-[rgb(var(--color-chart-muted-olive))]"><AlertTriangle size={22} /></span>
           <p className="text-ui-base font-semibold text-apple-dark">{year}년 재배포 원천 데이터가 기록되지 않았습니다</p>
         </div>
       ) : data.redeployment_total > 0 ? (
@@ -304,7 +311,7 @@ export default function RedeploymentAnnualSection({ data, year }: Props) {
         </>
       ) : (
         <div className="card flex min-h-40 flex-col items-center justify-center gap-2 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-green-50 text-green-600"><CheckCircle2 size={22} /></span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgb(var(--color-chart-muted-sage)/0.16)] text-[rgb(var(--color-chart-muted-sage))]"><CheckCircle2 size={22} /></span>
           <p className="text-ui-base font-semibold text-apple-dark">{year}년 재배포 이슈가 없습니다</p>
         </div>
       )}

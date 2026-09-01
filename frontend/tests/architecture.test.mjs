@@ -264,6 +264,10 @@ test('annual reports render every redeployment dashboard view', () => {
     path.join(source, 'presentation/components/annual/RedeploymentAnnualSection.tsx'),
     'utf8',
   )
+  const palette = fs.readFileSync(
+    path.join(source, 'presentation/styles/palette.css'),
+    'utf8',
+  )
   const page = fs.readFileSync(
     path.join(source, 'presentation/pages/DashboardPage.tsx'),
     'utf8',
@@ -296,6 +300,14 @@ test('annual reports render every redeployment dashboard view', () => {
   assert.match(section, /Array\.from\(\{ length: totalPages \}\)/)
   assert.match(section, /onClick=\{\(\) => setPage\(pageNumber\)\}/)
   assert.match(section, /classification_complete/)
+  assert.match(section, /REDEPLOYMENT_CHART_COLORS/)
+  assert.match(section, /<Pie data=\{data\} dataKey="value" nameKey="name" outerRadius=\{118\}/)
+  assert.doesNotMatch(section, /PIE_COLORS/)
+  assert.doesNotMatch(section, /innerRadius=/)
+  assert.doesNotMatch(section, /rgba\(37, 99, 235/)
+  assert.match(palette, /--color-chart-muted-steel:/)
+  assert.match(palette, /--color-chart-muted-sage:/)
+  assert.match(palette, /--color-chart-muted-taupe:/)
   assert.match(page, /WIDGET_ID\.REDEPLOYMENT_ANALYTICS/)
   assert.match(
     page,

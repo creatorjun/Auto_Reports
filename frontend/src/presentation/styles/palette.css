@@ -83,6 +83,12 @@
   --color-chart-violet: 139 92 246;
   --color-chart-emerald: 16 185 129;
   --color-chart-orange: 249 115 22;
+  --color-chart-muted-steel: 102 119 133;
+  --color-chart-muted-sage: 120 140 123;
+  --color-chart-muted-taupe: 140 127 115;
+  --color-chart-muted-mauve: 126 122 143;
+  --color-chart-muted-olive: 143 136 111;
+  --color-chart-muted-teal: 113 133 138;
   --color-markdown-inline-code: 199 37 78;
   --color-code-background: 30 30 46;
   --color-code-text: 205 214 244;
@@ -182,6 +188,12 @@
   --color-chart-violet: 191 90 242;
   --color-chart-emerald: 48 209 88;
   --color-chart-orange: 255 159 10;
+  --color-chart-muted-steel: 137 153 166;
+  --color-chart-muted-sage: 145 162 143;
+  --color-chart-muted-taupe: 166 150 137;
+  --color-chart-muted-mauve: 150 145 165;
+  --color-chart-muted-olive: 168 159 133;
+  --color-chart-muted-teal: 134 155 160;
   --color-markdown-inline-code: 255 127 158;
   --shadow-apple-sm: 0 1px 3px rgb(0 0 0 / 0.22), 0 1px 2px rgb(0 0 0 / 0.3);
   --shadow-apple: 0 4px 18px rgb(0 0 0 / 0.28), 0 1px 5px rgb(0 0 0 / 0.22);
