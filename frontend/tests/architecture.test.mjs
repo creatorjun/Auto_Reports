@@ -263,7 +263,16 @@ test('dashboard issue modals share accessible Jira new-tab row behavior', () => 
   assert.match(commonModal, /tabIndex=\{0\}/)
   assert.match(commonModal, /event\.key !== 'Enter' && event\.key !== ' '/)
   assert.match(commonModal, /w-full table-fixed border-collapse/)
-  assert.match(commonModal, /className="min-w-0 truncate"/)
+  assert.match(commonModal, /<td[^>]*px-4 text-center align-middle/)
+  assert.match(commonModal, /className="min-w-0 truncate text-center \[&>\*\]:pr-0"/)
+  assert.match(commonModal, /column\.mobile\.slot === 'primary'/)
+  assert.match(commonModal, /column\.mobile\.slot === 'secondary'/)
+  assert.match(commonModal, /column\.mobile\.slot === 'summary'/)
+  assert.match(commonModal, /column\.mobile\.slot === 'detail'/)
+  assert.match(commonModal, /cursor-pointer flex flex-col gap-1 rounded-lg/)
+  assert.match(commonModal, /flex items-center justify-center gap-3/)
+  assert.match(commonModal, /flex flex-wrap items-center justify-center gap-2/)
+  assert.doesNotMatch(commonModal, /renderMobileRow/)
   assert.match(commonModal, /border-b-2 border-apple-divider/)
   assert.match(uiConfig, /thCell:[^\n]*text-center/)
   assert.match(uiConfig, /thCell:[^\n]*border-r border-apple-divider\/90/)
@@ -279,6 +288,7 @@ test('dashboard issue modals share accessible Jira new-tab row behavior', () => 
     'IssueReviewModal.tsx',
     'ResultPendingModal.tsx',
     'SlaDelayModal.tsx',
+    'SlaOverdueModal.tsx',
     'SlaViolationModal.tsx',
     'WeeklyCreatedModal.tsx',
     'WeeklyResolvedModal.tsx',
@@ -289,8 +299,9 @@ test('dashboard issue modals share accessible Jira new-tab row behavior', () => 
     )
     assert.match(modal, /<IssueTableModal/)
     assert.match(modal, /header: '제목', width: 'wide'/)
-    assert.match(modal, /className="truncate[^\"]*"[^>]*>\{d\.summary\}<\/p>/)
-    assert.doesNotMatch(modal, /leading-snug[^\n]*d\.summary/)
+    assert.match(modal, /mobile: \{ slot: 'primary'/)
+    assert.match(modal, /mobile: \{ slot: 'summary'/)
+    assert.doesNotMatch(modal, /renderMobileRow|md:hidden|justify-between/)
     assert.doesNotMatch(modal, /window\.open|jiraBrowse/)
   }
 })

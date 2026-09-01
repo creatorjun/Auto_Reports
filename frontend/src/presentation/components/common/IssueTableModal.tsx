@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/common/IssueTableModal.tsx
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useJira } from '@/presentation/context/JiraContext'
 import { MODAL_CLS } from '@/presentation/config/ui'
 import { TABLE_PAGE_SIZE } from '@/presentation/config/constants'
@@ -11,7 +11,10 @@ export interface ColumnDef<T> {
   header: string
   width?: 'wide'
   renderCell: (row: T) => ReactNode
-  renderMobile?: (row: T) => ReactNode
+  mobile: {
+    slot: 'primary' | 'secondary' | 'summary' | 'detail' | 'hidden'
+    render?: (row: T) => ReactNode
+  }
 }
 
 interface Props<T extends { key: string }> {
@@ -22,7 +25,6 @@ interface Props<T extends { key: string }> {
   columns: ColumnDef<T>[]
   paginate?: boolean
   headerSlot?: ReactNode
-  renderMobileRow?: (row: T) => ReactNode
   onClose: () => void
 }
 
@@ -34,7 +36,6 @@ export default function IssueTableModal<T extends { key: string }>({
   columns,
   paginate = false,
   headerSlot,
-  renderMobileRow,
   onClose,
 }: Props<T>) {
   const { jiraBrowse } = useJira()
@@ -54,6 +55,15 @@ export default function IssueTableModal<T extends { key: string }>({
     event.preventDefault()
     openIssue(key)
   }
+
+  const primaryColumns = columns.filter(column => column.mobile.slot === 'primary')
+  const secondaryColumns = columns.filter(column => column.mobile.slot === 'secondary')
+  const summaryColumns = columns.filter(column => column.mobile.slot === 'summary')
+  const detailColumns = columns.filter(column => column.mobile.slot === 'detail')
+
+  const renderMobileColumn = (column: ColumnDef<T>, row: T) => (
+    column.mobile.render ? column.mobile.render(row) : column.renderCell(row)
+  )
 
   return (
     <IssueModalShell title={title} subtitle={subtitle} size={size} onClose={onClose}>
@@ -80,8 +90,8 @@ export default function IssueTableModal<T extends { key: string }>({
                 className="cursor-pointer transition-colors duration-150 hover:bg-apple-gray/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
               >
                 {columns.map(col => (
-                  <td key={col.header} className="min-w-0 overflow-hidden whitespace-nowrap">
-                    <div className="min-w-0 truncate">{col.renderCell(row)}</div>
+                  <td key={col.header} className="min-w-0 overflow-hidden whitespace-nowrap px-4 text-center align-middle">
+                    <div className="min-w-0 truncate text-center [&>*]:pr-0">{col.renderCell(row)}</div>
                   </td>
                 ))}
               </tr>
@@ -99,15 +109,35 @@ export default function IssueTableModal<T extends { key: string }>({
             aria-label={`${row.key} Jira 티켓 새 탭으로 열기`}
             onClick={() => openIssue(row.key)}
             onKeyDown={(event) => handleIssueKeyDown(event, row.key)}
-            className="cursor-pointer rounded-lg transition-colors hover:bg-apple-gray/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
+            className="cursor-pointer flex flex-col gap-1 rounded-lg px-2 py-3 text-center transition-colors hover:bg-apple-gray/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
           >
-            {renderMobileRow
-              ? renderMobileRow(row)
-              : (
-                <div className="flex flex-col gap-1 px-2 py-3">
-                  {columns[0]?.renderMobile?.(row)}
+            <div className="flex items-center justify-center gap-3">
+              {primaryColumns.map(column => (
+                <div key={column.header} className="text-ui-sm font-mono font-medium text-brand-600 whitespace-nowrap">
+                  {renderMobileColumn(column, row)}
                 </div>
-              )}
+              ))}
+              {secondaryColumns.map(column => (
+                <div key={column.header} className="text-ui-xs text-apple-light tabular-nums whitespace-nowrap">
+                  {renderMobileColumn(column, row)}
+                </div>
+              ))}
+            </div>
+            {summaryColumns.map(column => (
+              <div key={column.header} className="min-w-0 truncate text-ui-sm text-apple-dark/80">
+                {renderMobileColumn(column, row)}
+              </div>
+            ))}
+            {detailColumns.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-2 text-ui-xs text-apple-light">
+                {detailColumns.map((column, index) => (
+                  <Fragment key={column.header}>
+                    {index > 0 && <span aria-hidden="true">·</span>}
+                    {renderMobileColumn(column, row)}
+                  </Fragment>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
