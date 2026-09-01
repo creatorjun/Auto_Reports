@@ -109,7 +109,7 @@ export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
                   onCancel={() => setEditTarget(null)}
                 />
               ) : (
-                <div className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-sm">
+                <div className="rounded-xl border border-apple-divider/70 bg-apple-surface px-4 py-3 shadow-sm">
                   <div className="mb-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold text-apple-dark">
@@ -229,7 +229,7 @@ export function SitePatchHistory({ site }: { site: SiteDetail }) {
                   onCancel={() => setEditTarget(null)}
                 />
               ) : (
-                <div className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-sm">
+                <div className="rounded-xl border border-apple-divider/70 bg-apple-surface px-4 py-3 shadow-sm">
                   <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold text-apple-dark">
@@ -316,7 +316,7 @@ export function SiteVisitHistory({ site }: { site: SiteDetail }) {
                   onCancel={() => setEditTarget(null)}
                 />
               ) : (
-                <div className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-sm">
+                <div className="rounded-xl border border-apple-divider/70 bg-apple-surface px-4 py-3 shadow-sm">
                   <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold text-apple-dark">

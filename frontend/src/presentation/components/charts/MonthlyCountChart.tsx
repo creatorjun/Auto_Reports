@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/charts/MonthlyCountChart.tsx
-import { memo } from 'react'
+import { memo, useId } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -24,7 +24,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   const p = payload[0]
   return (
-    <div className="bg-white border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-ui-xs">
+    <div className="bg-apple-surface border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-ui-xs">
       <p className="font-semibold text-apple-dark mb-1">{label}</p>
       <div className="flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
@@ -36,7 +36,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
-  const gradientId = `mc-grad-${color.replace('#', '')}`
+  const gradientId = `mc-grad-${useId().replace(/:/g, '')}`
   const chartData  = monthly.map((e) => ({ month: e.month, count: e.count }))
   const hasData    = chartData.some((d) => d.count > 0)
 

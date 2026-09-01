@@ -416,7 +416,7 @@ export default function StoragePage() {
             type="button"
             onClick={handleDownloadSelection}
             disabled={isSelectionBusy}
-            className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[11px] font-medium text-brand-700 shadow-sm transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-apple-surface px-3 py-1.5 text-[11px] font-medium text-brand-700 shadow-sm transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download size={13} strokeWidth={1.8} />
             {isDownloadingSelection ? '압축 중...' : 'ZIP 다운로드'}
@@ -425,7 +425,7 @@ export default function StoragePage() {
             type="button"
             onClick={() => setShowSelectionDelete(true)}
             disabled={isSelectionBusy}
-            className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[11px] font-medium text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-apple-surface px-3 py-1.5 text-[11px] font-medium text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 size={13} strokeWidth={1.8} />
             삭제
@@ -436,7 +436,7 @@ export default function StoragePage() {
             disabled={isSelectionBusy}
             title="선택 해제"
             aria-label="선택 해제"
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-apple-light transition-colors hover:bg-white hover:text-apple-dark disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-apple-light transition-colors hover:bg-apple-surface hover:text-apple-dark disabled:cursor-not-allowed disabled:opacity-40"
           >
             <X size={14} strokeWidth={1.8} />
           </button>

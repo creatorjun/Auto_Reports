@@ -4,6 +4,7 @@ import { LayoutDashboard, Gauge, History, Building2, HardDrive, Users, ChevronLe
 import TriggerButton from '../common/TriggerButton'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout } from '@/presentation/hooks/useAuth'
+import ThemeToggle from './ThemeToggle'
 
 const reportLinks = [
   { to: '/',         label: '대시보드',      icon: <LayoutDashboard size={16} /> },
@@ -27,7 +28,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
     <aside
       className={[
         collapsed ? 'w-14 3xl:w-16' : 'w-56 xl:w-60 2xl:w-64 3xl:w-72',
-        'bg-white border-r border-apple-divider/80',
+        'bg-apple-surface border-r border-apple-divider/80',
         'flex flex-col py-5 3xl:py-7 px-2 3xl:px-3',
         'transition-all duration-250 ease-in-out flex-shrink-0',
       ].join(' ')}
@@ -65,6 +66,8 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
       </div>
 
       <div className={['mt-auto pt-4 border-t border-apple-divider/60 flex flex-col', collapsed ? 'items-center' : ''].join(' ')}>
+        <ThemeToggle collapsed={collapsed} />
+        <div className="h-2" />
         <TriggerButton collapsed={collapsed} />
 
         {loginRequired && (

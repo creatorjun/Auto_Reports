@@ -196,7 +196,7 @@ function PdfViewer({ url, onPageChange }: PdfViewerProps) {
         <canvas ref={canvasRef} className="shadow-2xl rounded" style={{ display: loading ? 'none' : 'block' }} />
       </div>
       {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-center gap-4 py-2 border-t border-apple-divider/60 bg-white flex-shrink-0">
+        <div className="flex items-center justify-center gap-4 py-2 border-t border-apple-divider/60 bg-apple-surface flex-shrink-0">
           <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1}
             className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors">
             ← 이전
@@ -308,8 +308,8 @@ function MarkdownPreview({ url }: { url: string }) {
   }, [url])
   if (content === null) return <LoadingSpinnerSmall />
   return (
-    <div className="overflow-auto h-full bg-[#f2f2f7]">
-      <div className="max-w-3xl mx-auto my-8 px-10 py-10 bg-white rounded-2xl shadow-xl markdown-body">
+    <div className="overflow-auto h-full bg-apple-bg">
+      <div className="max-w-3xl mx-auto my-8 px-10 py-10 bg-apple-surface rounded-2xl shadow-xl markdown-body">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[[rehypeHighlight, { detect: true }]]}
@@ -336,7 +336,7 @@ function CsvPreview({ url }: { url: string }) {
   return (
     <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
       <div className="p-6 w-full max-w-6xl">
-        <table className="text-[12px] border-collapse w-full bg-white rounded-xl overflow-hidden shadow-2xl">
+        <table className="text-[12px] border-collapse w-full bg-apple-surface rounded-xl overflow-hidden shadow-2xl">
           <thead><tr>{rows[0]?.map((h,i)=><th key={i} className="border border-apple-divider px-3 py-1.5 bg-apple-gray text-apple-dark font-semibold text-left whitespace-nowrap">{h}</th>)}</tr></thead>
           <tbody>{rows.slice(1).map((row,i)=><tr key={i} className="even:bg-apple-gray/40">{row.map((cell,j)=><td key={j} className="border border-apple-divider/60 px-3 py-1 text-apple-dark whitespace-nowrap">{cell}</td>)}</tr>)}</tbody>
         </table>
@@ -353,7 +353,7 @@ const XLSX_TABLE_STYLE = `
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
   .xlsx-preview td, .xlsx-preview th {
-    border: 1px solid #d1d5db;
+    border: 1px solid rgb(var(--color-gray-300));
     padding: 4px 8px;
     white-space: nowrap;
     vertical-align: middle;
@@ -363,17 +363,17 @@ const XLSX_TABLE_STYLE = `
   }
   .xlsx-preview tr:first-child td,
   .xlsx-preview tr:first-child th {
-    background: #f3f4f6;
+    background: rgb(var(--color-gray-100));
     font-weight: 600;
     position: sticky;
     top: 0;
     z-index: 1;
   }
   .xlsx-preview tr:nth-child(even) td {
-    background: #f9fafb;
+    background: rgb(var(--color-gray-50));
   }
   .xlsx-preview tr:hover td {
-    background: #eff6ff;
+    background: rgb(var(--color-blue-50));
   }
 `
 
@@ -419,7 +419,7 @@ function XlsxPreview({ url }: { url: string }) {
           ))}
         </div>
       )}
-      <div className="flex-1 overflow-auto bg-white rounded-xl shadow-2xl m-4 mt-0">
+      <div className="flex-1 overflow-auto bg-apple-surface text-apple-dark rounded-xl shadow-2xl m-4 mt-0">
         <div className="p-2 xlsx-preview" dangerouslySetInnerHTML={{ __html: sheets[activeSheet]?.html ?? '' }} />
       </div>
     </div>
@@ -439,8 +439,8 @@ function DocxPreview({ url }: { url: string }) {
   if (error) return <div className="flex items-center justify-center h-full bg-black/60"><p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p></div>
   if (html === null) return <LoadingSpinnerSmall />
   return (
-    <div className="overflow-auto h-full bg-[#f2f2f7]">
-      <div className="max-w-3xl mx-auto my-8 px-10 py-10 bg-white rounded-2xl shadow-xl prose prose-sm text-apple-dark" dangerouslySetInnerHTML={{ __html: html }} />
+    <div className="overflow-auto h-full bg-apple-bg">
+      <div className="max-w-3xl mx-auto my-8 px-10 py-10 bg-apple-surface rounded-2xl shadow-xl prose prose-sm text-apple-dark" dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   )
 }
@@ -584,8 +584,8 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-apple-divider/60 flex-shrink-0 bg-white">
+    <div className="fixed inset-0 z-50 flex flex-col bg-apple-surface">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-apple-divider/60 flex-shrink-0 bg-apple-surface">
         <div className="flex items-center gap-3 min-w-0">
           {fileList.length > 1 && (
             <div className="flex items-center gap-1 flex-shrink-0">

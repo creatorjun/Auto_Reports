@@ -15,12 +15,12 @@ export default function HistoryDeleteConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-[320px] md:w-[380px] mx-4">
+      <div className="relative bg-apple-surface rounded-2xl shadow-2xl p-6 w-[320px] md:w-[380px] mx-4">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M9 3.75v5.5M9 11.75v.5" stroke="#ef4444" strokeWidth="1.6" strokeLinecap="round"/>
-              <path d="M7.273 2.5h3.454c.28 0 .537.15.674.393l4.925 8.625A.75.75 0 0 1 15.652 12.5H2.348a.75.75 0 0 1-.674-1.082l4.925-8.625A.75.75 0 0 1 7.273 2.5Z" stroke="#ef4444" strokeWidth="1.4" strokeLinejoin="round"/>
+              <path d="M9 3.75v5.5M9 11.75v.5" stroke="rgb(var(--color-red-500))" strokeWidth="1.6" strokeLinecap="round"/>
+              <path d="M7.273 2.5h3.454c.28 0 .537.15.674.393l4.925 8.625A.75.75 0 0 1 15.652 12.5H2.348a.75.75 0 0 1-.674-1.082l4.925-8.625A.75.75 0 0 1 7.273 2.5Z" stroke="rgb(var(--color-red-500))" strokeWidth="1.4" strokeLinejoin="round"/>
             </svg>
           </div>
           <div>

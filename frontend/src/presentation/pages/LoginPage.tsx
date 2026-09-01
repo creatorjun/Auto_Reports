@@ -19,7 +19,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-apple-bg">
-      <div className="bg-white rounded-2xl shadow-sm border border-apple-divider/60 p-8 w-full max-w-sm">
+      <div className="bg-apple-surface rounded-2xl shadow-sm border border-apple-divider/60 p-8 w-full max-w-sm">
         <div className="flex flex-col items-center gap-2 mb-8">
           <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center">
             <svg width="18" height="18" viewBox="0 0 14 14" fill="none">

@@ -38,4 +38,4 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 
 ## Styles
 
-Recharts·table·modal 표시 상수는 `presentation/config/constants.ts`와 `ui.ts`에 있습니다. CSS는 `presentation/styles`, 날짜·숫자 formatter는 `presentation/utils`에 있습니다.
+라이트·다크 실제 색상 값은 `presentation/styles/palette.css`에서 단일 관리합니다. Tailwind semantic token과 Recharts 표시 상수는 이 CSS 변수를 참조하며, 공통 CSS는 `presentation/styles`, 날짜·숫자 formatter는 `presentation/utils`에 있습니다.

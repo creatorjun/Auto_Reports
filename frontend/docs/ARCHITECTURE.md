@@ -43,9 +43,11 @@ axios 오류는 Infrastructure에서 `RequestError`로 정규화됩니다. Prese
 ## UI 상태
 
 - 원격 서버 상태: TanStack Query
-- 인증, 선택 보고서, 트리거 표시: `presentation/state`의 Zustand store
+- 인증, 선택 보고서, 트리거 표시, 사용자 테마: `presentation/state`의 Zustand store
 - Jira URL과 Application gateway: `presentation/context`
 - 폼과 모달: 컴포넌트 로컬 상태
+
+라이트·다크 팔레트의 실제 색상 값은 `presentation/styles/palette.css` 한 곳에 있고, Tailwind와 Recharts는 동일한 CSS 변수를 사용합니다. 테마 선택은 `themeStore`가 로컬 저장소에 보존하며 `ThemeController`가 문서 루트의 `data-theme`에 반영합니다.
 
 ## 잡 진행
 

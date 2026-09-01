@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/charts/SlaMonthlyLineChart.tsx
-import { memo } from 'react'
+import { memo, useId } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
@@ -25,7 +25,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const p    = payload[0]
   const meta: MonthlyEntry | undefined = p?.payload?.meta
   return (
-    <div className="bg-white border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-ui-xs">
+    <div className="bg-apple-surface border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-ui-xs">
       <p className="font-semibold text-apple-dark mb-1">{label}</p>
       <div className="flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
@@ -42,7 +42,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 function SlaMonthlyLineChart({ title, subtitle, monthly, color }: Props) {
-  const gradientId = `sla-grad-${color.replace('#', '')}`
+  const gradientId = `sla-grad-${useId().replace(/:/g, '')}`
   const chartData  = monthly.map((e) => ({
     month: e.month,
     rate:  e.total > 0 ? e.rate : null,

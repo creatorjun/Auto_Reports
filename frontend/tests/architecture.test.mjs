@@ -103,6 +103,46 @@ test('desktop sidebar starts expanded', () => {
   assert.match(layout, /useState\(false\)/)
 })
 
+test('theme palette and persisted mode stay centralized in presentation', () => {
+  const palette = fs.readFileSync(
+    path.join(source, 'presentation/styles/palette.css'),
+    'utf8',
+  )
+  const tailwind = fs.readFileSync(path.join(root, 'tailwind.config.js'), 'utf8')
+  const store = fs.readFileSync(
+    path.join(source, 'presentation/state/themeStore.ts'),
+    'utf8',
+  )
+  const toggle = fs.readFileSync(
+    path.join(source, 'presentation/components/layout/ThemeToggle.tsx'),
+    'utf8',
+  )
+  const sidebar = fs.readFileSync(
+    path.join(source, 'presentation/components/layout/Sidebar.tsx'),
+    'utf8',
+  )
+  const header = fs.readFileSync(
+    path.join(source, 'presentation/components/layout/Header.tsx'),
+    'utf8',
+  )
+  const main = fs.readFileSync(path.join(source, 'main.tsx'), 'utf8')
+
+  assert.match(palette, /:root\[data-theme='dark'\]/)
+  assert.match(palette, /--color-apple-surface:/)
+  assert.match(palette, /--color-chart-grid:/)
+  assert.match(tailwind, /paletteColor\('apple-surface'\)/)
+  assert.match(tailwind, /var\(--shadow-apple\)/)
+  assert.match(store, /theme: 'light'/)
+  assert.match(store, /name: 'auto-reports-theme'/)
+  assert.match(store, /document\.documentElement\.dataset\.theme = theme/)
+  assert.match(toggle, /role="switch"/)
+  assert.match(toggle, /aria-checked=\{isDark\}/)
+  assert.match(sidebar, /<ThemeToggle collapsed=\{collapsed\} \/>/)
+  assert.match(header, /<ThemeToggle collapsed \/>/)
+  assert.match(main, /import '.\/presentation\/styles\/palette\.css'/)
+  assert.match(main, /applyTheme\(useThemeStore\.getState\(\)\.theme\)/)
+})
+
 test('partner issue rows open configured Jira tickets in a new tab', () => {
   const panel = fs.readFileSync(
     path.join(source, 'presentation/components/partner/PartnerIssuePanel.tsx'),

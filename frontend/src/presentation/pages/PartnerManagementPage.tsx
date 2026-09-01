@@ -41,14 +41,14 @@ export default function PartnerManagementPage() {
         </div>
       </div>
       <div className="flex-1 grid grid-cols-[220px_220px_1fr] gap-3 min-h-0">
-        <div className="bg-white border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-apple-surface border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
           <PartnerOrgPanel
             selectedOrgId={selectedOrg?.id ?? null}
             searchQuery={searchQuery}
             onSelect={handleSelectOrg}
           />
         </div>
-        <div className="bg-white border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-apple-surface border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
           <PartnerMemberPanel
             orgId={selectedOrg?.id ?? null}
             orgName={selectedOrg?.name ?? ''}
@@ -57,7 +57,7 @@ export default function PartnerManagementPage() {
             onSelect={setSelectedMember}
           />
         </div>
-        <div className="bg-white border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-apple-surface border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
           <PartnerIssuePanel
             orgId={selectedOrg?.id ?? null}
             accountId={selectedMember?.account_id ?? null}

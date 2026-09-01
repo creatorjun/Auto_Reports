@@ -5,6 +5,7 @@ import { useUiStore } from '@/presentation/state/uiStore'
 import { useRefreshReport } from '@/presentation/hooks/useReport'
 import SearchWidget from '@/presentation/components/common/SearchWidget'
 import RefreshButton from '@/presentation/components/common/RefreshButton'
+import ThemeToggle from './ThemeToggle'
 
 export default function Header() {
   const { triggerMessage } = useUiStore()
@@ -44,9 +45,9 @@ export default function Header() {
   }, [handleKeyDown])
 
   return (
-    <header className="bg-white flex-shrink-0 border-b border-apple-divider/60">
+    <header className="bg-apple-surface flex-shrink-0 border-b border-apple-divider/60">
       <div className="flex flex-col xl:hidden">
-        <div className="flex items-center justify-center px-4 pt-3 pb-1">
+        <div className="relative flex items-center justify-center px-4 pt-3 pb-1">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-brand-600 flex items-center justify-center flex-shrink-0">
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
@@ -57,6 +58,9 @@ export default function Header() {
               </svg>
             </div>
             <span className="text-[17px] font-bold text-apple-dark tracking-tight">TAC 보고서</span>
+          </div>
+          <div className="absolute right-4 top-2.5">
+            <ThemeToggle collapsed />
           </div>
         </div>
         {triggerMessage && (

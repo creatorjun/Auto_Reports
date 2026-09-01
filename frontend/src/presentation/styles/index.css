@@ -5,8 +5,13 @@
 
 @layer base {
   body {
-    @apply bg-white text-apple-dark font-sans antialiased;
+    @apply bg-apple-bg text-apple-dark font-sans antialiased transition-colors duration-200;
     font-feature-settings: 'kern' 1, 'liga' 1;
+  }
+  input,
+  textarea,
+  select {
+    @apply bg-apple-surface text-apple-dark;
   }
   * {
     -webkit-font-smoothing: antialiased;
@@ -16,7 +21,7 @@
 
 @layer components {
   .card {
-    @apply bg-white rounded-2xl shadow-apple border border-apple-divider/60 p-4 md:p-6 3xl:p-8;
+    @apply bg-apple-surface rounded-2xl shadow-apple border border-apple-divider/60 p-4 md:p-6 3xl:p-8;
   }
   .card-flat {
     @apply bg-apple-gray rounded-2xl p-4 md:p-6;
@@ -46,7 +51,19 @@
            transition-all duration-200 text-apple-mid hover:bg-apple-gray hover:text-apple-dark;
   }
   .nav-link-active {
-    @apply bg-white shadow-apple-sm text-apple-dark;
+    @apply bg-apple-surface shadow-apple-sm text-apple-dark;
+  }
+  .recharts-cartesian-axis-tick-value {
+    fill: rgb(var(--color-chart-axis));
+  }
+  .recharts-default-tooltip {
+    background-color: rgb(var(--color-apple-surface)) !important;
+    border-color: rgb(var(--color-apple-divider)) !important;
+    border-radius: 10px;
+    box-shadow: var(--shadow-apple-sm);
+  }
+  .recharts-tooltip-label {
+    color: rgb(var(--color-apple-dark));
   }
 }
 

@@ -9,7 +9,7 @@ export default function PartnerSearchInput({
   onChange: (value: string) => void
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-2xl border border-apple-divider bg-white px-4 py-2.5 shadow-sm transition focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20">
+    <div className="flex items-center gap-2 rounded-2xl border border-apple-divider bg-apple-surface px-4 py-2.5 shadow-sm transition focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20">
       <Search size={16} className="flex-shrink-0 text-apple-light" aria-hidden="true" />
       <input
         type="search"

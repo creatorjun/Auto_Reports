@@ -3,6 +3,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './app/App'
+import './presentation/styles/palette.css'
 import './presentation/styles/index.css'
 import { authApi } from '@/infrastructure/api/authApi'
 import { partnerApi } from '@/infrastructure/api/partnerApi'
@@ -14,6 +15,7 @@ import { storageApi } from '@/infrastructure/api/storageApi'
 import { configureHttpClient } from '@/infrastructure/api/client'
 import { ApplicationServicesProvider } from '@/presentation/context/ApplicationServicesContext'
 import { useAuthStore } from '@/presentation/state/authStore'
+import { applyTheme, useThemeStore } from '@/presentation/state/themeStore'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 2, staleTime: 1000 * 60 * 5 } }
@@ -38,6 +40,8 @@ const services = {
   search: searchApi,
   slaDashboard: slaDashboardApi,
 }
+
+applyTheme(useThemeStore.getState().theme)
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

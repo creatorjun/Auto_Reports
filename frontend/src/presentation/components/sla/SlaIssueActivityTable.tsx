@@ -73,7 +73,7 @@ function CommentImage({
 function CommentEntry({ issueKey, comment }: { issueKey: string; comment: SlaDashboardComment }) {
   const wasEdited = comment.updated && comment.updated !== comment.created
   return (
-    <li className="rounded-xl border border-apple-divider/70 bg-white px-4 py-3 shadow-apple-sm">
+    <li className="rounded-xl border border-apple-divider/70 bg-apple-surface px-4 py-3 shadow-apple-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-[13px] font-semibold text-apple-dark">{comment.author}</span>
         <span className="text-[12px] tabular-nums text-apple-light">
@@ -138,7 +138,7 @@ function CommentPanel({ issueKey }: { issueKey: string }) {
       )}
 
       {!isLoading && !isError && data?.length === 0 && (
-        <div className="rounded-xl bg-white px-4 py-5 text-center text-[13px] text-apple-light">
+        <div className="rounded-xl bg-apple-surface px-4 py-5 text-center text-[13px] text-apple-light">
           작성된 댓글이 없습니다.
         </div>
       )}
@@ -280,7 +280,7 @@ export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboard
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-apple-divider/70 bg-white shadow-apple">
+    <div className="overflow-hidden rounded-2xl border border-apple-divider/70 bg-apple-surface shadow-apple">
       <div className="hidden overflow-x-auto xl:block">
         <table className="w-full min-w-[900px] border-collapse">
           <thead className="bg-apple-gray/70">

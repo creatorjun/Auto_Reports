@@ -59,7 +59,7 @@ export function formatPhone(value: string): string {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
 }
 
-export const inputCls = 'w-full border border-apple-divider rounded-xl px-3 py-2 text-sm text-apple-dark bg-white outline-none focus:ring-2 focus:ring-blue-500/30 transition'
+export const inputCls = 'w-full border border-apple-divider rounded-xl px-3 py-2 text-sm text-apple-dark bg-apple-surface outline-none focus:ring-2 focus:ring-blue-500/30 transition'
 export const selectCls = inputCls + ' cursor-pointer'
 
 export function EyeIcon({ open }: { open: boolean }) {

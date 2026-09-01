@@ -38,10 +38,10 @@ export const STAGE_MAP: Record<string, number> = {
 }
 
 export const CHART_COLORS = {
-  slaTarget: '#e5e7eb',
-  axisText:  '#8e8e93',
-  grid:      '#f0f0f0',
-  tooltipBorder: '#d2d2d7',
+  slaTarget: 'rgb(var(--color-chart-target))',
+  axisText:  'rgb(var(--color-chart-axis))',
+  grid:      'rgb(var(--color-chart-grid))',
+  tooltipBorder: 'rgb(var(--color-apple-divider))',
 } as const
 
 export type ModalSize = 'md' | 'lg'
@@ -53,7 +53,7 @@ const MODAL_SIZE_CLS: Record<ModalSize, string> = {
 
 export const MODAL_CLS = {
   overlay:       'fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4',
-  containerBase: 'bg-white rounded-2xl shadow-2xl w-full max-h-[85vh] flex flex-col',
+  containerBase: 'bg-apple-surface rounded-2xl shadow-2xl w-full max-h-[85vh] flex flex-col',
   containerSize: MODAL_SIZE_CLS,
   header:        'flex items-center justify-between px-6 py-4 border-b border-apple-divider/60 shrink-0',
   title:         'text-ui-lg font-semibold text-apple-dark',

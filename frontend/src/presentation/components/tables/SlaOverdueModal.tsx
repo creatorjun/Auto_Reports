@@ -31,7 +31,7 @@ export default function SlaOverdueModal({ issues, total, onClose }: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col">
+      <div className="bg-apple-surface rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-apple-divider/60">
           <div>
             <h2 className="text-[15px] font-semibold text-apple-dark">SLA 초과 이슈 상세</h2>

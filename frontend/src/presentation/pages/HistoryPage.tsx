@@ -43,7 +43,7 @@ export default function HistoryPage() {
         {isFetching && <LoadingSpinner />}
       </div>
 
-      <div className="bg-white border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-apple-surface border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
         <HistoryReportTable
           data={data ?? []}
           onDelete={setConfirmId}

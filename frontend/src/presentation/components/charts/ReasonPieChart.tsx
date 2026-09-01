@@ -6,7 +6,11 @@ import type { ValueType, NameType } from 'recharts/types/component/DefaultToolti
 import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
 import type { SlaDelayIssue } from '@/domain/Dashboard'
 
-const REASON_COLORS = [...PIE_COLORS, '#10b981', '#f97316'] as const
+const REASON_COLORS = [
+  ...PIE_COLORS,
+  'rgb(var(--color-chart-emerald))',
+  'rgb(var(--color-chart-orange))',
+] as const
 
 const RADIAN = Math.PI / 180
 
@@ -32,7 +36,7 @@ function CustomTooltip({ active, payload }: TooltipProps<ValueType, NameType>) {
   const name  = payload[0].name  as string
   const value = payload[0].value as number
   return (
-    <div className="bg-white border border-apple-divider/60 rounded-xl shadow-apple px-3 py-2 text-[12px]">
+    <div className="bg-apple-surface border border-apple-divider/60 rounded-xl shadow-apple px-3 py-2 text-[12px]">
       <p className="font-medium text-apple-dark">{name}</p>
       <p className="text-apple-light">{value}건</p>
     </div>

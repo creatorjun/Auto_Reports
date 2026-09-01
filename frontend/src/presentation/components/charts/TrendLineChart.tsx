@@ -1,5 +1,7 @@
 // frontend/src/presentation/components/charts/TrendLineChart.tsx
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { CHART_COLORS } from '@/presentation/config/ui'
+import { CHART_LEGEND_COLOR, MONTHLY_COUNT_COLORS } from '@/presentation/config/constants'
 
 interface Props {
   created: number
@@ -17,7 +19,7 @@ export default function TrendLineChart({ created, resolved, onBarClick }: Props)
       <h3 className="text-sm font-semibold text-gray-700 mb-4">⚖️ 생성 vs 해결</h3>
       <ResponsiveContainer width="100%" height={360}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
           <XAxis dataKey="name" tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} />
           <Tooltip />
@@ -29,7 +31,7 @@ export default function TrendLineChart({ created, resolved, onBarClick }: Props)
             iconSize={7}
             formatter={(value: string) => (
               <span
-                style={{ fontSize: 11, color: '#86868b', cursor: onBarClick ? 'pointer' : 'default' }}
+                style={{ fontSize: 11, color: CHART_LEGEND_COLOR, cursor: onBarClick ? 'pointer' : 'default' }}
                 onClick={() => {
                   if (value === '생성' || value === '해결') onBarClick?.(value)
                 }}
@@ -40,14 +42,14 @@ export default function TrendLineChart({ created, resolved, onBarClick }: Props)
           />
           <Bar
             dataKey="생성"
-            fill="#3b82f6"
+            fill={MONTHLY_COUNT_COLORS.created}
             radius={[6, 6, 0, 0]}
             style={onBarClick ? { cursor: 'pointer' } : undefined}
             onClick={() => onBarClick?.('생성')}
           />
           <Bar
             dataKey="해결"
-            fill="#22c55e"
+            fill={MONTHLY_COUNT_COLORS.resolved}
             radius={[6, 6, 0, 0]}
             style={onBarClick ? { cursor: 'pointer' } : undefined}
             onClick={() => onBarClick?.('해결')}

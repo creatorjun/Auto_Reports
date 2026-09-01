@@ -10,7 +10,7 @@ export const CHART_TICK_FONT_SIZE = 11
 
 export const CHART_LEGEND_ICON_SIZE = 7
 
-export const CHART_LEGEND_COLOR = '#86868b'
+export const CHART_LEGEND_COLOR = 'rgb(var(--color-chart-axis))'
 
 export const CHART_STROKE_WIDTH = 2.5
 
@@ -22,12 +22,17 @@ export const CHART_GRADIENT_STOP_START = 0.25
 
 export const CHART_GRADIENT_STOP_END = 0.03
 
-export const PIE_COLORS = ['#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6'] as const
+export const PIE_COLORS = [
+  'rgb(var(--color-chart-warning))',
+  'rgb(var(--color-chart-danger))',
+  'rgb(var(--color-chart-created))',
+  'rgb(var(--color-chart-violet))',
+] as const
 
 export const SLA_COLOR_MAP = {
-  green:  { ring: '#22c55e', track: '#dcfce7', text: 'text-green-600',  badge: 'bg-green-50 text-green-700'  },
-  yellow: { ring: '#f59e0b', track: '#fef3c7', text: 'text-amber-600',  badge: 'bg-amber-50 text-amber-700'  },
-  red:    { ring: '#ef4444', track: '#fee2e2', text: 'text-red-500',    badge: 'bg-red-50 text-red-700'      },
+  green:  { ring: 'rgb(var(--color-chart-resolved))', track: 'rgb(var(--color-green-100))', text: 'text-green-600',  badge: 'bg-green-50 text-green-700'  },
+  yellow: { ring: 'rgb(var(--color-chart-warning))',  track: 'rgb(var(--color-amber-100))', text: 'text-amber-600',  badge: 'bg-amber-50 text-amber-700'  },
+  red:    { ring: 'rgb(var(--color-chart-danger))',   track: 'rgb(var(--color-red-100))',   text: 'text-red-500',    badge: 'bg-red-50 text-red-700'      },
 } as const
 
 export const SLA_RING_RADIUS = 32
@@ -39,11 +44,11 @@ export const TABLE_MIN_COL_FRAC = 0.05
 export const DEFAULT_JIRA_BASE_URL = 'https://seculayer.atlassian.net'
 
 export const MONTHLY_COUNT_COLORS = {
-  created:  '#3b82f6',
-  resolved: '#22c55e',
+  created:  'rgb(var(--color-chart-created))',
+  resolved: 'rgb(var(--color-chart-resolved))',
 } as const
 
 export const SLA_MONTHLY_COLORS = {
-  initial:    '#3b82f6',
-  resolution: '#22c55e',
+  initial:    'rgb(var(--color-chart-created))',
+  resolution: 'rgb(var(--color-chart-resolved))',
 } as const

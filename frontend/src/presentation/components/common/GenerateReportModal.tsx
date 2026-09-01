@@ -86,7 +86,7 @@ export default function GenerateReportModal({ onClose }: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 flex flex-col overflow-hidden">
+      <div className="bg-apple-surface rounded-2xl shadow-2xl w-full max-w-md mx-4 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-apple-divider/60">
           <div>
             <h2 className="text-[15px] font-semibold text-apple-dark">보고서 생성</h2>
@@ -106,7 +106,7 @@ export default function GenerateReportModal({ onClose }: Props) {
                   className={`flex-1 py-2 rounded-xl text-[13px] font-medium border transition-all duration-150 ${
                     mode === 'preset' && selectedPreset === days
                       ? 'bg-brand-600 border-brand-600 text-white shadow-sm'
-                      : 'bg-white border-apple-divider text-apple-dark hover:border-brand-400 hover:text-brand-600'
+                      : 'bg-apple-surface border-apple-divider text-apple-dark hover:border-brand-400 hover:text-brand-600'
                   }`}
                 >
                   {label}
@@ -126,14 +126,14 @@ export default function GenerateReportModal({ onClose }: Props) {
               <div className="flex-1">
                 <label className="block text-[12px] font-medium text-apple-dark mb-1.5">시작일</label>
                 <input type="date" value={startDate} max={today} onChange={(e) => handleStartDate(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg border text-[13px] text-apple-dark bg-white transition-colors outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 ${
+                  className={`w-full px-3 py-2 rounded-lg border text-[13px] text-apple-dark bg-apple-surface transition-colors outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 ${
                     mode === 'custom' && startDate ? 'border-brand-400 ring-1 ring-brand-200' : 'border-apple-divider'
                   }`} />
               </div>
               <div className="flex-1">
                 <label className="block text-[12px] font-medium text-apple-dark mb-1.5">완료일</label>
                 <input type="date" value={endDate} max={today} onChange={(e) => handleEndDate(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg border text-[13px] text-apple-dark bg-white transition-colors outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 ${
+                  className={`w-full px-3 py-2 rounded-lg border text-[13px] text-apple-dark bg-apple-surface transition-colors outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 ${
                     mode === 'custom' && endDate ? 'border-brand-400 ring-1 ring-brand-200' : 'border-apple-divider'
                   }`} />
               </div>

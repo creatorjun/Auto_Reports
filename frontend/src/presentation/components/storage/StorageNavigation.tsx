@@ -33,7 +33,7 @@ function NavigationButton({ label, disabled, onClick, children }: NavigationButt
       disabled={disabled}
       title={label}
       aria-label={label}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-apple-divider bg-white text-apple-dark transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 disabled:cursor-not-allowed disabled:bg-apple-gray/50 disabled:text-apple-light disabled:opacity-45"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-apple-divider bg-apple-surface text-apple-dark transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 disabled:cursor-not-allowed disabled:bg-apple-gray/50 disabled:text-apple-light disabled:opacity-45"
     >
       {children}
     </button>

@@ -2,6 +2,7 @@
 import { memo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
 import { PIE_COLORS, CHART_HEIGHT, CHART_TICK_FONT_SIZE, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
+import { CHART_COLORS } from '@/presentation/config/ui'
 
 interface ResolutionTypeEntry {
   avg_days: number
@@ -17,7 +18,7 @@ function TypeBarChart({ byType }: { byType: Record<string, ResolutionTypeEntry> 
       <h3 className="text-sm font-semibold text-gray-700 mb-4">⏱️ 유형별 평균 처리일</h3>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
           <XAxis dataKey="name" tick={{ fontSize: CHART_TICK_FONT_SIZE }} />
           <YAxis tick={{ fontSize: CHART_TICK_FONT_SIZE }} unit="일" />
           <Tooltip formatter={(v) => [`${v}일`]} />

@@ -70,11 +70,11 @@ export default function IssueTypeFilter({
                     className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 ${
                       selected
                         ? 'border-brand-200 bg-brand-50 text-brand-700'
-                        : 'border-apple-divider bg-white text-apple-light hover:border-apple-mid hover:text-apple-mid'
+                        : 'border-apple-divider bg-apple-surface text-apple-light hover:border-apple-mid hover:text-apple-mid'
                     }`}
                   >
                     <span className={`flex h-5 w-5 items-center justify-center rounded border ${
-                      selected ? 'border-brand-500 bg-brand-500 text-white' : 'border-apple-divider bg-white'
+                      selected ? 'border-brand-500 bg-brand-500 text-white' : 'border-apple-divider bg-apple-surface'
                     }`}>
                       {selected && <Check size={12} strokeWidth={3} aria-hidden="true" />}
                     </span>
@@ -108,7 +108,7 @@ export default function IssueTypeFilter({
                   className={`min-h-10 rounded-lg border px-4 py-2 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 ${
                     selected
                       ? 'border-brand-500 bg-brand-500 text-white shadow-apple-sm'
-                      : 'border-apple-divider bg-white text-apple-mid hover:border-brand-200 hover:text-brand-600'
+                      : 'border-apple-divider bg-apple-surface text-apple-mid hover:border-brand-200 hover:text-brand-600'
                   }`}
                 >
                   {label}

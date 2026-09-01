@@ -5,9 +5,9 @@ import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } 
 import type { ViolationEntry } from '@/domain/Dashboard'
 
 const STAGE_COLORS: Record<string, string> = {
-  '최초 응답 SLA': '#f59e0b',
-  '해결 시간 SLA': '#ef4444',
-  '둘 다 위반':    '#8b5cf6',
+  '최초 응답 SLA': 'rgb(var(--color-chart-warning))',
+  '해결 시간 SLA': 'rgb(var(--color-chart-danger))',
+  '둘 다 위반':    'rgb(var(--color-chart-violet))',
 }
 
 const RADIAN = Math.PI / 180

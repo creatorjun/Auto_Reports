@@ -18,7 +18,7 @@ export const STATUS_COLOR: Record<string, string> = {
 }
 
 export const inputCls =
-  'w-full min-w-0 border border-apple-divider rounded-xl px-3 py-2 text-sm text-apple-dark bg-white outline-none focus:ring-2 focus:ring-blue-500/30 transition'
+  'w-full min-w-0 border border-apple-divider rounded-xl px-3 py-2 text-sm text-apple-dark bg-apple-surface outline-none focus:ring-2 focus:ring-blue-500/30 transition'
 
 export function ChevronIcon({ open }: { open: boolean }) {
   return (
@@ -57,7 +57,7 @@ export function Section({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between bg-white px-4 py-3.5 transition-colors hover:bg-apple-gray focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/30 sm:px-5 3xl:px-6 3xl:py-4"
+        className="flex w-full items-center justify-between bg-apple-surface px-4 py-3.5 transition-colors hover:bg-apple-gray focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/30 sm:px-5 3xl:px-6 3xl:py-4"
       >
         <span className="flex items-center gap-2">
           <span className="text-sm font-semibold text-apple-dark">{title}</span>
@@ -76,7 +76,7 @@ export function Section({
           open ? 'max-h-[6000px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="border-t border-apple-divider bg-white px-4 py-4 sm:px-5 3xl:px-6 3xl:py-5">{children}</div>
+        <div className="border-t border-apple-divider bg-apple-surface px-4 py-4 sm:px-5 3xl:px-6 3xl:py-5">{children}</div>
       </div>
     </div>
   )

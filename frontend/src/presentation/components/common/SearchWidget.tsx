@@ -90,12 +90,11 @@ function SearchModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
+        className="bg-apple-surface rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b">
@@ -287,7 +286,7 @@ export default function SearchWidget() {
             onFocus={() => suggestions.length > 0 && setIsDropdownOpen(true)}
             onBlur={() => setTimeout(() => setIsDropdownOpen(false), 150)}
             placeholder="JIRA / Confluence 검색"
-            className="w-full pl-9 pr-9 py-[0.5625rem] text-[14px] bg-gray-100 rounded-lg border border-transparent focus:border-brand-400 focus:bg-white focus:outline-none transition-all placeholder-gray-400"
+            className="w-full pl-9 pr-9 py-[0.5625rem] text-[14px] bg-gray-100 rounded-lg border border-transparent focus:border-brand-400 focus:bg-apple-surface focus:outline-none transition-all placeholder-gray-400"
           />
           {isLoading ? (
             <svg className="absolute right-3 w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -308,7 +307,7 @@ export default function SearchWidget() {
         </div>
 
         {isDropdownOpen && suggestions.length > 0 && (
-          <ul className="absolute top-full mt-1 left-0 right-0 bg-white rounded-xl shadow-lg border border-gray-100 z-40 overflow-hidden">
+          <ul className="absolute top-full mt-1 left-0 right-0 bg-apple-surface rounded-xl shadow-lg border border-gray-100 z-40 overflow-hidden">
             {suggestions.map((item, idx) => (
               <DropdownItem
                 key={`${item.type}-${item.key}-${idx}`}

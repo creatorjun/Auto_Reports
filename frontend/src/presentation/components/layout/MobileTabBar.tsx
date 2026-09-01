@@ -24,7 +24,7 @@ export default function MobileTabBar() {
     <>
       <nav
         className="fixed bottom-0 left-0 right-0 z-20 xl:hidden
-                   bg-white/90 backdrop-blur-xl border-t border-apple-divider/80
+                   bg-apple-surface/90 backdrop-blur-xl border-t border-apple-divider/80
                    flex items-center justify-around px-1 h-16 safe-area-inset-bottom"
       >
         {tabs.map(({ to, icon, label }) => (

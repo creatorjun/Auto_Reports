@@ -102,9 +102,9 @@ export default function SiteManagementPage() {
         </button>
       </div>
 
-      <section className="rounded-2xl border border-apple-divider/80 bg-white p-4 shadow-sm sm:p-6 3xl:rounded-3xl 3xl:p-8">
+      <section className="rounded-2xl border border-apple-divider/80 bg-apple-surface p-4 shadow-sm sm:p-6 3xl:rounded-3xl 3xl:p-8">
         <div className="relative">
-          <div className="flex min-h-12 items-center gap-3 rounded-2xl border border-apple-divider bg-apple-gray/40 px-4 py-3 transition focus-within:border-blue-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 sm:px-5 sm:py-3.5 3xl:min-h-16 3xl:px-6">
+          <div className="flex min-h-12 items-center gap-3 rounded-2xl border border-apple-divider bg-apple-gray/40 px-4 py-3 transition focus-within:border-blue-400 focus-within:bg-apple-surface focus-within:ring-2 focus-within:ring-blue-500/20 sm:px-5 sm:py-3.5 3xl:min-h-16 3xl:px-6">
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 text-apple-light 3xl:h-5 3xl:w-5">
               <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.4" />
               <path d="M10 10l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -142,7 +142,7 @@ export default function SiteManagementPage() {
           {dropdownOpen && (
             <div
               role="listbox"
-              className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[60vh] overflow-y-auto rounded-2xl border border-apple-divider bg-white shadow-apple-lg"
+              className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[60vh] overflow-y-auto rounded-2xl border border-apple-divider bg-apple-surface shadow-apple-lg"
             >
               {isSearching ? (
                 <div className="px-4 py-4 text-sm text-apple-light sm:px-5">검색 중...</div>
@@ -202,7 +202,7 @@ export default function SiteManagementPage() {
                   type="button"
                   onClick={() => navigate(`/sites/${site.id}`)}
                   aria-label={`${site.site_name} 사이트 열기`}
-                  className="group flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-apple-divider bg-white px-4 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-apple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:px-5 3xl:min-h-24 3xl:rounded-3xl 3xl:px-6"
+                  className="group flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-apple-divider bg-apple-surface px-4 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-apple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:px-5 3xl:min-h-24 3xl:rounded-3xl 3xl:px-6"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-apple-dark transition-colors group-hover:text-blue-700 sm:text-base">
