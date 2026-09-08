@@ -1,6 +1,6 @@
 # Frontend Infrastructure
 
-Infrastructure는 `src/infrastructure/api`의 HTTP adapter만 포함합니다. React hook, Zustand store, UI 타입은 이 레이어에 두지 않습니다.
+Infrastructure는 `src/infrastructure/api`의 HTTP adapter와 `src/infrastructure/export`의 PDF 생성 adapter를 포함합니다. React hook과 Zustand store는 이 레이어에 두지 않습니다.
 
 ## HTTP client
 
@@ -27,6 +27,14 @@ client는 Presentation store를 직접 import하지 않습니다. `main.tsx`가 
 | `slaDashboardApi.ts` | `SlaDashboardGateway` | 최신 보고서 기반 이슈 활동과 offset에 따른 티켓별 댓글 페이지 조회 |
 | `storageApi.ts` | `StorageGateway` | 파일 목록, 업로드, 다운로드, 미리보기, 삭제 |
 
-각 adapter는 HTTP 응답을 Domain 모델로 반환합니다. 사이트 하위 리소스 변경 API는 백엔드 계약대로 갱신된 `SiteDetail` aggregate를 반환합니다.
+위 HTTP adapter는 HTTP 응답을 Domain 모델로 반환합니다. 사이트 하위 리소스 변경 API는 백엔드 계약대로 갱신된 `SiteDetail` aggregate를 반환합니다.
 
 TanStack Query 기반 hook은 `src/presentation/hooks`에 있으며 `useApplicationServices()`로 위 gateway를 주입받습니다.
+
+## PDF 생성 adapter
+
+`DashboardExportGateway.renderPdf(document)`는 `DashboardPdfDocument`를 받아 `BinaryContent`를 반환하는 Application 계약입니다. `main.tsx`가 `dashboardPdfExporter`를 `ApplicationServices.dashboardExport`에 주입하며, Presentation은 pdfmake를 직접 import하지 않습니다.
+
+`dashboardPdfExporter.ts`는 내보내기 요청 시 pdfmake와 `dashboardPdfDefinition.ts`를 지연 로드합니다. 문서는 A4 가로 방향으로 구성하고, 차트는 SVG 벡터와 2열 배치를 사용합니다. 표는 페이지가 넘어가면 제목과 열 머리글을 반복합니다.
+
+NanumGothic Regular·Bold 글꼴은 `src/assets/fonts`에서 앱과 함께 배포하고 PDF에 포함합니다. PDF 생성은 브라우저에서 수행하며, 별도 백엔드 변환 API·CDN·외부 문서 앱을 호출하지 않습니다. 생성 결과는 기존 `BinaryContent` 경계를 통해 다운로드하고 object URL을 해제합니다.

@@ -1,6 +1,7 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { useJira } from '@/presentation/context/JiraContext'
+import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 import { STATUS_STYLE } from '@/presentation/config/ui'
 import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC } from '@/presentation/config/constants'
 import type { RecentIssue } from '@/domain/Issue'
@@ -111,6 +112,7 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
 }
 
 export default function ResolutionTimeChart({ details }: Props) {
+  const exportMode = useDashboardExportMode()
   const { jiraBase } = useJira()
   const [page,    setPage]    = useState(1)
   const [fracs,   setFracs]   = useState({ ...DEFAULT_FRACS })
@@ -148,7 +150,7 @@ export default function ResolutionTimeChart({ details }: Props) {
 
   if (!details || details.length === 0) {
     return (
-      <div className="card flex items-center justify-center h-48 text-apple-light text-ui-base">
+      <div data-pdf-kind="table" data-pdf-title="최근 이슈 현황" className="card flex items-center justify-center h-48 text-apple-light text-ui-base">
         최근 이슈 데이터가 없습니다.
       </div>
     )
@@ -156,6 +158,7 @@ export default function ResolutionTimeChart({ details }: Props) {
 
   const totalPages = Math.ceil(sortedDetails.length / TABLE_PAGE_SIZE)
   const pageItems  = sortedDetails.slice((page - 1) * TABLE_PAGE_SIZE, page * TABLE_PAGE_SIZE)
+  const visibleItems = exportMode ? sortedDetails : pageItems
 
   const headers: { key: ColKey; label: string; rightCol?: ColKey }[] = [
     { key: 'key',      label: '이슈',          rightCol: 'summary'  },
@@ -167,20 +170,20 @@ export default function ResolutionTimeChart({ details }: Props) {
   ]
 
   return (
-    <div className="card p-0 overflow-hidden">
-      <div className="md:hidden">
+    <div data-pdf-kind="table" data-pdf-title="최근 이슈 현황" className="card p-0 overflow-hidden">
+      <div data-pdf-mobile="" className="md:hidden">
         {pageItems.map((issue) => (
           <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase} />
         ))}
       </div>
 
-      <div className="hidden md:block overflow-x-auto px-4 md:px-5">
-        <table ref={tableRef} className="w-full text-ui-base border-collapse" style={{ tableLayout: 'fixed' }}>
+      <div data-pdf-desktop="" className="hidden md:block overflow-x-auto px-4 md:px-5">
+        <table data-pdf-table-layout="recent" ref={tableRef} className="w-full text-ui-base border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>{COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * 100).toFixed(2)}%` }} />)}</colgroup>
           <thead className="bg-apple-gray/60">
             <tr className="border-b-2 border-apple-divider text-ui-sm text-apple-mid">
               {headers.map(({ key, label, rightCol }) => (
-                <th key={key} onClick={() => handleSort(key)}
+                <th key={key} data-pdf-header={label} onClick={() => handleSort(key)}
                   className={['relative cursor-pointer select-none whitespace-nowrap border-r border-apple-divider/90 px-5 pb-2.5 pt-3 text-center font-semibold transition-colors last:border-r-0 hover:bg-apple-gray hover:text-apple-primary', sortKey === key ? 'text-apple-primary' : ''].join(' ')}>
                   <span className="inline-flex items-center justify-center">
                     {label}<SortIcon dir={sortKey === key ? sortDir : null} />
@@ -191,21 +194,21 @@ export default function ResolutionTimeChart({ details }: Props) {
             </tr>
           </thead>
           <tbody>
-            {pageItems.map((issue) => {
+            {visibleItems.map((issue) => {
               const style   = getStatusStyle(issue.status)
               const jiraUrl = `${jiraBase}/browse/${issue.key}`
               const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
               return (
                 <tr key={issue.key} onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
                   className="cursor-pointer transition-colors hover:bg-gray-50">
-                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate font-mono text-ui-sm text-blue-500">{issue.key}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center" data-pdf-link={jiraUrl}><span className="block truncate font-mono text-ui-sm text-blue-500">{issue.key}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-apple-primary" title={issue.summary}>{issue.summary}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-ui-sm font-medium ${style.bg} ${style.text} whitespace-nowrap`}>{issue.status}</span>
                   </td>
                   <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light">{issue.reporter}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light">{issue.tac_team}</span></td>
-                  <td className="whitespace-nowrap px-3 py-2 text-center text-apple-light">
+                  <td className="whitespace-nowrap px-3 py-2 text-center text-apple-light" data-pdf-value={`${createdDate}\n(${issue.elapsed_days}일 경과)`}>
                     <span className="tabular-nums">{createdDate}</span>
                     <span className="text-ui-xs text-apple-divider mx-1">·</span>
                     <span className="tabular-nums">{issue.elapsed_days}일</span>
@@ -217,7 +220,7 @@ export default function ResolutionTimeChart({ details }: Props) {
         </table>
       </div>
 
-      {totalPages > 1 && (
+      {!exportMode && totalPages > 1 && (
         <div className="flex items-center justify-between px-4 md:px-5 py-3 mt-0 border-t border-apple-divider">
           <span className="text-ui-sm text-apple-light">{(page - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(page * TABLE_PAGE_SIZE, sortedDetails.length)} / {sortedDetails.length}건</span>
           <div className="flex gap-1">

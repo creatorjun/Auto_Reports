@@ -13,7 +13,7 @@ export function ModalFallback() {
 
 export function ChartFallback() {
   return (
-    <div className="flex items-center justify-center h-40 rounded-xl bg-gray-50">
+    <div data-pdf-pending="" className="flex items-center justify-center h-40 rounded-xl bg-gray-50">
       <LoadingSpinner text="" />
     </div>
   )

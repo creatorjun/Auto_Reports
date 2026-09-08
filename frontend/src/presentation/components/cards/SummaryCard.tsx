@@ -37,6 +37,9 @@ export default function SummaryCard({ label, value, sub, color = 'blue', icon: I
   const c = colorMap[color]
   return (
     <div
+      data-pdf-metric=""
+      data-pdf-label={label}
+      data-pdf-value={value.toString()}
       className={`card flex flex-col gap-2 hover:shadow-apple-lg transition-shadow duration-300 ${
         onClick ? 'cursor-pointer hover:ring-2 hover:ring-red-300' : ''
       }`}

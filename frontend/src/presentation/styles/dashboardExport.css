@@ -1,0 +1,62 @@
+/* frontend/src/presentation/styles/dashboardExport.css */
+@font-face {
+  font-family: 'DashboardExport';
+  src: url('../../assets/fonts/NanumGothic-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'DashboardExport';
+  src: url('../../assets/fonts/NanumGothic-Bold.ttf') format('truetype');
+  font-weight: 600 900;
+  font-display: block;
+}
+
+.dashboard-pdf-stage {
+  position: fixed;
+  left: -20000px;
+  top: 0;
+  width: 1200px;
+  padding: 24px;
+  background: white;
+  color: #1d1d1f;
+  font-family: 'DashboardExport', sans-serif;
+  pointer-events: none;
+  color-scheme: light;
+}
+
+.dashboard-pdf-stage .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-pdf-stage [data-pdf-kind='metrics'] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-pdf-stage [data-pdf-kind='chart'] {
+  width: 564px;
+  min-width: 564px;
+  padding: 20px;
+}
+
+.dashboard-pdf-stage svg text,
+.dashboard-pdf-stage svg tspan {
+  font-family: 'DashboardExport', sans-serif !important;
+  font-size: 14px !important;
+}
+
+.dashboard-pdf-stage [data-pdf-mobile],
+.dashboard-pdf-stage [data-pdf-ignore] {
+  display: none !important;
+}
+
+.dashboard-pdf-stage [data-pdf-desktop] {
+  display: block !important;
+}
+
+.dashboard-pdf-stage .truncate {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}

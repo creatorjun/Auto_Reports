@@ -2,6 +2,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { CHART_COLORS } from '@/presentation/config/ui'
 import { CHART_LEGEND_COLOR, MONTHLY_COUNT_COLORS } from '@/presentation/config/constants'
+import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 
 interface Props {
   created: number
@@ -10,12 +11,13 @@ interface Props {
 }
 
 export default function TrendLineChart({ created, resolved, onBarClick }: Props) {
+  const exportMode = useDashboardExportMode()
   const data = [
     { name: '이번 주', '생성': created, '해결': resolved },
   ]
 
   return (
-    <div className="card">
+    <div data-pdf-kind="chart" className="card">
       <h3 className="text-sm font-semibold text-gray-700 mb-4">⚖️ 생성 vs 해결</h3>
       <ResponsiveContainer width="100%" height={360}>
         <BarChart data={data}>
@@ -41,6 +43,7 @@ export default function TrendLineChart({ created, resolved, onBarClick }: Props)
             )}
           />
           <Bar
+            isAnimationActive={!exportMode}
             dataKey="생성"
             fill={MONTHLY_COUNT_COLORS.created}
             radius={[6, 6, 0, 0]}
@@ -48,6 +51,7 @@ export default function TrendLineChart({ created, resolved, onBarClick }: Props)
             onClick={() => onBarClick?.('생성')}
           />
           <Bar
+            isAnimationActive={!exportMode}
             dataKey="해결"
             fill={MONTHLY_COUNT_COLORS.resolved}
             radius={[6, 6, 0, 0]}
@@ -56,7 +60,7 @@ export default function TrendLineChart({ created, resolved, onBarClick }: Props)
           />
         </BarChart>
       </ResponsiveContainer>
-      {onBarClick && (
+      {!exportMode && onBarClick && (
         <p className="text-center text-[11px] text-apple-light mt-1">막대를 클릭하면 이슈 목록을 확인할 수 있습니다</p>
       )}
     </div>

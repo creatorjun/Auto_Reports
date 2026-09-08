@@ -1,6 +1,7 @@
 /* frontend/src/presentation/styles/palette.css */
 :root,
-:root[data-theme='light'] {
+:root[data-theme='light'],
+.dashboard-pdf-stage {
   color-scheme: light;
   --color-apple-bg: 245 245 247;
   --color-apple-surface: 255 255 255;

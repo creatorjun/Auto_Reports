@@ -20,6 +20,7 @@
 | `clsx` | ^2.1.1 | 조건부 클래스명 결합 |
 | `lucide-react` | ^0.400.0 | 아이콘 라이브러리 |
 | `pdfjs-dist` | ^4.4.168 | PDF 렌더링 |
+| `pdfmake` | 0.3.11 | 대시보드·연간 보고서 PDF 생성, SVG 차트·표·한글 글꼴 포함 |
 | `mammoth` | ^1.8.0 | Word(.docx) → HTML 변환 |
 | `xlsx` | ^0.18.5 | Excel 파싱 |
 | `marked` | ^13.0.0 | Markdown → HTML |
@@ -40,3 +41,8 @@
 | `autoprefixer` | ^10.4.19 | 벤더 프리픽스 자동화 |
 | `@types/react` | ^18.3.3 | React 타입 정의 |
 | `@types/react-dom` | ^18.3.0 | ReactDOM 타입 정의 |
+| `@types/pdfmake` | 0.3.3 | PDF 문서 정의와 생성 API 타입 |
+
+## 번들 글꼴
+
+`src/assets/fonts`의 NanumGothic Regular·Bold는 PDF 한글 표시를 담당하며 앱에 포함해 배포합니다. Infrastructure의 PDF adapter가 글꼴을 로드하고 문서에 포함하므로 외부 CDN이나 사용자 PC의 글꼴 설치에 의존하지 않습니다. SIL Open Font License 1.1 고지 파일 `OFL.txt`를 글꼴과 함께 관리합니다.

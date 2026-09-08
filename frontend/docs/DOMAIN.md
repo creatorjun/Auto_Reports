@@ -15,6 +15,7 @@
 | `SlaDashboard.ts` | 최근 이슈 활동, 댓글과 댓글 페이지 표시 계약 |
 | `Storage.ts` | `StorageItem`, `StorageFile`, `StorageQuota` |
 | `Dashboard.ts` | SLA·월별·상태별 widget 표시 모델 |
+| `DashboardExport.ts` | PDF 문서 메타데이터, 섹션, 지표·텍스트·SVG 차트·표 블록 |
 | `DashboardIssueTypePolicy.ts` | 대시보드·연간 보고서의 요청 유형 제외 정책 |
 | `WidgetId.ts` | 대시보드 최초 렌더 순서에 맞춘 widget ID 계약 |
 
@@ -23,6 +24,8 @@
 `ReportDetail`은 summary 필드에 widget map과 선택적 AI 분석을 추가합니다. 서버 widget의 서로 다른 breakdown 구조를 React component 내부에서 즉석 추론하지 않고 `useDashboardData`가 `Dashboard.ts`의 표시 모델로 변환합니다. 대시보드와 연간 보고서는 Jira 요청 유형 `라이선스`를 항상 제외하며, 요청 유형 토글에도 표시하지 않습니다. 보고서 생성 시 라이선스를 제외한 비하위 작업 유형을 `issue_types`에 저장하며, 화면 최상단 요청 유형 토글은 이 목록의 상세·유형별 집계를 조합해 카드, 모달, 월별 차트, SLA 차트, 분석 차트와 최근 이슈 현황을 즉시 다시 계산합니다. 기존 저장 보고서도 유형별 분해값으로 라이선스를 차감합니다. 같은 선택 영역의 상반기·하반기 버튼은 보고서 연도를 기준으로 월별 데이터와 상세 이슈의 생성일·해결일을 교차 필터링하며, 선택하지 않으면 12개월 전체를 표시합니다. 프로젝트 유형 목록 밖의 데이터는 `always_included` 집계 또는 상세의 미등록 유형 판별을 통해 계속 포함하지만, 라이선스는 예외로 항상 제외됩니다. 요청 유형 또는 반기를 선택한 동안에는 전체 데이터를 기준으로 생성된 AI 분석을 숨깁니다. w3 생성·완료 건수에는 보고서 쿼리의 시작일과 종료일을 포함한 기간 일수가 표시됩니다. w7 미완료 이슈 상세는 `WorkTypeOpenWidget`으로 분류되어 지원 요청, 개선 요청, 인시던트 보고, CVE의 현재 열린 요청 건수를 제공합니다.
 
 widget ID는 화면에서 데이터가 처음 렌더링되는 순서를 따릅니다.
+
+`DashboardPdfDocument`는 내보낼 보고서 제목·기간·내보낸 시각·선택 필터와 섹션 목록을 표현합니다. 섹션은 `DashboardPdfBlock`의 지표, 텍스트, SVG 차트, 표 모델로 구성합니다. DOM 탐색과 다운로드 수명 관리는 이 타입에 포함하지 않으며, Presentation이 문서를 구성하고 Application gateway를 통해 Infrastructure의 PDF 생성기로 전달합니다.
 
 `SlaDashboardIssue`는 최신 보고서의 최근 이슈 티켓 번호, 최초 생성 시각, 댓글을 포함한 마지막 업데이트 시각, 진행 상태를 표현합니다. `SlaDashboardComment`는 댓글의 작성자, 본문, 작성·수정 시각을 표현합니다. `SlaDashboardCommentPage`는 최신순 댓글을 최대 5개 담은 `comments`와 다음 페이지 위치인 `next_offset`을 표현하며, 마지막 페이지의 `next_offset`은 `null`입니다.
 

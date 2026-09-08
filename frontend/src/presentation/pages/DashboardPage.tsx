@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
-import { lazy, Suspense, useEffect, useState, useMemo } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState, useMemo, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { BarChart2, ShieldAlert, Activity, Pin, CalendarRange, RefreshCw, Archive } from 'lucide-react'
+import { BarChart2, ShieldAlert, Activity, Pin, CalendarRange, RefreshCw, Archive, Download } from 'lucide-react'
 import { useAnnualReport, useLatestReport, useReportById } from '@/presentation/hooks/useReport'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useDashboardData } from '@/presentation/hooks/useDashboardData'
@@ -14,6 +14,9 @@ import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
 import { ModalFallback, ChartFallback } from '@/presentation/components/common/DashboardFallbacks'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/constants'
 import type { ReportDetail } from '@/domain/Report'
+import type { DashboardPdfDocument } from '@/domain/DashboardExport'
+import DashboardPdfExportStage from '@/presentation/components/export/DashboardPdfExportStage'
+import '@/presentation/styles/dashboardExport.css'
 import type { RedeploymentAnalytics, Semester, SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
 import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
 import { isRefreshableAnnualReport } from '@/presentation/config/annualReports'
@@ -37,7 +40,19 @@ const IncompleteIssueModal = lazy(() => import('@/presentation/components/tables
 const SlaViolationModal   = lazy(() => import('@/presentation/components/tables/SlaViolationModal'))
 const SlaDelayModal       = lazy(() => import('@/presentation/components/tables/SlaDelayModal'))
 
-function DashboardContent({ report }: { report: ReportDetail }) {
+interface ExportSelection {
+  selectedIssueTypes: Set<string> | null
+  selectedSemester: Semester | null
+}
+
+interface ExportSnapshot {
+  report: ReportDetail
+  selection: ExportSelection
+  metadata: Omit<DashboardPdfDocument, 'sections'>
+  fileName: string
+}
+
+function DashboardContent({ report, exportSelection }: { report: ReportDetail; exportSelection?: ExportSelection }) {
   const { setCurrentReport } = useReportStore()
   const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
   const [selectedSemester,   setSelectedSemester]   = useState<Semester | null>(null)
@@ -50,15 +65,21 @@ function DashboardContent({ report }: { report: ReportDetail }) {
   const [showIncomplete,     setShowIncomplete]     = useState(false)
   const [slaViolationEntry,  setSlaViolationEntry]  = useState<ViolationEntry | null>(null)
   const [slaDelayEntry,      setSlaDelayEntry]      = useState<{ status: string; issues: SlaDelayIssue[] } | null>(null)
+  const [exportSnapshot, setExportSnapshot] = useState<ExportSnapshot | null>(null)
+  const [exportError, setExportError] = useState('')
+  const exportPending = useRef(false)
+  const effectiveIssueTypes = exportSelection ? exportSelection.selectedIssueTypes : selectedIssueTypes
+  const effectiveSemester = exportSelection ? exportSelection.selectedSemester : selectedSemester
 
   useEffect(() => {
+    if (exportSelection) return
     setSelectedIssueTypes(null)
     setSelectedSemester(null)
     setCurrentReport(report)
     return () => setCurrentReport(null)
-  }, [report, setCurrentReport])
+  }, [exportSelection, report, setCurrentReport])
 
-  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report, selectedIssueTypes, selectedSemester)
+  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report, effectiveIssueTypes, effectiveSemester)
   const { issueTypes, reportYear, supportsIssueTypeFiltering, supportsSemesterFiltering, semesterLabel } = filter
   const { w1YearlyCreated, w2YearlyResolved } = yearly
   const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeDays } = weekly
@@ -91,8 +112,63 @@ function DashboardContent({ report }: { report: ReportDetail }) {
     })
   }
 
+  const finishExport = useCallback(() => {
+    exportPending.current = false
+    setExportSnapshot(null)
+  }, [])
+
+  const failExport = useCallback((message: string) => {
+    setExportError(message)
+    finishExport()
+  }, [finishExport])
+
+  const startExport = () => {
+    if (exportPending.current) return
+    exportPending.current = true
+    setExportError('')
+    const title = report.scope === 'annual' ? `${report.report_year} 연간 보고서` : 'TAC 대시보드'
+    const filters = [
+      effectiveSemester === 'h1' ? '상반기' : effectiveSemester === 'h2' ? '하반기' : '전체 기간',
+      effectiveIssueTypes === null ? '전체 업무 유형' : effectiveIssueTypes.size ? [...effectiveIssueTypes].join(', ') : '선택된 업무 유형 없음',
+    ]
+    if (redeploymentData && (effectiveSemester !== null || effectiveIssueTypes !== null)) {
+      filters.push('재배포 품질 지표는 연간 전체 기준')
+    }
+    setExportSnapshot({
+      report,
+      selection: {
+        selectedIssueTypes: effectiveIssueTypes === null ? null : new Set(effectiveIssueTypes),
+        selectedSemester: effectiveSemester,
+      },
+      metadata: {
+        title,
+        period: `${report.week_start} ~ ${report.week_end}`,
+        generatedAt: new Date().toLocaleString('ko-KR', { hour12: false }),
+        filters,
+      },
+      fileName: `${title.replace(/\s+/g, '_')}_${report.week_start}_${report.week_end}.pdf`,
+    })
+  }
+
   return (
+    <>
     <div className="space-y-4 md:space-y-6 3xl:space-y-8">
+      {!exportSelection && (
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <span className="text-[12px] text-apple-light">현재 필터 · 표 전체 포함</span>
+          <button
+            type="button"
+            onClick={startExport}
+            disabled={exportSnapshot !== null}
+            aria-busy={exportSnapshot !== null}
+            className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60"
+          >
+            {exportSnapshot ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
+            <span aria-live="polite">{exportSnapshot ? 'PDF 생성 중...' : 'PDF 내보내기'}</span>
+          </button>
+          {exportError && <p role="alert" className="w-full text-right text-[13px] text-red-600">{exportError}</p>}
+        </div>
+      )}
       {report.scope === 'annual' && report.report_year != null && (
         <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
@@ -117,7 +193,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           )}
         </div>
       )}
-      <IssueTypeFilter
+      {!exportSelection && <IssueTypeFilter
         issueTypes={issueTypes}
         selectedTypes={selectedIssueTypes}
         selectedSemester={selectedSemester}
@@ -129,9 +205,9 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           setSelectedIssueTypes(null)
           setSelectedSemester(null)
         }}
-      />
-      {report.ai_analysis && selectedIssueTypes === null && selectedSemester === null && <AiSummaryCard ai={report.ai_analysis} />}
-      <div className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
+      />}
+      {report.ai_analysis && effectiveIssueTypes === null && effectiveSemester === null && <div data-pdf-section="AI 종합 분석"><AiSummaryCard ai={report.ai_analysis} /></div>}
+      <div data-pdf-section="주요 지표" data-pdf-kind="metrics" className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label={`${reportYear} 생성`} value={w1YearlyCreated} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
         <SummaryCard label={`${reportYear} 해결`} value={w2YearlyResolved} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
         <SummaryCard label={`${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
@@ -203,7 +279,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         </Suspense>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
+      <div data-pdf-section="업무 유형별 열린 요청" data-pdf-kind="metrics" className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
         {workTypeOpenWidgets.map((widget) => (
           <WorkTypeSummaryCard
             key={widget.key}
@@ -215,7 +291,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
       </div>
 
       {(hasW8 || hasW9) && (
-        <div className="space-y-1">
+        <div data-pdf-section="월별 이슈 현황" className="space-y-1">
           <SectionTitle icon={BarChart2} title="월별 이슈 현황" subtitle={semesterLabel} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
             <Suspense fallback={<ChartFallback />}>
@@ -228,7 +304,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
         </div>
       )}
       {(hasW10 || hasW11) && (
-        <div className="space-y-1">
+        <div data-pdf-section="SLA 준수율" className="space-y-1">
           <SectionTitle icon={ShieldAlert} title="SLA 준수율" subtitle={semesterLabel} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
             <Suspense fallback={<ChartFallback />}>
@@ -240,7 +316,7 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           </div>
         </div>
       )}
-      <div className="space-y-1">
+      <div data-pdf-section="분석 차트" className="space-y-1">
         <SectionTitle icon={Activity} title="분석 차트" />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
           <Suspense fallback={<ChartFallback />}>
@@ -274,13 +350,24 @@ function DashboardContent({ report }: { report: ReportDetail }) {
           <RedeploymentAnnualSection data={redeploymentData} year={report.report_year} />
         </Suspense>
       )}
-      <div className="space-y-1">
+      <div data-pdf-section="최근 이슈 현황" className="space-y-1">
         <SectionTitle icon={Pin} title="최근 이슈 현황" subtitle={`최신 ${recentIssues.length}건`} />
         <Suspense fallback={<ChartFallback />}>
           <ResolutionTimeChart details={recentIssues} />
         </Suspense>
       </div>
     </div>
+    {exportSnapshot && !exportSelection && (
+      <DashboardPdfExportStage
+        metadata={exportSnapshot.metadata}
+        fileName={exportSnapshot.fileName}
+        onComplete={finishExport}
+        onError={failExport}
+      >
+        <DashboardContent report={exportSnapshot.report} exportSelection={exportSnapshot.selection} />
+      </DashboardPdfExportStage>
+    )}
+    </>
   )
 }
 

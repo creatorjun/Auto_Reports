@@ -3,6 +3,7 @@ import { memo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
 import type { ViolationEntry } from '@/domain/Dashboard'
+import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 
 const STAGE_COLORS: Record<string, string> = {
   '최초 응답 SLA': 'rgb(var(--color-chart-warning))',
@@ -36,11 +37,12 @@ interface Props {
 }
 
 function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
+  const exportMode = useDashboardExportMode()
   const data = distribution.map((d) => ({ name: d.stage, value: d.count }))
 
   if (total === 0 || data.length === 0) {
     return (
-      <div className="card flex flex-col items-center justify-center" style={{ minHeight: CHART_HEIGHT }}>
+      <div data-pdf-kind="chart" className="card flex flex-col items-center justify-center" style={{ minHeight: CHART_HEIGHT }}>
         <h3 className="text-sm font-semibold text-gray-700 mb-2">🎯 SLA 위반 분포</h3>
         <p className="text-sm text-gray-400">위반 없음</p>
       </div>
@@ -54,11 +56,12 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
   }
 
   return (
-    <div className="card">
+    <div data-pdf-kind="chart" className="card">
       <h3 className="text-sm font-semibold text-gray-700 mb-4">🎯 SLA 위반 분포</h3>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <PieChart>
           <Pie
+            isAnimationActive={!exportMode}
             data={data}
             cx="50%"
             cy="45%"
@@ -103,7 +106,7 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
           />
         </PieChart>
       </ResponsiveContainer>
-      {onSliceClick && (
+      {!exportMode && onSliceClick && (
         <p className="text-center text-[11px] text-apple-light mt-1">영역을 클릭하면 상세 이슈를 확인할 수 있습니다</p>
       )}
     </div>

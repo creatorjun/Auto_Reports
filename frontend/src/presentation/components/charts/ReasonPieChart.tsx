@@ -5,6 +5,7 @@ import type { TooltipProps } from 'recharts'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
 import type { SlaDelayIssue } from '@/domain/Dashboard'
+import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 
 const REASON_COLORS = [
   ...PIE_COLORS,
@@ -50,6 +51,7 @@ interface Props {
 }
 
 function ReasonPieChart({ byStatus, byStatusDetails, onSliceClick }: Props) {
+  const exportMode = useDashboardExportMode()
   const data = Object.entries(byStatus)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
@@ -63,11 +65,12 @@ function ReasonPieChart({ byStatus, byStatusDetails, onSliceClick }: Props) {
   }
 
   return (
-    <div className="card flex flex-col">
+    <div data-pdf-kind="chart" className="card flex flex-col">
       <h3 className="text-sm font-semibold text-apple-dark mb-3">🥧 SLA 지연 사유</h3>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <PieChart>
           <Pie
+            isAnimationActive={!exportMode}
             data={data}
             cx="50%"
             cy="45%"
@@ -98,13 +101,13 @@ function ReasonPieChart({ byStatus, byStatusDetails, onSliceClick }: Props) {
                 }}
                 onClick={() => handleClick({ name: value })}
               >
-                {value.length > 10 ? value.slice(0, 10) + '…' : value}
+                {!exportMode && value.length > 10 ? value.slice(0, 10) + '…' : value}
               </span>
             )}
           />
         </PieChart>
       </ResponsiveContainer>
-      {onSliceClick && (
+      {!exportMode && onSliceClick && (
         <p className="text-center text-[11px] text-apple-light mt-1">영역을 클릭하면 해당 상태의 이슈를 확인할 수 있습니다</p>
       )}
     </div>

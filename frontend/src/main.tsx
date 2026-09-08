@@ -11,6 +11,7 @@ import { reportApi } from '@/infrastructure/api/reportApi'
 import { searchApi } from '@/infrastructure/api/searchApi'
 import { siteApi } from '@/infrastructure/api/siteApi'
 import { slaDashboardApi } from '@/infrastructure/api/slaDashboardApi'
+import { dashboardPdfExporter } from '@/infrastructure/export/dashboardPdfExporter'
 import { storageApi } from '@/infrastructure/api/storageApi'
 import { configureHttpClient } from '@/infrastructure/api/client'
 import { ApplicationServicesProvider } from '@/presentation/context/ApplicationServicesContext'
@@ -32,6 +33,7 @@ configureHttpClient({
 })
 
 const services = {
+  dashboardExport: dashboardPdfExporter,
   auth: authApi,
   reports: reportApi,
   sites: siteApi,

@@ -1,6 +1,7 @@
 // frontend/src/application/ports/ApplicationServices.ts
 import type { LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
 import type { AppConfig } from '@/domain/Config'
+import type { DashboardPdfDocument } from '@/domain/DashboardExport'
 import type { JobStatus, TriggerAccepted, TriggerParams } from '@/domain/Job'
 import type { PartnerIssue, PartnerMember, PartnerOrg } from '@/domain/Partner'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
@@ -135,7 +136,12 @@ export interface SlaDashboardGateway {
   getCommentImage: (issueKey: string, commentId: string, attachmentId: string) => Promise<BinaryContent>
 }
 
+export interface DashboardExportGateway {
+  renderPdf: (document: DashboardPdfDocument) => Promise<BinaryContent>
+}
+
 export interface ApplicationServices {
+  dashboardExport: DashboardExportGateway
   auth: AuthGateway
   reports: ReportGateway
   sites: SiteGateway

@@ -15,6 +15,9 @@ export default function WorkTypeSummaryCard({
   return (
     <button
       type="button"
+      data-pdf-metric=""
+      data-pdf-label={label}
+      data-pdf-value={count.toString()}
       className="card min-w-0 flex items-center justify-between gap-4 text-left hover:shadow-apple-lg transition-all duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
       aria-label={`${label} 현재 열린 요청 ${count}건 보기`}
       onClick={onClick}

@@ -5,6 +5,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { CHART_COLORS } from '@/presentation/config/ui'
+import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 import {
   CHART_HEIGHT, CHART_TICK_FONT_SIZE,
   CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR,
@@ -36,13 +37,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
+  const exportMode = useDashboardExportMode()
   const gradientId = `mc-grad-${useId().replace(/:/g, '')}`
   const chartData  = monthly.map((e) => ({ month: e.month, count: e.count }))
   const hasData    = chartData.some((d) => d.count > 0)
 
   if (!hasData) {
     return (
-      <div className="card flex flex-col gap-2">
+      <div data-pdf-kind="chart" className="card flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
           <span className="text-ui-xs text-apple-light">{subtitle}</span>
@@ -55,7 +57,7 @@ function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
   }
 
   return (
-    <div className="card">
+    <div data-pdf-kind="chart" className="card">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
         <span className="text-ui-xs text-apple-light">{subtitle}</span>
@@ -80,6 +82,7 @@ function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
             )}
           />
           <Area
+            isAnimationActive={!exportMode}
             type="monotone" dataKey="count" name="건수"
             stroke={color} strokeWidth={CHART_STROKE_WIDTH}
             fill={`url(#${gradientId})`}
