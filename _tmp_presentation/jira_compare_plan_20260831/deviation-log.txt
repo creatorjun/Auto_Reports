@@ -1,0 +1,9 @@
+Slide 1: Reframed the opening from generic expansion to JIRA-to-decision workflow.
+Slide 2: Replaced the partner screenshot with the current JIRA TACEA issue-search screen and rewrote the left narrative around direct-view limitations.
+Slide 3: Replaced the prior sample dashboard with the current deployed workspace dashboard and current values.
+Slide 4: Recast the demo timeline as an evidence-backed task-path comparison.
+Slide 5: Replaced the prior sample SLA screenshot with the current deployed SLA screen and compared follow-up steps.
+Slide 6: Recast the generic context slide as an operational-question visibility matrix.
+Slide 7: Recast the technical architecture frame as a JIRA system-of-record and workspace decision-layer model.
+Slide 8: Recast the rollout timeline as the requested AI, account-level dashboard, and team-requirement implementation plan.
+Slide 9: Recast the generic pilot decision slide as a measurable enterprise-expansion evaluation.

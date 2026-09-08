@@ -1,0 +1,155 @@
+{"kind":"deck","id":"pr/lqwbw7","name":"Deck"}
+{"kind":"layout","layoutId":"/ppt/slideMasters/slideMaster1.xml","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout1.xml","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/97yoy2","slide":1,"title":"AUTO REPORTS WORKSPACE","textShapes":4}
+{"kind":"textbox","id":"sh/cje5c72p","slide":1,"name":"cover-eyebrow","text":"AUTO REPORTS WORKSPACE","textPreview":"AUTO REPORTS WORKSPACE","textChars":22,"textLines":1,"bbox":[64,48,480,30]}
+{"kind":"shape","id":"sh/07y5g72l","slide":1,"name":"cover-accent","bbox":[64,154,8,276]}
+{"kind":"textbox","id":"sh/l8769cj6","slide":1,"name":"cover-title","text":"팀 전용 워크스페이스,\n전사 공통 운영 허브로","textPreview":"팀 전용 워크스페이스, | 전사 공통 운영 허브로","textChars":25,"textLines":2,"bbox":[104,148,1030,260]}
+{"kind":"textbox","id":"sh/qhwnaxkj","slide":1,"name":"cover-subtitle","text":"Jira 보고 · SLA · 파트너 · 사이트 · 파일을 하나의 업무 흐름으로","textPreview":"Jira 보고 · SLA · 파트너 · 사이트 · 파일을 하나의 업무 흐름으로","textChars":43,"textLines":1,"bbox":[104,478,970,48]}
+{"kind":"textbox","id":"sh/bi543214","slide":1,"name":"cover-date","text":"전사 확대 시연 자료  |  2026.08","textPreview":"전사 확대 시연 자료  |  2026.08","textChars":23,"textLines":1,"bbox":[104,582,520,32]}
+{"kind":"notes","id":"nt/97yoy2","slide":1,"text":"핵심 메시지: 현재 팀에서 쓰는 도구를 새로 설명하기보다, 이미 연결된 업무 흐름이 전사 공통 운영 허브로 확장될 수 있음을 보여준다.\n오프닝: 오늘은 기능 목록이 아니라 한 이슈가 발견되고, 확인되고, 협업되고, 산출물로 남는 흐름을 시연한다.\n\n[Sources]\n- C:/Users/user/Desktop/project/Auto_Reports/README.md\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/app/router.tsx"}
+{"kind":"slide","id":"sl/689fuk","slide":2,"title":"PARTNER OPERATIONS","textShapes":8}
+{"kind":"textbox","id":"sh/xwfah8bm","slide":2,"name":"eyebrow-6","text":"PARTNER OPERATIONS","textPreview":"PARTNER OPERATIONS","textChars":18,"textLines":1,"bbox":[64,34,500,28]}
+{"kind":"textbox","id":"sh/2l4jqdc3","slide":2,"name":"title-6","text":"협업 대상을 조직·담당자·이슈로 연결합니다","textPreview":"협업 대상을 조직·담당자·이슈로 연결합니다","textChars":23,"textLines":1,"bbox":[64,68,1152,66]}
+{"kind":"shape","id":"sh/3mdkjido","slide":2,"name":"title-rule-6","bbox":[64,148,1152,0]}
+{"kind":"textbox","id":"sh/cb61wnu5","slide":2,"name":"page-6","text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[1180,672,36,20]}
+{"kind":"textbox","id":"sh/dcf2psvq","slide":2,"text":"누가 맡고 있는지\n바로 좁혀집니다","textPreview":"누가 맡고 있는지 | 바로 좁혀집니다","textChars":18,"textLines":2,"bbox":[72,206,360,112]}
+{"kind":"textbox","id":"sh/qp4judcz","slide":2,"text":"조직을 고르고, 담당자를 선택하고, 진행 중인 이슈를 확인하는 흐름이 한 화면에 이어집니다.","textPreview":"조직을 고르고, 담당자를 선택하고, 진행 중인 이슈를 확인하는 흐름이 한 화면에 이어집니다.","textChars":51,"textLines":1,"bbox":[72,348,360,106]}
+{"kind":"shape","id":"sh/badknidk","slide":2,"bbox":[72,505,9,9]}
+{"kind":"textbox","id":"sh/0f6l0nuh","slide":2,"text":"단계·경과일을 함께 확인","textPreview":"단계·경과일을 함께 확인","textChars":13,"textLines":1,"bbox":[96,496,336,58]}
+{"kind":"shape","id":"sh/lgf2tsvm","slide":2,"bbox":[72,567,9,9]}
+{"kind":"textbox","id":"sh/9svad8vq","slide":2,"text":"Jira 티켓을 새 탭으로 연결","textPreview":"Jira 티켓을 새 탭으로 연결","textChars":17,"textLines":1,"bbox":[96,558,336,58]}
+{"kind":"shape","id":"sh/8rmt43u5","slide":2,"bbox":[458,182,766,438]}
+{"kind":"textbox","id":"sh/mp4b2tcz","slide":2,"name":"footer-note","text":"시연 화면: 현재 프런트엔드 UI + 비식별 샘플 데이터","textPreview":"시연 화면: 현재 프런트엔드 UI + 비식별 샘플 데이터","textChars":31,"textLines":1,"bbox":[64,670,1000,22]}
+{"kind":"image","id":"im/vypo3yts","slide":2,"name":"","geometry":"roundRect","bbox":[466,190,750,422]}
+{"kind":"notes","id":"nt/689fuk","slide":2,"text":"시연 포인트: 파트너 조직을 선택하고 전체 이슈에서 특정 담당자로 범위를 좁힌다.\n전사 확대 시에는 파트너 조직 및 계정 정보의 관리 주체를 먼저 정해야 한다.\n화면의 조직명, 담당자, 이메일, 티켓은 발표용 샘플이다.\n\n[Sources]\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/presentation/pages/PartnerManagementPage.tsx\n- Embedded screenshot generated from the cited frontend source with presentation sample data on 2026-08-24"}
+{"kind":"slide","id":"sl/66uwbg","slide":3,"title":"PRODUCT VIEW","textShapes":9}
+{"kind":"textbox","id":"sh/x0z6t4z2","slide":3,"name":"eyebrow-3","text":"PRODUCT VIEW","textPreview":"PRODUCT VIEW","textChars":12,"textLines":1,"bbox":[64,34,500,28]}
+{"kind":"textbox","id":"sh/kz2d87qd","slide":3,"name":"title-3","text":"한 화면에서 현황을 보고 바로 상세로 내려갑니다","textPreview":"한 화면에서 현황을 보고 바로 상세로 내려갑니다","textChars":26,"textLines":1,"bbox":[64,68,1152,66]}
+{"kind":"shape","id":"sh/l0buhcry","slide":3,"name":"title-rule-3","bbox":[64,148,1152,0]}
+{"kind":"textbox","id":"sh/61kvah8j","slide":3,"name":"page-3","text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[1180,672,36,20]}
+{"kind":"textbox","id":"sh/72tcjm94","slide":3,"text":"필터 → 요약 → 상세","textPreview":"필터 → 요약 → 상세","textChars":12,"textLines":1,"bbox":[72,194,350,46]}
+{"kind":"textbox","id":"sh/832dcrq9","slide":3,"text":"보고 기간과 요청 유형을 바꾸면 같은 기준으로 카드, 차트, 상세 목록이 함께 움직입니다.","textPreview":"보고 기간과 요청 유형을 바꾸면 같은 기준으로 카드, 차트, 상세 목록이 함께 움직입니다.","textChars":50,"textLines":1,"bbox":[72,256,360,116]}
+{"kind":"shape","id":"sh/t4vulcru","slide":3,"bbox":[72,423,9,9]}
+{"kind":"textbox","id":"sh/250bydsz","slide":3,"text":"요청 유형·반기 필터","textPreview":"요청 유형·반기 필터","textChars":11,"textLines":1,"bbox":[96,414,330,58]}
+{"kind":"shape","id":"sh/n69c7i9k","slide":3,"bbox":[72,485,9,9]}
+{"kind":"textbox","id":"sh/jmh8veh8","slide":3,"text":"요약 카드 클릭 상세","textPreview":"요약 카드 클릭 상세","textChars":11,"textLines":1,"bbox":[96,476,330,58]}
+{"kind":"shape","id":"sh/il87m9gn","slide":3,"bbox":[72,547,9,9]}
+{"kind":"textbox","id":"sh/5ozqxoze","slide":3,"text":"최근 이슈 담당·경과 확인","textPreview":"최근 이슈 담당·경과 확인","textChars":14,"textLines":1,"bbox":[96,538,330,58]}
+{"kind":"shape","id":"sh/knqpojyt","slide":3,"bbox":[466,180,758,433]}
+{"kind":"textbox","id":"sh/axo7i9gr","slide":3,"name":"footer-note","text":"시연 화면: 현재 프런트엔드 UI + 비식별 샘플 데이터","textPreview":"시연 화면: 현재 프런트엔드 UI + 비식별 샘플 데이터","textChars":31,"textLines":1,"bbox":[64,670,1000,22]}
+{"kind":"image","id":"im/jmx07654","slide":3,"name":"","geometry":"roundRect","bbox":[474,188,742,417]}
+{"kind":"notes","id":"nt/66uwbg","slide":3,"text":"시연 포인트: 요청 유형 버튼을 한 번 끄고, 상반기 또는 하반기를 선택해 전체 위젯이 같은 범위로 바뀌는 흐름을 보여준다.\n다음으로 최근 7일 생성 카드나 미완료 이슈 카드를 눌러 상세 모달까지 내려간다.\n화면의 수치는 발표용 샘플이며 운영 성과 수치가 아니다.\n\n[Sources]\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/presentation/pages/DashboardPage.tsx\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/presentation/hooks/useDashboardData.ts\n- Embedded screenshot generated from the cited frontend source with presentation sample data on 2026-08-24"}
+{"kind":"slide","id":"sl/z1jkes","slide":4,"title":"DEMO PATH","textShapes":21}
+{"kind":"textbox","id":"sh/2xcba14f","slide":4,"name":"eyebrow-4","text":"DEMO PATH","textPreview":"DEMO PATH","textChars":9,"textLines":1,"bbox":[64,34,500,28]}
+{"kind":"textbox","id":"sh/fahcv6t4","slide":4,"name":"title-4","text":"시연은 한 이슈의 흐름을 끝까지 따라가면 충분합니다","textPreview":"시연은 한 이슈의 흐름을 끝까지 따라가면 충분합니다","textChars":28,"textLines":1,"bbox":[64,68,1152,66]}
+{"kind":"shape","id":"sh/e98bm1cj","slide":4,"name":"title-rule-4","bbox":[64,148,1152,0]}
+{"kind":"textbox","id":"sh/t8zutwby","slide":4,"name":"page-4","text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[1180,672,36,20]}
+{"kind":"textbox","id":"sh/s7qtkrud","slide":4,"text":"발견에서 산출물까지","textPreview":"발견에서 산출물까지","textChars":10,"textLines":1,"bbox":[72,198,500,44]}
+{"kind":"textbox","id":"sh/r6hcrmts","slide":4,"text":"메뉴를 순서대로 소개하기보다 하나의 운영 질문이 어디까지 연결되는지 보여줍니다.","textPreview":"메뉴를 순서대로 소개하기보다 하나의 운영 질문이 어디까지 연결되는지 보여줍니다.","textChars":44,"textLines":1,"bbox":[72,258,500,86]}
+{"kind":"textbox","id":"sh/658bi1c7","slide":4,"text":"“지금 가장 오래 머문 이슈는 무엇이고,\n누가 어떤 근거로 후속 조치하고 있는가?”","textPreview":"“지금 가장 오래 머문 이슈는 무엇이고, | 누가 어떤 근거로 후속 조치하고 있는가?”","textChars":46,"textLines":2,"bbox":[72,396,500,120]}
+{"kind":"shape","id":"sh/54fupwbm","slide":4,"bbox":[668,196,30,30]}
+{"kind":"textbox","id":"sh/k36tgruh","slide":4,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[674,198,18,22]}
+{"kind":"textbox","id":"sh/29ozad8v","slide":4,"text":"필터","textPreview":"필터","textChars":2,"textLines":1,"bbox":[724,190,130,34]}
+{"kind":"textbox","id":"sh/3axgjipg","slide":4,"text":"요청 유형·기간을 맞춘다","textPreview":"요청 유형·기간을 맞춘다","textChars":13,"textLines":1,"bbox":[862,192,330,34]}
+{"kind":"shape","id":"sh/4b6hcnq1","slide":4,"bbox":[683,230,0,47]}
+{"kind":"shape","id":"sh/pcfyls7m","slide":4,"bbox":[668,284,30,30]}
+{"kind":"textbox","id":"sh/u54f6t8z","slide":4,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[674,286,18,22]}
+{"kind":"textbox","id":"sh/f6dgfy9k","slide":4,"text":"드릴다운","textPreview":"드릴다운","textChars":4,"textLines":1,"bbox":[724,278,130,34]}
+{"kind":"textbox","id":"sh/g7mh83q5","slide":4,"text":"카드에서 상세 이슈를 연다","textPreview":"카드에서 상세 이슈를 연다","textChars":14,"textLines":1,"bbox":[862,280,330,34]}
+{"kind":"shape","id":"sh/h8fyh8ra","slide":4,"bbox":[683,318,0,47]}
+{"kind":"shape","id":"sh/6h4f2t8n","slide":4,"bbox":[668,372,30,30]}
+{"kind":"textbox","id":"sh/7idgby98","slide":4,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[674,374,18,22]}
+{"kind":"textbox","id":"sh/vm9w3up0","slide":4,"text":"SLA","textPreview":"SLA","textChars":3,"textLines":1,"bbox":[724,366,130,34]}
+{"kind":"textbox","id":"sh/al0vapof","slide":4,"text":"업데이트와 댓글 근거를 확인한다","textPreview":"업데이트와 댓글 근거를 확인한다","textChars":17,"textLines":1,"bbox":[862,368,330,34]}
+{"kind":"shape","id":"sh/xore5476","slide":4,"bbox":[683,406,0,47]}
+{"kind":"shape","id":"sh/wnidcz6l","slide":4,"bbox":[668,460,30,30]}
+{"kind":"textbox","id":"sh/jatw7upc","slide":4,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[674,462,18,22]}
+{"kind":"textbox","id":"sh/i9kve9or","slide":4,"text":"협업","textPreview":"협업","textChars":2,"textLines":1,"bbox":[724,454,130,34]}
+{"kind":"textbox","id":"sh/5cbe94n2","slide":4,"text":"파트너·담당자 기준으로 좁힌다","textPreview":"파트너·담당자 기준으로 좁힌다","textChars":16,"textLines":1,"bbox":[862,456,330,34]}
+{"kind":"shape","id":"sh/kb2dgz6x","slide":4,"bbox":[683,494,0,47]}
+{"kind":"shape","id":"sh/zepcvaps","slide":4,"bbox":[668,548,30,30]}
+{"kind":"textbox","id":"sh/edgv25on","slide":4,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[674,550,18,22]}
+{"kind":"textbox","id":"sh/4jetcbm5","slide":4,"text":"산출물","textPreview":"산출물","textChars":3,"textLines":1,"bbox":[724,542,130,34]}
+{"kind":"textbox","id":"sh/pkna5gnq","slide":4,"text":"파일을 저장·미리보기·공유한다","textPreview":"파일을 저장·미리보기·공유한다","textChars":16,"textLines":1,"bbox":[862,544,330,34]}
+{"kind":"notes","id":"nt/z1jkes","slide":4,"text":"시연 질문을 먼저 던진 뒤 화면을 이동한다. 메뉴 소개보다 사용자의 판단 과정을 중심으로 설명한다.\n추천 동선: 대시보드 필터 → 미완료 상세 → SLA 댓글 → 파트너 조직 → 파일 보관함.\n\n[Sources]\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/app/router.tsx\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/presentation/pages/DashboardPage.tsx\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/presentation/pages/SlaDashboardPage.tsx\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/presentation/pages/PartnerManagementPage.tsx\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/presentation/pages/StoragePage.tsx"}
+{"kind":"slide","id":"sl/6e7c7i","slide":5,"title":"OPERATING EVIDENCE","textShapes":8}
+{"kind":"textbox","id":"sh/uhw7ehwr","slide":5,"name":"eyebrow-5","text":"OPERATING EVIDENCE","textPreview":"OPERATING EVIDENCE","textChars":18,"textLines":1,"bbox":[64,34,500,28]}
+{"kind":"textbox","id":"sh/8byd0zit","slide":5,"name":"title-5","text":"SLA는 수치가 아니라 후속 조치의 근거까지 보여줍니다","textPreview":"SLA는 수치가 아니라 후속 조치의 근거까지 보여줍니다","textChars":30,"textLines":1,"bbox":[64,68,1152,66]}
+{"kind":"shape","id":"sh/tc7u94je","slide":5,"name":"title-rule-5","bbox":[64,148,1152,0]}
+{"kind":"textbox","id":"sh/y5wvu50b","slide":5,"name":"page-5","text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[1180,672,36,20]}
+{"kind":"shape","id":"sh/j65c3a1w","slide":5,"bbox":[64,182,796,455]}
+{"kind":"textbox","id":"sh/l8nu5kj2","slide":5,"text":"운영자가 바로 확인하는 것","textPreview":"운영자가 바로 확인하는 것","textChars":14,"textLines":1,"bbox":[900,210,300,62]}
+{"kind":"shape","id":"sh/ahcbq50f","slide":5,"bbox":[900,323,9,9]}
+{"kind":"textbox","id":"sh/bilcza10","slide":5,"text":"최초 생성과 마지막 업데이트","textPreview":"최초 생성과 마지막 업데이트","textChars":15,"textLines":1,"bbox":[924,314,286,58]}
+{"kind":"shape","id":"sh/7ul8j2dg","slide":5,"bbox":[900,415,9,9]}
+{"kind":"textbox","id":"sh/6tc7axwv","slide":5,"text":"최근 댓글을 이슈별로 펼쳐 보기","textPreview":"최근 댓글을 이슈별로 펼쳐 보기","textChars":17,"textLines":1,"bbox":[924,406,286,58]}
+{"kind":"shape","id":"sh/tgnqlcvm","slide":5,"bbox":[900,507,9,9]}
+{"kind":"textbox","id":"sh/8fupc7e1","slide":5,"text":"Jira 원문으로 즉시 이동","textPreview":"Jira 원문으로 즉시 이동","textChars":15,"textLines":1,"bbox":[924,498,286,58]}
+{"kind":"textbox","id":"sh/vi58nmdc","slide":5,"name":"footer-note","text":"시연 화면: 현재 프런트엔드 UI + 비식별 샘플 데이터","textPreview":"시연 화면: 현재 프런트엔드 UI + 비식별 샘플 데이터","textChars":31,"textLines":1,"bbox":[64,670,1000,22]}
+{"kind":"image","id":"im/mpofuhk3","slide":5,"name":"","geometry":"roundRect","bbox":[72,190,780,439]}
+{"kind":"notes","id":"nt/6e7c7i","slide":5,"text":"시연 포인트: 티켓 행을 펼쳐 최근 댓글을 보여주고, 생성 시간과 마지막 업데이트 시간을 함께 읽는다.\n전사 관점의 의미: SLA 판단과 후속 조치의 문맥을 동일한 화면에서 공유할 수 있다.\n화면의 티켓과 댓글은 발표용 샘플이다.\n\n[Sources]\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/presentation/pages/SlaDashboardPage.tsx\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/presentation/components/sla/SlaIssueActivityTable.tsx\n- Embedded screenshot generated from the cited frontend source with presentation sample data on 2026-08-24"}
+{"kind":"slide","id":"sl/kjjut3","slide":6,"title":"WHY NOW","textShapes":15}
+{"kind":"textbox","id":"sh/d8z25c76","slide":6,"name":"eyebrow-2","text":"WHY NOW","textPreview":"WHY NOW","textChars":7,"textLines":1,"bbox":[64,34,500,28]}
+{"kind":"textbox","id":"sh/m90bi543","slide":6,"name":"title-2","text":"전사 확대의 출발점은 기능이 아니라 맥락 통합입니다","textPreview":"전사 확대의 출발점은 기능이 아니라 맥락 통합입니다","textChars":28,"textLines":1,"bbox":[64,68,1152,66]}
+{"kind":"shape","id":"sh/7a9crqlo","slide":6,"name":"title-rule-2","bbox":[64,148,1152,0]}
+{"kind":"textbox","id":"sh/k7ytgvmd","slide":6,"name":"page-2","text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[1180,672,36,20]}
+{"kind":"textbox","id":"sh/l8rup03y","slide":6,"text":"오늘의 업무 정보","textPreview":"오늘의 업무 정보","textChars":9,"textLines":1,"bbox":[72,194,490,42]}
+{"kind":"textbox","id":"sh/ylgbel47","slide":6,"text":"운영 판단에 필요한 정보가 서로 다른 화면과 담당자에게 나뉘어 있습니다.","textPreview":"운영 판단에 필요한 정보가 서로 다른 화면과 담당자에게 나뉘어 있습니다.","textChars":40,"textLines":1,"bbox":[72,248,490,70]}
+{"kind":"textbox","id":"sh/zmpcnqls","slide":6,"text":"Jira 이슈와 보고서","textPreview":"Jira 이슈와 보고서","textChars":12,"textLines":1,"bbox":[72,356,333.2,34]}
+{"kind":"textbox","id":"sh/432dsfmh","slide":6,"text":"현황","textPreview":"현황","textChars":2,"textLines":1,"bbox":[415,355,147,36]}
+{"kind":"shape","id":"sh/54bu1k32","slide":6,"bbox":[72,398,490,0]}
+{"kind":"textbox","id":"sh/xw7i1ozm","slide":6,"text":"SLA와 댓글 이력","textPreview":"SLA와 댓글 이력","textChars":10,"textLines":1,"bbox":[72,426,333.2,34]}
+{"kind":"textbox","id":"sh/wvyhsjy1","slide":6,"text":"근거","textPreview":"근거","textChars":2,"textLines":1,"bbox":[415,425,147,36]}
+{"kind":"shape","id":"sh/vupgzehw","slide":6,"bbox":[72,468,490,0]}
+{"kind":"textbox","id":"sh/atgzq9gb","slide":6,"text":"파트너·사이트·파일","textPreview":"파트너·사이트·파일","textChars":10,"textLines":1,"bbox":[72,496,333.2,34]}
+{"kind":"textbox","id":"sh/9s7yx4zq","slide":6,"text":"맥락","textPreview":"맥락","textChars":2,"textLines":1,"bbox":[415,495,147,36]}
+{"kind":"shape","id":"sh/87yhojy5","slide":6,"bbox":[72,538,490,0]}
+{"kind":"shape","id":"sh/n6pgvehk","slide":6,"name":"thesis-panel","bbox":[638,186,578,408]}
+{"kind":"textbox","id":"sh/m5wzm9gz","slide":6,"text":"같은 데이터","textPreview":"같은 데이터","textChars":6,"textLines":1,"bbox":[690,240,470,56]}
+{"kind":"textbox","id":"sh/tori98zu","slide":6,"text":"같은 지표","textPreview":"같은 지표","textChars":5,"textLines":1,"bbox":[690,330,470,56]}
+{"kind":"textbox","id":"sh/s3ih03y9","slide":6,"text":"같은 후속 조치","textPreview":"같은 후속 조치","textChars":8,"textLines":1,"bbox":[690,420,470,56]}
+{"kind":"textbox","id":"sh/s7q1w76l","slide":6,"text":"워크스페이스가 묶는 것은 화면이 아니라 업무의 기준입니다.","textPreview":"워크스페이스가 묶는 것은 화면이 아니라 업무의 기준입니다.","textChars":32,"textLines":1,"bbox":[690,520,450,58]}
+{"kind":"notes","id":"nt/kjjut3","slide":6,"text":"핵심 메시지: 전사 확대의 이유를 메뉴 수가 아니라 동일한 맥락과 기준을 공유하는 문제로 정의한다.\n이 슬라이드는 저장소가 Jira 보고, SLA, 파트너, 사이트, 파일을 한 라우터 아래 통합한 현재 범위에서 도출한 시연 관점이다.\n\n[Sources]\n- C:/Users/user/Desktop/project/Auto_Reports/README.md\n- C:/Users/user/Desktop/project/Auto_Reports/frontend/src/app/router.tsx"}
+{"kind":"slide","id":"sl/mztrd6","slide":7,"title":"FOUNDATION","textShapes":15}
+{"kind":"textbox","id":"sh/mlc3e9k3","slide":7,"name":"eyebrow-8","text":"FOUNDATION","textPreview":"FOUNDATION","textChars":10,"textLines":1,"bbox":[64,34,500,28]}
+{"kind":"textbox","id":"sh/sb298bqd","slide":7,"name":"title-8","text":"전사 확대를 견딜 구조는 화면 아래에 이미 분리돼 있습니다","textPreview":"전사 확대를 견딜 구조는 화면 아래에 이미 분리돼 있습니다","textChars":32,"textLines":1,"bbox":[64,68,1152,66]}
+{"kind":"shape","id":"sh/dcbahgri","slide":7,"name":"title-rule-8","bbox":[64,148,1152,0]}
+{"kind":"textbox","id":"sh/i50r2h8v","slide":7,"name":"page-8","text":"08","textPreview":"08","textChars":2,"textLines":1,"bbox":[1180,672,36,20]}
+{"kind":"shape","id":"sh/j69sbm9g","slide":7,"name":"arrow-1","bbox":[280,290,72,40]}
+{"kind":"shape","id":"sh/47i94rq1","slide":7,"name":"arrow-2","bbox":[572,290,72,40]}
+{"kind":"shape","id":"sh/58radwrm","slide":7,"name":"arrow-3","bbox":[864,290,72,40]}
+{"kind":"shape","id":"sh/214rel8f","slide":7,"name":"arch-node-1","bbox":[72,224,260,174]}
+{"kind":"textbox","id":"sh/n2ds7q90","slide":7,"text":"React UI","textPreview":"React UI","textChars":8,"textLines":1,"bbox":[96,252,212,40]}
+{"kind":"textbox","id":"sh/32h0rah4","slide":7,"text":"대시보드\n운영 화면","textPreview":"대시보드 | 운영 화면","textChars":10,"textLines":2,"bbox":[96,310,212,64]}
+{"kind":"shape","id":"sh/21oji50j","slide":7,"name":"arch-node-2","bbox":[364,224,260,174]}
+{"kind":"textbox","id":"sh/poz2tkza","slide":7,"text":"Application","textPreview":"Application","textChars":11,"textLines":1,"bbox":[388,252,212,40]}
+{"kind":"textbox","id":"sh/onq1kfip","slide":7,"text":"게이트웨이\n유스케이스","textPreview":"게이트웨이 | 유스케이스","textChars":11,"textLines":2,"bbox":[388,310,212,64]}
+{"kind":"shape","id":"sh/bqhkvahg","slide":7,"name":"arch-node-3","bbox":[656,224,260,174]}
+{"kind":"textbox","id":"sh/qp8jm50v","slide":7,"text":"FastAPI","textPreview":"FastAPI","textChars":7,"textLines":1,"bbox":[680,252,212,40]}
+{"kind":"textbox","id":"sh/dsz2xkz6","slide":7,"text":"API·매퍼\nComposition Root","textPreview":"API·매퍼 | Composition Root","textChars":23,"textLines":2,"bbox":[680,310,212,64]}
+{"kind":"shape","id":"sh/crq1ofi1","slide":7,"name":"arch-node-4","bbox":[948,224,260,174]}
+{"kind":"textbox","id":"sh/zu1kzuhc","slide":7,"text":"Adapters","textPreview":"Adapters","textChars":8,"textLines":1,"bbox":[972,252,212,40]}
+{"kind":"textbox","id":"sh/yt8jqp0r","slide":7,"text":"Jira·DB·파일\n메일·스케줄러","textPreview":"Jira·DB·파일 | 메일·스케줄러","textChars":18,"textLines":2,"bbox":[972,310,212,64]}
+{"kind":"textbox","id":"sh/apc3itkz","slide":7,"text":"의존성은 안쪽을 향하고, 외부 시스템은 어댑터로 교체됩니다.","textPreview":"의존성은 안쪽을 향하고, 외부 시스템은 어댑터로 교체됩니다.","textChars":33,"textLines":1,"bbox":[160,452,960,46]}
+{"kind":"textbox","id":"sh/vql4ry1k","slide":7,"text":"아키텍처 경계 테스트","textPreview":"아키텍처 경계 테스트","textChars":11,"textLines":1,"bbox":[110,550,280,34]}
+{"kind":"textbox","id":"sh/wru5k325","slide":7,"text":"Docker Compose 운영","textPreview":"Docker Compose 운영","textChars":17,"textLines":1,"bbox":[500,550,280,34]}
+{"kind":"textbox","id":"sh/xs3mtojq","slide":7,"text":"인증·자격정보 보호","textPreview":"인증·자격정보 보호","textChars":10,"textLines":1,"bbox":[890,550,280,34]}
+{"kind":"notes","id":"nt/mztrd6","slide":7,"text":"핵심 메시지: 전사 확대는 현재 구조를 버리고 새로 만드는 일이 아니라, 경계가 분리된 구조에 권한과 운영 기준을 확장하는 일이다.\n기술 질의가 나오면 Domain, Application, Infrastructure, Presentation의 의존 방향과 실행 진입점의 Composition Root를 설명한다.\n\n[Sources]\n- C:/Users/user/Desktop/project/Auto_Reports/README.md\n- C:/Users/user/Desktop/project/Auto_Reports/backend/docs/01_architecture.md\n- C:/Users/user/Desktop/project/Auto_Reports/docker-compose.yml\n- C:/Users/user/Desktop/project/Auto_Reports/backend/src/infrastructure/security/jwt_service.py\n- C:/Users/user/Desktop/project/Auto_Reports/backend/src/infrastructure/security/credential_encryptor.py"}
+{"kind":"slide","id":"sl/2bse0z","slide":8,"title":"DECISION","textShapes":12}
+{"kind":"textbox","id":"sh/c7a5srm9","slide":8,"text":"DECISION","textPreview":"DECISION","textChars":8,"textLines":1,"bbox":[64,48,300,30]}
+{"kind":"textbox","id":"sh/ju90be1w","slide":8,"text":"다음 세 가지가 정해지면\n전사 파일럿을 시작할 수 있습니다","textPreview":"다음 세 가지가 정해지면 | 전사 파일럿을 시작할 수 있습니다","textChars":32,"textLines":2,"bbox":[64,142,1030,168]}
+{"kind":"textbox","id":"sh/ytgz29kb","slide":8,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[64,388,54,36]}
+{"kind":"textbox","id":"sh/t0rihojy","slide":8,"text":"참여 범위","textPreview":"참여 범위","textChars":5,"textLines":1,"bbox":[64,438,330,44]}
+{"kind":"textbox","id":"sh/szih8jid","slide":8,"text":"첫 파일럿 부서와 대표 사용 시나리오","textPreview":"첫 파일럿 부서와 대표 사용 시나리오","textChars":20,"textLines":1,"bbox":[64,502,330,76]}
+{"kind":"shape","id":"sh/7y90fe1s","slide":8,"bbox":[412,392,0,190]}
+{"kind":"textbox","id":"sh/6x0z69kn","slide":8,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[452,388,54,36]}
+{"kind":"textbox","id":"sh/hobiloja","slide":8,"text":"데이터·권한","textPreview":"데이터·권한","textChars":6,"textLines":1,"bbox":[452,438,330,44]}
+{"kind":"textbox","id":"sh/gn21c3ip","slide":8,"text":"연결할 시스템과 조회·관리 권한","textPreview":"연결할 시스템과 조회·관리 권한","textChars":17,"textLines":1,"bbox":[452,502,330,76]}
+{"kind":"shape","id":"sh/2hsn2h4r","slide":8,"bbox":[800,392,0,190]}
+{"kind":"textbox","id":"sh/3i14vm5c","slide":8,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[840,388,54,36]}
+{"kind":"textbox","id":"sh/4ja54rmx","slide":8,"text":"오너·성공 기준","textPreview":"오너·성공 기준","textChars":8,"textLines":1,"bbox":[840,438,330,44]}
+{"kind":"textbox","id":"sh/pkjmxwni","slide":8,"text":"운영 책임자와 검증할 결과","textPreview":"운영 책임자와 검증할 결과","textChars":14,"textLines":1,"bbox":[840,502,330,76]}
+{"kind":"shape","id":"sh/qlsn6143","slide":8,"bbox":[64,632,1152,2]}
+{"kind":"textbox","id":"sh/rm14zm5o","slide":8,"text":"제안: 현재 팀 사용 흐름을 기준선으로 삼아 작은 범위에서 검증한 뒤 순차 확대","textPreview":"제안: 현재 팀 사용 흐름을 기준선으로 삼아 작은 범위에서 검증한 뒤 순차 확대","textChars":44,"textLines":1,"bbox":[64,654,1100,28]}
+{"kind":"notes","id":"nt/2bse0z","slide":8,"text":"마무리 질문: 첫 파일럿 부서, 연결할 데이터 범위, 운영 오너를 오늘 어디까지 정할 수 있는지 확인한다.\n최종 제안: 현재 팀의 검증된 사용 흐름을 기준선으로 삼고, 작은 범위에서 권한과 운영 기준을 검증한 뒤 순차 확대한다.\n\n[Sources]\n- Internal decision proposal based on the current product scope\n- C:/Users/user/Desktop/project/Auto_Reports/README.md"}

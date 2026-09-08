@@ -52,8 +52,8 @@ class ContactInfo:
 
 @dataclass(frozen=True)
 class Credential:
-    username: str
-    password: str
+    username: Optional[str] = None
+    password: Optional[str] = None
     ip:       Optional[str] = None
     port:     Optional[str] = None
 

@@ -1,0 +1,9 @@
+Slide 1: JIRA search, deployed workspace, and repository README.
+Slide 2: Current authenticated JIRA TACEA screenshot captured on 2026-08-31.
+Slide 3: Current deployed workspace dashboard screenshot captured on 2026-08-31 and frontend dashboard source.
+Slide 4: Current JIRA and workspace workflows and dashboard page source.
+Slide 5: Current deployed SLA dashboard screenshot captured on 2026-08-31 and SLA frontend source.
+Slide 6: Current JIRA, workspace dashboard, and SLA dashboard.
+Slide 7: Repository README, backend architecture document, and frontend router.
+Slide 8: User-provided implementation priorities on 2026-08-31; status wording is not an independently measured completion rate.
+Slide 9: Internal pilot measurement proposal based on the current JIRA and workspace workflows.

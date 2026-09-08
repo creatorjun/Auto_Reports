@@ -124,7 +124,7 @@ export function CredRow({
   cred,
 }: {
   label: string
-  cred?: { username: string; password: string; ip?: string; port?: string } | null
+  cred?: { username?: string; password?: string; ip?: string; port?: string } | null
 }) {
   const [show, setShow] = useState(false)
   if (!cred) return null
@@ -132,22 +132,24 @@ export function CredRow({
     <div className="flex min-w-0 flex-col items-start gap-1 border-b border-apple-divider/50 py-2 last:border-0 sm:flex-row sm:gap-3 sm:py-1.5">
       <span className="w-full flex-shrink-0 pt-0.5 text-xs text-apple-light sm:w-36">{label}</span>
       <div className="flex min-w-0 flex-col gap-0.5 text-sm text-apple-dark">
-        <span className="break-all">{cred.username}</span>
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="break-all font-mono text-xs">
-            {show ? cred.password : '•'.repeat(Math.min(cred.password.length, 10))}
+        {cred.username && <span className="break-all">{cred.username}</span>}
+        {cred.password && (
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="break-all font-mono text-xs">
+              {show ? cred.password : '•'.repeat(Math.min(cred.password.length, 10))}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShow((v) => !v)}
+              className="text-apple-light hover:text-apple-dark transition-colors"
+            >
+              <EyeIcon open={show} />
+            </button>
           </span>
-          <button
-            type="button"
-            onClick={() => setShow((v) => !v)}
-            className="text-apple-light hover:text-apple-dark transition-colors"
-          >
-            <EyeIcon open={show} />
-          </button>
-        </span>
-        {cred.ip && (
+        )}
+        {(cred.ip || cred.port) && (
           <span className="break-all text-xs text-apple-light">
-            IP(URL): {cred.ip}{cred.port ? `:${cred.port}` : ''}
+            {cred.ip ? `IP(URL): ${cred.ip}${cred.port ? `:${cred.port}` : ''}` : `Port: ${cred.port}`}
           </span>
         )}
       </div>

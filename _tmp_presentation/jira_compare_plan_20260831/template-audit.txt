@@ -1,0 +1,35 @@
+Communication job
+By the end, enterprise decision-makers should understand that Auto Reports keeps JIRA as the system of record while reducing the navigation and recombination needed to answer recurring operational questions.
+
+Source structure
+- 10-slide 16:9 deck, 1280 x 720.
+- White canvas, Noto Sans KR typography, dark navy text, blue accent, thin gray rules.
+- Source slides 1, 2, 3, 4, 5, 6, 8, 9, and 10 provide the required opening, comparison, screenshot, workflow, architecture, roadmap, and decision frames.
+
+Reusable slide types
+- Slide 1: minimal cover with blue vertical accent.
+- Slides 3 and 6: text plus large product screenshot.
+- Slide 4: five-step vertical workflow.
+- Slide 5: large screenshot plus three evidence bullets.
+- Slide 2: three-row comparison plus thesis panel.
+- Slide 8: four-node operating model.
+- Slide 9: three-phase implementation roadmap.
+- Slide 10: three-part decision frame.
+
+Inherited placeholders and furniture
+- The source deck uses slide-local text and shapes rather than empty structural placeholders.
+- Page labels, title rules, screenshot frames, bullets, arrows, and architecture nodes remain inherited and are edited only through mapped element IDs.
+
+Typography and spacing
+- Preserve source font family, font size, weight, line spacing, alignment, and text-box geometry.
+- Shorten copy rather than shrinking text.
+
+Insertion contract
+- Every output slide duplicates one source slide.
+- No new narrative primitives are added.
+- Screenshot swaps preserve inherited image placement and crop behavior.
+- The roadmap uses the inherited three-phase timeline without changing its geometry.
+- Speaker notes are rewritten with claim-specific [Sources] blocks.
+
+Source inspection
+- Every source slide render, layout JSON, extracted media set, and the full inspect snapshot was reviewed.

@@ -17,8 +17,8 @@ export interface ContactInfo {
 }
 
 export interface Credential {
-  username: string
-  password: string
+  username?: string
+  password?: string
   ip?: string
   port?: string
 }
