@@ -136,6 +136,7 @@ export const storageApi: StorageGateway = {
     const response = await client.get<Blob>('/storage/preview-converted', {
       params: { name, folder },
       responseType: 'blob',
+      timeout: 150_000,
     })
     return createBinaryContent(response.data)
   },

@@ -31,10 +31,18 @@ client.interceptors.request.use((config) => {
 let isLoggingOut = false
 let refreshPromise: Promise<string> | null = null
 
-function toRequestError(error: unknown): RequestError {
+async function toRequestError(error: unknown): Promise<RequestError> {
   if (error instanceof RequestError) return error
   if (!axios.isAxiosError(error)) return new RequestError(null, null)
-  return new RequestError(error.response?.status ?? null, error.response?.data?.detail)
+  let data = error.response?.data
+  if (data instanceof Blob && data.type.toLowerCase().includes('json')) {
+    try {
+      data = JSON.parse(await data.text())
+    } catch {
+      data = undefined
+    }
+  }
+  return new RequestError(error.response?.status ?? null, data?.detail)
 }
 
 function redirectToLogin() {
@@ -58,7 +66,7 @@ client.interceptors.response.use(
     const status = err.response?.status
     const url: string = original?.url ?? ''
 
-    if (isLoggingOut) return Promise.reject(toRequestError(err))
+    if (isLoggingOut) throw await toRequestError(err)
 
     const shouldSkip = SKIP_REFRESH_URLS.some((u) => url.includes(u))
 
@@ -76,11 +84,11 @@ client.interceptors.response.use(
         return client(original)
       } catch (refreshError) {
         redirectToLogin()
-        return Promise.reject(toRequestError(refreshError))
+        throw await toRequestError(refreshError)
       }
     }
 
-    return Promise.reject(toRequestError(err))
+    throw await toRequestError(err)
   }
 )
 

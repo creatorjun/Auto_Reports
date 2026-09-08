@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/storage/FilePreviewModal.tsx
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { Fragment, useEffect, useRef, useState, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -53,10 +53,112 @@ function CloseIcon() {
 
 function LoadingSpinnerSmall() {
   return (
-    <div className="flex items-center justify-center h-full bg-black/60">
+    <div role="status" aria-label="미리보기 불러오는 중" className="flex items-center justify-center h-full bg-black/60">
       <svg className="animate-spin w-8 h-8 text-white" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" />
       </svg>
+    </div>
+  )
+}
+
+function previewErrorMessage(error: unknown): string {
+  return error instanceof Error && error.message && error.message !== 'Request failed'
+    ? error.message
+    : '파일을 불러오지 못했습니다. 잠시 후 다시 열어 주세요.'
+}
+
+function PreviewError({ message }: { message: string }) {
+  return (
+    <div role="alert" className="flex flex-col items-center justify-center gap-2 h-full bg-black/60 px-6 text-center">
+      <p className="text-[14px] font-medium text-white">미리보기를 불러올 수 없습니다.</p>
+      <p className="text-[12px] text-white/70">{message}</p>
+    </div>
+  )
+}
+
+function decodePreviewText(buffer: ArrayBuffer): string {
+  const decode = (encoding: string) => new TextDecoder(encoding, { fatal: true }).decode(buffer)
+  try { return decode('utf-8') }
+  catch {
+    try { return decode('euc-kr') }
+    catch { return new TextDecoder('utf-8').decode(buffer) }
+  }
+}
+
+function parsePreviewCsv(buffer: ArrayBuffer): string[][] {
+  return decodePreviewText(buffer).trim().split('\n').map(line => line.split(','))
+}
+
+async function parsePreviewWorkbook(buffer: ArrayBuffer): Promise<{ name: string; html: string }[]> {
+  const XLSX = await import('xlsx')
+  const workbook = XLSX.read(buffer, { type: 'array', codepage: 949, cellStyles: true })
+  if (workbook.SheetNames.length === 0) throw new Error('표시할 시트가 없습니다.')
+  return workbook.SheetNames.map(name => ({
+    name,
+    html: XLSX.utils.sheet_to_html(workbook.Sheets[name], { header: '', footer: '' }),
+  }))
+}
+
+async function parsePreviewDocument(buffer: ArrayBuffer): Promise<string> {
+  const mammoth = await import('mammoth')
+  return (await mammoth.convertToHtml({ arrayBuffer: buffer })).value
+}
+
+function usePreviewContent<T>(
+  { name, folder, storage }: ContentPreviewProps,
+  parse: (buffer: ArrayBuffer) => T | Promise<T>,
+) {
+  const [content, setContent] = useState<T | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    let active = true
+    setContent(null)
+    setError(null)
+    const load = async () => {
+      try {
+        const binary = await storage.readPreview(name, folder)
+        if (!active) return
+        const buffer = await binary.read()
+        if (!active) return
+        const result = await parse(buffer)
+        if (active) setContent(result)
+      } catch (cause: unknown) {
+        if (active) setError(previewErrorMessage(cause))
+      }
+    }
+    void load()
+    return () => { active = false }
+  }, [folder, name, storage, parse])
+  return { content, error }
+}
+
+function MediaPreview({ url, name, type }: { url: string; name: string; type: 'image' | 'video' }) {
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const timerRef = useRef<number | null>(null)
+  const finish = (next: 'ready' | 'error') => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+    timerRef.current = null
+    setStatus(next)
+  }
+  useEffect(() => {
+    setStatus('loading')
+    timerRef.current = window.setTimeout(() => finish('error'), 30_000)
+    return () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+  }, [url])
+  if (status === 'error') return <PreviewError message="파일을 불러오지 못했습니다. 잠시 후 다시 열거나 다운로드 후 확인해 주세요." />
+  return (
+    <div className="relative flex items-center justify-center w-full h-full bg-black/60">
+      {status === 'loading' && <div className="absolute inset-0"><LoadingSpinnerSmall /></div>}
+      {type === 'image' ? (
+        <img src={url} alt={name} onLoad={() => finish('ready')} onError={() => finish('error')}
+          className="max-w-full max-h-full object-contain shadow-2xl" style={{ width: 'auto', height: 'auto', visibility: status === 'loading' ? 'hidden' : 'visible' }} />
+      ) : (
+        <video src={url} controls autoPlay onLoadedData={() => finish('ready')} onError={() => finish('error')}
+          className="max-w-full max-h-full" style={{ visibility: status === 'loading' ? 'hidden' : 'visible' }} />
+      )}
     </div>
   )
 }
@@ -94,41 +196,62 @@ function PdfViewer({ url, onPageChange }: PdfViewerProps) {
   const [error, setError] = useState<string | null>(null)
   const pdfRef = useRef<any>(null)
   const renderTaskRef = useRef<any>(null)
+  const renderGenerationRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
+    let loadingTask: any = null
     setLoading(true)
     setError(null)
+    setTotalPages(0)
+    setCurrentPage(1)
     pdfRef.current = null
+    const timer = window.setTimeout(() => {
+      cancelled = true
+      setLoading(false)
+      setError('파일을 불러오는 시간이 초과되었습니다. 잠시 후 다시 열어 주세요.')
+      void loadingTask?.destroy().catch(() => {})
+    }, 30_000)
 
     const load = async () => {
       try {
         const pdfjsLib = await getPdfjsLib()
+        if (cancelled) return
         const version: string = (pdfjsLib as any).version ?? ''
         const cMapUrl = version
           ? `https://cdn.jsdelivr.net/npm/pdfjs-dist@${version}/cmaps/`
           : 'https://cdn.jsdelivr.net/npm/pdfjs-dist/cmaps/'
-        const loadingTask = pdfjsLib.getDocument({
+        loadingTask = pdfjsLib.getDocument({
           url,
           cMapUrl,
           cMapPacked: true,
           withCredentials: false,
         })
         const pdf = await loadingTask.promise
-        if (cancelled) { pdf.destroy(); return }
+        if (cancelled) return
+        if (pdf.numPages === 0) throw new Error('표시할 PDF 페이지가 없습니다.')
         pdfRef.current = pdf
         setTotalPages(pdf.numPages)
         setCurrentPage(1)
         setLoading(false)
-      } catch (e: any) {
-        if (!cancelled) setError(`PDF 로드 실패: ${e?.message ?? String(e)}`)
+      } catch (cause: unknown) {
+        if (!cancelled) {
+          setLoading(false)
+          setError(previewErrorMessage(cause))
+        }
+      } finally {
+        window.clearTimeout(timer)
       }
     }
     load()
     return () => {
       cancelled = true
+      window.clearTimeout(timer)
+      renderGenerationRef.current++
       renderTaskRef.current?.cancel()
       renderTaskRef.current = null
+      pdfRef.current = null
+      void loadingTask?.destroy().catch(() => {})
     }
   }, [url])
 
@@ -139,11 +262,14 @@ function PdfViewer({ url, onPageChange }: PdfViewerProps) {
   }, [loading, error, currentPage, totalPages, onPageChange])
 
   const renderPage = useCallback(async (pageNum: number) => {
-    if (!pdfRef.current || !canvasRef.current) return
+    const pdf = pdfRef.current
+    if (!pdf || !canvasRef.current) return
+    const generation = ++renderGenerationRef.current
     renderTaskRef.current?.cancel()
     renderTaskRef.current = null
     try {
-      const page = await pdfRef.current.getPage(pageNum)
+      const page = await pdf.getPage(pageNum)
+      if (pdfRef.current !== pdf || generation !== renderGenerationRef.current) return
       const container = containerRef.current
       const containerWidth = container ? container.clientWidth - 32 : 800
       const viewport = page.getViewport({ scale: 1 })
@@ -157,14 +283,16 @@ function PdfViewer({ url, onPageChange }: PdfViewerProps) {
       canvas.style.width = `${scaledViewport.width}px`
       canvas.style.height = `${scaledViewport.height}px`
       const ctx = canvas.getContext('2d')
-      if (!ctx) return
+      if (!ctx) throw new Error('이 브라우저에서 PDF를 표시할 수 없습니다. 다운로드 후 확인해 주세요.')
       ctx.scale(dpr, dpr)
       const task = page.render({ canvasContext: ctx, viewport: scaledViewport })
       renderTaskRef.current = task
       await task.promise
-      renderTaskRef.current = null
+      if (renderTaskRef.current === task) renderTaskRef.current = null
     } catch (e: any) {
-      if (e?.name !== 'RenderingCancelledException') console.error('PDF render error:', e)
+      if (e?.name !== 'RenderingCancelledException' && pdfRef.current === pdf && generation === renderGenerationRef.current) {
+        setError(previewErrorMessage(e))
+      }
     }
   }, [])
 
@@ -190,11 +318,7 @@ function PdfViewer({ url, onPageChange }: PdfViewerProps) {
   }, [loading, error, totalPages])
 
   if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 h-full bg-black/60 px-6">
-        <p className="text-[13px] text-white/70 text-center">{error}</p>
-      </div>
-    )
+    return <PreviewError message={error} />
   }
 
   return (
@@ -228,6 +352,9 @@ function PptxPreview({ name, folder, storage, onPageChange }: { name: string; fo
   useEffect(() => {
     let active = true
     let objectUrl: BinaryObjectUrl | null = null
+    setStatus('loading')
+    setPdfUrl(null)
+    setErrMsg('')
 
     storage.convertPreview(name, folder)
       .then((content) => {
@@ -278,18 +405,8 @@ function PptxPreview({ name, folder, storage, onPageChange }: { name: string; fo
 }
 
 function TextPreview({ name, folder, storage }: ContentPreviewProps) {
-  const [content, setContent] = useState<string | null>(null)
-  useEffect(() => {
-    let active = true
-    storage.readPreview(name, folder).then((content) => content.read()).then((buf) => {
-      const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
-      let text = ''
-      try { text = tryDecode('utf-8') }
-      catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
-      if (active) setContent(text)
-    })
-    return () => { active = false }
-  }, [folder, name, storage])
+  const { content, error } = usePreviewContent({ name, folder, storage }, decodePreviewText)
+  if (error) return <PreviewError message={error} />
   if (content === null) return <LoadingSpinnerSmall />
   return (
     <div className="w-full h-full overflow-auto bg-black/60">
@@ -299,18 +416,8 @@ function TextPreview({ name, folder, storage }: ContentPreviewProps) {
 }
 
 function MarkdownPreview({ name, folder, storage }: ContentPreviewProps) {
-  const [content, setContent] = useState<string | null>(null)
-  useEffect(() => {
-    let active = true
-    storage.readPreview(name, folder).then((content) => content.read()).then((buf) => {
-      const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
-      let text = ''
-      try { text = tryDecode('utf-8') }
-      catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
-      if (active) setContent(text)
-    })
-    return () => { active = false }
-  }, [folder, name, storage])
+  const { content, error } = usePreviewContent({ name, folder, storage }, decodePreviewText)
+  if (error) return <PreviewError message={error} />
   if (content === null) return <LoadingSpinnerSmall />
   return (
     <div className="overflow-auto h-full bg-apple-bg">
@@ -327,18 +434,8 @@ function MarkdownPreview({ name, folder, storage }: ContentPreviewProps) {
 }
 
 function CsvPreview({ name, folder, storage }: ContentPreviewProps) {
-  const [rows, setRows] = useState<string[][] | null>(null)
-  useEffect(() => {
-    let active = true
-    storage.readPreview(name, folder).then((content) => content.read()).then((buf) => {
-      const tryDecode = (enc: string) => new TextDecoder(enc, { fatal: true }).decode(buf)
-      let text = ''
-      try { text = tryDecode('utf-8') }
-      catch { try { text = tryDecode('euc-kr') } catch { text = new TextDecoder('utf-8', { fatal: false }).decode(buf) } }
-      if (active) setRows(text.trim().split('\n').map(l => l.split(',')))
-    })
-    return () => { active = false }
-  }, [folder, name, storage])
+  const { content: rows, error } = usePreviewContent({ name, folder, storage }, parsePreviewCsv)
+  if (error) return <PreviewError message={error} />
   if (rows === null) return <LoadingSpinnerSmall />
   return (
     <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
@@ -385,33 +482,11 @@ const XLSX_TABLE_STYLE = `
 `
 
 function XlsxPreview({ name, folder, storage }: ContentPreviewProps) {
-  const [sheets, setSheets] = useState<{ name: string; html: string }[]>([])
+  const { content: sheets, error } = usePreviewContent({ name, folder, storage }, parsePreviewWorkbook)
   const [activeSheet, setActiveSheet] = useState(0)
-  const [error, setError] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    storage.readPreview(name, folder).then((content) => content.read()).then(async (buf) => {
-      const XLSX = await import('xlsx')
-      const wb = XLSX.read(buf, { type: 'array', codepage: 949, cellStyles: true })
-      const result = wb.SheetNames.map(sheetName => ({
-        name: sheetName,
-        html: XLSX.utils.sheet_to_html(wb.Sheets[sheetName], { header: '', footer: '' }),
-      }))
-      if (active) {
-        setSheets(result)
-        setActiveSheet(0)
-      }
-    }).catch(() => { if (active) setError(true) })
-    return () => { active = false }
-  }, [folder, name, storage])
-
-  if (error) return (
-    <div className="flex items-center justify-center h-full bg-black/60">
-      <p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p>
-    </div>
-  )
-  if (sheets.length === 0) return <LoadingSpinnerSmall />
+  useEffect(() => { setActiveSheet(0) }, [folder, name, storage])
+  if (error) return <PreviewError message={error} />
+  if (sheets === null) return <LoadingSpinnerSmall />
 
   return (
     <div className="flex flex-col w-full h-full bg-black/60">
@@ -438,18 +513,8 @@ function XlsxPreview({ name, folder, storage }: ContentPreviewProps) {
 }
 
 function DocxPreview({ name, folder, storage }: ContentPreviewProps) {
-  const [html, setHtml] = useState<string | null>(null)
-  const [error, setError] = useState(false)
-  useEffect(() => {
-    let active = true
-    storage.readPreview(name, folder).then((content) => content.read()).then(async (buf) => {
-      const mammoth = await import('mammoth')
-      const result = await mammoth.convertToHtml({ arrayBuffer: buf })
-      if (active) setHtml(result.value)
-    }).catch(() => { if (active) setError(true) })
-    return () => { active = false }
-  }, [folder, name, storage])
-  if (error) return <div className="flex items-center justify-center h-full bg-black/60"><p className="text-[13px] text-white/60">파일을 읽을 수 없습니다.</p></div>
+  const { content: html, error } = usePreviewContent({ name, folder, storage }, parsePreviewDocument)
+  if (error) return <PreviewError message={error} />
   if (html === null) return <LoadingSpinnerSmall />
   return (
     <div className="overflow-auto h-full bg-apple-bg">
@@ -487,6 +552,7 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
   const url = storage.preview(name, folder)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [pdfPageInfo, setPdfPageInfo] = useState<{ current: number; total: number } | null>(null)
+  useEffect(() => { setPdfPageInfo(null) }, [folder, name])
 
   const currentIndex = fileList.indexOf(name)
   const hasPrev = currentIndex > 0
@@ -563,17 +629,8 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
   const renderContent = () => {
     switch (type) {
       case 'image':
-        return (
-          <div className="flex items-center justify-center w-full h-full bg-black/60">
-            <img src={url} alt={name} className="max-w-full max-h-full object-contain shadow-2xl" style={{ width: 'auto', height: 'auto' }} />
-          </div>
-        )
       case 'video':
-        return (
-          <div className="flex items-center justify-center w-full h-full bg-black/80">
-            <video src={url} controls autoPlay className="max-w-full max-h-full" style={{ width: 'auto', height: 'auto' }} />
-          </div>
-        )
+        return <MediaPreview url={url} name={name} type={type} />
       case 'pdf': return <PdfViewer url={url} onPageChange={handlePdfPageChange} />
       case 'text':
       case 'json': return <TextPreview name={name} folder={folder} storage={storage} />
@@ -663,7 +720,7 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
         </div>
       </div>
       <div className="flex-1 overflow-hidden relative">
-        {renderContent()}
+        <Fragment key={JSON.stringify([folder, name])}>{renderContent()}</Fragment>
         {fileList.length > 1 && !isPdfMultiPage && (
           <>
             {hasPrev && (

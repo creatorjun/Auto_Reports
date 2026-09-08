@@ -71,6 +71,8 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 
 LibreOffice는 문서 PDF 변환에 사용하며 실행 파일이 없으면 변환 endpoint가 명시적 오류를 반환합니다.
 
+각 변환 요청은 시스템 임시 디렉터리에 독립적인 LibreOffice 프로필과 PDF 출력 디렉터리를 생성합니다. 서버 계정은 임시 디렉터리에 쓰기 권한이 있어야 합니다. 변환 결과는 응답용으로 읽은 뒤 정리하며, 원본 폴더에 같은 이름의 PDF가 있어도 덮어쓰거나 삭제하지 않습니다. 120초 제한 초과 또는 요청 취소 시 실행한 변환 프로세스를 종료하고 임시 파일을 정리합니다.
+
 ## SMTP notification
 
 | Variable | Default |

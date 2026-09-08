@@ -16,6 +16,10 @@ Base URL은 `/api/v1`입니다. `LOGIN=true`일 때 보호 라우트는 `Authori
 
 `LOGIN=false`이면 인증 검증을 건너뜁니다. 운영 cookie 속성은 `COOKIE_SECURE` 설정을 따릅니다.
 
+스토리지 미리보기·변환·다운로드는 `Authorization: Bearer <access token>` 헤더와 기존 `_t` 링크 인증을 모두 지원합니다. 둘 다 전달되면 Bearer 헤더를 검증합니다. PDF 변환은 서버에서 최대 120초 동안 실행하며, 브라우저의 변환 요청 제한은 응답 전송 여유를 포함한 150초입니다. 실패 시 JSON `detail`을 미리보기 화면에 표시합니다.
+
+Markdown·텍스트·CSV 등 원본 미리보기도 파일 조회 실패 시 로딩을 종료하고 오류를 표시합니다. 다른 파일을 열면 이전 결과와 오류를 초기화하며, 닫힌 미리보기의 지연 응답은 새 화면에 반영하지 않습니다.
+
 ## Reports와 잡
 
 | Method | Path | 요청 | 응답 |
