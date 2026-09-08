@@ -161,25 +161,26 @@ class SlaDashboardUseCase:
         self,
         issue_key: str,
         offset: int = 0,
+        limit: int = _RECENT_COMMENT_LIMIT,
     ) -> SlaDashboardCommentPage:
         if offset < 0:
             raise ValueError("Comment offset must be nonnegative")
+        if limit < 1:
+            raise ValueError("Comment limit must be positive")
         normalized_key = await self._require_recent_issue(issue_key)
         comments = await self._jira.get_issue_comments(
             normalized_key,
-            max_results=_RECENT_COMMENT_LIMIT + 1,
+            max_results=limit + 1,
             offset=offset,
         )
-        ordered = sorted(
-            comments,
-            key=lambda comment: str(comment.get("created", "")),
-            reverse=True,
-        )[:_RECENT_COMMENT_LIMIT]
         return SlaDashboardCommentPage(
-            comments=tuple(self._to_comment(comment) for comment in ordered),
+            comments=tuple(
+                self._to_comment(comment)
+                for comment in comments[:limit]
+            ),
             next_offset=(
-                offset + _RECENT_COMMENT_LIMIT
-                if len(comments) > _RECENT_COMMENT_LIMIT
+                offset + limit
+                if len(comments) > limit
                 else None
             ),
         )

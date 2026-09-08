@@ -28,13 +28,15 @@ Base URL은 `/api/v1`입니다. `LOGIN=true`일 때 보호 라우트는 `Authori
 | GET | `/trigger/{job_id}/status` | path id | pending/running/done/error 상태 |
 | GET | `/trigger/{job_id}/stream?_t=...` | path id와 token | SSE status/done/error/timeout |
 | GET | `/sla-dashboard/issues` | 없음 | 최신 보고서의 최근 이슈 티켓별 생성·최종 업데이트·상태 |
-| GET | `/sla-dashboard/issues/{issue_key}/comments?offset=0` | 최근 이슈 key, 0 이상의 offset(기본값 0) | 최신순 댓글 최대 5개의 `comments`와 `next_offset` |
+| GET | `/sla-dashboard/issues/{issue_key}/comments?offset=0&limit=5` | 최근 이슈 key, 0 이상의 offset(기본값 0), 1 이상의 limit(기본값 5) | 최신순 댓글 최대 limit개의 `comments`와 `next_offset` |
 
 SSE는 300초 timeout과 15초 keepalive를 사용합니다. 날짜를 생략하면 유스케이스가 기본 보고 범위를 계산합니다.
 
 SLA 대시보드 목록은 최신 보고서의 w7 티켓 집합을 기준으로 Jira의 현재 `created`, `updated`, `status`를 조회합니다. `updated`는 댓글 생성·수정·삭제를 포함한 Jira 최종 업데이트 시각이며, 댓글 본문은 Jira 문서 형식을 일반 텍스트로 변환해 반환합니다. 댓글 endpoint는 최신 보고서에 포함되지 않은 티켓 key를 404로 거부합니다.
 
-댓글 응답은 `comments` 배열과 `next_offset`을 가진 객체이며 페이지 크기는 5개로 고정됩니다. 다음 요청에 `next_offset`을 `offset`으로 전달하면 이어지는 댓글을 조회할 수 있습니다. 마지막 페이지의 `next_offset`은 `null`이며, 음수 offset은 422로 거부합니다.
+댓글 응답은 `comments` 배열과 `next_offset`을 가진 객체이며, `limit`을 생략하면 최대 5개를 반환합니다. 이어지는 댓글이 있으면 `next_offset`은 `offset + limit`이고 마지막 댓글까지 조회하면 `null`입니다. 다음 요청의 `offset`에 이 값을 전달하는 조회도 지원하지만, SLA 화면의 `댓글 더보기`는 `offset=0`을 유지하고 `limit=5`, `10`, `15` 순으로 늘려 최신 댓글부터 누적 범위를 다시 조회합니다. 음수 `offset`이나 1 미만의 `limit`은 422로 거부합니다.
+
+댓글 목록 조회는 서버의 Jira 응답 캐시를 사용하지 않고 요청마다 Jira에 작성 시각 최신순(`orderBy=-created`)으로 조회합니다. 프론트엔드 댓글 query의 `staleTime`은 2분이며, 더보기를 누르면 늘어난 `limit`으로 새 요청을 보내고 성공한 최신 응답으로 표시 목록을 갱신합니다. 실패하면 이전에 표시한 댓글을 유지합니다.
 
 ## Sites
 

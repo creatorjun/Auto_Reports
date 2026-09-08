@@ -27,7 +27,7 @@ class SlaDashboardApiTest(unittest.IsolatedAsyncioTestCase):
         await self.client.aclose()
 
     async def test_passes_default_and_next_offsets_and_serializes_page(self) -> None:
-        for query in ("", "?offset=5"):
+        for query in ("", "?offset=5", "?offset=10"):
             response = await self.client.get(
                 f"/api/v1/sla-dashboard/issues/TACEA-4501/comments{query}"
             )
@@ -36,7 +36,11 @@ class SlaDashboardApiTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual({"comments": [], "next_offset": None}, response.json())
 
         self.assertEqual(
-            [call("TACEA-4501", offset=0), call("TACEA-4501", offset=5)],
+            [
+                call("TACEA-4501", offset=0, limit=5),
+                call("TACEA-4501", offset=5, limit=5),
+                call("TACEA-4501", offset=10, limit=5),
+            ],
             self.use_case.list_recent_comments.await_args_list,
         )
 
@@ -46,6 +50,32 @@ class SlaDashboardApiTest(unittest.IsolatedAsyncioTestCase):
                 response = await self.client.get(
                     "/api/v1/sla-dashboard/issues/TACEA-4501/comments",
                     params={"offset": offset},
+                )
+
+                self.assertEqual(422, response.status_code)
+
+        self.use_case.list_recent_comments.assert_not_awaited()
+
+    async def test_passes_increasing_limits_for_latest_cumulative_comments(self) -> None:
+        for limit in (5, 10, 15, 105):
+            response = await self.client.get(
+                "/api/v1/sla-dashboard/issues/TACEA-4501/comments",
+                params={"limit": limit},
+            )
+
+            self.assertEqual(200, response.status_code)
+
+        self.assertEqual(
+            [call("TACEA-4501", offset=0, limit=limit) for limit in (5, 10, 15, 105)],
+            self.use_case.list_recent_comments.await_args_list,
+        )
+
+    async def test_rejects_zero_negative_noninteger_and_malformed_limits(self) -> None:
+        for limit in ("0", "-1", "1.5", "invalid"):
+            with self.subTest(limit=limit):
+                response = await self.client.get(
+                    "/api/v1/sla-dashboard/issues/TACEA-4501/comments",
+                    params={"limit": limit},
                 )
 
                 self.assertEqual(422, response.status_code)

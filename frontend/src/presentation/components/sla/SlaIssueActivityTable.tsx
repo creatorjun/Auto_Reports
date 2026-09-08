@@ -67,23 +67,23 @@ function CommentImage({
 
   if (failed) {
     return (
-      <div className="flex min-h-24 items-center justify-center rounded-xl border border-red-100 bg-red-50 px-4 text-[12px] text-red-600">
+      <div className="flex min-h-20 max-w-full items-center rounded-xl border border-red-100 bg-red-50 px-4 text-[12px] text-red-600">
         이미지를 불러오지 못했습니다.
       </div>
     )
   }
 
   if (!source) {
-    return <div className="min-h-32 animate-pulse rounded-xl bg-apple-gray" aria-label="댓글 이미지 로딩 중" />
+    return <div className="h-24 w-48 max-w-full animate-pulse rounded-xl bg-apple-gray" aria-label="댓글 이미지 로딩 중" />
   }
 
   return (
-    <a href={source} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl bg-apple-gray">
+    <a href={source} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-start overflow-hidden rounded-xl border border-apple-divider/70">
       <img
         src={source}
         alt={image.alt || '댓글 첨부 이미지'}
         loading="lazy"
-        className="max-h-[32rem] w-full object-contain"
+        className="block h-auto max-h-[24rem] w-auto max-w-full object-contain object-left-top"
       />
     </a>
   )
@@ -92,7 +92,7 @@ function CommentImage({
 function CommentEntry({ issueKey, comment }: { issueKey: string; comment: SlaDashboardComment }) {
   const wasEdited = comment.updated && comment.updated !== comment.created
   return (
-    <li className="rounded-xl border border-apple-divider/70 bg-apple-surface px-4 py-3 shadow-apple-sm">
+    <li className="min-w-0 rounded-xl border border-apple-divider/70 bg-apple-surface px-4 py-3 text-left shadow-apple-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-[13px] font-semibold text-apple-dark">{comment.author}</span>
         <span className="text-[12px] tabular-nums text-apple-light">
@@ -101,7 +101,7 @@ function CommentEntry({ issueKey, comment }: { issueKey: string; comment: SlaDas
         </span>
       </div>
       {comment.body && (
-        <p className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-6 text-apple-mid">
+        <p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-apple-mid [overflow-wrap:anywhere]">
           {comment.body}
         </p>
       )}
@@ -109,7 +109,7 @@ function CommentEntry({ issueKey, comment }: { issueKey: string; comment: SlaDas
         <p className="mt-2 text-[13px] text-apple-light">내용이 없는 댓글입니다.</p>
       )}
       {comment.images.length > 0 && (
-        <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 2xl:grid-cols-2">
+        <div className="mt-3 flex min-w-0 flex-col items-start gap-3">
           {comment.images.map((image) => (
             <CommentImage
               key={image.attachment_id}
@@ -138,11 +138,11 @@ function CommentPanel({ issueKey }: { issueKey: string }) {
   } = useSlaIssueComments(issueKey, true)
 
   return (
-    <div className="rounded-2xl border border-brand-100 bg-brand-50/50 p-4 md:p-5">
-      <div className="mb-3 flex items-center gap-2">
+    <div className="min-w-0 rounded-2xl border border-brand-100 bg-brand-50/50 p-4 md:p-5">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <MessageSquare size={16} className="text-brand-600" />
         <h3 className="text-[13px] font-semibold text-apple-dark">최근 작성된 댓글</h3>
-        <span className="text-[12px] text-apple-light">5개씩 표시</span>
+        <span aria-live="polite" className="text-[12px] text-apple-light">{data ? `최신 ${data.length}개 · 최신순` : '최신 5개부터 표시'}</span>
       </div>
 
       {isLoading && (
@@ -180,7 +180,7 @@ function CommentPanel({ issueKey }: { issueKey: string }) {
 
       {isFetchNextPageError && (
         <p role="alert" className="mt-3 text-[13px] text-red-600">
-          다음 댓글을 불러오지 못했습니다. 다시 시도해 주세요.
+          댓글을 더 불러오지 못했습니다. 다시 시도해 주세요.
         </p>
       )}
 
@@ -205,7 +205,7 @@ function CommentPanel({ issueKey }: { issueKey: string }) {
           ) : (
             <>
               <ChevronDown size={14} />
-              댓글 더보기
+              댓글 더보기 · 최신 {(data?.length ?? 0) + 5}개
             </>
           )}
         </button>
@@ -346,7 +346,13 @@ export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboard
     <div className="overflow-hidden rounded-2xl border border-apple-divider/70 bg-apple-surface shadow-apple">
       {isDesktopLayout ? (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse">
+          <table className="w-full min-w-[900px] table-fixed border-collapse">
+            <colgroup>
+              <col className="w-[18%]" />
+              <col className="w-[44%]" />
+              <col className="w-[22%]" />
+              <col className="w-[16%]" />
+            </colgroup>
             <thead className="bg-apple-gray/70">
               <tr className="border-b border-apple-divider/70">
                 <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">티켓 번호</th>

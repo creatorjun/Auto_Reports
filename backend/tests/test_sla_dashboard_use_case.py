@@ -4,6 +4,7 @@ import pathlib
 import sys
 import unittest
 from typing import Any
+from unittest.mock import AsyncMock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -247,6 +248,73 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
 
                 self.assertEqual(min(count, 5), len(page.comments))
                 self.assertIsNone(page.next_offset)
+
+    async def test_preserves_jira_chronological_order_across_timezone_formats(self) -> None:
+        comments = [
+            {"id": "100", "created": "2026-09-08T12:00:00.000+0900"},
+            {"id": "101", "created": "2026-09-08T02:59:00.000+0000"},
+            {"id": "102", "created": "2026-09-08T11:58:00.000+0900"},
+            {"id": "103", "created": "2026-09-08T02:57:00.000+0000"},
+            {"id": "104", "created": "2026-09-08T11:56:00.000+0900"},
+            {"id": "105", "created": "2026-09-08T11:55:00.000+0900"},
+            {"id": "106", "created": "2026-09-08T02:54:00.000+0000"},
+        ]
+        self.jira.get_issue_comments = AsyncMock(side_effect=[comments[:6], comments[5:]])
+
+        first = await self.use_case.list_recent_comments("TACEA-4501")
+        second = await self.use_case.list_recent_comments(
+            "TACEA-4501", offset=first.next_offset,
+        )
+
+        self.assertEqual(["100", "101", "102", "103", "104"], [c.id for c in first.comments])
+        self.assertEqual(["105", "106"], [c.id for c in second.comments])
+        self.assertIsNone(second.next_offset)
+
+    async def test_returns_latest_five_ten_fifteen_comments_with_stable_timestamp_ties(self) -> None:
+        comment_ids = ["25", "6", "18", "4", "21", "9", "3", "16", "11", "2", "24", "8", "20", "13", "1"]
+        self.jira.comments = [
+            {"id": comment_id, "created": "2026-09-08T12:00:00.000+0900"}
+            for comment_id in comment_ids
+        ]
+        for limit in (5, 10, 15):
+            page = await self.use_case.list_recent_comments("TACEA-4501", limit=limit)
+            displayed = [comment.id for comment in page.comments]
+
+            self.assertEqual(comment_ids[:limit], displayed)
+            self.assertEqual(limit, len(set(displayed)))
+            self.assertEqual(limit if limit < 15 else None, page.next_offset)
+
+        self.assertEqual(
+            [("TACEA-4501", 6, 0), ("TACEA-4501", 11, 0), ("TACEA-4501", 16, 0)],
+            self.jira.comment_requests,
+        )
+
+    async def test_latest_cumulative_comments_include_insertions_and_exclude_deletions(self) -> None:
+        self.jira.comments = [
+            {"id": str(index), "created": f"2026-09-{index + 1:02d}T12:00:00.000+0900"}
+            for index in range(20)
+        ]
+
+        first = await self.use_case.list_recent_comments("TACEA-4501")
+        self.assertEqual([str(index) for index in range(19, 14, -1)], [c.id for c in first.comments])
+
+        self.jira.comments.append({"id": "20", "created": "2026-09-21T12:00:00.000+0900"})
+        second = await self.use_case.list_recent_comments("TACEA-4501", limit=10)
+        self.assertEqual([str(index) for index in range(20, 10, -1)], [c.id for c in second.comments])
+
+        self.jira.comments = [comment for comment in self.jira.comments if comment["id"] != "18"]
+        third = await self.use_case.list_recent_comments("TACEA-4501", limit=15)
+        displayed = [comment.id for comment in third.comments]
+        self.assertEqual([str(index) for index in range(20, 4, -1) if index != 18], displayed)
+        self.assertEqual(15, len(set(displayed)))
+        self.assertEqual(15, third.next_offset)
+
+    async def test_rejects_nonpositive_limit_before_requesting_jira(self) -> None:
+        for limit in (0, -1):
+            with self.subTest(limit=limit), self.assertRaises(ValueError):
+                await self.use_case.list_recent_comments("TACEA-4501", limit=limit)
+
+        self.assertEqual([], self.jira.comment_requests)
 
     async def test_rejects_negative_offset_before_requesting_jira(self) -> None:
         with self.assertRaises(ValueError):

@@ -19,17 +19,11 @@ export function useSlaIssueComments(issueKey: string, enabled: boolean) {
   const { slaDashboard } = useApplicationServices()
   return useInfiniteQuery({
     queryKey: QUERY_KEYS.slaDashboardComments(issueKey),
-    queryFn: ({ pageParam }) => slaDashboard.getComments(issueKey, pageParam),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage) => lastPage.next_offset ?? undefined,
-    select: (data) => {
-      const seen = new Set<string>()
-      return data.pages.flatMap((page) => page.comments).filter((comment) => {
-        if (seen.has(comment.id)) return false
-        seen.add(comment.id)
-        return true
-      })
-    },
+    queryFn: ({ pageParam }) => slaDashboard.getComments(issueKey, 0, pageParam),
+    initialPageParam: 5,
+    getNextPageParam: (lastPage) => lastPage.next_offset === null ? undefined : lastPage.next_offset + 5,
+    maxPages: 1,
+    select: (data) => data.pages[data.pages.length - 1]?.comments ?? [],
     enabled,
     staleTime: 1000 * 60 * 2,
   })

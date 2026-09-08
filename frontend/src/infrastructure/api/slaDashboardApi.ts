@@ -9,11 +9,11 @@ export const slaDashboardApi = {
     const response = await client.get<SlaDashboardIssue[]>('/sla-dashboard/issues')
     return response.data
   },
-  getComments: async (issueKey: string, offset = 0): Promise<SlaDashboardCommentPage> => {
+  getComments: async (issueKey: string, offset = 0, limit = 5): Promise<SlaDashboardCommentPage> => {
     const key = encodeURIComponent(issueKey)
     const response = await client.get<SlaDashboardCommentPage>(
       `/sla-dashboard/issues/${key}/comments`,
-      { params: { offset } },
+      { params: { offset, limit } },
     )
     return response.data
   },

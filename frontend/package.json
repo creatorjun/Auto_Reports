@@ -9,7 +9,8 @@
     "build": "tsc && vite build",
     "test:architecture": "node --test tests/architecture.test.mjs",
     "preview": "vite preview",
-    "test:pdf": "node --test tests/dashboardPdf.test.mjs"
+    "test:pdf": "node --test tests/dashboardPdf.test.mjs",
+    "test:dashboard": "node --test tests/dashboardIssueTypeFilters.test.mjs tests/slaComments.test.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

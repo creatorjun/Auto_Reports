@@ -17,7 +17,7 @@ import type {
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
 import { WIDGET_ID } from '@/domain/WidgetId'
-import { isDashboardExcludedIssueType } from '@/domain/DashboardIssueTypePolicy'
+import { isDashboardExcludedIssueType, isDashboardIssueTypeFilterOption } from '@/domain/DashboardIssueTypePolicy'
 
 interface TypeCountData {
   issue_types?: string[]
@@ -118,13 +118,13 @@ function sumSelectedTypes(
   byType: Record<string, number> | undefined,
   fallback: number,
   selectedTypes: ReadonlySet<string> | null,
+  controlledTypes: ReadonlySet<string>,
   alwaysIncluded: number | null | undefined,
 ): number {
   if (!byType) return fallback
   return Object.entries(byType).reduce(
     (total, [issueType, count]) => total + (
-      !isDashboardExcludedIssueType(issueType)
-      && (selectedTypes === null || selectedTypes.has(issueType))
+      includesType(issueType, selectedTypes, controlledTypes)
         ? count
         : 0
     ),
@@ -135,6 +135,7 @@ function sumSelectedTypes(
 function filterMonthlyCounts(
   monthly: MonthlyCountEntry[],
   selectedTypes: ReadonlySet<string> | null,
+  controlledTypes: ReadonlySet<string>,
   semester: Semester | null,
   reportYear: number,
 ): MonthlyCountEntry[] {
@@ -152,6 +153,7 @@ function filterMonthlyCounts(
         entry.by_type,
         entry.count,
         selectedTypes,
+        controlledTypes,
         entry.always_included,
       ),
     }))
@@ -160,6 +162,7 @@ function filterMonthlyCounts(
 function filterSlaMonthly(
   monthly: MonthlyEntry[],
   selectedTypes: ReadonlySet<string> | null,
+  controlledTypes: ReadonlySet<string>,
   semester: Semester | null,
   reportYear: number,
 ): MonthlyEntry[] {
@@ -174,10 +177,7 @@ function filterSlaMonthly(
     const stats = [
       ...(entry.always_included ? [entry.always_included] : []),
       ...Object.entries(entry.by_type)
-        .filter(([issueType]) => (
-          !isDashboardExcludedIssueType(issueType)
-          && (selectedTypes === null || selectedTypes.has(issueType))
-        ))
+        .filter(([issueType]) => includesType(issueType, selectedTypes, controlledTypes))
         .map(([, value]) => value),
     ]
     const met = stats.reduce((total, value) => total + value.met, 0)
@@ -197,7 +197,7 @@ function resolveFilterContract(report: ReportDetail) {
     report.widgets[WIDGET_ID.MONTHLY_CREATED],
   )
   const issueTypes = data?.issue_types?.filter((issueType) => (
-    Boolean(issueType) && !isDashboardExcludedIssueType(issueType)
+    Boolean(issueType) && isDashboardIssueTypeFilterOption(issueType)
   )) ?? []
   const reportYear = getReportYear(report)
   const availableMonths = new Set(
@@ -247,12 +247,14 @@ export function buildDashboardData(
   const w8Monthly = filterMonthlyCounts(
     w8Data?.monthly ?? [],
     selectedTypes,
+    controlledTypes,
     selectedSemester,
     reportYear,
   )
   const w9Monthly = filterMonthlyCounts(
     w9Data?.monthly ?? [],
     selectedTypes,
+    controlledTypes,
     selectedSemester,
     reportYear,
   )
@@ -271,6 +273,7 @@ export function buildDashboardData(
           yearlyCreatedData?.by_type,
           w[WIDGET_ID.YEARLY_CREATED]?.total ?? 0,
           selectedTypes,
+          controlledTypes,
           yearlyCreatedData?.always_included,
         )
       : w8Monthly.reduce((total, entry) => total + entry.count, 0),
@@ -279,6 +282,7 @@ export function buildDashboardData(
           yearlyResolvedData?.by_type,
           w[WIDGET_ID.YEARLY_RESOLVED]?.total ?? 0,
           selectedTypes,
+          controlledTypes,
           yearlyResolvedData?.always_included,
         )
       : w9Monthly.reduce((total, entry) => total + entry.count, 0),
@@ -317,12 +321,14 @@ export function buildDashboardData(
   const w10Monthly = filterSlaMonthly(
     w10Data?.monthly ?? [],
     selectedTypes,
+    controlledTypes,
     selectedSemester,
     reportYear,
   )
   const w11Monthly = filterSlaMonthly(
     w11Data?.monthly ?? [],
     selectedTypes,
+    controlledTypes,
     selectedSemester,
     reportYear,
   )

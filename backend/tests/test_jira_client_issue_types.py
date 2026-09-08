@@ -131,7 +131,7 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(b"png-data", image.data)
         self.assertEqual("image/png", image.media_type)
 
-    async def test_comment_pages_use_offsets_and_keep_cache_entries_separate(self) -> None:
+    async def test_comment_pages_use_offsets_and_fetch_each_request(self) -> None:
         requests: list[httpx.Request] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -151,8 +151,8 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         try:
             first = await client.get_issue_comments("TACEA-4501", max_results=6)
             second = await client.get_issue_comments("TACEA-4501", max_results=6, offset=5)
-            first_cached = await client.get_issue_comments("TACEA-4501", max_results=6)
-            second_cached = await client.get_issue_comments(
+            first_reloaded = await client.get_issue_comments("TACEA-4501", max_results=6)
+            second_reloaded = await client.get_issue_comments(
                 "TACEA-4501", max_results=6, offset=5,
             )
             smaller = await client.get_issue_comments("TACEA-4501", max_results=5)
@@ -161,13 +161,43 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(["12", "11", "10", "9", "8", "7"], [c["id"] for c in first])
         self.assertEqual(["7", "6", "5", "4", "3", "2"], [c["id"] for c in second])
-        self.assertEqual(first, first_cached)
-        self.assertEqual(second, second_cached)
+        self.assertEqual(first, first_reloaded)
+        self.assertEqual(second, second_reloaded)
         self.assertEqual(first[:5], smaller)
-        self.assertEqual(3, len(requests))
-        self.assertEqual(["0", "5", "0"], [r.url.params["startAt"] for r in requests])
+        self.assertEqual(5, len(requests))
+        self.assertEqual(["0", "5", "0", "5", "0"], [r.url.params["startAt"] for r in requests])
         self.assertTrue(all(r.url.params["orderBy"] == "-created" for r in requests))
         self.assertTrue(all(r.url.params["expand"] == "renderedBody" for r in requests))
+
+    async def test_identical_comment_request_refetches_inserted_and_deleted_comments(self) -> None:
+        comments = [{"id": str(index)} for index in range(20, 0, -1)]
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            offset = int(request.url.params["startAt"])
+            limit = int(request.url.params["maxResults"])
+            return httpx.Response(200, json={
+                "total": len(comments),
+                "comments": comments[offset:offset + limit],
+            })
+
+        client = JiraClient("https://jira.example.com", "user", "token")
+        await client._client.aclose()
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            first = await client.get_issue_comments("TACEA-4501", max_results=11)
+            comments.insert(0, {"id": "21"})
+            second = await client.get_issue_comments("TACEA-4501", max_results=11)
+            comments.remove({"id": "20"})
+            third = await client.get_issue_comments("TACEA-4501", max_results=11)
+        finally:
+            await client.aclose()
+
+        self.assertEqual([str(index) for index in range(20, 9, -1)], [c["id"] for c in first])
+        self.assertEqual([str(index) for index in range(21, 10, -1)], [c["id"] for c in second])
+        self.assertEqual(["21", *[str(index) for index in range(19, 9, -1)]], [c["id"] for c in third])
+        self.assertEqual(3, len(requests))
 
     async def test_loads_single_comment_scoped_to_issue_with_rendered_body(self) -> None:
         requests: list[httpx.Request] = []
@@ -201,3 +231,57 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
             "/rest/api/3/issue/TACEA-4501/comment/10001", requests[0].url.path,
         )
         self.assertTrue(all(r.url.params["expand"] == "renderedBody" for r in requests))
+
+    async def test_large_comment_limit_reads_only_requested_rows_and_stops_at_total(self) -> None:
+        requests: list[tuple[int, int]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            offset = int(request.url.params["startAt"])
+            limit = int(request.url.params["maxResults"])
+            requests.append((offset, limit))
+            return httpx.Response(200, json={
+                "total": 130,
+                "comments": [
+                    {"id": str(index)}
+                    for index in range(offset, min(offset + limit, 130))
+                ],
+            })
+
+        client = JiraClient("https://jira.example.com", "user", "token")
+        await client._client.aclose()
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            comments = await client.get_issue_comments("TACEA-4501", max_results=106)
+            final = await client.get_issue_comments("TACEA-4501", max_results=16, offset=125)
+        finally:
+            await client.aclose()
+
+        self.assertEqual([str(index) for index in range(106)], [c["id"] for c in comments])
+        self.assertEqual([str(index) for index in range(125, 130)], [c["id"] for c in final])
+        self.assertEqual([(0, 100), (100, 6), (125, 16)], requests)
+
+    async def test_comment_limit_handles_smaller_jira_pages_until_requested_size(self) -> None:
+        requests: list[tuple[int, int]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            offset = int(request.url.params["startAt"])
+            limit = int(request.url.params["maxResults"])
+            requests.append((offset, limit))
+            return httpx.Response(200, json={
+                "total": 12,
+                "comments": [
+                    {"id": str(index)}
+                    for index in range(offset, min(offset + limit, offset + 4, 12))
+                ],
+            })
+
+        client = JiraClient("https://jira.example.com", "user", "token")
+        await client._client.aclose()
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            comments = await client.get_issue_comments("TACEA-4501", max_results=11)
+        finally:
+            await client.aclose()
+
+        self.assertEqual([str(index) for index in range(11)], [c["id"] for c in comments])
+        self.assertEqual([(0, 11), (4, 7), (8, 3)], requests)

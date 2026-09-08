@@ -25,10 +25,11 @@ async def list_recent_issues(
 async def list_recent_comments(
     issue_key: str,
     offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=5, ge=1),
     use_case: SlaDashboardUseCase = Depends(get_sla_dashboard_use_case),
 ):
     try:
-        return await use_case.list_recent_comments(issue_key, offset=offset)
+        return await use_case.list_recent_comments(issue_key, offset=offset, limit=limit)
     except RuntimeError as error:
         raise HTTPException(
             status_code=502,
