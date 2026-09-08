@@ -22,8 +22,6 @@ import { useDashboardExportMode } from '@/presentation/context/DashboardExportCo
 import {
   CHART_HEIGHT,
   CHART_LEGEND_COLOR,
-  CHART_LEGEND_ICON_SIZE,
-  CHART_TICK_FONT_SIZE,
 } from '@/presentation/config/constants'
 import { CHART_COLORS } from '@/presentation/config/ui'
 
@@ -33,13 +31,21 @@ interface Props {
 }
 
 const REDEPLOYMENT_PAGE_SIZE = 5
+const REDEPLOYMENT_FONT_SIZE = 12
+const REDEPLOYMENT_LEGEND_ICON_SIZE = 10
 const REDEPLOYMENT_CHART_COLORS = [
-  'rgb(var(--color-chart-muted-steel))',
-  'rgb(var(--color-chart-muted-sage))',
-  'rgb(var(--color-chart-muted-taupe))',
-  'rgb(var(--color-chart-muted-mauve))',
-  'rgb(var(--color-chart-muted-olive))',
-  'rgb(var(--color-chart-muted-teal))',
+  'rgb(var(--color-redeployment-blue))',
+  'rgb(var(--color-redeployment-amber))',
+  'rgb(var(--color-redeployment-green))',
+  'rgb(var(--color-redeployment-purple))',
+  'rgb(var(--color-redeployment-coral))',
+  'rgb(var(--color-redeployment-teal))',
+  'rgb(var(--color-redeployment-pink))',
+  'rgb(var(--color-redeployment-olive))',
+  'rgb(var(--color-redeployment-indigo))',
+  'rgb(var(--color-redeployment-brown))',
+  'rgb(var(--color-redeployment-cyan))',
+  'rgb(var(--color-redeployment-slate))',
 ] as const
 
 function KpiCard({
@@ -100,12 +106,12 @@ function MonthlyRedeploymentChart({ data }: { data: RedeploymentAnalytics }) {
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <BarChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-          <XAxis dataKey="month" tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
-          <YAxis allowDecimals={false} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={34} />
+          <XAxis dataKey="month" tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
+          <YAxis allowDecimals={false} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={34} />
           <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString('ko-KR')}건`, String(name)]} />
-          <Legend iconType="circle" iconSize={CHART_LEGEND_ICON_SIZE} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: 11 }}>{value}</span>} />
+          <Legend iconType="circle" iconSize={REDEPLOYMENT_LEGEND_ICON_SIZE} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: REDEPLOYMENT_FONT_SIZE, fontWeight: 500 }}>{value}</span>} />
           {issueTypes.map((issueType, index) => (
-            <Bar isAnimationActive={!exportMode} key={issueType} dataKey={issueType} stackId="redeployment" fill={REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length]} radius={index === issueTypes.length - 1 ? [5, 5, 0, 0] : 0} />
+            <Bar isAnimationActive={!exportMode} key={issueType} dataKey={issueType} stackId="redeployment" fill={REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length]} stroke="rgb(var(--color-apple-surface))" strokeWidth={1} radius={index === issueTypes.length - 1 ? [5, 5, 0, 0] : 0} />
           ))}
         </BarChart>
       </ResponsiveContainer>
@@ -121,13 +127,13 @@ function CauseChart({ values }: { values: Record<string, number> }) {
       <h3 className="text-ui-base font-semibold text-apple-dark">재배포 원인</h3>
       <p className="mt-0.5 text-ui-xs text-apple-light">원인별 건수와 구성비</p>
       {data.length ? (
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT + 24}>
           <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" outerRadius={118} paddingAngle={1} isAnimationActive={!exportMode}>
+            <Pie data={data} dataKey="value" nameKey="name" outerRadius={118} paddingAngle={1} isAnimationActive={!exportMode} stroke="rgb(var(--color-apple-surface))" strokeWidth={2}>
               {data.map((entry, index) => <Cell key={entry.name} fill={REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length]} />)}
             </Pie>
             <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString('ko-KR')}건`, String(name)]} />
-            <Legend iconType="circle" iconSize={CHART_LEGEND_ICON_SIZE} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: 11 }}>{value}</span>} />
+            <Legend iconType="circle" iconSize={REDEPLOYMENT_LEGEND_ICON_SIZE} wrapperStyle={{ paddingTop: 8 }} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: REDEPLOYMENT_FONT_SIZE, fontWeight: 500 }}>{value}</span>} />
           </PieChart>
         </ResponsiveContainer>
       ) : <div className="flex items-center justify-center text-ui-sm text-apple-light" style={{ height: CHART_HEIGHT }}>데이터가 없습니다</div>}
@@ -154,15 +160,15 @@ function AssigneeChart({ values }: { values: Record<string, number> }) {
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <BarChart data={data} layout="vertical" margin={{ top: 12, right: 24, left: 18, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} horizontal={false} />
-            <XAxis type="number" allowDecimals={false} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
-            <YAxis type="category" dataKey="name" width={axisWidth} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} tickFormatter={exportMode ? formatExportTick : undefined} axisLine={false} tickLine={false} />
+            <XAxis type="number" allowDecimals={false} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="name" width={axisWidth} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} tickFormatter={exportMode ? formatExportTick : undefined} axisLine={false} tickLine={false} />
             <Tooltip formatter={(value) => [`${Number(value).toLocaleString('ko-KR')}건`, '재배포']} />
             {exportMode && (
               <Legend
                 iconType="circle"
-                iconSize={CHART_LEGEND_ICON_SIZE}
+                iconSize={REDEPLOYMENT_LEGEND_ICON_SIZE}
                 payload={data.map((entry, index) => ({ value: entry.name, type: 'circle', color: REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length] }))}
-                formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: 11 }}>{value}</span>}
+                formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: REDEPLOYMENT_FONT_SIZE, fontWeight: 500 }}>{value}</span>}
               />
             )}
             <Bar isAnimationActive={!exportMode} dataKey="value" radius={[0, 6, 6, 0]}>
@@ -305,7 +311,7 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
 export default function RedeploymentAnnualSection({ data, year }: Props) {
   const classificationComplete = data.classification_complete
   return (
-    <section data-pdf-section={`${year}년 재배포 품질 지표`} className="space-y-4 md:space-y-5">
+    <section data-pdf-section={`${year}년 재배포 품질 지표`} className="redeployment-analytics space-y-4 md:space-y-5">
       <div className="flex items-center gap-2">
         <BarChart3 size={18} className="text-[rgb(var(--color-chart-muted-steel))]" />
         <h2 className="text-xl font-semibold text-apple-dark">{year}년 재배포 품질 지표</h2>

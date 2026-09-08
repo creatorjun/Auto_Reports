@@ -90,6 +90,20 @@
   --color-chart-muted-mauve: 126 122 143;
   --color-chart-muted-olive: 143 136 111;
   --color-chart-muted-teal: 113 133 138;
+  --color-redeployment-blue: 63 115 166;
+  --color-redeployment-amber: 184 128 38;
+  --color-redeployment-green: 74 138 99;
+  --color-redeployment-purple: 133 98 168;
+  --color-redeployment-coral: 195 106 80;
+  --color-redeployment-teal: 46 140 145;
+  --color-redeployment-pink: 184 93 132;
+  --color-redeployment-olive: 138 140 56;
+  --color-redeployment-indigo: 88 100 178;
+  --color-redeployment-brown: 153 107 70;
+  --color-redeployment-cyan: 69 153 173;
+  --color-redeployment-slate: 96 107 120;
+  --color-redeployment-axis: 83 97 113;
+  --color-redeployment-grid: 220 226 234;
   --color-markdown-inline-code: 199 37 78;
   --color-code-background: 30 30 46;
   --color-code-text: 205 214 244;
@@ -195,8 +209,27 @@
   --color-chart-muted-mauve: 150 145 165;
   --color-chart-muted-olive: 168 159 133;
   --color-chart-muted-teal: 134 155 160;
+  --color-redeployment-blue: 126 170 219;
+  --color-redeployment-amber: 214 163 87;
+  --color-redeployment-green: 121 179 138;
+  --color-redeployment-purple: 181 152 210;
+  --color-redeployment-coral: 230 154 125;
+  --color-redeployment-teal: 115 191 193;
+  --color-redeployment-pink: 220 148 183;
+  --color-redeployment-olive: 186 195 108;
+  --color-redeployment-indigo: 154 156 227;
+  --color-redeployment-brown: 199 160 122;
+  --color-redeployment-cyan: 119 189 207;
+  --color-redeployment-slate: 166 177 191;
+  --color-redeployment-axis: 196 204 216;
+  --color-redeployment-grid: 72 78 90;
   --color-markdown-inline-code: 255 127 158;
   --shadow-apple-sm: 0 1px 3px rgb(0 0 0 / 0.22), 0 1px 2px rgb(0 0 0 / 0.3);
   --shadow-apple: 0 4px 18px rgb(0 0 0 / 0.28), 0 1px 5px rgb(0 0 0 / 0.22);
   --shadow-apple-lg: 0 14px 44px rgb(0 0 0 / 0.42), 0 3px 10px rgb(0 0 0 / 0.3);
+}
+
+.redeployment-analytics {
+  --color-chart-axis: var(--color-redeployment-axis);
+  --color-chart-grid: var(--color-redeployment-grid);
 }
