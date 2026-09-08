@@ -11,4 +11,6 @@ export interface BaseIssue {
   tac_team:     string
 }
 
-export type RecentIssue = BaseIssue
+export interface RecentIssue extends BaseIssue {
+  tac_assignee?: string | null
+}

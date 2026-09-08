@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     sla_resolution_field_id: str = "customfield_12151"
     jira_tac_assignee_field_id: str = "customfield_10859"
     jira_qa_assignee_field_id: str = "customfield_12222"
+    jira_recent_tac_assignee_field_id: str = "customfield_12522"
     cors_origins: list[str] = ["*"]
     issue_types: list[str] = ["\uc778\uc2dc\ub358\ud2b8", "\uac1c\uc120", "CVE", "\uc11c\ube44\uc2a4 \uc694\uccad", "H/W \uc7a5\uc560 \uc694\uccad", "\uc2b9\uc778\ub41c \uc11c\ube44\uc2a4 \uc694\uccad"]
     active_statuses: list[str] = [

@@ -6,17 +6,18 @@ import { STATUS_STYLE } from '@/presentation/config/ui'
 import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC } from '@/presentation/config/constants'
 import type { RecentIssue } from '@/domain/Issue'
 
-const COLS = ['key', 'summary', 'status', 'reporter', 'tac', 'elapsed'] as const
+const COLS = ['key', 'summary', 'status', 'reporter', 'tac', 'tac_assignee', 'elapsed'] as const
 type ColKey = typeof COLS[number]
 type SortDir = 'asc' | 'desc'
 
 const DEFAULT_FRACS: Record<ColKey, number> = {
   key:      0.10,
-  summary:  0.40,
+  summary:  0.28,
   status:   0.12,
-  reporter: 0.15,
-  tac:      0.10,
-  elapsed:  0.13,
+  reporter: 0.12,
+  tac:      0.11,
+  tac_assignee: 0.13,
+  elapsed:  0.14,
 }
 
 interface Props {
@@ -75,6 +76,7 @@ function sortIssues(items: RecentIssue[], key: ColKey, dir: SortDir): RecentIssu
       case 'status':   av = a.stage_index;  bv = b.stage_index;  break
       case 'reporter': av = a.reporter;     bv = b.reporter;     break
       case 'tac':      av = a.tac_team;     bv = b.tac_team;     break
+      case 'tac_assignee': av = a.tac_assignee ?? ''; bv = b.tac_assignee ?? ''; break
       case 'elapsed':  av = a.elapsed_days; bv = b.elapsed_days; break
     }
     if (av < bv) return dir === 'asc' ? -1 : 1
@@ -97,10 +99,14 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${style.bg} ${style.text}`}>{issue.status}</span>
       </div>
       <p className="w-full text-[13px] text-apple-dark leading-snug line-clamp-2">{issue.summary}</p>
-      <div className="flex items-center justify-center gap-2 text-[11px] text-apple-light">
+      <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-apple-light">
         <span>{issue.reporter}</span>
         <span className="text-apple-divider">·</span>
         <span>{issue.tac_team}</span>
+      </div>
+      <div className="flex max-w-full items-start justify-center gap-1 text-[11px] text-apple-light">
+        <span className="shrink-0">TAC 담당자</span>
+        <span className="min-w-0 break-words font-medium text-apple-dark">{issue.tac_assignee ?? '-'}</span>
       </div>
       <div className="flex items-center justify-center gap-1 text-[11px] text-apple-light">
         <span className="tabular-nums">{createdDate}</span>
@@ -165,7 +171,8 @@ export default function ResolutionTimeChart({ details }: Props) {
     { key: 'summary',  label: '제목',          rightCol: 'status'   },
     { key: 'status',   label: '진행 상태',     rightCol: 'reporter' },
     { key: 'reporter', label: '보고자',        rightCol: 'tac'      },
-    { key: 'tac',      label: '담당자',        rightCol: 'elapsed'  },
+    { key: 'tac',      label: '담당자',        rightCol: 'tac_assignee' },
+    { key: 'tac_assignee', label: 'TAC 담당자', rightCol: 'elapsed' },
     { key: 'elapsed',  label: '생성일 (경과)' },
   ]
 
@@ -178,13 +185,13 @@ export default function ResolutionTimeChart({ details }: Props) {
       </div>
 
       <div data-pdf-desktop="" className="hidden md:block overflow-x-auto px-4 md:px-5">
-        <table data-pdf-table-layout="recent" ref={tableRef} className="w-full text-ui-base border-collapse" style={{ tableLayout: 'fixed' }}>
+        <table data-pdf-table-layout="recent" ref={tableRef} className="w-full min-w-[1040px] text-ui-base border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>{COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * 100).toFixed(2)}%` }} />)}</colgroup>
           <thead className="bg-apple-gray/60">
             <tr className="border-b-2 border-apple-divider text-ui-sm text-apple-mid">
               {headers.map(({ key, label, rightCol }) => (
                 <th key={key} data-pdf-header={label} onClick={() => handleSort(key)}
-                  className={['relative cursor-pointer select-none whitespace-nowrap border-r border-apple-divider/90 px-5 pb-2.5 pt-3 text-center font-semibold transition-colors last:border-r-0 hover:bg-apple-gray hover:text-apple-primary', sortKey === key ? 'text-apple-primary' : ''].join(' ')}>
+                  className={['relative cursor-pointer select-none whitespace-nowrap border-r border-apple-divider/90 px-3 pb-2.5 pt-3 text-center font-semibold transition-colors last:border-r-0 hover:bg-apple-gray hover:text-apple-primary', sortKey === key ? 'text-apple-primary' : ''].join(' ')}>
                   <span className="inline-flex items-center justify-center">
                     {label}<SortIcon dir={sortKey === key ? sortDir : null} />
                   </span>
@@ -208,6 +215,7 @@ export default function ResolutionTimeChart({ details }: Props) {
                   </td>
                   <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light">{issue.reporter}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light">{issue.tac_team}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light" title={issue.tac_assignee ?? undefined}>{issue.tac_assignee ?? '-'}</span></td>
                   <td className="whitespace-nowrap px-3 py-2 text-center text-apple-light" data-pdf-value={`${createdDate}\n(${issue.elapsed_days}일 경과)`}>
                     <span className="tabular-nums">{createdDate}</span>
                     <span className="text-ui-xs text-apple-divider mx-1">·</span>

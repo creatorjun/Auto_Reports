@@ -21,8 +21,9 @@
 | `SLA_THRESHOLD_DAYS` | `30` | SLA 지연 기준 |
 | `SLA_INITIAL_RESPONSE_FIELD_ID` | `customfield_12152` | 최초 응답 field |
 | `SLA_RESOLUTION_FIELD_ID` | `customfield_12151` | 해결 SLA field |
-| `JIRA_TAC_ASSIGNEE_FIELD_ID` | `customfield_10859` | TAC 담당자 field |
-| `JIRA_QA_ASSIGNEE_FIELD_ID` | `customfield_12222` | QA 담당자 field |
+| `JIRA_TAC_ASSIGNEE_FIELD_ID` | `customfield_10859` | 기존 담당자 표시·알림에서 우선 조회하는 호환 설정. 현재 Jira의 기본 ID는 파트너사 필드 |
+| `JIRA_QA_ASSIGNEE_FIELD_ID` | `customfield_12222` | 기존 담당자 표시·알림에서 다음으로 조회하는 호환 설정. 현재 Jira의 기본 ID는 테스트 범위 필드 |
+| `JIRA_RECENT_TAC_ASSIGNEE_FIELD_ID` | `customfield_12522` | 최근 이슈 현황의 별도 TAC 담당자 사용자 필드. 다른 담당자 값으로 대체하지 않으며, 이전 보고서의 미수집 값은 `-`로 표시 |
 | `REPORT_RETENTION_WEEKS` | `52` | 0이면 자동 정리 비활성 |
 
 대시보드와 연간 보고서의 모든 위젯은 Jira 요청 유형 `라이선스`를 원천 JQL에서 제외합니다. 이 유형은 화면의 요청 유형 필터에도 표시되지 않습니다. 보고서 생성 시 Jira 프로젝트 메타데이터에서 현재 등록된 비하위 작업 유형을 조회하고, 라이선스를 제외한 연간·월별·SLA 유형별 분해값을 저장합니다. 상반기·하반기 선택 시 월별 집계는 각각 1~6월과 7~12월로 제한되고, 상세 데이터는 생성일 또는 해결일을 기준으로 같은 기간을 적용합니다. 메타데이터 조회가 실패하거나 빈 목록이면 `ISSUE_TYPES`를 사용합니다. 프로젝트 유형 목록 밖의 데이터는 `always_included` 집계 또는 원본 상세에 유지되지만, 라이선스는 예외로 항상 제외됩니다. 기존 연간 보고서는 저장된 유형별 분해값으로 라이선스를 즉시 차감해 표시합니다.

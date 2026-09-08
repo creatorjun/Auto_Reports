@@ -41,14 +41,17 @@ def _pick_user(fields: dict, *field_keys: str) -> str:
 
 class RecentCollector(AbstractWidgetCollector):
 
-    def __init__(self, jira: JiraPort, q: ResolvedQueries):
+    def __init__(self, jira: JiraPort, q: ResolvedQueries, *, tac_assignee_field_id: str):
         self._jira = jira
         self._q = q
+        self._tac_assignee_field_id = tac_assignee_field_id
 
     async def collect(self) -> WidgetResult[RecentIssueWidgetData]:
         jql = self._q.w7_recent()
         issues = await self._jira.get_issues_with_assignees(
-            jql, max_results=JIRA_MAX_RESULT
+            jql,
+            max_results=JIRA_MAX_RESULT,
+            extra_fields=self._tac_assignee_field_id,
         )
         now_ts = datetime.now()
         issue_details = []
@@ -72,6 +75,7 @@ class RecentCollector(AbstractWidgetCollector):
                     elapsed_days=elapsed_days,
                     reporter=reporter,
                     tac_team=tac_team,
+                    tac_assignee=_pick_user(fields, self._tac_assignee_field_id),
                 )
             )
         total = len(issue_details)

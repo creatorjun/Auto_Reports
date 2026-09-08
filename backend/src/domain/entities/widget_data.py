@@ -107,6 +107,7 @@ class RecentIssueDetail:
     elapsed_days: int
     reporter: str = "미지정"
     tac_team: str = "미지정"
+    tac_assignee: str | None = None
 
 
 @dataclass

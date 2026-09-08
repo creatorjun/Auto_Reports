@@ -562,7 +562,7 @@ test('recent issue list centers body content without cell dividers', () => {
   const mobileCard = table.match(/function MobileIssueCard[\s\S]*?\n}\n\nexport default/)?.[0] ?? ''
   const tableCells = [...tbody.matchAll(/<td className="([^"]+)"/g)]
 
-  assert.equal(tableCells.length, 6)
+  assert.equal(tableCells.length, 7)
   for (const cell of tableCells) assert.match(cell[1], /\btext-center\b/)
   assert.doesNotMatch(tbody, /\bborder-r\b|\bborder-b\b/)
   assert.match(table, /className="flex flex-col items-center[^\"]*text-center/)

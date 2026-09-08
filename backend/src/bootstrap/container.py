@@ -41,7 +41,10 @@ class Container:
         self._database = database
         self._jira = JiraFactory.create(settings)
         ai = AiFactory.create(settings)
-        collectors = WidgetCollectorFactory(self._jira)
+        collectors = WidgetCollectorFactory(
+            self._jira,
+            recent_tac_assignee_field_id=settings.jira_recent_tac_assignee_field_id,
+        )
         query_builder = WidgetQueryBuilder(
             QueryConfig(
                 project_key=settings.project_key,

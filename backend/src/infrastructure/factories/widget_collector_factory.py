@@ -20,8 +20,9 @@ from src.domain.value_objects.widget_id import WidgetId
 
 
 class WidgetCollectorFactory:
-    def __init__(self, jira: JiraPort):
+    def __init__(self, jira: JiraPort, *, recent_tac_assignee_field_id: str):
         self._jira = jira
+        self._recent_tac_assignee_field_id = recent_tac_assignee_field_id
 
     def base_collectors(self, q: ResolvedQueries, now: datetime) -> list[CollectorEntry]:
         jira = self._jira
@@ -34,7 +35,7 @@ class WidgetCollectorFactory:
             CollectorEntry(WidgetId.ISSUE_REVIEW,        SimpleWithDetailsCollector(jira, "\uc774\uc288 \ub9ac\ubdf0 \uc911", q.w4_issue_review(), max_results=None)),
             CollectorEntry(WidgetId.DATA_REQUEST,        SimpleWithDetailsCollector(jira, "\uc790\ub8cc \uc694\uccad \uc911", q.w5_data_request())),
             CollectorEntry(WidgetId.RESULT_PENDING,      SimpleWithDetailsCollector(jira, "\uacb0\uacfc \ub300\uae30 \uc911", q.w6_result_pending())),
-            CollectorEntry(WidgetId.RECENT_ISSUES,       RecentCollector(jira, q)),
+            CollectorEntry(WidgetId.RECENT_ISSUES,       RecentCollector(jira, q, tac_assignee_field_id=self._recent_tac_assignee_field_id)),
             CollectorEntry(WidgetId.SLA_MET_VS_VIOLATED, SlaMetVsViolatedCollector(jira, q)),
             CollectorEntry(WidgetId.SLA_DELAY_REASON,    SlaDelayCollector(jira, q)),
             CollectorEntry(WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(jira, q)),

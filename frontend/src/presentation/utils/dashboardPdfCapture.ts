@@ -65,7 +65,7 @@ function tableBlock(element: HTMLElement): DashboardPdfBlock {
   const layout = table.getAttribute('data-pdf-table-layout')
   return {
     kind: 'table', title: title(element), headers, rows,
-    ...(layout === 'recent' ? { widths: [11, 35, 13, 12, 12, 17] } : {}),
+    ...(layout === 'recent' ? { widths: [10, 28, 12, 11, 11, 13, 15] } : {}),
     ...(layout === 'redeployment' ? { widths: [9, 13, 13, 34, 10, 21] } : {}),
   }
 }
