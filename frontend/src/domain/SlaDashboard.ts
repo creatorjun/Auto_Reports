@@ -17,6 +17,11 @@ export interface SlaDashboardComment {
   images: SlaDashboardCommentImage[]
 }
 
+export interface SlaDashboardCommentPage {
+  comments: SlaDashboardComment[]
+  next_offset: number | null
+}
+
 export interface SlaDashboardCommentImage {
   attachment_id: string
   alt: string

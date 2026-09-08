@@ -10,6 +10,7 @@ from src.domain.constants import JIRA_MAX_RESULT
 from src.domain.entities.sla_dashboard import (
     SlaDashboardComment,
     SlaDashboardCommentImage,
+    SlaDashboardCommentPage,
     SlaDashboardIssue,
 )
 from src.domain.entities.widget_data import RecentIssueDetail, RecentIssueWidgetData
@@ -156,7 +157,54 @@ class SlaDashboardUseCase:
             key=lambda issue: (not issue.created, issue.created, issue.key),
         )
 
-    async def list_recent_comments(self, issue_key: str) -> list[SlaDashboardComment]:
+    async def list_recent_comments(
+        self,
+        issue_key: str,
+        offset: int = 0,
+    ) -> SlaDashboardCommentPage:
+        if offset < 0:
+            raise ValueError("Comment offset must be nonnegative")
+        normalized_key = await self._require_recent_issue(issue_key)
+        comments = await self._jira.get_issue_comments(
+            normalized_key,
+            max_results=_RECENT_COMMENT_LIMIT + 1,
+            offset=offset,
+        )
+        ordered = sorted(
+            comments,
+            key=lambda comment: str(comment.get("created", "")),
+            reverse=True,
+        )[:_RECENT_COMMENT_LIMIT]
+        return SlaDashboardCommentPage(
+            comments=tuple(self._to_comment(comment) for comment in ordered),
+            next_offset=(
+                offset + _RECENT_COMMENT_LIMIT
+                if len(comments) > _RECENT_COMMENT_LIMIT
+                else None
+            ),
+        )
+
+    async def get_comment_image(
+        self,
+        issue_key: str,
+        comment_id: str,
+        attachment_id: str,
+    ) -> JiraAttachmentContent:
+        normalized_key = await self._require_recent_issue(issue_key)
+        if not comment_id.isdigit():
+            raise EntityNotFoundError("Comment", comment_id)
+        comment = await self._jira.get_issue_comment(normalized_key, comment_id)
+        if comment is None or str(comment.get("id", "")) != comment_id:
+            raise EntityNotFoundError("Comment", comment_id)
+        allowed = {
+            image.attachment_id
+            for image in _comment_images(comment.get("renderedBody"))
+        }
+        if attachment_id not in allowed:
+            raise EntityNotFoundError("Comment image", attachment_id)
+        return await self._jira.get_attachment_content(attachment_id)
+
+    async def _require_recent_issue(self, issue_key: str) -> str:
         normalized_key = issue_key.upper()
         details = await self._recent_issue_details()
         recent_keys = {
@@ -166,34 +214,7 @@ class SlaDashboardUseCase:
         }
         if not self._is_valid_key(normalized_key) or normalized_key not in recent_keys:
             raise EntityNotFoundError("Recent issue", issue_key)
-
-        comments = await self._jira.get_issue_comments(
-            normalized_key,
-            max_results=_RECENT_COMMENT_LIMIT,
-        )
-        ordered = sorted(
-            comments,
-            key=lambda comment: str(comment.get("created", "")),
-            reverse=True,
-        )[:_RECENT_COMMENT_LIMIT]
-        return [self._to_comment(comment) for comment in ordered]
-
-    async def get_comment_image(
-        self,
-        issue_key: str,
-        comment_id: str,
-        attachment_id: str,
-    ) -> JiraAttachmentContent:
-        comments = await self.list_recent_comments(issue_key)
-        allowed = {
-            image.attachment_id
-            for comment in comments
-            if comment.id == comment_id
-            for image in comment.images
-        }
-        if attachment_id not in allowed:
-            raise EntityNotFoundError("Comment image", attachment_id)
-        return await self._jira.get_attachment_content(attachment_id)
+        return normalized_key
 
     async def _recent_issue_details(self) -> list[RecentIssueDetail]:
         report = await self._reports.get_latest()

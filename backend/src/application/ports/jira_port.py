@@ -51,7 +51,15 @@ class JiraPort(ABC):
         self,
         issue_key: str,
         max_results: int = 5,
+        offset: int = 0,
     ) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    async def get_issue_comment(
+        self,
+        issue_key: str,
+        comment_id: str,
+    ) -> dict[str, Any] | None: ...
 
     @abstractmethod
     async def get_attachment_content(

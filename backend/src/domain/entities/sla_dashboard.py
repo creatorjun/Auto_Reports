@@ -26,3 +26,9 @@ class SlaDashboardComment:
     created: str
     updated: str
     images: tuple[SlaDashboardCommentImage, ...]
+
+
+@dataclass(frozen=True)
+class SlaDashboardCommentPage:
+    comments: tuple[SlaDashboardComment, ...]
+    next_offset: int | None

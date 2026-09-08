@@ -1,10 +1,10 @@
 # backend/src/presentation/api/v1/sla_dashboard.py
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.presentation.api.v1.deps import get_sla_dashboard_use_case
 from src.presentation.schemas.sla_dashboard_schema import (
-    SlaDashboardCommentSchema,
+    SlaDashboardCommentPageSchema,
     SlaDashboardIssueSchema,
 )
 
@@ -20,14 +20,15 @@ async def list_recent_issues(
 
 @router.get(
     "/issues/{issue_key}/comments",
-    response_model=list[SlaDashboardCommentSchema],
+    response_model=SlaDashboardCommentPageSchema,
 )
 async def list_recent_comments(
     issue_key: str,
+    offset: int = Query(default=0, ge=0),
     use_case: SlaDashboardUseCase = Depends(get_sla_dashboard_use_case),
 ):
     try:
-        return await use_case.list_recent_comments(issue_key)
+        return await use_case.list_recent_comments(issue_key, offset=offset)
     except RuntimeError as error:
         raise HTTPException(
             status_code=502,

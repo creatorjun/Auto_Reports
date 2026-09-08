@@ -125,14 +125,24 @@ function CommentEntry({ issueKey, comment }: { issueKey: string; comment: SlaDas
 }
 
 function CommentPanel({ issueKey }: { issueKey: string }) {
-  const { data, isLoading, isError, refetch } = useSlaIssueComments(issueKey, true)
+  const {
+    data,
+    isLoading,
+    isError,
+    isFetching,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useSlaIssueComments(issueKey, true)
 
   return (
     <div className="rounded-2xl border border-brand-100 bg-brand-50/50 p-4 md:p-5">
       <div className="mb-3 flex items-center gap-2">
         <MessageSquare size={16} className="text-brand-600" />
         <h3 className="text-[13px] font-semibold text-apple-dark">최근 작성된 댓글</h3>
-        <span className="text-[12px] text-apple-light">최대 5개</span>
+        <span className="text-[12px] text-apple-light">5개씩 표시</span>
       </div>
 
       {isLoading && (
@@ -142,7 +152,7 @@ function CommentPanel({ issueKey }: { issueKey: string }) {
         </div>
       )}
 
-      {isError && (
+      {isError && !isFetchNextPageError && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 px-4 py-3">
           <span className="text-[13px] text-red-600">댓글을 불러오지 못했습니다.</span>
           <button
@@ -166,6 +176,39 @@ function CommentPanel({ issueKey }: { issueKey: string }) {
         <ol className="space-y-2.5">
           {data.map((comment) => <CommentEntry key={comment.id} issueKey={issueKey} comment={comment} />)}
         </ol>
+      )}
+
+      {isFetchNextPageError && (
+        <p role="alert" className="mt-3 text-[13px] text-red-600">
+          다음 댓글을 불러오지 못했습니다. 다시 시도해 주세요.
+        </p>
+      )}
+
+      {hasNextPage && (
+        <button
+          type="button"
+          onClick={() => void fetchNextPage({ cancelRefetch: false })}
+          disabled={isFetching}
+          aria-busy={isFetchingNextPage}
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-brand-200 bg-apple-surface px-4 py-2.5 text-[13px] font-medium text-brand-600 transition-colors hover:bg-brand-50 disabled:cursor-wait disabled:opacity-60"
+        >
+          {isFetchingNextPage ? (
+            <>
+              <RefreshCw size={14} className="animate-spin" />
+              댓글을 불러오는 중입니다.
+            </>
+          ) : isFetchNextPageError ? (
+            <>
+              <RefreshCw size={14} />
+              다시 시도
+            </>
+          ) : (
+            <>
+              <ChevronDown size={14} />
+              댓글 더보기
+            </>
+          )}
+        </button>
       )}
     </div>
   )

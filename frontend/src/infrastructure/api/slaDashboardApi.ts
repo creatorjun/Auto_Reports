@@ -2,16 +2,19 @@
 import client from './client'
 import { createBinaryContent } from './binaryContent'
 import type { BinaryContent } from '@/application/ports/ApplicationServices'
-import type { SlaDashboardComment, SlaDashboardIssue } from '@/domain/SlaDashboard'
+import type { SlaDashboardCommentPage, SlaDashboardIssue } from '@/domain/SlaDashboard'
 
 export const slaDashboardApi = {
   getIssues: async (): Promise<SlaDashboardIssue[]> => {
     const response = await client.get<SlaDashboardIssue[]>('/sla-dashboard/issues')
     return response.data
   },
-  getComments: async (issueKey: string): Promise<SlaDashboardComment[]> => {
+  getComments: async (issueKey: string, offset = 0): Promise<SlaDashboardCommentPage> => {
     const key = encodeURIComponent(issueKey)
-    const response = await client.get<SlaDashboardComment[]>(`/sla-dashboard/issues/${key}/comments`)
+    const response = await client.get<SlaDashboardCommentPage>(
+      `/sla-dashboard/issues/${key}/comments`,
+      { params: { offset } },
+    )
     return response.data
   },
   getCommentImage: async (

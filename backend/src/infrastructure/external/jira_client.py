@@ -249,9 +249,12 @@ class JiraClient(JiraPort, ServiceDeskPort):
         self,
         issue_key: str,
         max_results: int = 5,
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
+        if offset < 0:
+            raise ValueError("Comment offset must be nonnegative")
         limit = max(1, min(max_results, 100))
-        cache_key = f"{issue_key.upper()}|{limit}"
+        cache_key = f"{issue_key.upper()}|{limit}|{offset}"
         cached = await self._comments_cache.async_get(cache_key)
         if cached is not None:
             logger.debug(f"[cache-hit] comments: {issue_key}")
@@ -265,6 +268,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
                 params={
                     "orderBy": "-created",
                     "maxResults": limit,
+                    "startAt": offset,
                     "expand": "renderedBody",
                 },
             )
@@ -278,6 +282,24 @@ class JiraClient(JiraPort, ServiceDeskPort):
         result = list(comments)[:limit]
         await self._comments_cache.async_set(cache_key, result)
         return result
+
+    async def get_issue_comment(
+        self,
+        issue_key: str,
+        comment_id: str,
+    ) -> dict[str, Any] | None:
+        encoded_key = quote(issue_key, safe="")
+        encoded_id = quote(comment_id, safe="")
+        url = f"{self._base_url}/rest/api/3/issue/{encoded_key}/comment/{encoded_id}"
+        try:
+            response = await self._client.get(url, params={"expand": "renderedBody"})
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as error:
+            logger.error(f"Jira 댓글 조회 실패: {issue_key}/{comment_id} -> {error}")
+            raise RuntimeError("Jira comment request failed") from error
 
     async def get_attachment_content(
         self,

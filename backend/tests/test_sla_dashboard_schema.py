@@ -8,10 +8,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from src.domain.entities.sla_dashboard import (
     SlaDashboardComment,
     SlaDashboardCommentImage,
+    SlaDashboardCommentPage,
     SlaDashboardIssue,
 )
 from src.presentation.schemas.sla_dashboard_schema import (
     SlaDashboardCommentSchema,
+    SlaDashboardCommentPageSchema,
     SlaDashboardIssueSchema,
 )
 
@@ -55,3 +57,11 @@ class SlaDashboardSchemaTest(unittest.TestCase):
         self.assertEqual("댓글 본문", schema.body)
         self.assertEqual("10017", schema.images[0].attachment_id)
         self.assertEqual("화면 캡처", schema.images[0].alt)
+
+        page = SlaDashboardCommentPage(comments=(comment,), next_offset=5)
+        serialized = SlaDashboardCommentPageSchema.model_validate(page).model_dump(
+            mode="json",
+        )
+
+        self.assertEqual(5, serialized["next_offset"])
+        self.assertEqual([schema.model_dump(mode="json")], serialized["comments"])

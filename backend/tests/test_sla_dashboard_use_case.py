@@ -29,7 +29,8 @@ class FakeJira:
         self.issues: list[dict[str, Any]] = []
         self.comments: list[dict[str, Any]] = []
         self.issue_requests: list[tuple[str, int, str]] = []
-        self.comment_requests: list[tuple[str, int]] = []
+        self.comment_requests: list[tuple[str, int, int]] = []
+        self.single_comment_requests: list[tuple[str, str]] = []
         self.attachment_requests: list[str] = []
         self.attachment = JiraAttachmentContent(b"image", "image/png")
 
@@ -46,9 +47,26 @@ class FakeJira:
         self,
         issue_key: str,
         max_results: int,
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
-        self.comment_requests.append((issue_key, max_results))
-        return self.comments
+        self.comment_requests.append((issue_key, max_results, offset))
+        ordered = sorted(
+            self.comments,
+            key=lambda comment: str(comment.get("created", "")),
+            reverse=True,
+        )
+        return ordered[offset:offset + max_results]
+
+    async def get_issue_comment(
+        self,
+        issue_key: str,
+        comment_id: str,
+    ) -> dict[str, Any] | None:
+        self.single_comment_requests.append((issue_key, comment_id))
+        return next(
+            (comment for comment in self.comments if comment["id"] == comment_id),
+            None,
+        )
 
     async def get_attachment_content(
         self,
@@ -176,7 +194,8 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
             for index in range(6)
         ]
 
-        comments = await self.use_case.list_recent_comments("tacea-4501")
+        page = await self.use_case.list_recent_comments("tacea-4501")
+        comments = page.comments
 
         self.assertEqual(["5", "4", "3", "2", "1"], [comment.id for comment in comments])
         self.assertEqual("댓글 5\n@담당자", comments[0].body)
@@ -184,9 +203,58 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("2026-08-15 10:00", comments[0].created)
         self.assertEqual("10005", comments[0].images[0].attachment_id)
         self.assertEqual("캡처 5", comments[0].images[0].alt)
-        self.assertEqual([("TACEA-4501", 5)], self.jira.comment_requests)
+        self.assertEqual(5, page.next_offset)
+        self.assertEqual([("TACEA-4501", 6, 0)], self.jira.comment_requests)
 
-    async def test_returns_only_an_image_referenced_by_the_recent_comment(self) -> None:
+    async def test_loads_next_five_comments_without_repeating_previous_pages(self) -> None:
+        self.jira.comments = [
+            {
+                "id": str(index),
+                "created": f"2026-08-{index + 1:02d}T10:00:00.000+0900",
+            }
+            for index in range(12)
+        ]
+
+        first = await self.use_case.list_recent_comments("TACEA-4501")
+        second = await self.use_case.list_recent_comments(
+            "TACEA-4501", offset=first.next_offset,
+        )
+        last = await self.use_case.list_recent_comments(
+            "TACEA-4501", offset=second.next_offset,
+        )
+
+        self.assertEqual(["11", "10", "9", "8", "7"], [c.id for c in first.comments])
+        self.assertEqual(["6", "5", "4", "3", "2"], [c.id for c in second.comments])
+        self.assertEqual(["1", "0"], [c.id for c in last.comments])
+        self.assertEqual(5, first.next_offset)
+        self.assertEqual(10, second.next_offset)
+        self.assertIsNone(last.next_offset)
+        self.assertEqual(
+            [("TACEA-4501", 6, 0), ("TACEA-4501", 6, 5), ("TACEA-4501", 6, 10)],
+            self.jira.comment_requests,
+        )
+
+    async def test_last_page_has_no_next_offset_for_zero_or_exactly_five_comments(self) -> None:
+        for count in (0, 5, 10):
+            with self.subTest(count=count):
+                self.jira.comments = [
+                    {"id": str(index), "created": str(index)}
+                    for index in range(count)
+                ]
+                page = await self.use_case.list_recent_comments(
+                    "TACEA-4501", offset=max(0, count - 5),
+                )
+
+                self.assertEqual(min(count, 5), len(page.comments))
+                self.assertIsNone(page.next_offset)
+
+    async def test_rejects_negative_offset_before_requesting_jira(self) -> None:
+        with self.assertRaises(ValueError):
+            await self.use_case.list_recent_comments("TACEA-4501", offset=-1)
+
+        self.assertEqual([], self.jira.comment_requests)
+
+    async def test_returns_only_an_image_referenced_by_an_older_comment(self) -> None:
         self.jira.comments = [
             {
                 "id": "10001",
@@ -200,9 +268,20 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
                 ),
             }
         ]
+        self.jira.comments.extend(
+            {
+                "id": str(index),
+                "created": "2026-08-21T10:00:00.000+0900",
+            }
+            for index in range(10002, 10007)
+        )
+
+        first = await self.use_case.list_recent_comments("TACEA-4501")
+        self.assertNotIn("10001", [comment.id for comment in first.comments])
+        self.assertEqual(5, first.next_offset)
 
         image = await self.use_case.get_comment_image(
-            "TACEA-4501",
+            "tacea-4501",
             "10001",
             "10017",
         )
@@ -210,6 +289,7 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(b"image", image.data)
         self.assertEqual("image/png", image.media_type)
         self.assertEqual(["10017"], self.jira.attachment_requests)
+        self.assertEqual([("TACEA-4501", "10001")], self.jira.single_comment_requests)
 
         with self.assertRaises(EntityNotFoundError):
             await self.use_case.get_comment_image(
@@ -217,9 +297,20 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
                 "10001",
                 "99999",
             )
+        with self.assertRaises(EntityNotFoundError):
+            await self.use_case.get_comment_image("TACEA-4501", "10002", "10017")
+        with self.assertRaises(EntityNotFoundError):
+            await self.use_case.get_comment_image("TACEA-4501", "99999", "10017")
+        self.assertEqual(["10017"], self.jira.attachment_requests)
 
     async def test_rejects_comment_lookup_outside_latest_issue_set(self) -> None:
-        with self.assertRaises(EntityNotFoundError):
-            await self.use_case.list_recent_comments("TACEA-9999")
+        for issue_key in ("TACEA-9999", "OTHER-1", "TACEA-4501/other"):
+            with self.subTest(issue_key=issue_key):
+                with self.assertRaises(EntityNotFoundError):
+                    await self.use_case.list_recent_comments(issue_key, offset=5)
+                with self.assertRaises(EntityNotFoundError):
+                    await self.use_case.get_comment_image(issue_key, "10001", "10017")
 
         self.assertEqual([], self.jira.comment_requests)
+        self.assertEqual([], self.jira.single_comment_requests)
+        self.assertEqual([], self.jira.attachment_requests)

@@ -29,3 +29,10 @@ class SlaDashboardCommentSchema(BaseModel):
     created: str
     updated: str
     images: tuple[SlaDashboardCommentImageSchema, ...]
+
+
+class SlaDashboardCommentPageSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    comments: tuple[SlaDashboardCommentSchema, ...]
+    next_offset: int | None

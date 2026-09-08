@@ -659,7 +659,7 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
   assert.match(table, /expanded=\{!collapsedKeys\.has\(issue\.key\)\}/)
   assert.match(table, /useSlaIssueComments/)
   assert.match(table, /최근 작성된 댓글/)
-  assert.match(table, /최대 5개/)
+  assert.match(table, /5개씩 표시/)
   assert.match(table, /comment\.images\.map/)
   assert.match(table, /<IssueTypeIcon type=\{issue\.type\} \/>/)
   assert.match(api, /getCommentImage/)

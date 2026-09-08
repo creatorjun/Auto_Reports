@@ -130,3 +130,74 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("*/*", requests[1].headers["Accept"])
         self.assertEqual(b"png-data", image.data)
         self.assertEqual("image/png", image.media_type)
+
+    async def test_comment_pages_use_offsets_and_keep_cache_entries_separate(self) -> None:
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            offset = int(request.url.params["startAt"])
+            limit = int(request.url.params["maxResults"])
+            return httpx.Response(200, json={
+                "comments": [
+                    {"id": str(12 - index)}
+                    for index in range(offset, min(offset + limit, 12))
+                ],
+            })
+
+        client = JiraClient("https://jira.example.com", "user", "token")
+        await client._client.aclose()
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            first = await client.get_issue_comments("TACEA-4501", max_results=6)
+            second = await client.get_issue_comments("TACEA-4501", max_results=6, offset=5)
+            first_cached = await client.get_issue_comments("TACEA-4501", max_results=6)
+            second_cached = await client.get_issue_comments(
+                "TACEA-4501", max_results=6, offset=5,
+            )
+            smaller = await client.get_issue_comments("TACEA-4501", max_results=5)
+        finally:
+            await client.aclose()
+
+        self.assertEqual(["12", "11", "10", "9", "8", "7"], [c["id"] for c in first])
+        self.assertEqual(["7", "6", "5", "4", "3", "2"], [c["id"] for c in second])
+        self.assertEqual(first, first_cached)
+        self.assertEqual(second, second_cached)
+        self.assertEqual(first[:5], smaller)
+        self.assertEqual(3, len(requests))
+        self.assertEqual(["0", "5", "0"], [r.url.params["startAt"] for r in requests])
+        self.assertTrue(all(r.url.params["orderBy"] == "-created" for r in requests))
+        self.assertTrue(all(r.url.params["expand"] == "renderedBody" for r in requests))
+
+    async def test_loads_single_comment_scoped_to_issue_with_rendered_body(self) -> None:
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.path.endswith("/99999"):
+                return httpx.Response(404)
+            if request.url.path.endswith("/10002"):
+                return httpx.Response(503)
+            return httpx.Response(200, json={
+                "id": "10001",
+                "renderedBody": '<img src="/secure/attachment/10017/capture.png">',
+            })
+
+        client = JiraClient("https://jira.example.com", "user", "token")
+        await client._client.aclose()
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            comment = await client.get_issue_comment("TACEA-4501", "10001")
+            missing = await client.get_issue_comment("TACEA-4501", "99999")
+            with self.assertRaises(RuntimeError):
+                await client.get_issue_comment("TACEA-4501", "10002")
+        finally:
+            await client.aclose()
+
+        self.assertEqual("10001", comment["id"])
+        self.assertIn("10017", comment["renderedBody"])
+        self.assertIsNone(missing)
+        self.assertEqual(
+            "/rest/api/3/issue/TACEA-4501/comment/10001", requests[0].url.path,
+        )
+        self.assertTrue(all(r.url.params["expand"] == "renderedBody" for r in requests))

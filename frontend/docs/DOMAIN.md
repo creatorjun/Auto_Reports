@@ -12,7 +12,7 @@
 | `Report.ts` | `ReportSummary`, `ReportDetail`, `WidgetResult`, `AiAnalysis` |
 | `Search.ts` | Jira·Confluence 검색 표시용 `SearchResult` |
 | `Site.ts` | 사이트 aggregate, 하위 이력, create/update payload |
-| `SlaDashboard.ts` | 최근 이슈 활동과 최근 댓글 표시 계약 |
+| `SlaDashboard.ts` | 최근 이슈 활동, 댓글과 댓글 페이지 표시 계약 |
 | `Storage.ts` | `StorageItem`, `StorageFile`, `StorageQuota` |
 | `Dashboard.ts` | SLA·월별·상태별 widget 표시 모델 |
 | `DashboardIssueTypePolicy.ts` | 대시보드·연간 보고서의 요청 유형 제외 정책 |
@@ -24,7 +24,7 @@
 
 widget ID는 화면에서 데이터가 처음 렌더링되는 순서를 따릅니다.
 
-`SlaDashboardIssue`는 최신 보고서의 최근 이슈 티켓 번호, 최초 생성 시각, 댓글을 포함한 마지막 업데이트 시각, 진행 상태를 표현합니다. `SlaDashboardComment`는 접힌 티켓 행을 펼칠 때 조회하는 최근 댓글의 작성자, 본문, 작성·수정 시각을 표현합니다.
+`SlaDashboardIssue`는 최신 보고서의 최근 이슈 티켓 번호, 최초 생성 시각, 댓글을 포함한 마지막 업데이트 시각, 진행 상태를 표현합니다. `SlaDashboardComment`는 댓글의 작성자, 본문, 작성·수정 시각을 표현합니다. `SlaDashboardCommentPage`는 최신순 댓글을 최대 5개 담은 `comments`와 다음 페이지 위치인 `next_offset`을 표현하며, 마지막 페이지의 `next_offset`은 `null`입니다.
 
 | ID | 데이터 |
 |----|--------|

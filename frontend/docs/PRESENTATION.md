@@ -8,7 +8,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 |------|-------|------|
 | `LoginPage` | `/login` | credential 입력과 로그인 mutation |
 | `DashboardPage` | `/`, `/reports/:id` | 최신 또는 선택 보고서 widget dashboard, 쿼리 기간별 생성·완료 card와 업무 유형별 현재 열린 요청 숫자 card |
-| `SlaDashboardPage` | `/sla-dashboard` | 최근 이슈 티켓의 생성·최종 업데이트·진행 상태와 접이식 최근 댓글 5개 |
+| `SlaDashboardPage` | `/sla-dashboard` | 최근 이슈 티켓의 활동 정보와 기본 펼침 댓글 목록·5개씩 더보기 |
 | `HistoryPage` | `/history` | 보고서 pagination, 선택, 삭제 |
 | `PartnerManagementPage` | `/partners` | 조직·멤버·이슈 탐색 |
 | `StoragePage` | `/storage` | 폴더 탐색, 업로드, 삭제, preview |
@@ -28,9 +28,11 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 | `useTrigger` | 전역 trigger 상태 연결 |
 | `useStorage` | 파일·폴더 query와 mutation |
 | `useDashboardData` | widget map을 표시 모델로 변환하고 w7 미완료 상세를 업무 유형별 열린 요청 현황으로 분류 |
-| `useSlaDashboard` | SLA 이슈 목록 query와 행을 펼칠 때 활성화되는 최근 댓글 query |
+| `useSlaDashboard` | SLA 이슈 목록 query와 펼쳐진 행의 댓글을 최신순으로 5개씩 누적 조회하는 infinite query |
 
 모든 서버 hook은 `useApplicationServices()`에서 gateway를 얻습니다.
+
+SLA 티켓 행은 처음에 펼쳐져 있으며 최근 댓글 5개를 표시합니다. 데스크톱과 모바일은 같은 댓글 패널을 사용하고, `댓글 더보기`를 누르면 다음 댓글을 최대 5개 추가합니다. 마지막 페이지에서는 더보기 버튼을 숨기며, 추가 조회가 실패해도 기존 댓글을 유지하고 다시 시도할 수 있습니다.
 
 ## State와 context
 
