@@ -1,0 +1,43 @@
+/* frontend/src/presentation/styles/annualReport.css */
+.annual-report-view {
+  max-width: 1680px;
+  margin-inline: auto;
+}
+
+.annual-report-view [data-pdf-kind='chart'] {
+  min-width: 0;
+}
+
+.annual-report-view [data-pdf-kind='chart'] h3 {
+  font-size: 18px;
+  line-height: 1.5;
+  color: rgb(var(--color-apple-dark));
+}
+
+.annual-report-view [data-pdf-kind='chart'] > div:first-child {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.annual-report-view .recharts-cartesian-axis-tick text {
+  font-size: 13px;
+  fill: rgb(var(--color-apple-dark));
+}
+
+.annual-report-view .recharts-legend-item-text {
+  color: rgb(var(--color-apple-dark)) !important;
+}
+
+.annual-report-view .recharts-tooltip-wrapper[style*='visibility: hidden'] {
+  display: none;
+}
+
+.annual-report-view [data-pdf-section] > div:first-child:not(.grid) {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 639px) {
+  .annual-report-view [data-pdf-kind='chart'].card {
+    padding: 16px 12px;
+  }
+}

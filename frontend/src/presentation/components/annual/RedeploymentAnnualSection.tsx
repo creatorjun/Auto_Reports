@@ -6,6 +6,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Legend,
   Pie,
   PieChart,
@@ -31,7 +32,7 @@ interface Props {
 }
 
 const REDEPLOYMENT_PAGE_SIZE = 5
-const REDEPLOYMENT_FONT_SIZE = 12
+const REDEPLOYMENT_FONT_SIZE = 13
 const REDEPLOYMENT_LEGEND_ICON_SIZE = 10
 const REDEPLOYMENT_CHART_COLORS = [
   'rgb(var(--color-redeployment-blue))',
@@ -62,15 +63,15 @@ function KpiCard({
   tone: string
 }) {
   return (
-    <div data-pdf-metric="" data-pdf-label={label} data-pdf-value={`${typeof value === 'number' ? value.toLocaleString('ko-KR') : value}${unit}`} className="card flex items-center justify-between gap-4">
-      <div>
-        <p className="text-[12px] font-medium text-apple-light">{label}</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums text-apple-dark">
+    <div data-pdf-metric="" data-pdf-label={label} data-pdf-value={`${typeof value === 'number' ? value.toLocaleString('ko-KR') : value}${unit}`} className="card flex min-h-28 items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-apple-dark">{label}</p>
+        <p className="mt-2 text-3xl font-semibold leading-tight tabular-nums text-apple-dark">
           {typeof value === 'number' ? value.toLocaleString('ko-KR') : value}
-          {unit && <span className="ml-1 text-sm font-medium text-apple-light">{unit}</span>}
+          {unit && <span className="ml-1.5 text-sm font-medium text-apple-mid">{unit}</span>}
         </p>
       </div>
-      <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone}`}>
+      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${tone}`}>
         {icon}
       </span>
     </div>
@@ -99,15 +100,15 @@ function MonthlyRedeploymentChart({ data }: { data: RedeploymentAnalytics }) {
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h3 className="text-ui-base font-semibold text-apple-dark">월별 재배포 추이</h3>
-          <p className="mt-0.5 text-ui-xs text-apple-light">요청 유형별 누적 막대</p>
+          <p className="mt-1 text-sm text-apple-mid">요청 유형별 월간 재배포 건수</p>
         </div>
-        <span className="text-ui-xs font-medium tabular-nums text-[rgb(var(--color-chart-muted-steel))]">통계 대상 {data.analytics_total}건</span>
+        <span className="rounded-lg bg-apple-gray px-3 py-1.5 text-sm font-semibold tabular-nums text-apple-dark">통계 대상 {data.analytics_total.toLocaleString('ko-KR')}건</span>
       </div>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <BarChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-          <XAxis dataKey="month" tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
-          <YAxis allowDecimals={false} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={34} />
+          <XAxis dataKey="month" tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} minTickGap={18} />
+          <YAxis allowDecimals={false} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={46} />
           <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString('ko-KR')}건`, String(name)]} />
           <Legend iconType="circle" iconSize={REDEPLOYMENT_LEGEND_ICON_SIZE} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: REDEPLOYMENT_FONT_SIZE, fontWeight: 500 }}>{value}</span>} />
           {issueTypes.map((issueType, index) => (
@@ -122,20 +123,33 @@ function MonthlyRedeploymentChart({ data }: { data: RedeploymentAnalytics }) {
 function CauseChart({ values }: { values: Record<string, number> }) {
   const exportMode = useDashboardExportMode()
   const data = Object.entries(values).map(([name, value]) => ({ name, value }))
+  const total = data.reduce((sum, entry) => sum + entry.value, 0)
   return (
     <div data-pdf-kind="chart" className="card">
       <h3 className="text-ui-base font-semibold text-apple-dark">재배포 원인</h3>
-      <p className="mt-0.5 text-ui-xs text-apple-light">원인별 건수와 구성비</p>
+      <p className="mt-1 text-sm text-apple-mid">원인별 건수와 구성비</p>
       {data.length ? (
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT + 24}>
-          <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" outerRadius={118} paddingAngle={1} isAnimationActive={!exportMode} stroke="rgb(var(--color-apple-surface))" strokeWidth={2}>
-              {data.map((entry, index) => <Cell key={entry.name} fill={REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length]} />)}
-            </Pie>
-            <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString('ko-KR')}건`, String(name)]} />
-            <Legend iconType="circle" iconSize={REDEPLOYMENT_LEGEND_ICON_SIZE} wrapperStyle={{ paddingTop: 8 }} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: REDEPLOYMENT_FONT_SIZE, fontWeight: 500 }}>{value}</span>} />
-          </PieChart>
-        </ResponsiveContainer>
+        <div>
+          <ResponsiveContainer width="100%" height={exportMode ? CHART_HEIGHT + 24 : CHART_HEIGHT - 72}>
+            <PieChart>
+              <Pie data={data} dataKey="value" nameKey="name" outerRadius={118} paddingAngle={1} isAnimationActive={!exportMode} stroke="rgb(var(--color-apple-surface))" strokeWidth={2}>
+                {data.map((entry, index) => <Cell key={entry.name} fill={REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length]} />)}
+              </Pie>
+              <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString('ko-KR')}건`, String(name)]} />
+              {exportMode && <Legend iconType="circle" iconSize={REDEPLOYMENT_LEGEND_ICON_SIZE} wrapperStyle={{ paddingTop: 8 }} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: REDEPLOYMENT_FONT_SIZE, fontWeight: 500 }}>{value}</span>} />}
+            </PieChart>
+          </ResponsiveContainer>
+          {!exportMode && <ul className="divide-y divide-apple-divider/70 border-t border-apple-divider/70">
+            {data.map((entry, index) => (
+              <li key={entry.name} className="flex items-center gap-3 py-2.5 text-sm">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length] }} />
+                <span className="min-w-0 flex-1 break-words font-medium text-apple-dark">{entry.name}</span>
+                <span className="shrink-0 font-semibold tabular-nums text-apple-dark">{entry.value.toLocaleString('ko-KR')}건</span>
+                <span className="w-14 shrink-0 text-right tabular-nums text-apple-mid">{total > 0 ? (entry.value / total * 100).toFixed(1) : '0.0'}%</span>
+              </li>
+            ))}
+          </ul>}
+        </div>
       ) : <div className="flex items-center justify-center text-ui-sm text-apple-light" style={{ height: CHART_HEIGHT }}>데이터가 없습니다</div>}
     </div>
   )
@@ -144,7 +158,7 @@ function CauseChart({ values }: { values: Record<string, number> }) {
 function AssigneeChart({ values }: { values: Record<string, number> }) {
   const exportMode = useDashboardExportMode()
   const data = Object.entries(values).slice(0, 10).map(([name, value]) => ({ name, value }))
-  const axisWidth = exportMode ? 156 : 92
+  const axisWidth = exportMode ? 156 : 120
   const exportTickLimit = Math.floor((axisWidth - 16) / 14)
   const formatExportTick = (value: string) => {
     const characters = Array.from(value)
@@ -155,13 +169,13 @@ function AssigneeChart({ values }: { values: Record<string, number> }) {
   return (
     <div data-pdf-kind="chart" className="card">
       <h3 className="text-ui-base font-semibold text-apple-dark">담당자별 재배포</h3>
-      <p className="mt-0.5 text-ui-xs text-apple-light">상위 10명 기준</p>
+      <p className="mt-1 text-sm text-apple-mid">상위 10명 기준 · 건수</p>
       {data.length ? (
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <BarChart data={data} layout="vertical" margin={{ top: 12, right: 24, left: 18, bottom: 0 }}>
+          <BarChart data={data} layout="vertical" margin={{ top: 12, right: 44, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} horizontal={false} />
             <XAxis type="number" allowDecimals={false} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
-            <YAxis type="category" dataKey="name" width={axisWidth} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} tickFormatter={exportMode ? formatExportTick : undefined} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="name" width={axisWidth} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} tickFormatter={exportMode ? formatExportTick : undefined} axisLine={false} tickLine={false} interval={0} />
             <Tooltip formatter={(value) => [`${Number(value).toLocaleString('ko-KR')}건`, '재배포']} />
             {exportMode && (
               <Legend
@@ -173,6 +187,7 @@ function AssigneeChart({ values }: { values: Record<string, number> }) {
             )}
             <Bar isAnimationActive={!exportMode} dataKey="value" radius={[0, 6, 6, 0]}>
               {data.map((entry, index) => <Cell key={entry.name} fill={REDEPLOYMENT_CHART_COLORS[index % REDEPLOYMENT_CHART_COLORS.length]} />)}
+              <LabelList dataKey="value" position="right" fill={CHART_COLORS.axisText} fontSize={REDEPLOYMENT_FONT_SIZE} formatter={(value: unknown) => Number(value).toLocaleString('ko-KR')} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -195,16 +210,16 @@ function PartnerMatrix({ matrix }: { matrix: Record<string, Record<string, numbe
     <div data-pdf-kind="table" data-pdf-title="파트너사별 재배포 히트맵" className="card overflow-hidden">
       <div className="mb-4">
         <h3 className="text-ui-base font-semibold text-apple-dark">파트너사별 재배포 히트맵</h3>
-        <p className="mt-0.5 text-ui-xs text-apple-light">파트너사 × 요청 유형 교차 통계</p>
+        <p className="mt-1 text-sm text-apple-mid">파트너사별 요청 유형과 합계 · 단위: 건</p>
       </div>
       {partners.length ? (
         <div className="overflow-x-auto rounded-xl border border-apple-divider/70">
-          <table className="w-full min-w-[640px] border-collapse text-center text-ui-xs">
-            <thead className="bg-apple-gray/70 text-apple-mid">
+          <table className="w-full min-w-[640px] border-collapse text-center text-sm">
+            <thead className="bg-apple-gray text-apple-dark">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold">파트너사</th>
-                {issueTypes.map((issueType) => <th key={issueType} className="px-3 py-3 font-semibold">{issueType}</th>)}
-                <th className="px-3 py-3 font-semibold">합계</th>
+                <th scope="col" className="sticky left-0 z-10 min-w-40 bg-apple-gray px-4 py-3.5 text-left font-semibold">파트너사</th>
+                {issueTypes.map((issueType) => <th key={issueType} scope="col" className="whitespace-nowrap px-4 py-3.5 font-semibold">{issueType}</th>)}
+                <th scope="col" className="px-4 py-3.5 font-semibold">합계</th>
               </tr>
             </thead>
             <tbody>
@@ -212,13 +227,13 @@ function PartnerMatrix({ matrix }: { matrix: Record<string, Record<string, numbe
                 const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
                 return (
                   <tr key={partner} className="border-t border-apple-divider/60">
-                    <th className="max-w-[260px] truncate px-4 py-3 text-left font-medium text-apple-dark" title={partner}>{partner}</th>
+                    <th scope="row" className="sticky left-0 z-10 min-w-40 max-w-[260px] break-words bg-apple-surface px-4 py-3.5 text-left font-medium leading-relaxed text-apple-dark">{partner}</th>
                     {issueTypes.map((issueType) => {
                       const count = counts[issueType] ?? 0
                       const opacity = count ? 0.12 + (count / maxCount) * 0.54 : 0
-                      return <td key={issueType} className="px-3 py-3 font-semibold tabular-nums text-apple-dark" style={{ backgroundColor: `rgb(var(--color-chart-muted-steel) / ${opacity})` }}>{count || '–'}</td>
+                      return <td key={issueType} className="px-4 py-3.5 font-semibold tabular-nums text-apple-dark" style={{ backgroundColor: `rgb(var(--color-chart-muted-steel) / ${opacity})` }}>{count || '–'}</td>
                     })}
-                    <td className="px-3 py-3 font-semibold tabular-nums text-[rgb(var(--color-chart-muted-steel))]">{total}</td>
+                    <td className="bg-apple-gray/50 px-4 py-3.5 font-bold tabular-nums text-apple-dark">{total.toLocaleString('ko-KR')}</td>
                   </tr>
                 )
               })}
@@ -245,31 +260,31 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
     <div data-pdf-kind="table" data-pdf-title="최근 완료 재배포 이슈" className="card overflow-hidden">
       <div className="mb-4">
         <h3 className="text-ui-base font-semibold text-apple-dark">최근 완료 재배포 이슈</h3>
-        <p className="mt-0.5 text-ui-xs text-apple-light">완료 월 기준 · 총 {issues.length.toLocaleString('ko-KR')}건</p>
+        <p className="mt-1 text-sm text-apple-mid">완료 월 기준 · 총 {issues.length.toLocaleString('ko-KR')}건</p>
       </div>
       {issues.length ? (
         <>
           <div className="overflow-x-auto">
-            <table data-pdf-table-layout="redeployment" className="w-full min-w-[760px] border-collapse text-ui-sm">
-              <thead className="border-y border-apple-divider/70 bg-apple-gray/50 text-apple-mid">
+            <table data-pdf-table-layout="redeployment" className="w-full min-w-[760px] border-collapse text-sm">
+              <thead className="border-y border-apple-divider/70 bg-apple-gray text-apple-dark">
                 <tr>
-                  <th className="px-3 py-3 text-center text-ui-xs font-semibold">완료 월</th>
-                  <th className="px-3 py-3 text-center text-ui-xs font-semibold">유형</th>
-                  <th className="px-3 py-3 text-center text-ui-xs font-semibold">티켓</th>
-                  <th className="px-3 py-3 text-left text-ui-xs font-semibold">제목</th>
-                  <th className="px-3 py-3 text-center text-ui-xs font-semibold">우선순위</th>
-                  <th className="px-3 py-3 text-center text-ui-xs font-semibold">재배포 원인</th>
+                  <th scope="col" className="whitespace-nowrap px-3 py-3.5 text-center font-semibold">완료 월</th>
+                  <th scope="col" className="px-3 py-3.5 text-center font-semibold">유형</th>
+                  <th scope="col" className="px-3 py-3.5 text-center font-semibold">티켓</th>
+                  <th scope="col" className="px-3 py-3.5 text-left font-semibold">제목</th>
+                  <th scope="col" className="whitespace-nowrap px-3 py-3.5 text-center font-semibold">우선순위</th>
+                  <th scope="col" className="whitespace-nowrap px-3 py-3.5 text-center font-semibold">재배포 원인</th>
                 </tr>
               </thead>
               <tbody>
                 {visibleIssues.map((issue) => (
                   <tr key={issue.key} className="border-b border-apple-divider/60 transition-colors hover:bg-[rgb(var(--color-chart-muted-steel)/0.08)]">
-                    <td className="px-3 py-3 text-center tabular-nums text-apple-light">{issue.month}</td>
-                    <td className="px-3 py-3 text-center"><IssueTypeBadge type={issue.type} /></td>
-                    <td className="px-3 py-3 text-center"><a className="font-mono font-medium text-[rgb(var(--color-chart-muted-steel))] hover:underline" href={`${jiraBrowse}/${issue.key}`} target="_blank" rel="noopener noreferrer">{issue.key}</a></td>
-                    <td className="max-w-[360px] truncate px-3 py-3 text-apple-dark" title={issue.summary}>{issue.summary}</td>
-                    <td className="px-3 py-3 text-center text-apple-light">{issue.priority}</td>
-                    <td className="px-3 py-3 text-center text-apple-light">{issue.cause}</td>
+                    <td className="whitespace-nowrap px-3 py-4 text-center tabular-nums text-apple-dark">{issue.month}</td>
+                    <td className="px-3 py-4 text-center"><IssueTypeBadge type={issue.type} /></td>
+                    <td className="whitespace-nowrap px-3 py-4 text-center"><a className="rounded font-mono font-semibold text-apple-dark underline decoration-apple-divider underline-offset-4 hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" href={`${jiraBrowse}/${issue.key}`} target="_blank" rel="noopener noreferrer">{issue.key}</a></td>
+                    <td className="min-w-[240px] max-w-[440px] break-words px-3 py-4 leading-relaxed text-apple-dark">{issue.summary}</td>
+                    <td className="whitespace-nowrap px-3 py-4 text-center text-apple-dark">{issue.priority}</td>
+                    <td className="min-w-28 px-3 py-4 text-center leading-relaxed text-apple-dark">{issue.cause}</td>
                   </tr>
                 ))}
               </tbody>
@@ -277,7 +292,7 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
           </div>
           {!exportMode && totalPages > 1 && (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-apple-divider pt-4">
-              <span className="text-ui-xs tabular-nums text-apple-light">
+              <span className="text-sm tabular-nums text-apple-mid">
                 {(currentPage - 1) * REDEPLOYMENT_PAGE_SIZE + 1}–{Math.min(currentPage * REDEPLOYMENT_PAGE_SIZE, issues.length)} / {issues.length}건
               </span>
               <div className="flex flex-wrap gap-1">
@@ -288,8 +303,9 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
                       key={pageNumber}
                       type="button"
                       aria-label={`${pageNumber}페이지`}
+                      aria-current={currentPage === pageNumber ? 'page' : undefined}
                       onClick={() => setPage(pageNumber)}
-                      className={`min-w-8 rounded-lg px-2.5 py-1.5 text-ui-sm font-medium transition-colors ${
+                      className={`min-h-10 min-w-10 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 ${
                         currentPage === pageNumber
                           ? 'bg-[rgb(var(--color-chart-muted-steel))] text-white'
                           : 'bg-apple-gray text-apple-mid hover:bg-[rgb(var(--color-chart-muted-steel)/0.12)] hover:text-[rgb(var(--color-chart-muted-steel))]'
@@ -312,9 +328,15 @@ export default function RedeploymentAnnualSection({ data, year }: Props) {
   const classificationComplete = data.classification_complete
   return (
     <section data-pdf-section={`${year}년 재배포 품질 지표`} className="redeployment-analytics space-y-4 md:space-y-5">
-      <div className="flex items-center gap-2">
-        <BarChart3 size={18} className="text-[rgb(var(--color-chart-muted-steel))]" />
-        <h2 className="text-xl font-semibold text-apple-dark">{year}년 재배포 품질 지표</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-apple-divider pt-6">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--color-chart-muted-steel)/0.12)] text-[rgb(var(--color-chart-muted-steel))]"><BarChart3 size={20} /></span>
+          <div>
+            <h2 className="text-xl font-semibold text-apple-dark">{year}년 재배포 품질 지표</h2>
+            <p className="mt-1 text-sm text-apple-mid">재배포 규모와 원인, 담당자 및 파트너사별 현황</p>
+          </div>
+        </div>
+        <span className="rounded-lg bg-apple-gray px-3 py-1.5 text-sm font-medium text-apple-dark">연간 전체 기준</span>
       </div>
       <div data-pdf-kind="metrics" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <KpiCard label="전체 해결 이슈" value={data.resolved_total} unit="건" icon={<CheckCircle2 size={21} />} tone="bg-[rgb(var(--color-chart-muted-sage)/0.16)] text-[rgb(var(--color-chart-muted-sage))]" />

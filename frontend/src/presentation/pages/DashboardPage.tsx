@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
 import { lazy, Suspense, useCallback, useEffect, useState, useMemo, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { BarChart2, ShieldAlert, Activity, Pin, CalendarRange, RefreshCw, Archive, Download } from 'lucide-react'
+import { BarChart2, ShieldAlert, Activity, Pin, CalendarRange, RefreshCw, Download } from 'lucide-react'
 import { useAnnualReport, useLatestReport, useReportById } from '@/presentation/hooks/useReport'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useDashboardData } from '@/presentation/hooks/useDashboardData'
@@ -19,7 +19,10 @@ import DashboardPdfExportStage from '@/presentation/components/export/DashboardP
 import '@/presentation/styles/dashboardExport.css'
 import type { RedeploymentAnalytics, Semester, SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
 import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
-import { isRefreshableAnnualReport } from '@/presentation/config/annualReports'
+import AnnualReportHeader from '@/presentation/components/annual/AnnualReportHeader'
+import AnnualYearComparison from '@/presentation/components/annual/AnnualYearComparison'
+import AnnualSummaryMetrics from '@/presentation/components/annual/AnnualSummaryMetrics'
+import '@/presentation/styles/annualReport.css'
 import { WIDGET_ID } from '@/domain/WidgetId'
 
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
@@ -30,6 +33,7 @@ const TrendLineChart      = lazy(() => import('@/presentation/components/charts/
 const SlaMonthlyLineChart = lazy(() => import('@/presentation/components/charts/SlaMonthlyLineChart'))
 const MonthlyCountChart   = lazy(() => import('@/presentation/components/charts/MonthlyCountChart'))
 const RedeploymentAnnualSection = lazy(() => import('@/presentation/components/annual/RedeploymentAnnualSection'))
+const AnnualMonthlyComparison = lazy(() => import('@/presentation/components/annual/AnnualMonthlyComparison'))
 
 const WeeklyCreatedModal  = lazy(() => import('@/presentation/components/tables/WeeklyCreatedModal'))
 const WeeklyResolvedModal = lazy(() => import('@/presentation/components/tables/WeeklyResolvedModal'))
@@ -53,6 +57,7 @@ interface ExportSnapshot {
 }
 
 function DashboardContent({ report, exportSelection }: { report: ReportDetail; exportSelection?: ExportSelection }) {
+  const isAnnual = report.scope === 'annual'
   const { setCurrentReport } = useReportStore()
   const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
   const [selectedSemester,   setSelectedSemester]   = useState<Semester | null>(null)
@@ -150,12 +155,9 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
     })
   }
 
-  return (
-    <>
-    <div className="space-y-4 md:space-y-6 3xl:space-y-8">
-      {!exportSelection && (
+  const exportActions = !exportSelection && (
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <span className="text-[12px] text-apple-light">현재 필터 · 표 전체 포함</span>
+          <span className="text-[12px] text-apple-mid">{isAnnual ? '선택 연도 · 현재 필터' : '현재 필터 · 표 전체 포함'}</span>
           <button
             type="button"
             onClick={startExport}
@@ -168,31 +170,13 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
           </button>
           {exportError && <p role="alert" className="w-full text-right text-[13px] text-red-600">{exportError}</p>}
         </div>
-      )}
-      {report.scope === 'annual' && report.report_year != null && (
-        <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-              <CalendarRange size={20} />
-            </span>
-            <div className="min-w-0">
-              <h1 className="text-lg font-semibold text-apple-dark">{report.report_year} 연간 보고서</h1>
-              <p className="mt-0.5 text-[12px] text-apple-light">{report.week_start} – {report.week_end}</p>
-            </div>
-          </div>
-          {isRefreshableAnnualReport(report.report_year) ? (
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-[11px] font-medium text-brand-700">
-              <RefreshCw size={12} />
-              5분마다 자동 갱신
-            </span>
-          ) : (
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-apple-gray px-3 py-1.5 text-[11px] font-medium text-apple-light">
-              <Archive size={12} />
-              확정 보고서 · 자동 갱신 없음
-            </span>
-          )}
-        </div>
-      )}
+      )
+
+  return (
+    <>
+    <div className={isAnnual ? 'annual-report-view space-y-6 md:space-y-8' : 'space-y-4 md:space-y-6 3xl:space-y-8'}>
+      {isAnnual ? <AnnualReportHeader report={report} actions={exportActions} /> : exportActions}
+      {isAnnual && !exportSelection && <AnnualYearComparison report={report} />}
       {!exportSelection && <IssueTypeFilter
         issueTypes={issueTypes}
         selectedTypes={selectedIssueTypes}
@@ -206,8 +190,24 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
           setSelectedSemester(null)
         }}
       />}
-      {report.ai_analysis && effectiveIssueTypes === null && effectiveSemester === null && <div data-pdf-section="AI 종합 분석"><AiSummaryCard ai={report.ai_analysis} /></div>}
-      <div data-pdf-section="주요 지표" data-pdf-kind="metrics" className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
+      {!isAnnual && report.ai_analysis && effectiveIssueTypes === null && effectiveSemester === null && <div data-pdf-section="AI 종합 분석"><AiSummaryCard ai={report.ai_analysis} /></div>}
+      {isAnnual ? (
+        <AnnualSummaryMetrics
+          period={semesterLabel}
+          created={w1YearlyCreated}
+          resolved={w2YearlyResolved}
+          createdDetails={w3Created}
+          resolvedDetails={w3Resolved}
+          onCreated={() => setShowWeeklyCreated(true)}
+          onResolved={() => setShowWeeklyResolved(true)}
+          statuses={[
+            { label: '이슈 리뷰 중', value: reviewTotal, onClick: () => setShowIssueReview(true) },
+            { label: '자료 요청 중', value: dataRequestTotal, onClick: () => setShowDataRequest(true) },
+            { label: '결과 대기 중', value: resultPendingTotal, onClick: () => setShowResultPending(true) },
+            { label: '미완료 이슈', value: incompleteTotal, onClick: () => setShowIncomplete(true) },
+          ]}
+        />
+      ) : <div data-pdf-section="주요 지표" data-pdf-kind="metrics" className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label={`${reportYear} 생성`} value={w1YearlyCreated} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
         <SummaryCard label={`${reportYear} 해결`} value={w2YearlyResolved} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
         <SummaryCard label={`${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
@@ -216,7 +216,8 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
         <SummaryCard label="자료 요청 중" value={dataRequestTotal}  color="yellow" icon={SUMMARY_ICONS.dataRequest}   onClick={() => setShowDataRequest(true)}   />
         <SummaryCard label="결과 대기 중" value={resultPendingTotal}  color="yellow" icon={SUMMARY_ICONS.resultPending} onClick={() => setShowResultPending(true)} />
         <SummaryCard label="미완료 이슈"  value={incompleteTotal}   color="red"    icon={SUMMARY_ICONS.incomplete}    onClick={() => setShowIncomplete(true)}    />
-      </div>
+      </div>}
+      {isAnnual && report.ai_analysis && effectiveIssueTypes === null && effectiveSemester === null && <div data-pdf-section="AI 종합 분석"><AiSummaryCard ai={report.ai_analysis} /></div>}
 
       {showWeeklyCreated && (
         <Suspense fallback={<ModalFallback />}>
@@ -280,6 +281,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
       )}
 
       <div data-pdf-section="업무 유형별 열린 요청" data-pdf-kind="metrics" className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
+        {isAnnual && <h2 className="col-span-full text-lg font-semibold text-apple-dark">업무 유형별 열린 요청</h2>}
         {workTypeOpenWidgets.map((widget) => (
           <WorkTypeSummaryCard
             key={widget.key}
@@ -290,23 +292,27 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
         ))}
       </div>
 
-      {(hasW8 || hasW9) && (
+      {(isAnnual ? w8Monthly.length > 0 || w9Monthly.length > 0 : hasW8 || hasW9) && (
         <div data-pdf-section="월별 이슈 현황" className="space-y-1">
           <SectionTitle icon={BarChart2} title="월별 이슈 현황" subtitle={semesterLabel} />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
+          {isAnnual ? (
+            <Suspense fallback={<ChartFallback />}>
+              <AnnualMonthlyComparison created={w8Monthly} resolved={w9Monthly} year={reportYear} periodEnd={report.week_end} subtitle={semesterLabel} />
+            </Suspense>
+          ) : <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
             <Suspense fallback={<ChartFallback />}>
               <MonthlyCountChart title="월별 등록 건수" subtitle={semesterLabel} monthly={w8Monthly} color={MONTHLY_COUNT_COLORS.created}  />
             </Suspense>
             <Suspense fallback={<ChartFallback />}>
               <MonthlyCountChart title="월별 해결 건수" subtitle={semesterLabel} monthly={w9Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
             </Suspense>
-          </div>
+          </div>}
         </div>
       )}
       {(hasW10 || hasW11) && (
         <div data-pdf-section="SLA 준수율" className="space-y-1">
           <SectionTitle icon={ShieldAlert} title="SLA 준수율" subtitle={semesterLabel} />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
+          <div className={isAnnual ? 'grid grid-cols-1 xl:grid-cols-2 gap-4' : 'grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5'}>
             <Suspense fallback={<ChartFallback />}>
               <SlaMonthlyLineChart title="최초응답 SLA" subtitle={`${semesterLabel} · 응답시간 위반 여부`} monthly={w10Monthly} color={SLA_MONTHLY_COLORS.initial}    />
             </Suspense>
@@ -318,7 +324,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
       )}
       <div data-pdf-section="분석 차트" className="space-y-1">
         <SectionTitle icon={Activity} title="분석 차트" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
+        <div className={isAnnual ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5'}>
           <Suspense fallback={<ChartFallback />}>
             <SlaDonutChart
               total={w12Total}
@@ -337,6 +343,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
             <TrendLineChart
               created={w3Created}
               resolved={w3Resolved}
+              periodLabel={isAnnual ? semesterLabel : undefined}
               onBarClick={handleTrendBarClick}
             />
           </Suspense>

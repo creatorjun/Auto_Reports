@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test:pdf": "node --test tests/dashboardPdf.test.mjs",
     "test:storage": "node --test tests/storagePreview.test.mjs tests/filePreviewModal.test.mjs",
-    "test:dashboard": "node --test tests/dashboardIssueTypeFilters.test.mjs tests/slaComments.test.mjs"
+    "test:dashboard": "node --test tests/dashboardIssueTypeFilters.test.mjs tests/slaComments.test.mjs tests/annualMonthlyComparison.test.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

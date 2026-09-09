@@ -7,13 +7,14 @@ import { useDashboardExportMode } from '@/presentation/context/DashboardExportCo
 interface Props {
   created: number
   resolved: number
+  periodLabel?: string
   onBarClick?: (key: '생성' | '해결') => void
 }
 
-export default function TrendLineChart({ created, resolved, onBarClick }: Props) {
+export default function TrendLineChart({ created, resolved, onBarClick, periodLabel = '이번 주' }: Props) {
   const exportMode = useDashboardExportMode()
   const data = [
-    { name: '이번 주', '생성': created, '해결': resolved },
+    { name: periodLabel, '생성': created, '해결': resolved },
   ]
 
   return (
