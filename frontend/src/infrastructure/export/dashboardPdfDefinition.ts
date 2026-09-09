@@ -23,11 +23,11 @@ const PAGE_MARGIN = 32
 const CONTENT_WIDTH = PAGE_WIDTH - PAGE_MARGIN * 2
 const COLUMN_GAP = 14
 const CHART_WIDTH = (CONTENT_WIDTH - COLUMN_GAP) / 2
-const INK = '#172033'
-const MUTED = '#64748B'
-const ACCENT = '#365C83'
-const BORDER = '#DDE5EE'
-const SURFACE = '#F5F8FC'
+const INK = '#233235'
+const MUTED = '#687778'
+const ACCENT = '#23758C'
+const BORDER = '#D9E4E2'
+const SURFACE = '#F3F8F7'
 
 function card(stack: Content[], fillColor = SURFACE): ContentTable {
   return {
@@ -143,7 +143,7 @@ function tableWidths(block: DashboardPdfTableBlock, headers: string[]): number[]
 function tableCell(cell: DashboardPdfCell, rowIndex: number): TableCell {
   return {
     text: cell.text,
-    fillColor: cell.fillColor || (rowIndex % 2 === 0 ? '#FFFFFF' : '#F8FAFD'),
+    fillColor: cell.fillColor || (rowIndex % 2 === 0 ? '#FFFFFF' : '#F6F9F8'),
     ...(cell.link ? { link: cell.link, color: ACCENT, decoration: 'underline' as const } : {}),
     margin: [0, 2, 0, 2],
   }
@@ -181,7 +181,7 @@ function tableBlock(block: DashboardPdfTableBlock, sectionTitle: string): Conten
     text: header,
     bold: true,
     color: ACCENT,
-    fillColor: '#EDF2F8',
+    fillColor: '#EAF5F6',
     margin: [0, 3, 0, 3],
   })))
   block.rows.forEach((row, rowIndex) => {

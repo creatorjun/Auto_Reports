@@ -44,6 +44,8 @@ const IncompleteIssueModal = lazy(() => import('@/presentation/components/tables
 const SlaViolationModal   = lazy(() => import('@/presentation/components/tables/SlaViolationModal'))
 const SlaDelayModal       = lazy(() => import('@/presentation/components/tables/SlaDelayModal'))
 
+const WORK_TYPE_TONES = ['blue', 'green', 'red', 'yellow', 'purple'] as const
+
 interface ExportSelection {
   selectedIssueTypes: Set<string> | null
   selectedSemester: Semester | null
@@ -174,7 +176,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
 
   return (
     <>
-    <div className={isAnnual ? 'annual-report-view space-y-6 md:space-y-8' : 'space-y-4 md:space-y-6 3xl:space-y-8'}>
+    <div className={`${isAnnual ? 'dashboard-report-view annual-report-view space-y-6 md:space-y-8' : 'dashboard-report-view space-y-4 md:space-y-6 3xl:space-y-8'}${exportSelection ? ' dashboard-report-export-view' : ''}`}>
       {isAnnual ? <AnnualReportHeader report={report} actions={exportActions} /> : exportActions}
       {isAnnual && !exportSelection && <AnnualYearComparison report={report} />}
       {!exportSelection && <IssueTypeFilter
@@ -201,19 +203,19 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
           onCreated={() => setShowWeeklyCreated(true)}
           onResolved={() => setShowWeeklyResolved(true)}
           statuses={[
-            { label: '이슈 리뷰 중', value: reviewTotal, onClick: () => setShowIssueReview(true) },
-            { label: '자료 요청 중', value: dataRequestTotal, onClick: () => setShowDataRequest(true) },
-            { label: '결과 대기 중', value: resultPendingTotal, onClick: () => setShowResultPending(true) },
-            { label: '미완료 이슈', value: incompleteTotal, onClick: () => setShowIncomplete(true) },
+            { label: '이슈 리뷰 중', value: reviewTotal, tone: 'purple', onClick: () => setShowIssueReview(true) },
+            { label: '자료 요청 중', value: dataRequestTotal, tone: 'blue', onClick: () => setShowDataRequest(true) },
+            { label: '결과 대기 중', value: resultPendingTotal, tone: 'yellow', onClick: () => setShowResultPending(true) },
+            { label: '미완료 이슈', value: incompleteTotal, tone: 'red', onClick: () => setShowIncomplete(true) },
           ]}
         />
       ) : <div data-pdf-section="주요 지표" data-pdf-kind="metrics" className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
-        <SummaryCard label={`${reportYear} 생성`} value={w1YearlyCreated} color="gray"   icon={SUMMARY_ICONS.yearCreated}   />
-        <SummaryCard label={`${reportYear} 해결`} value={w2YearlyResolved} color="gray"   icon={SUMMARY_ICONS.yearResolved}   />
+        <SummaryCard label={`${reportYear} 생성`} value={w1YearlyCreated} color="blue"   icon={SUMMARY_ICONS.yearCreated}   />
+        <SummaryCard label={`${reportYear} 해결`} value={w2YearlyResolved} color="green"  icon={SUMMARY_ICONS.yearResolved}   />
         <SummaryCard label={`${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
         <SummaryCard label={`${rangeDays}일 완료`} value={w3Resolved} color="green" icon={SUMMARY_ICONS.weekResolved} onClick={() => setShowWeeklyResolved(true)} />
-        <SummaryCard label="이슈 리뷰 중" value={reviewTotal}  color="yellow" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
-        <SummaryCard label="자료 요청 중" value={dataRequestTotal}  color="yellow" icon={SUMMARY_ICONS.dataRequest}   onClick={() => setShowDataRequest(true)}   />
+        <SummaryCard label="이슈 리뷰 중" value={reviewTotal}  color="purple" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
+        <SummaryCard label="자료 요청 중" value={dataRequestTotal}  color="blue" icon={SUMMARY_ICONS.dataRequest}   onClick={() => setShowDataRequest(true)}   />
         <SummaryCard label="결과 대기 중" value={resultPendingTotal}  color="yellow" icon={SUMMARY_ICONS.resultPending} onClick={() => setShowResultPending(true)} />
         <SummaryCard label="미완료 이슈"  value={incompleteTotal}   color="red"    icon={SUMMARY_ICONS.incomplete}    onClick={() => setShowIncomplete(true)}    />
       </div>}
@@ -282,11 +284,12 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
 
       <div data-pdf-section="업무 유형별 열린 요청" data-pdf-kind="metrics" className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
         {isAnnual && <h2 className="col-span-full text-lg font-semibold text-apple-dark">업무 유형별 열린 요청</h2>}
-        {workTypeOpenWidgets.map((widget) => (
+        {workTypeOpenWidgets.map((widget, index) => (
           <WorkTypeSummaryCard
             key={widget.key}
             label={widget.label}
             count={widget.count}
+            tone={WORK_TYPE_TONES[index % WORK_TYPE_TONES.length]}
             onClick={() => setWorkTypeOpen(widget)}
           />
         ))}

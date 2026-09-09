@@ -1,4 +1,5 @@
 # backend/src/application/use_cases/partner_use_case.py
+import asyncio
 import logging
 from datetime import datetime
 
@@ -68,31 +69,68 @@ class PartnerUseCase:
         self._qa_assignee_fid  = qa_assignee_fid
 
     async def get_organizations(self) -> list[dict]:
-        return await self._service_desk.get_organizations()
+        organizations = await self._service_desk.get_organizations()
+        if not organizations:
+            return []
+
+        members_by_org = await asyncio.gather(*(
+            self._service_desk.get_members(str(org["id"]))
+            for org in organizations
+        ))
+        organizations_with_counts = [
+            {**org, "issue_count": 0}
+            for org in organizations
+        ]
+        count_targets: list[tuple[int, str]] = []
+        for index, members in enumerate(members_by_org):
+            jql = self._reporter_jql(members)
+            if jql:
+                count_targets.append((index, jql))
+
+        if count_targets:
+            counts = await self._jira.get_issue_counts_batch([
+                jql for _, jql in count_targets
+            ])
+            for (index, _), count in zip(count_targets, counts, strict=True):
+                organizations_with_counts[index]["issue_count"] = count
+
+        organizations_with_counts.sort(key=lambda org: (
+            -org["issue_count"],
+            str(org["name"]).casefold(),
+            str(org["id"]),
+        ))
+        return organizations_with_counts
 
     async def get_members(self, org_id: str) -> list[dict]:
         return await self._service_desk.get_members(org_id)
 
     async def get_issues_by_org(self, org_id: str) -> list[dict]:
         members = await self._service_desk.get_members(org_id)
-        if not members:
+        jql = self._reporter_jql(members, order_by_created=True)
+        if not jql:
             org_name = await self._service_desk.resolve_org_name(org_id)
             logger.info(f"[파트너 이슈] org_id={org_id} ({org_name}) 멤버 없음 → 0건")
             return []
-
-        account_ids = [m["account_id"] for m in members if m["account_id"]]
-        if not account_ids:
-            return []
-
-        ids_str  = ", ".join(f'"{aid}"' for aid in account_ids)
         org_name = await self._service_desk.resolve_org_name(org_id)
-        jql = (
-            f'project = "{self._project_key}" '
-            f'AND reporter IN ({ids_str}) '
-            f'ORDER BY created DESC'
-        )
-        logger.info(f"[파트너 이슈] org={org_name}({org_id}) 멤버={len(account_ids)}명 → reporter IN 방식")
+        logger.info(f"[파트너 이슈] org={org_name}({org_id}) 멤버={len(members)}명 → reporter IN 방식")
         return await self._fetch_issues(jql)
+
+    def _reporter_jql(
+        self,
+        members: list[dict],
+        *,
+        order_by_created: bool = False,
+    ) -> str | None:
+        account_ids = [
+            member.get("account_id")
+            for member in members
+            if member.get("account_id")
+        ]
+        if not account_ids:
+            return None
+        ids_str = ", ".join(f'"{account_id}"' for account_id in account_ids)
+        jql = f'project = "{self._project_key}" AND reporter IN ({ids_str})'
+        return f"{jql} ORDER BY created DESC" if order_by_created else jql
 
     async def get_issues_by_member(self, account_id: str) -> list[dict]:
         jql = (

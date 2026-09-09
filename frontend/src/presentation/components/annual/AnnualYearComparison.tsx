@@ -57,7 +57,7 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
           </tr>
         </thead>
         <tbody>
-          {([{ key: 'created', label: '생성', color: 'rgb(var(--color-chart-muted-steel))' }, { key: 'resolved', label: '해결', color: 'rgb(var(--color-chart-muted-sage))' }] as const).map((metric) => (
+          {([{ key: 'created', label: '생성', color: 'rgb(var(--color-chart-created))' }, { key: 'resolved', label: '해결', color: 'rgb(var(--color-chart-resolved))' }] as const).map((metric) => (
             <tr key={metric.key} className="border-b border-apple-divider last:border-0">
               <th scope="row" className="px-3 py-4 text-left font-semibold md:px-6">{metric.label}<span className="ml-1 text-[12px] font-normal text-apple-mid">(건)</span></th>
               {columns.map((column) => {

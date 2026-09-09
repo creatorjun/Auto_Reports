@@ -17,7 +17,12 @@ import type {
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
 import { WIDGET_ID } from '@/domain/WidgetId'
-import { isDashboardExcludedIssueType, isDashboardIssueTypeFilterOption } from '@/domain/DashboardIssueTypePolicy'
+import {
+  isDashboardDateInSemester,
+  isDashboardIssueTypeFilterOption,
+  isDashboardIssueTypeIncluded,
+  isDashboardMonthInSemester,
+} from '@/domain/DashboardIssueTypePolicy'
 
 interface TypeCountData {
   issue_types?: string[]
@@ -77,25 +82,6 @@ function getReportYear(report: ReportDetail): number {
   return Number.isFinite(year) ? year : new Date().getFullYear()
 }
 
-function semesterIncludesMonth(semester: Semester, month: number): boolean {
-  return semester === 'h1' ? month >= 1 && month <= 6 : month >= 7 && month <= 12
-}
-
-function dateIsInSemester(value: string, year: number, semester: Semester): boolean {
-  const dateYear = Number.parseInt(value.slice(0, 4), 10)
-  const month = Number.parseInt(value.slice(5, 7), 10)
-  return dateYear === year && semesterIncludesMonth(semester, month)
-}
-
-function includesType(
-  issueType: string,
-  selectedTypes: ReadonlySet<string> | null,
-  controlledTypes: ReadonlySet<string>,
-): boolean {
-  return !isDashboardExcludedIssueType(issueType)
-    && (selectedTypes === null || !controlledTypes.has(issueType) || selectedTypes.has(issueType))
-}
-
 function filterIssues<T extends { type: string }>(
   issues: T[],
   selectedTypes: ReadonlySet<string> | null,
@@ -105,11 +91,11 @@ function filterIssues<T extends { type: string }>(
   getDate?: (issue: T) => string,
 ): T[] {
   return issues.filter((issue) => (
-    includesType(issue.type, selectedTypes, controlledTypes)
+    isDashboardIssueTypeIncluded(issue.type, selectedTypes, controlledTypes)
     && (
       semester === null
       || getDate === undefined
-      || dateIsInSemester(getDate(issue), reportYear, semester)
+      || isDashboardDateInSemester(getDate(issue), reportYear, semester)
     )
   ))
 }
@@ -124,7 +110,7 @@ function sumSelectedTypes(
   if (!byType) return fallback
   return Object.entries(byType).reduce(
     (total, [issueType, count]) => total + (
-      includesType(issueType, selectedTypes, controlledTypes)
+      isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes)
         ? count
         : 0
     ),
@@ -144,7 +130,7 @@ function filterMonthlyCounts(
       semester === null
       || (
         entry.year === reportYear
-        && semesterIncludesMonth(semester, entry.month_num)
+        && isDashboardMonthInSemester(semester, entry.month_num)
       )
     ))
     .map((entry) => ({
@@ -170,14 +156,14 @@ function filterSlaMonthly(
     semester === null
     || (
       entry.year === reportYear
-      && semesterIncludesMonth(semester, entry.month_num)
+      && isDashboardMonthInSemester(semester, entry.month_num)
     )
   )).map((entry) => {
     if (!entry.by_type) return entry
     const stats = [
       ...(entry.always_included ? [entry.always_included] : []),
       ...Object.entries(entry.by_type)
-        .filter(([issueType]) => includesType(issueType, selectedTypes, controlledTypes))
+        .filter(([issueType]) => isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes))
         .map(([, value]) => value),
     ]
     const met = stats.reduce((total, value) => total + value.met, 0)
@@ -385,7 +371,7 @@ export function buildDashboardData(
     : w14Data?.by_semester?.[selectedSemester]
   const resolutionByType = Object.fromEntries(
     Object.entries(rawResolutionByType ?? {})
-      .filter(([issueType]) => includesType(issueType, selectedTypes, controlledTypes)),
+      .filter(([issueType]) => isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes)),
   )
 
   const w7Data = getData<{ issue_details: RecentIssue[] }>(w[WIDGET_ID.RECENT_ISSUES])

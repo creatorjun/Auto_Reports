@@ -21,8 +21,8 @@ interface Props {
 }
 
 const SERIES = [
-  { key: 'created', name: '등록', color: 'rgb(var(--color-chart-muted-steel))' },
-  { key: 'resolved', name: '해결', color: 'rgb(var(--color-chart-muted-sage))' },
+  { key: 'created', name: '등록', color: 'rgb(var(--color-chart-created))' },
+  { key: 'resolved', name: '해결', color: 'rgb(var(--color-chart-resolved))' },
 ] as const
 
 const formatCount = (value: number | null) => value === null ? '—' : value.toLocaleString('ko-KR')

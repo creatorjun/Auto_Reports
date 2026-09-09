@@ -5,6 +5,7 @@ from pydantic import BaseModel
 class PartnerOrgSchema(BaseModel):
     id: str
     name: str
+    issue_count: int
 
 
 class PartnerOrgsResponse(BaseModel):

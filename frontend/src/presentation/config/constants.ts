@@ -23,10 +23,13 @@ export const CHART_GRADIENT_STOP_START = 0.25
 export const CHART_GRADIENT_STOP_END = 0.03
 
 export const PIE_COLORS = [
-  'rgb(var(--color-chart-warning))',
   'rgb(var(--color-chart-danger))',
+  'rgb(var(--color-chart-resolved))',
   'rgb(var(--color-chart-created))',
+  'rgb(var(--color-chart-warning))',
   'rgb(var(--color-chart-violet))',
+  'rgb(var(--color-chart-emerald))',
+  'rgb(var(--color-chart-orange))',
 ] as const
 
 export const SLA_COLOR_MAP = {

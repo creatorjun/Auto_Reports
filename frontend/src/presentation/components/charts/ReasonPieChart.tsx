@@ -7,11 +7,7 @@ import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } 
 import type { SlaDelayIssue } from '@/domain/Dashboard'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 
-const REASON_COLORS = [
-  ...PIE_COLORS,
-  'rgb(var(--color-chart-emerald))',
-  'rgb(var(--color-chart-orange))',
-] as const
+const REASON_COLORS = PIE_COLORS
 
 const RADIAN = Math.PI / 180
 

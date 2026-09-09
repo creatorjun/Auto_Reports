@@ -2,14 +2,17 @@
 import client from './client'
 import type { PartnerOrg, PartnerMember, PartnerIssue } from '@/domain/Partner'
 
-interface OrgsResponse    { organizations: PartnerOrg[] }
+interface OrgsResponse    { organizations: Array<Omit<PartnerOrg, 'issue_count'> & { issue_count?: number }> }
 interface MembersResponse { org_id: string; members: PartnerMember[] }
 interface IssuesResponse  { issues: PartnerIssue[]; total: number }
 
 export const partnerApi = {
   getOrganizations: async (): Promise<PartnerOrg[]> => {
     const res = await client.get<OrgsResponse>('/partners/organizations')
-    return res.data.organizations
+    return res.data.organizations.map((organization) => ({
+      ...organization,
+      issue_count: Number.isFinite(organization.issue_count) ? organization.issue_count! : 0,
+    }))
   },
 
   getMembers: async (orgId: string): Promise<PartnerMember[]> => {

@@ -9,17 +9,18 @@ interface Props {
   label: string
   value: number | string
   sub?: string
-  color?: 'blue' | 'red' | 'green' | 'yellow' | 'gray'
+  color?: 'blue' | 'red' | 'green' | 'yellow' | 'purple' | 'gray'
   icon?: LucideIcon
   onClick?: () => void
 }
 
 const colorMap = {
-  blue:   { icon: 'text-blue-500',   val: 'text-blue-600',  bg: 'bg-blue-50'   },
-  red:    { icon: 'text-red-500',    val: 'text-red-600',   bg: 'bg-red-50'    },
-  green:  { icon: 'text-green-500',  val: 'text-green-600', bg: 'bg-green-50'  },
-  yellow: { icon: 'text-amber-500',  val: 'text-amber-600', bg: 'bg-amber-50'  },
-  gray:   { icon: 'text-gray-400',   val: 'text-gray-700',  bg: 'bg-gray-50'   },
+  blue:   { icon: 'text-blue-500',   val: 'text-blue-600',   bg: 'bg-blue-50',   ring: 'hover:ring-blue-200'   },
+  red:    { icon: 'text-red-500',    val: 'text-red-600',    bg: 'bg-red-50',    ring: 'hover:ring-red-200'    },
+  green:  { icon: 'text-green-500',  val: 'text-green-600',  bg: 'bg-green-50',  ring: 'hover:ring-green-200'  },
+  yellow: { icon: 'text-amber-500',  val: 'text-amber-600',  bg: 'bg-amber-50',  ring: 'hover:ring-amber-200'  },
+  purple: { icon: 'text-purple-700', val: 'text-purple-700', bg: 'bg-purple-100', ring: 'hover:ring-purple-200' },
+  gray:   { icon: 'text-gray-400',   val: 'text-gray-700',   bg: 'bg-gray-50',   ring: 'hover:ring-gray-200'   },
 }
 
 export const SUMMARY_ICONS = {
@@ -41,7 +42,7 @@ export default function SummaryCard({ label, value, sub, color = 'blue', icon: I
       data-pdf-label={label}
       data-pdf-value={value.toString()}
       className={`card flex flex-col gap-2 hover:shadow-apple-lg transition-shadow duration-300 ${
-        onClick ? 'cursor-pointer hover:ring-2 hover:ring-red-300' : ''
+        onClick ? `cursor-pointer hover:ring-2 ${c.ring}` : ''
       }`}
       onClick={onClick}
     >

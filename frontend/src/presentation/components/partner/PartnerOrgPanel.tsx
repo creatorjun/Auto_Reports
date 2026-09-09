@@ -6,6 +6,7 @@ import PartnerSearchInput from './PartnerSearchInput'
 import {
   matchesPartnerSearch,
   normalizePartnerSearch,
+  sortPartnerOrganizationsByIssueCount,
   type PartnerOrg,
 } from '@/domain/Partner'
 
@@ -27,9 +28,11 @@ export default function PartnerOrgPanel({
     staleTime: 5 * 60_000,
   })
   const normalizedQuery = normalizePartnerSearch(searchQuery)
-  const visibleOrgs = normalizedQuery
-    ? orgs.filter((org) => matchesPartnerSearch(org.name, normalizedQuery))
-    : orgs
+  const visibleOrgs = sortPartnerOrganizationsByIssueCount(
+    normalizedQuery
+      ? orgs.filter((org) => matchesPartnerSearch(org.name, normalizedQuery))
+      : orgs,
+  )
 
   return (
     <div className="flex flex-col h-full">
@@ -54,10 +57,11 @@ export default function PartnerOrgPanel({
                 : 'text-apple-dark hover:bg-apple-gray',
             ].join(' ')}
           >
-            <div className="flex items-center justify-between">
-              <span className="truncate">{org.name}</span>
+            <div className="flex items-center">
+              <span className="min-w-0 truncate">{org.name}</span>
+              <span className="ml-1 flex-shrink-0 tabular-nums text-apple-light">({org.issue_count.toLocaleString('ko-KR')})</span>
               {selectedOrgId === org.id && (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0 ml-2">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="ml-auto flex-shrink-0 pl-2 box-content">
                   <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}

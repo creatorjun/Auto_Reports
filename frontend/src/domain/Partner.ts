@@ -1,9 +1,15 @@
 // frontend/src/domain/Partner.ts
 import type { BaseIssue } from './Issue'
+import type { Semester } from './Dashboard'
+import {
+  isDashboardDateInSemester,
+  isDashboardIssueTypeIncluded,
+} from './DashboardIssueTypePolicy'
 
 export interface PartnerOrg {
   id: string
   name: string
+  issue_count: number
 }
 
 export interface PartnerMember {
@@ -20,4 +26,29 @@ export function normalizePartnerSearch(value: string): string {
 
 export function matchesPartnerSearch(value: string, normalizedQuery: string): boolean {
   return normalizePartnerSearch(value).includes(normalizedQuery)
+}
+
+export function sortPartnerOrganizationsByIssueCount(organizations: PartnerOrg[]): PartnerOrg[] {
+  return [...organizations].sort((left, right) => (
+    right.issue_count - left.issue_count
+    || left.name.localeCompare(right.name, 'ko-KR', { numeric: true, sensitivity: 'base' })
+    || left.id.localeCompare(right.id)
+  ))
+}
+
+export function filterPartnerIssues(
+  issues: PartnerIssue[],
+  selectedTypes: ReadonlySet<string> | null,
+  controlledTypes: string[],
+  selectedSemester: Semester | null,
+  reportYear: number,
+): PartnerIssue[] {
+  const controlledTypeSet = new Set(controlledTypes)
+  return issues.filter((issue) => (
+    isDashboardIssueTypeIncluded(issue.type, selectedTypes, controlledTypeSet)
+    && (
+      selectedSemester === null
+      || isDashboardDateInSemester(issue.created, reportYear, selectedSemester)
+    )
+  ))
 }

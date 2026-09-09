@@ -5,6 +5,7 @@ interface Metric {
   label: string
   value: number
   onClick: () => void
+  tone: 'blue' | 'green' | 'red' | 'yellow' | 'purple'
 }
 
 interface Props {
@@ -18,6 +19,14 @@ interface Props {
   statuses: Metric[]
 }
 
+const statusToneMap = {
+  blue:   { bg: 'bg-blue-50',   text: 'text-blue-600',   ring: 'focus-visible:ring-blue-400' },
+  green:  { bg: 'bg-green-50',  text: 'text-green-600',  ring: 'focus-visible:ring-green-400' },
+  red:    { bg: 'bg-red-50',    text: 'text-red-600',    ring: 'focus-visible:ring-red-400' },
+  yellow: { bg: 'bg-amber-50',  text: 'text-amber-600',  ring: 'focus-visible:ring-amber-400' },
+  purple: { bg: 'bg-purple-100', text: 'text-purple-700', ring: 'focus-visible:ring-purple-700' },
+} as const
+
 export default function AnnualSummaryMetrics({ period, created, resolved, createdDetails, resolvedDetails, onCreated, onResolved, statuses }: Props) {
   return (
     <section data-pdf-section="주요 지표" data-pdf-kind="metrics" className="space-y-4">
@@ -27,8 +36,8 @@ export default function AnnualSummaryMetrics({ period, created, resolved, create
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {[
-          { label: '생성 이슈', value: created, detailLabel: '기간 내 생성 상세', details: createdDetails, onClick: onCreated, color: 'rgb(var(--color-chart-muted-steel))' },
-          { label: '해결 이슈', value: resolved, detailLabel: '기간 내 완료 상세', details: resolvedDetails, onClick: onResolved, color: 'rgb(var(--color-chart-muted-sage))' },
+          { label: '생성 이슈', value: created, detailLabel: '기간 내 생성 상세', details: createdDetails, onClick: onCreated, color: 'rgb(var(--color-chart-created))' },
+          { label: '해결 이슈', value: resolved, detailLabel: '기간 내 완료 상세', details: resolvedDetails, onClick: onResolved, color: 'rgb(var(--color-chart-resolved))' },
         ].map((metric) => (
           <div key={metric.label} className="overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface">
             <div data-pdf-metric="" data-pdf-label={`${period} ${metric.label}`} data-pdf-value={`${metric.value.toLocaleString('ko-KR')}건`} className="border-t-4 p-5" style={{ borderTopColor: metric.color }}>
@@ -44,12 +53,15 @@ export default function AnnualSummaryMetrics({ period, created, resolved, create
       <div className="rounded-2xl border border-apple-divider bg-apple-surface p-4 md:p-5">
         <h3 className="text-sm font-semibold text-apple-dark">진행 상태별 현황</h3>
         <div className="mt-3 grid grid-cols-2 gap-3 xl:grid-cols-4">
-          {statuses.map((metric) => (
-            <button key={metric.label} type="button" onClick={metric.onClick} data-pdf-metric="" data-pdf-label={metric.label} data-pdf-value={`${metric.value.toLocaleString('ko-KR')}건`} className="group flex min-w-0 flex-col items-start gap-2 rounded-xl bg-apple-gray/60 p-4 text-left transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
-              <span className="text-[13px] font-medium text-apple-dark">{metric.label}</span>
-              <span className="flex w-full items-center justify-between gap-2"><strong className="text-2xl font-semibold tabular-nums text-apple-dark">{metric.value.toLocaleString('ko-KR')}<span className="ml-1 text-xs font-normal text-apple-mid">건</span></strong><ArrowUpRight size={15} className="text-apple-mid group-hover:text-brand-600" /></span>
-            </button>
-          ))}
+          {statuses.map((metric) => {
+            const tone = statusToneMap[metric.tone]
+            return (
+              <button key={metric.label} type="button" onClick={metric.onClick} data-pdf-metric="" data-pdf-label={metric.label} data-pdf-value={`${metric.value.toLocaleString('ko-KR')}건`} className={`group flex min-w-0 flex-col items-start gap-2 rounded-xl p-4 text-left transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 ${tone.bg} ${tone.ring}`}>
+                <span className="text-[13px] font-medium text-apple-dark">{metric.label}</span>
+                <span className="flex w-full items-center justify-between gap-2"><strong className={`text-2xl font-semibold tabular-nums ${tone.text}`}>{metric.value.toLocaleString('ko-KR')}<span className="ml-1 text-xs font-normal text-apple-mid">건</span></strong><ArrowUpRight size={15} className={tone.text} /></span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </section>

@@ -5,7 +5,9 @@ import { useJira } from '@/presentation/context/JiraContext'
 import PartnerPanelHeader from './PartnerPanelHeader'
 import PartnerIssueRow from './PartnerIssueRow'
 import PartnerSearchInput from './PartnerSearchInput'
+import type { Semester } from '@/domain/Dashboard'
 import {
+  filterPartnerIssues,
   matchesPartnerSearch,
   normalizePartnerSearch,
   type PartnerIssue,
@@ -17,12 +19,20 @@ export default function PartnerIssuePanel({
   label,
   searchQuery,
   onSearchChange,
+  issueTypes,
+  selectedIssueTypes,
+  selectedSemester,
+  reportYear,
 }: {
   orgId: string | null
   accountId: string | null
   label: string
   searchQuery: string
   onSearchChange: (value: string) => void
+  issueTypes: string[]
+  selectedIssueTypes: ReadonlySet<string> | null
+  selectedSemester: Semester | null
+  reportYear: number
 }) {
   const { partners } = useApplicationServices()
   const { jiraBrowse } = useJira()
@@ -44,13 +54,20 @@ export default function PartnerIssuePanel({
   const issues: PartnerIssue[] = accountId
     ? (byMember.data ?? [])
     : (byOrg.data ?? [])
+  const dashboardFilteredIssues = filterPartnerIssues(
+    issues,
+    selectedIssueTypes,
+    issueTypes,
+    selectedSemester,
+    reportYear,
+  )
   const normalizedQuery = normalizePartnerSearch(searchQuery)
   const visibleIssues = normalizedQuery
-    ? issues.filter((issue) => (
+    ? dashboardFilteredIssues.filter((issue) => (
         matchesPartnerSearch(issue.key, normalizedQuery)
         || matchesPartnerSearch(issue.summary, normalizedQuery)
       ))
-    : issues
+    : dashboardFilteredIssues
 
   if (!orgId) {
     return (
