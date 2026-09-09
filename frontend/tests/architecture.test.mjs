@@ -421,6 +421,8 @@ test('partner management filters organizations members and issues independently'
   assert.match(page, /useState<Set<string> \| null>\(null\)/)
   assert.match(page, /useState<Semester \| null>\(null\)/)
   assert.match(page, /buildDashboardData\(latestReport\.data\)\.filter/)
+  assert.match(page, /loadedPartnerStatuses/)
+  assert.match(page, /onStatusesChange=\{handlePartnerStatusesChange\}/)
   assert.doesNotMatch(page, /파트너사명과 직원명을 한 번에/)
   assert.match(orgPanel, /placeholder="파트너 조직 필터"/)
   assert.match(orgPanel, /matchesPartnerSearch\(org\.name, normalizedQuery\)/)
@@ -436,11 +438,13 @@ test('partner management filters organizations members and issues independently'
   assert.match(issuePanel, /matchesPartnerSearch\(issue\.key, normalizedQuery\)/)
   assert.match(issuePanel, /matchesPartnerSearch\(issue\.summary, normalizedQuery\)/)
   assert.match(issuePanel, /filterPartnerIssues\(/)
+  assert.match(issuePanel, /onStatusesChange\(availableStatuses\)/)
   assert.match(issuePanel, /visibleIssues\.map/)
   assert.match(partner, /normalize\('NFKC'\)/)
   assert.match(partner, /toLocaleLowerCase\('ko-KR'\)/)
   assert.match(partner, /right\.issue_count - left\.issue_count/)
   assert.match(partner, /isDashboardIssueTypeIncluded\(/)
+  assert.match(partner, /isDashboardStatusIncluded\(/)
   assert.match(partner, /isDashboardDateInSemester\(/)
 })
 
@@ -580,7 +584,7 @@ test('recent issue list centers body content without cell dividers', () => {
   assert.doesNotMatch(mobileCard, /\bborder-b\b/)
 })
 
-test('dashboard request type and semester filters drive every widget view', () => {
+test('dashboard request type current status and semester filters drive every widget view', () => {
   const page = fs.readFileSync(
     path.join(source, 'presentation/pages/DashboardPage.tsx'),
     'utf8',
@@ -597,13 +601,20 @@ test('dashboard request type and semester filters drive every widget view', () =
     path.join(source, 'domain/DashboardIssueTypePolicy.ts'),
     'utf8',
   )
+  const statusPolicy = fs.readFileSync(
+    path.join(source, 'domain/DashboardStatusPolicy.ts'),
+    'utf8',
+  )
 
   assert.match(page, /useState<Set<string> \| null>\(null\)/)
   assert.match(page, /useState<Semester \| null>\(null\)/)
   assert.match(page, /<IssueTypeFilter/)
+  assert.match(page, /selectedStatuses: Set<string> \| null/)
+  assert.match(page, /전체 현재 상태/)
   assert.match(filter, /aria-pressed=\{selected\}/)
   assert.match(filter, /상반기/)
   assert.match(filter, /하반기/)
+  assert.match(filter, /현재 상태/)
   assert.match(filter, /초기화/)
   assert.doesNotMatch(filter, /ListFilter|현재 Jira에 등록된 모든 요청 유형/)
   assert.doesNotMatch(filter, /라이선스|라이센스/)
@@ -623,15 +634,19 @@ test('dashboard request type and semester filters drive every widget view', () =
     assert.match(dashboardData, new RegExp(`\\b${section}\\b`))
   }
   assert.match(dashboardData, /supportsIssueTypeFiltering/)
+  assert.match(dashboardData, /supportsStatusFiltering/)
   assert.match(dashboardData, /supportsSemesterFiltering/)
   assert.match(dashboardData, /isDashboardMonthInSemester/)
   assert.match(dashboardData, /isDashboardDateInSemester/)
   assert.match(dashboardData, /sumSelectedTypes/)
   assert.match(dashboardData, /filterIssues/)
   assert.match(dashboardData, /isDashboardIssueTypeIncluded/)
+  assert.match(dashboardData, /isDashboardStatusIncluded/)
+  assert.match(dashboardData, /by_status_type/)
   assert.match(dashboardData, /if \(!byType\) return fallback/)
   assert.doesNotMatch(dashboardData, /!byType \|\| selectedTypes === null/)
   assert.match(issueTypePolicy, /!controlledTypes\.has\(issueType\)/)
+  assert.match(statusPolicy, /DASHBOARD_STATUS_ORDER/)
   assert.match(dashboardData, /always_included/)
 })
 

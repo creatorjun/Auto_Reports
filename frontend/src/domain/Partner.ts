@@ -5,6 +5,7 @@ import {
   isDashboardDateInSemester,
   isDashboardIssueTypeIncluded,
 } from './DashboardIssueTypePolicy'
+import { isDashboardStatusIncluded } from './DashboardStatusPolicy'
 
 export interface PartnerOrg {
   id: string
@@ -40,12 +41,14 @@ export function filterPartnerIssues(
   issues: PartnerIssue[],
   selectedTypes: ReadonlySet<string> | null,
   controlledTypes: string[],
+  selectedStatuses: ReadonlySet<string> | null,
   selectedSemester: Semester | null,
   reportYear: number,
 ): PartnerIssue[] {
   const controlledTypeSet = new Set(controlledTypes)
   return issues.filter((issue) => (
     isDashboardIssueTypeIncluded(issue.type, selectedTypes, controlledTypeSet)
+    && isDashboardStatusIncluded(issue.status, selectedStatuses)
     && (
       selectedSemester === null
       || isDashboardDateInSemester(issue.created, reportYear, selectedSemester)

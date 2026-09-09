@@ -18,6 +18,7 @@ class ResolutionJira:
             {
                 "fields": {
                     "issuetype": {"name": "인시던트"},
+                    "status": {"name": "할 일"},
                     "created": "2026-01-10T00:00:00.000+0900",
                     "resolutiondate": "2026-03-10T00:00:00.000+0900",
                 },
@@ -25,6 +26,7 @@ class ResolutionJira:
             {
                 "fields": {
                     "issuetype": {"name": "인시던트"},
+                    "status": {"name": "Closed"},
                     "created": "2026-07-10T00:00:00.000+0900",
                     "resolutiondate": "2026-08-10T00:00:00.000+0900",
                 },
@@ -44,6 +46,7 @@ class CreatedResolvedJira:
                 "fields": {
                     "summary": "해결 이슈",
                     "issuetype": {"name": "개선"},
+                    "status": {"name": "Closed"},
                     "resolutiondate": "2026-07-15T12:30:00.000+0900",
                 },
             }]
@@ -86,6 +89,8 @@ class SemesterDashboardDataTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(2, result.data.by_type["인시던트"].count)
         self.assertEqual(1, result.data.by_semester["h1"]["인시던트"].count)
         self.assertEqual(1, result.data.by_semester["h2"]["인시던트"].count)
+        self.assertEqual(1, result.data.by_status_type["할 일"]["인시던트"].count)
+        self.assertEqual(1, result.data.by_semester_status_type["h2"]["Closed"]["인시던트"].count)
 
         restored = deserialize_widget(
             WidgetId.AVG_RESOLUTION_TYPE,
@@ -94,6 +99,8 @@ class SemesterDashboardDataTest(unittest.IsolatedAsyncioTestCase):
         restored_entry = restored.data.by_semester["h1"]["인시던트"]
         self.assertIsInstance(restored_entry, ResolutionTypeEntry)
         self.assertEqual(1, restored_entry.count)
+        restored_status_entry = restored.data.by_semester_status_type["h2"]["Closed"]["인시던트"]
+        self.assertIsInstance(restored_status_entry, ResolutionTypeEntry)
 
     async def test_resolved_details_use_resolution_date_for_period_filtering(self) -> None:
         result = await CreatedVsResolvedCollector(
@@ -103,6 +110,7 @@ class SemesterDashboardDataTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual("2026-02-15 09:00", result.data.created_details[0].created)
         self.assertEqual("2026-07-15 12:30", result.data.resolved_details[0].resolved)
+        self.assertEqual("Closed", result.data.resolved_details[0].status)
 
     async def test_issue_review_details_can_be_collected_without_a_limit(self) -> None:
         result = await SimpleWithDetailsCollector(

@@ -34,7 +34,7 @@ class JiraPort(ABC):
     async def get_issues_with_sla(
         self,
         jql: str,
-        max_results: int = MAX_RESULTS,
+        max_results: int | None = MAX_RESULTS,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]: ...
 
@@ -42,7 +42,7 @@ class JiraPort(ABC):
     async def get_issues_with_assignees(
         self,
         jql: str,
-        max_results: int = MAX_RESULTS,
+        max_results: int | None = MAX_RESULTS,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]: ...
 

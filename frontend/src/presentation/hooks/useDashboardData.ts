@@ -23,11 +23,20 @@ import {
   isDashboardIssueTypeIncluded,
   isDashboardMonthInSemester,
 } from '@/domain/DashboardIssueTypePolicy'
+import {
+  isDashboardStatusIncluded,
+  sortDashboardStatuses,
+} from '@/domain/DashboardStatusPolicy'
+
+type StatusTypeCounts = Record<string, Record<string, number>>
+type SlaTypeStats = { met: number; total: number }
 
 interface TypeCountData {
   issue_types?: string[]
   by_type?: Record<string, number>
   always_included?: number | null
+  by_status_type?: StatusTypeCounts
+  status_breakdown_available?: boolean
 }
 
 interface SlaMetData {
@@ -50,6 +59,8 @@ interface ResolutionTypeEntry {
 interface ResolutionTypeData {
   by_type: Record<string, ResolutionTypeEntry>
   by_semester?: Partial<Record<Semester, Record<string, ResolutionTypeEntry>>>
+  by_status_type?: Record<string, Record<string, ResolutionTypeEntry>>
+  by_semester_status_type?: Partial<Record<Semester, Record<string, Record<string, ResolutionTypeEntry>>>>
 }
 
 interface CreatedVsResolvedData {
@@ -82,16 +93,52 @@ function getReportYear(report: ReportDetail): number {
   return Number.isFinite(year) ? year : new Date().getFullYear()
 }
 
-function filterIssues<T extends { type: string }>(
+function collectDashboardStatuses(value: unknown, statuses: Set<string>): void {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectDashboardStatuses(entry, statuses))
+    return
+  }
+  if (typeof value !== 'object' || value === null) return
+
+  const record = value as Record<string, unknown>
+  if (typeof record.status === 'string' && record.status.trim()) {
+    statuses.add(record.status)
+  }
+  if (typeof record.by_status_type === 'object' && record.by_status_type !== null) {
+    Object.keys(record.by_status_type).forEach((status) => statuses.add(status))
+  }
+  Object.values(record).forEach((entry) => collectDashboardStatuses(entry, statuses))
+}
+
+function sumStatusTypeCounts(
+  byStatusType: StatusTypeCounts,
+  selectedTypes: ReadonlySet<string> | null,
+  controlledTypes: ReadonlySet<string>,
+  selectedStatuses: ReadonlySet<string>,
+): number {
+  return Object.entries(byStatusType).reduce((statusTotal, [status, byType]) => (
+    isDashboardStatusIncluded(status, selectedStatuses)
+      ? statusTotal + Object.entries(byType).reduce((typeTotal, [issueType, count]) => (
+          isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes)
+            ? typeTotal + count
+            : typeTotal
+        ), 0)
+      : statusTotal
+  ), 0)
+}
+
+function filterIssues<T extends { type: string; status?: string }>(
   issues: T[],
   selectedTypes: ReadonlySet<string> | null,
   controlledTypes: ReadonlySet<string>,
+  selectedStatuses: ReadonlySet<string> | null,
   semester: Semester | null = null,
   reportYear: number = 0,
   getDate?: (issue: T) => string,
 ): T[] {
   return issues.filter((issue) => (
     isDashboardIssueTypeIncluded(issue.type, selectedTypes, controlledTypes)
+    && isDashboardStatusIncluded(issue.status ?? '기타', selectedStatuses)
     && (
       semester === null
       || getDate === undefined
@@ -106,7 +153,17 @@ function sumSelectedTypes(
   selectedTypes: ReadonlySet<string> | null,
   controlledTypes: ReadonlySet<string>,
   alwaysIncluded: number | null | undefined,
+  byStatusType: StatusTypeCounts | undefined,
+  selectedStatuses: ReadonlySet<string> | null,
 ): number {
+  if (selectedStatuses !== null && byStatusType) {
+    return sumStatusTypeCounts(
+      byStatusType,
+      selectedTypes,
+      controlledTypes,
+      selectedStatuses,
+    )
+  }
   if (!byType) return fallback
   return Object.entries(byType).reduce(
     (total, [issueType, count]) => total + (
@@ -122,6 +179,7 @@ function filterMonthlyCounts(
   monthly: MonthlyCountEntry[],
   selectedTypes: ReadonlySet<string> | null,
   controlledTypes: ReadonlySet<string>,
+  selectedStatuses: ReadonlySet<string> | null,
   semester: Semester | null,
   reportYear: number,
 ): MonthlyCountEntry[] {
@@ -141,6 +199,8 @@ function filterMonthlyCounts(
         selectedTypes,
         controlledTypes,
         entry.always_included,
+        entry.by_status_type,
+        selectedStatuses,
       ),
     }))
 }
@@ -149,6 +209,7 @@ function filterSlaMonthly(
   monthly: MonthlyEntry[],
   selectedTypes: ReadonlySet<string> | null,
   controlledTypes: ReadonlySet<string>,
+  selectedStatuses: ReadonlySet<string> | null,
   semester: Semester | null,
   reportYear: number,
 ): MonthlyEntry[] {
@@ -159,13 +220,20 @@ function filterSlaMonthly(
       && isDashboardMonthInSemester(semester, entry.month_num)
     )
   )).map((entry) => {
-    if (!entry.by_type) return entry
-    const stats = [
-      ...(entry.always_included ? [entry.always_included] : []),
-      ...Object.entries(entry.by_type)
-        .filter(([issueType]) => isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes))
-        .map(([, value]) => value),
-    ]
+    const stats: SlaTypeStats[] = selectedStatuses !== null && entry.by_status_type
+      ? Object.entries(entry.by_status_type).flatMap(([status, byType]) => (
+          isDashboardStatusIncluded(status, selectedStatuses)
+            ? Object.entries(byType)
+                .filter(([issueType]) => isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes))
+                .map(([, value]) => value)
+            : []
+        ))
+      : [
+          ...(entry.always_included ? [entry.always_included] : []),
+          ...Object.entries(entry.by_type ?? {})
+            .filter(([issueType]) => isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes))
+            .map(([, value]) => value),
+        ]
     const met = stats.reduce((total, value) => total + value.met, 0)
     const total = stats.reduce((sum, value) => sum + value.total, 0)
     return {
@@ -177,15 +245,68 @@ function filterSlaMonthly(
   })
 }
 
+function mergeResolutionStatusTypes(
+  byStatusType: Record<string, Record<string, ResolutionTypeEntry>>,
+  selectedTypes: ReadonlySet<string> | null,
+  controlledTypes: ReadonlySet<string>,
+  selectedStatuses: ReadonlySet<string>,
+): Record<string, ResolutionTypeEntry> {
+  const totals: Record<string, { hours: number; count: number }> = {}
+  for (const [status, byType] of Object.entries(byStatusType)) {
+    if (!isDashboardStatusIncluded(status, selectedStatuses)) continue
+    for (const [issueType, entry] of Object.entries(byType)) {
+      if (!isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes)) continue
+      const current = totals[issueType] ?? { hours: 0, count: 0 }
+      current.hours += entry.avg_hours * entry.count
+      current.count += entry.count
+      totals[issueType] = current
+    }
+  }
+  return Object.fromEntries(Object.entries(totals).map(([issueType, value]) => {
+    const avgHours = value.count > 0 ? value.hours / value.count : 0
+    return [issueType, {
+      avg_days: Math.round((avgHours / 24) * 10) / 10,
+      avg_hours: Math.round(avgHours * 10) / 10,
+      count: value.count,
+    }]
+  }))
+}
+
 function resolveFilterContract(report: ReportDetail) {
   const data = getData<TypeCountData>(report.widgets[WIDGET_ID.YEARLY_CREATED])
+  const resolvedData = getData<TypeCountData>(report.widgets[WIDGET_ID.YEARLY_RESOLVED])
   const monthlyData = getData<{ monthly: MonthlyCountEntry[] }>(
     report.widgets[WIDGET_ID.MONTHLY_CREATED],
+  )
+  const resolvedMonthlyData = getData<{ monthly: MonthlyCountEntry[] }>(
+    report.widgets[WIDGET_ID.MONTHLY_RESOLVED],
+  )
+  const initialSlaData = getData<{ monthly: MonthlyEntry[] }>(
+    report.widgets[WIDGET_ID.SLA_INITIAL_RESPONSE],
+  )
+  const resolutionSlaData = getData<{ monthly: MonthlyEntry[] }>(
+    report.widgets[WIDGET_ID.SLA_RESOLUTION_MONTHLY],
+  )
+  const resolutionTypeData = getData<ResolutionTypeData>(
+    report.widgets[WIDGET_ID.AVG_RESOLUTION_TYPE],
   )
   const issueTypes = data?.issue_types?.filter((issueType) => (
     Boolean(issueType) && isDashboardIssueTypeFilterOption(issueType)
   )) ?? []
   const reportYear = getReportYear(report)
+  const statusSet = new Set<string>()
+  Object.values(report.widgets).forEach((widget) => collectDashboardStatuses(widget.data, statusSet))
+  const statusTypes = sortDashboardStatuses(statusSet)
+  const monthlyStatusBreakdownsAvailable = [
+    monthlyData?.monthly,
+    resolvedMonthlyData?.monthly,
+    initialSlaData?.monthly,
+    resolutionSlaData?.monthly,
+  ].every((entries) => (
+    entries !== undefined
+    && entries.length > 0
+    && entries.every((entry) => entry.by_status_type !== undefined)
+  ))
   const availableMonths = new Set(
     (monthlyData?.monthly ?? [])
       .filter((entry) => entry.year === reportYear)
@@ -199,6 +320,15 @@ function resolveFilterContract(report: ReportDetail) {
       && data?.by_type !== undefined
       && typeof data.always_included === 'number'
     ),
+    statusTypes,
+    supportsStatusFiltering: (
+      statusTypes.length > 0
+      && data?.status_breakdown_available === true
+      && resolvedData?.status_breakdown_available === true
+      && monthlyStatusBreakdownsAvailable
+      && resolutionTypeData?.by_status_type !== undefined
+      && resolutionTypeData.by_semester_status_type !== undefined
+    ),
     supportsSemesterFiltering: Array.from(
       { length: 12 },
       (_, index) => index + 1,
@@ -210,11 +340,13 @@ export function buildDashboardData(
   report: ReportDetail,
   requestedTypes: ReadonlySet<string> | null = null,
   requestedSemester: Semester | null = null,
+  requestedStatuses: ReadonlySet<string> | null = null,
 ) {
   const w = report.widgets
   const filterContract = resolveFilterContract(report)
   const selectedTypes = filterContract.supportsIssueTypeFiltering ? requestedTypes : null
   const selectedSemester = filterContract.supportsSemesterFiltering ? requestedSemester : null
+  const selectedStatuses = filterContract.supportsStatusFiltering ? requestedStatuses : null
   const controlledTypes = new Set(filterContract.issueTypes)
   const { reportYear } = filterContract
   const semesterLabel = selectedSemester === 'h1'
@@ -224,6 +356,7 @@ export function buildDashboardData(
       : `${reportYear}년 전체`
   const filter = {
     ...filterContract,
+    selectedStatuses,
     selectedSemester,
     semesterLabel,
   }
@@ -234,6 +367,7 @@ export function buildDashboardData(
     w8Data?.monthly ?? [],
     selectedTypes,
     controlledTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
   )
@@ -241,6 +375,7 @@ export function buildDashboardData(
     w9Data?.monthly ?? [],
     selectedTypes,
     controlledTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
   )
@@ -261,6 +396,8 @@ export function buildDashboardData(
           selectedTypes,
           controlledTypes,
           yearlyCreatedData?.always_included,
+          yearlyCreatedData?.by_status_type,
+          selectedStatuses,
         )
       : w8Monthly.reduce((total, entry) => total + entry.count, 0),
     w2YearlyResolved: selectedSemester === null
@@ -270,6 +407,8 @@ export function buildDashboardData(
           selectedTypes,
           controlledTypes,
           yearlyResolvedData?.always_included,
+          yearlyResolvedData?.by_status_type,
+          selectedStatuses,
         )
       : w9Monthly.reduce((total, entry) => total + entry.count, 0),
   }
@@ -279,6 +418,7 @@ export function buildDashboardData(
     w3Data?.created_details ?? [],
     selectedTypes,
     controlledTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
     (issue) => issue.created,
@@ -287,6 +427,7 @@ export function buildDashboardData(
     w3Data?.resolved_details ?? [],
     selectedTypes,
     controlledTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
     (issue) => issue.resolved,
@@ -308,6 +449,7 @@ export function buildDashboardData(
     w10Data?.monthly ?? [],
     selectedTypes,
     controlledTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
   )
@@ -315,6 +457,7 @@ export function buildDashboardData(
     w11Data?.monthly ?? [],
     selectedTypes,
     controlledTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
   )
@@ -333,6 +476,7 @@ export function buildDashboardData(
         entry.issue_details ?? [],
         selectedTypes,
         controlledTypes,
+        selectedStatuses,
         selectedSemester,
         reportYear,
         (issue) => issue.created,
@@ -355,6 +499,7 @@ export function buildDashboardData(
       issues,
       selectedTypes,
       controlledTypes,
+      selectedStatuses,
       selectedSemester,
       reportYear,
       (issue) => issue.created,
@@ -369,16 +514,27 @@ export function buildDashboardData(
   const rawResolutionByType = selectedSemester === null
     ? w14Data?.by_type
     : w14Data?.by_semester?.[selectedSemester]
-  const resolutionByType = Object.fromEntries(
-    Object.entries(rawResolutionByType ?? {})
-      .filter(([issueType]) => isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes)),
-  )
+  const rawResolutionByStatusType = selectedSemester === null
+    ? w14Data?.by_status_type
+    : w14Data?.by_semester_status_type?.[selectedSemester]
+  const resolutionByType = selectedStatuses !== null && rawResolutionByStatusType
+    ? mergeResolutionStatusTypes(
+        rawResolutionByStatusType,
+        selectedTypes,
+        controlledTypes,
+        selectedStatuses,
+      )
+    : Object.fromEntries(
+        Object.entries(rawResolutionByType ?? {})
+          .filter(([issueType]) => isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes)),
+      )
 
   const w7Data = getData<{ issue_details: RecentIssue[] }>(w[WIDGET_ID.RECENT_ISSUES])
   const recentIssues = filterIssues(
     w7Data?.issue_details ?? [],
     selectedTypes,
     controlledTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
     (issue) => issue.created,
@@ -413,6 +569,7 @@ export function buildDashboardData(
     w4Data?.issue_details ?? [],
     selectedTypes,
     controlledTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
     (issue) => issue.created,
@@ -421,6 +578,7 @@ export function buildDashboardData(
     w5Data?.issue_details ?? [],
     selectedTypes,
     controlledTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
     (issue) => issue.created,
@@ -429,6 +587,7 @@ export function buildDashboardData(
     w6Data?.issue_details ?? [],
     selectedTypes,
     controlledTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
     (issue) => issue.created,
@@ -461,9 +620,10 @@ export function useDashboardData(
   report: ReportDetail,
   selectedTypes: ReadonlySet<string> | null = null,
   selectedSemester: Semester | null = null,
+  selectedStatuses: ReadonlySet<string> | null = null,
 ) {
   return useMemo(
-    () => buildDashboardData(report, selectedTypes, selectedSemester),
-    [report, selectedTypes, selectedSemester],
+    () => buildDashboardData(report, selectedTypes, selectedSemester, selectedStatuses),
+    [report, selectedTypes, selectedSemester, selectedStatuses],
   )
 }

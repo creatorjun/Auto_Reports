@@ -6,7 +6,7 @@ from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import SlaDelayIssueDetail, SlaDelayWidgetData
 from src.application.ports.jira_port import JiraPort
-from src.domain.constants import JIRA_MAX_RESULT, SUMMARY_TRUNCATE_LEN
+from src.domain.constants import SUMMARY_TRUNCATE_LEN
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class SlaDelayCollector(AbstractWidgetCollector):
 
     async def collect(self) -> WidgetResult[SlaDelayWidgetData]:
         jql = self._q.w12_sla()
-        issues = await self._jira.get_issues_with_sla(jql, max_results=JIRA_MAX_RESULT)
+        issues = await self._jira.get_issues_with_sla(jql, max_results=None)
 
         by_status: dict[str, int] = {}
         by_status_details: dict[str, list[SlaDelayIssueDetail]] = {}

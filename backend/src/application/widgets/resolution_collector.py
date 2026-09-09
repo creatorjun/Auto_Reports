@@ -7,7 +7,6 @@ from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import ResolutionTypeEntry, ResolutionTypeWidgetData
 from src.application.ports.jira_port import JiraPort
-from src.domain.constants import JIRA_MAX_RESULT
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +19,20 @@ class ResolutionCollector(AbstractWidgetCollector):
     async def collect(self) -> WidgetResult[ResolutionTypeWidgetData]:
         jql = self._q.w14_resolution_resolved()
         issues = await self._jira.get_issues(
-            jql, max_results=JIRA_MAX_RESULT, fields="summary,issuetype,created,resolutiondate",
+            jql, max_results=None, fields="summary,issuetype,status,created,resolutiondate",
         )
         now_ts = datetime.now()
         by_type: dict[str, list[float]] = {}
         by_semester: dict[str, dict[str, list[float]]] = {"h1": {}, "h2": {}}
+        by_status_type: dict[str, dict[str, list[float]]] = {}
+        by_semester_status_type: dict[str, dict[str, dict[str, list[float]]]] = {
+            "h1": {},
+            "h2": {},
+        }
         for issue in issues:
             fields = issue.get("fields") or {}
             itype = (fields.get("issuetype") or {}).get("name", "기타")
+            status = (fields.get("status") or {}).get("name", "기타")
             created = fields.get("created", "")
             resolved = fields.get("resolutiondate", "")
             if not created:
@@ -37,6 +42,8 @@ class ResolutionCollector(AbstractWidgetCollector):
             by_type.setdefault(itype, []).append(elapsed)
             semester = "h1" if end_ts.month <= 6 else "h2"
             by_semester[semester].setdefault(itype, []).append(elapsed)
+            by_status_type.setdefault(status, {}).setdefault(itype, []).append(elapsed)
+            by_semester_status_type[semester].setdefault(status, {}).setdefault(itype, []).append(elapsed)
         result = self._summarize(by_type)
         semester_result = {
             semester: self._summarize(values)
@@ -51,6 +58,11 @@ class ResolutionCollector(AbstractWidgetCollector):
             data=ResolutionTypeWidgetData(
                 by_type=result,
                 by_semester=semester_result,
+                by_status_type=self._summarize_nested(by_status_type),
+                by_semester_status_type={
+                    semester: self._summarize_nested(values)
+                    for semester, values in by_semester_status_type.items()
+                },
             ),
         )
 
@@ -65,3 +77,13 @@ class ResolutionCollector(AbstractWidgetCollector):
                 count=len(hours_list),
             )
         return result
+
+    @classmethod
+    def _summarize_nested(
+        cls,
+        values: dict[str, dict[str, list[float]]],
+    ) -> dict[str, dict[str, ResolutionTypeEntry]]:
+        return {
+            status: cls._summarize(type_values)
+            for status, type_values in values.items()
+        }

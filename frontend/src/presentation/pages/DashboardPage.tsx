@@ -48,6 +48,7 @@ const WORK_TYPE_TONES = ['blue', 'green', 'red', 'yellow', 'purple'] as const
 
 interface ExportSelection {
   selectedIssueTypes: Set<string> | null
+  selectedStatuses: Set<string> | null
   selectedSemester: Semester | null
 }
 
@@ -62,6 +63,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const isAnnual = report.scope === 'annual'
   const { setCurrentReport } = useReportStore()
   const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
+  const [selectedStatuses,   setSelectedStatuses]   = useState<Set<string> | null>(null)
   const [selectedSemester,   setSelectedSemester]   = useState<Semester | null>(null)
   const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
@@ -76,18 +78,20 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const [exportError, setExportError] = useState('')
   const exportPending = useRef(false)
   const effectiveIssueTypes = exportSelection ? exportSelection.selectedIssueTypes : selectedIssueTypes
+  const effectiveStatuses = exportSelection ? exportSelection.selectedStatuses : selectedStatuses
   const effectiveSemester = exportSelection ? exportSelection.selectedSemester : selectedSemester
 
   useEffect(() => {
     if (exportSelection) return
     setSelectedIssueTypes(null)
+    setSelectedStatuses(null)
     setSelectedSemester(null)
     setCurrentReport(report)
     return () => setCurrentReport(null)
   }, [exportSelection, report, setCurrentReport])
 
-  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report, effectiveIssueTypes, effectiveSemester)
-  const { issueTypes, reportYear, supportsIssueTypeFiltering, supportsSemesterFiltering, semesterLabel } = filter
+  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report, effectiveIssueTypes, effectiveSemester, effectiveStatuses)
+  const { issueTypes, statusTypes, reportYear, supportsIssueTypeFiltering, supportsStatusFiltering, supportsSemesterFiltering, semesterLabel } = filter
   const { w1YearlyCreated, w2YearlyResolved } = yearly
   const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeDays } = weekly
   const { w10Monthly, w11Monthly, hasW10, hasW11 } = slaMonthly
@@ -119,6 +123,15 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
     })
   }
 
+  const handleStatusToggle = (status: string) => {
+    setSelectedStatuses((current) => {
+      const next = new Set(current ?? statusTypes)
+      if (next.has(status)) next.delete(status)
+      else next.add(status)
+      return next.size === statusTypes.length ? null : next
+    })
+  }
+
   const finishExport = useCallback(() => {
     exportPending.current = false
     setExportSnapshot(null)
@@ -137,14 +150,16 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
     const filters = [
       effectiveSemester === 'h1' ? '상반기' : effectiveSemester === 'h2' ? '하반기' : '전체 기간',
       effectiveIssueTypes === null ? '전체 업무 유형' : effectiveIssueTypes.size ? [...effectiveIssueTypes].join(', ') : '선택된 업무 유형 없음',
+      effectiveStatuses === null ? '전체 현재 상태' : effectiveStatuses.size ? [...effectiveStatuses].join(', ') : '선택된 현재 상태 없음',
     ]
-    if (redeploymentData && (effectiveSemester !== null || effectiveIssueTypes !== null)) {
+    if (redeploymentData && (effectiveSemester !== null || effectiveIssueTypes !== null || effectiveStatuses !== null)) {
       filters.push('재배포 품질 지표는 연간 전체 기준')
     }
     setExportSnapshot({
       report,
       selection: {
         selectedIssueTypes: effectiveIssueTypes === null ? null : new Set(effectiveIssueTypes),
+        selectedStatuses: effectiveStatuses === null ? null : new Set(effectiveStatuses),
         selectedSemester: effectiveSemester,
       },
       metadata: {
@@ -181,18 +196,23 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
       {isAnnual && !exportSelection && <AnnualYearComparison report={report} />}
       {!exportSelection && <IssueTypeFilter
         issueTypes={issueTypes}
+        statuses={statusTypes}
         selectedTypes={selectedIssueTypes}
+        selectedStatuses={selectedStatuses}
         selectedSemester={selectedSemester}
         supported={supportsIssueTypeFiltering}
+        statusSupported={supportsStatusFiltering}
         semesterSupported={supportsSemesterFiltering}
         onToggle={handleIssueTypeToggle}
+        onStatusToggle={handleStatusToggle}
         onSemesterChange={setSelectedSemester}
         onReset={() => {
           setSelectedIssueTypes(null)
+          setSelectedStatuses(null)
           setSelectedSemester(null)
         }}
       />}
-      {!isAnnual && report.ai_analysis && effectiveIssueTypes === null && effectiveSemester === null && <div data-pdf-section="AI 종합 분석"><AiSummaryCard ai={report.ai_analysis} /></div>}
+      {!isAnnual && report.ai_analysis && effectiveIssueTypes === null && effectiveStatuses === null && effectiveSemester === null && <div data-pdf-section="AI 종합 분석"><AiSummaryCard ai={report.ai_analysis} /></div>}
       {isAnnual ? (
         <AnnualSummaryMetrics
           period={semesterLabel}
@@ -219,7 +239,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
         <SummaryCard label="결과 대기 중" value={resultPendingTotal}  color="yellow" icon={SUMMARY_ICONS.resultPending} onClick={() => setShowResultPending(true)} />
         <SummaryCard label="미완료 이슈"  value={incompleteTotal}   color="red"    icon={SUMMARY_ICONS.incomplete}    onClick={() => setShowIncomplete(true)}    />
       </div>}
-      {isAnnual && report.ai_analysis && effectiveIssueTypes === null && effectiveSemester === null && <div data-pdf-section="AI 종합 분석"><AiSummaryCard ai={report.ai_analysis} /></div>}
+      {isAnnual && report.ai_analysis && effectiveIssueTypes === null && effectiveStatuses === null && effectiveSemester === null && <div data-pdf-section="AI 종합 분석"><AiSummaryCard ai={report.ai_analysis} /></div>}
 
       {showWeeklyCreated && (
         <Suspense fallback={<ModalFallback />}>

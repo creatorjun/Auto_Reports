@@ -5,7 +5,7 @@ from datetime import datetime
 
 from src.application.ports.jira_port import JiraPort
 from src.application.ports.service_desk_port import ServiceDeskPort
-from src.domain.constants import JIRA_MAX_RESULT, STAGE_MAP, SUMMARY_TRUNCATE_LEN
+from src.domain.constants import STAGE_MAP, SUMMARY_TRUNCATE_LEN
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ class PartnerUseCase:
         fields_str   = ",".join(filter(None, [base_fields, extra_fields]))
 
         issues = await self._jira.get_issues(
-            jql, max_results=JIRA_MAX_RESULT, fields=fields_str
+            jql, max_results=None, fields=fields_str
         )
         for issue in issues:
             f = issue.get("fields") or {}

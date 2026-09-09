@@ -66,6 +66,8 @@ def _dict_to_dataclass(cls: type, data: Any) -> Any:
         return data
     kwargs: dict[str, Any] = {}
     for f in dataclasses.fields(cls):
+        if f.name not in data:
+            continue
         kwargs[f.name] = _coerce_field(f.type, data.get(f.name))
     return cls(**kwargs)
 

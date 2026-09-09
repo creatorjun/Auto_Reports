@@ -20,6 +20,18 @@ class PartnerJira:
         }
         return [next(count for account_id, count in counts.items() if account_id in jql) for jql in jqls]
 
+    async def get_issues(self, jql: str, max_results: int | None, fields: str) -> list[dict]:
+        self.issue_limit = max_results
+        return [{
+            "key": "TACEA-1",
+            "fields": {
+                "summary": "상태 필터 검증",
+                "issuetype": {"name": "인시던트"},
+                "status": {"name": "할 일"},
+                "created": "2026-09-01T09:00:00.000+0900",
+            },
+        }]
+
 
 class PartnerServiceDesk:
     async def get_organizations(self) -> list[dict]:
@@ -61,3 +73,18 @@ class PartnerUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(2, len(jira.jqls))
         self.assertTrue(all('project = "TACEA"' in jql for jql in jira.jqls))
         self.assertTrue(all("ORDER BY" not in jql for jql in jira.jqls))
+
+    async def test_member_issues_keep_current_status_and_are_not_limited_to_500(self) -> None:
+        jira = PartnerJira()
+        use_case = PartnerUseCase(
+            jira=jira,
+            service_desk=PartnerServiceDesk(),
+            project_key="TACEA",
+            tac_assignee_fid="",
+            qa_assignee_fid="",
+        )
+
+        issues = await use_case.get_issues_by_member("account-a")
+
+        self.assertIsNone(jira.issue_limit)
+        self.assertEqual("할 일", issues[0]["status"])

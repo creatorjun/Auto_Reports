@@ -207,7 +207,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
     async def get_issues_with_sla(
         self,
         jql: str,
-        max_results: int = JIRA_MAX_RESULT,
+        max_results: int | None = JIRA_MAX_RESULT,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]:
         base = "summary,issuetype,status,created,resolutiondate"
@@ -223,7 +223,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
     async def get_issues_with_assignees(
         self,
         jql: str,
-        max_results: int = JIRA_MAX_RESULT,
+        max_results: int | None = JIRA_MAX_RESULT,
         extra_fields: str = "",
     ) -> list[dict[str, Any]]:
         base = "summary,issuetype,status,created,reporter,assignee"

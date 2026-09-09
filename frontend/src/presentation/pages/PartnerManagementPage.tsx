@@ -1,5 +1,5 @@
 // frontend/src/presentation/pages/PartnerManagementPage.tsx
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { PartnerOrg, PartnerMember } from '@/domain/Partner'
 import type { Semester } from '@/domain/Dashboard'
 import PartnerOrgPanel from '@/presentation/components/partner/PartnerOrgPanel'
@@ -8,6 +8,7 @@ import PartnerIssuePanel from '@/presentation/components/partner/PartnerIssuePan
 import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
 import { useLatestReport } from '@/presentation/hooks/useReport'
 import { buildDashboardData } from '@/presentation/hooks/useDashboardData'
+import { sortDashboardStatuses } from '@/domain/DashboardStatusPolicy'
 
 export default function PartnerManagementPage() {
   const [organizationQuery, setOrganizationQuery] = useState('')
@@ -16,6 +17,8 @@ export default function PartnerManagementPage() {
   const [selectedOrg,       setSelectedOrg]       = useState<PartnerOrg | null>(null)
   const [selectedMember,    setSelectedMember]    = useState<PartnerMember | null>(null)
   const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<string> | null>(null)
+  const [loadedPartnerStatuses, setLoadedPartnerStatuses] = useState<string[]>([])
   const [selectedSemester, setSelectedSemester] = useState<Semester | null>(null)
   const latestReport = useLatestReport()
   const reportFilter = useMemo(
@@ -23,10 +26,17 @@ export default function PartnerManagementPage() {
     [latestReport.data],
   )
   const issueTypes = reportFilter?.issueTypes ?? []
+  const reportStatusTypes = reportFilter?.statusTypes ?? []
+  const statusTypes = useMemo(
+    () => sortDashboardStatuses([...reportStatusTypes, ...loadedPartnerStatuses]),
+    [loadedPartnerStatuses, reportStatusTypes],
+  )
   const reportYear = reportFilter?.reportYear ?? new Date().getFullYear()
   const supportsIssueTypeFiltering = reportFilter?.supportsIssueTypeFiltering ?? false
+  const supportsStatusFiltering = statusTypes.length > 0
   const supportsSemesterFiltering = reportFilter?.supportsSemesterFiltering ?? false
   const effectiveIssueTypes = supportsIssueTypeFiltering ? selectedIssueTypes : null
+  const effectiveStatuses = supportsStatusFiltering ? selectedStatuses : null
   const effectiveSemester = supportsSemesterFiltering ? selectedSemester : null
 
   const handleSelectOrg = (org: PartnerOrg) => {
@@ -44,6 +54,24 @@ export default function PartnerManagementPage() {
     })
   }
 
+  const handleStatusToggle = (status: string) => {
+    setSelectedStatuses((current) => {
+      const next = new Set(current ?? statusTypes)
+      if (next.has(status)) next.delete(status)
+      else next.add(status)
+      return next.size === statusTypes.length ? null : next
+    })
+  }
+
+  const handlePartnerStatusesChange = useCallback((statuses: string[]) => {
+    setLoadedPartnerStatuses((current) => {
+      const next = sortDashboardStatuses([...current, ...statuses])
+      return next.length === current.length && next.every((status, index) => status === current[index])
+        ? current
+        : next
+    })
+  }, [])
+
   const issueLabel = selectedMember
     ? `${selectedMember.display_name} 이슈`
     : selectedOrg
@@ -55,7 +83,7 @@ export default function PartnerManagementPage() {
       <div className="flex-shrink-0">
         <div>
           <h1 className="text-xl font-semibold text-apple-dark">파트너 관리</h1>
-          <p className="mt-1 text-xs text-apple-light">요청 유형·조회 기간은 이슈에 공통 적용되며, 조직·멤버·이슈 검색은 각 영역에서 개별로 동작합니다.</p>
+          <p className="mt-1 text-xs text-apple-light">요청 유형·현재 상태·조회 기간은 이슈에 공통 적용되며, 조직·멤버·이슈 검색은 각 영역에서 개별로 동작합니다.</p>
         </div>
       </div>
       {latestReport.isLoading ? (
@@ -63,14 +91,19 @@ export default function PartnerManagementPage() {
       ) : (
         <IssueTypeFilter
           issueTypes={issueTypes}
+          statuses={statusTypes}
           selectedTypes={selectedIssueTypes}
+          selectedStatuses={selectedStatuses}
           selectedSemester={selectedSemester}
           supported={supportsIssueTypeFiltering}
+          statusSupported={supportsStatusFiltering}
           semesterSupported={supportsSemesterFiltering}
           onToggle={handleIssueTypeToggle}
+          onStatusToggle={handleStatusToggle}
           onSemesterChange={setSelectedSemester}
           onReset={() => {
             setSelectedIssueTypes(null)
+            setSelectedStatuses(null)
             setSelectedSemester(null)
           }}
         />
@@ -103,8 +136,10 @@ export default function PartnerManagementPage() {
             onSearchChange={setIssueQuery}
             issueTypes={issueTypes}
             selectedIssueTypes={effectiveIssueTypes}
+            selectedStatuses={effectiveStatuses}
             selectedSemester={effectiveSemester}
             reportYear={reportYear}
+            onStatusesChange={handlePartnerStatusesChange}
           />
         </div>
       </div>

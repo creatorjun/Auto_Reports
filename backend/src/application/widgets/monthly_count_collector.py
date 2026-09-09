@@ -5,6 +5,7 @@ from typing import Tuple
 
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
+from src.application.widgets.issue_breakdown import count_issue_type_statuses
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import MonthlyCountEntry, MonthlyCountWidgetData
 from src.application.ports.jira_port import JiraPort
@@ -26,36 +27,33 @@ class MonthlyCountCollector(AbstractWidgetCollector):
             for month in range(1, self.MONTHS_PER_YEAR + 1)
         ]
 
-        created_jqls = [self._q.w8_monthly_created(y, m) for y, m in months]
-        resolved_jqls = [self._q.w9_monthly_resolved(y, m) for y, m in months]
-        base_jqls = created_jqls + resolved_jqls
-        query_groups = [
-            [
-                *self._q.by_issue_type(jql).values(),
-                self._q.outside_issue_types(jql),
-            ]
-            for jql in base_jqls
-        ]
-        all_jqls = [jql for queries in query_groups for jql in queries]
-
-        all_counts = await self._jira.get_issue_counts_batch(all_jqls)
-        issue_types = list(self._q.issue_types)
-        group_size = len(issue_types) + 1
-        grouped_counts = [
-            (
-                dict(zip(issue_types, all_counts[index:index + group_size - 1])),
-                all_counts[index + group_size - 1],
-            )
-            for index in range(0, len(all_counts), group_size)
-        ]
-        created_counts = grouped_counts[:len(months)]
-        resolved_counts = grouped_counts[len(months):]
+        fields = "issuetype,status,created,resolutiondate"
+        created_issues = await self._jira.get_issues(
+            self._q.w1_yearly_created(),
+            max_results=None,
+            fields=fields,
+        )
+        resolved_issues = await self._jira.get_issues(
+            self._q.w2_yearly_resolved(),
+            max_results=None,
+            fields=fields,
+        )
+        created_results = self._bucket_by_month(created_issues, "created", months)
+        resolved_results = self._bucket_by_month(resolved_issues, "resolutiondate", months)
 
         w8_entries: list[MonthlyCountEntry] = []
         w9_entries: list[MonthlyCountEntry] = []
-        for (y, m), created, resolved in zip(months, created_counts, resolved_counts):
-            created_by_type, created_always_included = created
-            resolved_by_type, resolved_always_included = resolved
+        for y, m in months:
+            created_month_issues = created_results[(y, m)]
+            resolved_month_issues = resolved_results[(y, m)]
+            created_by_type, created_always_included, created_by_status_type = count_issue_type_statuses(
+                created_month_issues,
+                self._q.issue_types,
+            )
+            resolved_by_type, resolved_always_included, resolved_by_status_type = count_issue_type_statuses(
+                resolved_month_issues,
+                self._q.issue_types,
+            )
             label = f"{m}월"
             w8_entries.append(MonthlyCountEntry(
                 month=label,
@@ -64,6 +62,7 @@ class MonthlyCountCollector(AbstractWidgetCollector):
                 count=sum(created_by_type.values()) + created_always_included,
                 by_type=created_by_type,
                 always_included=created_always_included,
+                by_status_type=created_by_status_type,
             ))
             w9_entries.append(MonthlyCountEntry(
                 month=label,
@@ -72,11 +71,12 @@ class MonthlyCountCollector(AbstractWidgetCollector):
                 count=sum(resolved_by_type.values()) + resolved_always_included,
                 by_type=resolved_by_type,
                 always_included=resolved_always_included,
+                by_status_type=resolved_by_status_type,
             ))
 
         logger.info(
             f"[w8/w9] 월별 등록/해결 {self._now.year}년 수집 완료 "
-            f"(배치 {len(all_jqls)}건 JQL → 단일 gather)"
+            "(연간 2건 JQL을 월별 상태·유형으로 분류)"
         )
         return (
             WidgetResult(
@@ -90,3 +90,20 @@ class MonthlyCountCollector(AbstractWidgetCollector):
                 data=MonthlyCountWidgetData(monthly=w9_entries),
             ),
         )
+
+    @staticmethod
+    def _bucket_by_month(
+        issues: list[dict],
+        field_name: str,
+        months: list[tuple[int, int]],
+    ) -> dict[tuple[int, int], list[dict]]:
+        buckets = {month: [] for month in months}
+        for issue in issues:
+            raw_value = str((issue.get("fields") or {}).get(field_name) or "")
+            try:
+                key = (int(raw_value[:4]), int(raw_value[5:7]))
+            except ValueError:
+                continue
+            if key in buckets:
+                buckets[key].append(issue)
+        return buckets

@@ -31,6 +31,14 @@ function loadSource(relative) {
 }
 
 const { filterPartnerIssues, sortPartnerOrganizationsByIssueCount } = loadSource('domain/Partner')
+const { sortDashboardStatuses } = loadSource('domain/DashboardStatusPolicy')
+
+test('orders known current statuses consistently and then sorts unknown statuses', () => {
+  assert.deepEqual(
+    sortDashboardStatuses(['새 상태 2', '닫힘', '할 일', '새 상태 1', '할 일']),
+    ['할 일', '닫힘', '새 상태 1', '새 상태 2'],
+  )
+})
 
 test('sorts partner organizations by total issue count without mutating the API result', () => {
   const organizations = [
@@ -60,24 +68,24 @@ test('uses the Korean partner name and id as deterministic tie breakers', () => 
   )
 })
 
-test('applies the dashboard issue-type and semester policy to partner issues', () => {
-  const issue = (key, type, created) => ({ key, type, created })
+test('applies the dashboard request-type, current-status and semester policy to partner issues', () => {
+  const issue = (key, type, status, created) => ({ key, type, status, created })
   const issues = [
-    issue('H1-INCIDENT', '인시던트', '2026-03-10 09:00'),
-    issue('H2-INCIDENT', '인시던트', '2026-08-10 09:00'),
-    issue('H1-IMPROVEMENT', '개선', '2026-04-10 09:00'),
-    issue('H1-HIDDEN', '승인된 서비스 요청', '2026-05-10 09:00'),
-    issue('H1-EXCLUDED', '라이선스 요청', '2026-05-10 09:00'),
-    issue('OLD-INCIDENT', '인시던트', '2025-03-10 09:00'),
+    issue('H1-INCIDENT', '인시던트', '할 일', '2026-03-10 09:00'),
+    issue('H2-INCIDENT', '인시던트', '닫힘', '2026-08-10 09:00'),
+    issue('H1-IMPROVEMENT', '개선', '닫힘', '2026-04-10 09:00'),
+    issue('H1-HIDDEN', '승인된 서비스 요청', '할 일', '2026-05-10 09:00'),
+    issue('H1-EXCLUDED', '라이선스 요청', '할 일', '2026-05-10 09:00'),
+    issue('OLD-INCIDENT', '인시던트', '할 일', '2025-03-10 09:00'),
   ]
 
   assert.deepEqual(
-    filterPartnerIssues(issues, new Set(['인시던트']), ['인시던트', '개선'], 'h1', 2026)
+    filterPartnerIssues(issues, new Set(['인시던트']), ['인시던트', '개선'], new Set(['할 일']), 'h1', 2026)
       .map(({ key }) => key),
     ['H1-INCIDENT', 'H1-HIDDEN'],
   )
   assert.deepEqual(
-    filterPartnerIssues(issues, null, ['인시던트', '개선'], null, 2026)
+    filterPartnerIssues(issues, null, ['인시던트', '개선'], null, null, 2026)
       .map(({ key }) => key),
     ['H1-INCIDENT', 'H2-INCIDENT', 'H1-IMPROVEMENT', 'H1-HIDDEN', 'OLD-INCIDENT'],
   )

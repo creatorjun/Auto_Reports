@@ -31,6 +31,7 @@ export interface MonthlyEntry {
   total: number
   by_type?: Record<string, { met: number; total: number }>
   always_included?: { met: number; total: number } | null
+  by_status_type?: Record<string, Record<string, { met: number; total: number }>>
 }
 
 export type Semester = 'h1' | 'h2'
@@ -42,6 +43,7 @@ export interface MonthlyCountEntry {
   count: number
   by_type?: Record<string, number>
   always_included?: number | null
+  by_status_type?: Record<string, Record<string, number>>
 }
 
 export interface CreatedIssue {

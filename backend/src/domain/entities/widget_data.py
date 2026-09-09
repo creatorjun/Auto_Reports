@@ -94,6 +94,8 @@ class TypeCountWidgetData:
     issue_types: list[str] = field(default_factory=list)
     by_type: dict[str, int] = field(default_factory=dict)
     always_included: int = 0
+    by_status_type: dict[str, dict[str, int]] = field(default_factory=dict)
+    status_breakdown_available: bool = False
 
 
 @dataclass
@@ -135,6 +137,8 @@ class ResolutionTypeEntry:
 class ResolutionTypeWidgetData:
     by_type: dict[str, ResolutionTypeEntry] = field(default_factory=dict)
     by_semester: dict[str, dict[str, ResolutionTypeEntry]] = field(default_factory=dict)
+    by_status_type: dict[str, dict[str, ResolutionTypeEntry]] = field(default_factory=dict)
+    by_semester_status_type: dict[str, dict[str, dict[str, ResolutionTypeEntry]]] = field(default_factory=dict)
 
 
 @dataclass
@@ -181,6 +185,7 @@ class ResolvedIssueDetail:
     summary: str
     type: str
     resolved: str
+    status: str = "기타"
 
 
 @dataclass
@@ -210,6 +215,7 @@ class MonthlyEntry:
     total: int
     by_type: dict[str, SlaMonthlyTypeStats] = field(default_factory=dict)
     always_included: SlaMonthlyTypeStats = field(default_factory=SlaMonthlyTypeStats)
+    by_status_type: dict[str, dict[str, SlaMonthlyTypeStats]] = field(default_factory=dict)
 
 
 @dataclass
@@ -230,6 +236,7 @@ class MonthlyCountEntry:
     count: int
     by_type: dict[str, int] = field(default_factory=dict)
     always_included: int = 0
+    by_status_type: dict[str, dict[str, int]] = field(default_factory=dict)
 
 
 @dataclass

@@ -29,7 +29,7 @@ class CreatedVsResolvedCollector(AbstractWidgetCollector):
             ),
             self._jira.get_issues(
                 resolved_jql, max_results=None,
-                fields="summary,issuetype,resolutiondate",
+                fields="summary,issuetype,status,resolutiondate",
             ),
         )
         now_ts = datetime.now()
@@ -52,6 +52,7 @@ class CreatedVsResolvedCollector(AbstractWidgetCollector):
                 key=issue.get("key", ""),
                 summary=(fields.get("summary") or "")[:60],
                 type=(fields.get("issuetype") or {}).get("name", "기타"),
+                status=(fields.get("status") or {}).get("name", "기타"),
                 resolved=resolved[:16].replace("T", " ") if resolved else "",
             )
 

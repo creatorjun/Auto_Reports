@@ -19,9 +19,11 @@ class RecentJira:
     def __init__(self, fields: dict) -> None:
         self.fields = fields
         self.requested_extra_fields: list[str] = []
+        self.requested_limits: list[int | None] = []
 
     async def get_issues_with_assignees(self, jql: str, max_results: int, extra_fields: str = "") -> list[dict]:
         self.requested_extra_fields.append(extra_fields)
+        self.requested_limits.append(max_results)
         return [{
             "key": "TACEA-1",
             "fields": {
@@ -63,6 +65,7 @@ class RecentCollectorTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("기존 담당자", detail.tac_team)
         self.assertEqual("보고자", detail.reporter)
         self.assertEqual(["customfield_12522"], jira.requested_extra_fields)
+        self.assertEqual([None], jira.requested_limits)
 
     async def test_missing_tac_does_not_reuse_qa_or_general_assignee(self) -> None:
         for fields, expected_assignee in [

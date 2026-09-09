@@ -4,6 +4,7 @@ from datetime import datetime
 
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
+from src.application.widgets.issue_breakdown import count_issue_type_statuses
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import (
     BreakdownWidgetData,
@@ -15,10 +16,7 @@ from src.domain.entities.widget_data import (
     TypeCountWidgetData,
 )
 from src.application.ports.jira_port import JiraPort
-from src.domain.constants import (
-    JIRA_MAX_RESULT,
-    SUMMARY_TRUNCATE_LEN,
-)
+from src.domain.constants import SUMMARY_TRUNCATE_LEN
 
 logger = logging.getLogger(__name__)
 
@@ -32,33 +30,35 @@ class TypeCountCollector(AbstractWidgetCollector):
         jira: JiraPort,
         name: str,
         jql: str,
-        queries_by_type: dict[str, str],
-        always_included_jql: str,
+        issue_types: list[str],
     ):
         self._jira = jira
         self._name = name
         self._jql = jql
-        self._queries_by_type = queries_by_type
-        self._always_included_jql = always_included_jql
+        self._issue_types = issue_types
 
     async def collect(self) -> WidgetResult[TypeCountWidgetData]:
-        issue_types = list(self._queries_by_type)
-        counts = await self._jira.get_issue_counts_batch([
-            *self._queries_by_type.values(),
-            self._always_included_jql,
-        ])
-        by_type = dict(zip(issue_types, counts[:-1]))
-        always_included = counts[-1]
-        total = sum(by_type.values()) + always_included
+        issues = await self._jira.get_issues(
+            self._jql,
+            max_results=None,
+            fields="issuetype,status,created,resolutiondate",
+        )
+        by_type, always_included, by_status_type = count_issue_type_statuses(
+            issues,
+            self._issue_types,
+        )
+        total = len(issues)
         logger.info(f"[{self._name}] {total}건")
         return WidgetResult(
             name=self._name,
             total=total,
             jql=self._jql,
             data=TypeCountWidgetData(
-                issue_types=issue_types,
+                issue_types=self._issue_types,
                 by_type=by_type,
                 always_included=always_included,
+                by_status_type=by_status_type,
+                status_breakdown_available=True,
             ),
         )
 
@@ -69,7 +69,7 @@ class SimpleWithDetailsCollector(AbstractWidgetCollector):
         jira: JiraPort,
         name: str,
         jql: str,
-        max_results: int | None = JIRA_MAX_RESULT,
+        max_results: int | None = None,
     ):
         self._jira = jira
         self._name = name
@@ -140,7 +140,7 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
 
     async def collect(self) -> WidgetResult[SlaMetVsViolatedWidgetData]:
         jql = self._q.w12_sla()
-        issues = await self._jira.get_issues_with_sla(jql, max_results=JIRA_MAX_RESULT)
+        issues = await self._jira.get_issues_with_sla(jql, max_results=None)
 
         only_initial_issues: list[SlaViolationIssueDetail] = []
         only_resolution_issues: list[SlaViolationIssueDetail] = []

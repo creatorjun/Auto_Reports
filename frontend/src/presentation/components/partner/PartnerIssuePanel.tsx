@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/partner/PartnerIssuePanel.tsx
+import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import { useJira } from '@/presentation/context/JiraContext'
@@ -6,12 +7,15 @@ import PartnerPanelHeader from './PartnerPanelHeader'
 import PartnerIssueRow from './PartnerIssueRow'
 import PartnerSearchInput from './PartnerSearchInput'
 import type { Semester } from '@/domain/Dashboard'
+import { sortDashboardStatuses } from '@/domain/DashboardStatusPolicy'
 import {
   filterPartnerIssues,
   matchesPartnerSearch,
   normalizePartnerSearch,
   type PartnerIssue,
 } from '@/domain/Partner'
+
+const EMPTY_PARTNER_ISSUES: PartnerIssue[] = []
 
 export default function PartnerIssuePanel({
   orgId,
@@ -21,8 +25,10 @@ export default function PartnerIssuePanel({
   onSearchChange,
   issueTypes,
   selectedIssueTypes,
+  selectedStatuses,
   selectedSemester,
   reportYear,
+  onStatusesChange,
 }: {
   orgId: string | null
   accountId: string | null
@@ -31,8 +37,10 @@ export default function PartnerIssuePanel({
   onSearchChange: (value: string) => void
   issueTypes: string[]
   selectedIssueTypes: ReadonlySet<string> | null
+  selectedStatuses: ReadonlySet<string> | null
   selectedSemester: Semester | null
   reportYear: number
+  onStatusesChange: (statuses: string[]) => void
 }) {
   const { partners } = useApplicationServices()
   const { jiraBrowse } = useJira()
@@ -52,12 +60,20 @@ export default function PartnerIssuePanel({
 
   const isLoading = accountId ? byMember.isLoading : byOrg.isLoading
   const issues: PartnerIssue[] = accountId
-    ? (byMember.data ?? [])
-    : (byOrg.data ?? [])
+    ? (byMember.data ?? EMPTY_PARTNER_ISSUES)
+    : (byOrg.data ?? EMPTY_PARTNER_ISSUES)
+  const availableStatuses = useMemo(
+    () => sortDashboardStatuses(issues.map((issue) => issue.status)),
+    [issues],
+  )
+  useEffect(() => {
+    onStatusesChange(availableStatuses)
+  }, [availableStatuses, onStatusesChange])
   const dashboardFilteredIssues = filterPartnerIssues(
     issues,
     selectedIssueTypes,
     issueTypes,
+    selectedStatuses,
     selectedSemester,
     reportYear,
   )
