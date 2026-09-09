@@ -101,7 +101,7 @@ function CommentEntry({ issueKey, comment }: { issueKey: string; comment: SlaDas
         </span>
       </div>
       {comment.body && (
-        <p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-apple-mid [overflow-wrap:anywhere]">
+        <p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-apple-dark [overflow-wrap:anywhere]">
           {comment.body}
         </p>
       )}
