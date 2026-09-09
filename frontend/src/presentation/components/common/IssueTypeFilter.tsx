@@ -1,5 +1,6 @@
 // frontend/src/presentation/components/common/IssueTypeFilter.tsx
-import { Check } from 'lucide-react'
+import { useState } from 'react'
+import { Check, ChevronDown } from 'lucide-react'
 import type { Semester } from '@/domain/Dashboard'
 
 interface Props {
@@ -31,13 +32,14 @@ export default function IssueTypeFilter({
   onSemesterChange,
   onReset,
 }: Props) {
+  const [expanded, setExpanded] = useState(false)
   const selectedCount = selectedTypes?.size ?? issueTypes.length
   const selectedStatusCount = selectedStatuses?.size ?? statuses.length
   const hasFilters = selectedTypes !== null || selectedStatuses !== null || selectedSemester !== null
 
   return (
     <section className="card" aria-labelledby="issue-type-filter-title">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className={`${expanded ? 'mb-3 ' : ''}flex flex-wrap items-center justify-between gap-2`}>
         <div className="flex flex-wrap items-center gap-2">
           <h2 id="issue-type-filter-title" className="text-ui-sm font-semibold text-apple-dark">
             필터
@@ -53,19 +55,40 @@ export default function IssueTypeFilter({
             </span>
           )}
         </div>
-        {(supported || statusSupported || semesterSupported) && (
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {(supported || statusSupported || semesterSupported) && (
+            <button
+              type="button"
+              onClick={onReset}
+              disabled={!hasFilters}
+              className="inline-flex min-h-9 items-center justify-center rounded-lg px-3 text-xs font-semibold text-apple-mid transition-colors hover:bg-apple-gray hover:text-brand-600 disabled:cursor-default disabled:opacity-40"
+            >
+              초기화
+            </button>
+          )}
           <button
             type="button"
-            onClick={onReset}
-            disabled={!hasFilters}
-            className="inline-flex min-h-9 items-center justify-center rounded-lg px-3 text-xs font-semibold text-apple-mid transition-colors hover:bg-apple-gray hover:text-brand-600 disabled:cursor-default disabled:opacity-40"
+            aria-expanded={expanded}
+            aria-controls="issue-filter-options"
+            onClick={() => setExpanded((current) => !current)}
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-apple-mid transition-colors hover:bg-apple-gray hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
-            초기화
+            {expanded ? '필터 접기' : '필터 펼치기'}
+            <ChevronDown
+              size={16}
+              aria-hidden="true"
+              className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+            />
           </button>
-        )}
+        </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_16rem] xl:items-end">
+      <div
+        id="issue-filter-options"
+        className={expanded
+          ? 'grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_16rem] xl:items-end'
+          : 'hidden'}
+      >
         <div className="min-w-0 flex-1">
           <div className="mb-2 text-xs font-semibold text-apple-mid">요청 유형</div>
           {supported ? (

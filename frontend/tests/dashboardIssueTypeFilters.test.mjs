@@ -170,6 +170,10 @@ for (const scope of ['standard', 'annual']) {
       onToggle() {}, onStatusToggle() {}, onSemesterChange() {}, onReset() {},
     }))
     assert.doesNotMatch(markup, /승인된 서비스 요청|케이스|라이선스/)
+    assert.match(markup, /aria-expanded="false"/)
+    assert.match(markup, /aria-controls="issue-filter-options"/)
+    assert.match(markup, /필터 펼치기/)
+    assert.match(markup, /id="issue-filter-options" class="hidden"/)
     assert.match(markup, /2\/2/)
     assert.match(markup, /현재 상태 2\/2/)
     assert.match(markup, /할 일/)
