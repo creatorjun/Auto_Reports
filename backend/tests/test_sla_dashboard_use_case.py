@@ -9,12 +9,18 @@ from unittest.mock import AsyncMock
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.errors import EntityNotFoundError
-from src.application.ports.jira_port import JiraAttachmentContent
+from src.application.ports.jira_port import (
+    JiraAttachmentContent,
+    JiraComment,
+    JiraIssue,
+    JiraIssueField,
+)
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.domain.entities.report import Report
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import RecentIssueDetail, RecentIssueWidgetData
 from src.domain.value_objects.widget_id import WidgetId
+from src.infrastructure.external.jira_client import JiraClient
 
 
 class FakeReports:
@@ -27,7 +33,7 @@ class FakeReports:
 
 class FakeJira:
     def __init__(self) -> None:
-        self.issues: list[dict[str, Any]] = []
+        self.issues: list[JiraIssue] = []
         self.comments: list[dict[str, Any]] = []
         self.issue_requests: list[tuple[str, int, str]] = []
         self.comment_requests: list[tuple[str, int, int]] = []
@@ -39,8 +45,8 @@ class FakeJira:
         self,
         jql: str,
         max_results: int,
-        fields: str,
-    ) -> list[dict[str, Any]]:
+        fields: frozenset[JiraIssueField],
+    ) -> list[JiraIssue]:
         self.issue_requests.append((jql, max_results, fields))
         return self.issues
 
@@ -49,25 +55,29 @@ class FakeJira:
         issue_key: str,
         max_results: int,
         offset: int = 0,
-    ) -> list[dict[str, Any]]:
+    ) -> list[JiraComment]:
         self.comment_requests.append((issue_key, max_results, offset))
         ordered = sorted(
             self.comments,
             key=lambda comment: str(comment.get("created", "")),
             reverse=True,
         )
-        return ordered[offset:offset + max_results]
+        return [
+            JiraClient._map_comment(comment)
+            for comment in ordered[offset:offset + max_results]
+        ]
 
     async def get_issue_comment(
         self,
         issue_key: str,
         comment_id: str,
-    ) -> dict[str, Any] | None:
+    ) -> JiraComment | None:
         self.single_comment_requests.append((issue_key, comment_id))
-        return next(
+        comment = next(
             (comment for comment in self.comments if comment["id"] == comment_id),
             None,
         )
+        return JiraClient._map_comment(comment) if comment is not None else None
 
     async def get_attachment_content(
         self,
@@ -130,18 +140,14 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_lists_latest_report_issues_with_live_activity_fields(self) -> None:
-        self.jira.issues = [
-            {
-                "key": "TACEA-4501",
-                "fields": {
-                    "summary": "실시간 티켓 제목",
-                    "issuetype": {"name": "서비스 요청"},
-                    "created": "2026-08-20T09:10:11.000+0900",
-                    "updated": "2026-08-21T14:15:16.000+0900",
-                    "status": {"name": "구현 중"},
-                },
-            }
-        ]
+        self.jira.issues = [JiraIssue(
+            key="TACEA-4501",
+            summary="실시간 티켓 제목",
+            issue_type="서비스 요청",
+            created="2026-08-20T09:10:11.000+0900",
+            updated="2026-08-21T14:15:16.000+0900",
+            status="구현 중",
+        )]
 
         issues = await self.use_case.list_recent_issues()
 
@@ -161,7 +167,13 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
                 "issuekey IN (TACEA-4501, TACEA-4500) "
                 "ORDER BY created ASC, issuekey ASC",
                 500,
-                "summary,issuetype,created,updated,status",
+                frozenset({
+                    JiraIssueField.SUMMARY,
+                    JiraIssueField.ISSUE_TYPE,
+                    JiraIssueField.CREATED,
+                    JiraIssueField.UPDATED,
+                    JiraIssueField.STATUS,
+                }),
             ),
             self.jira.issue_requests[0],
         )
@@ -259,7 +271,10 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
             {"id": "105", "created": "2026-09-08T11:55:00.000+0900"},
             {"id": "106", "created": "2026-09-08T02:54:00.000+0000"},
         ]
-        self.jira.get_issue_comments = AsyncMock(side_effect=[comments[:6], comments[5:]])
+        self.jira.get_issue_comments = AsyncMock(side_effect=[
+            [JiraClient._map_comment(comment) for comment in comments[:6]],
+            [JiraClient._map_comment(comment) for comment in comments[5:]],
+        ])
 
         first = await self.use_case.list_recent_comments("TACEA-4501")
         second = await self.use_case.list_recent_comments(

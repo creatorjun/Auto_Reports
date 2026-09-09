@@ -47,11 +47,10 @@ def create_app(settings: Settings) -> FastAPI:
                 application.state.services = ApiServices(
                     auth=container.auth,
                     audit=audit,
-                    jira=container.jira,
                     jira_base_url=container.jira_base_url,
-                    project_key=settings.project_key,
                     job_runner=job_runner,
                     partner=container.partner,
+                    search=container.search,
                     storage=container.storage,
                     get_report=container.get_report,
                     get_site=container.get_site,

@@ -97,6 +97,56 @@ class ArchitectureTest(unittest.TestCase):
                     )
         self.assertEqual([], violations)
 
+    def test_provider_payload_shapes_stay_in_infrastructure(self) -> None:
+        provider_terms = {
+            "completedCycles",
+            "ongoingCycle",
+            "renderedBody",
+            "displayName",
+            "accountId",
+            "workspaceId",
+            "objectId",
+        }
+        violations: list[str] = []
+        for layer in ("application", "presentation"):
+            for path in (SOURCE / layer).rglob("*.py"):
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+                for node in ast.walk(tree):
+                    if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+                        continue
+                    if node.value in provider_terms or "customfield_" in node.value:
+                        violations.append(
+                            f"{path.relative_to(SOURCE)}:{node.lineno}:{node.value}"
+                        )
+        self.assertEqual([], violations)
+
+    def test_presentation_does_not_call_jira_output_port(self) -> None:
+        violations: list[str] = []
+        for path in (SOURCE / "presentation").rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                for module in imported_modules(path, node):
+                    if module == "src.application.ports.jira_port":
+                        violations.append(
+                            f"{path.relative_to(SOURCE)}:{node.lineno}:{module}"
+                        )
+        self.assertEqual([], violations)
+
+    def test_report_collectors_receive_time_from_the_use_case(self) -> None:
+        violations: list[str] = []
+        for path in (SOURCE / "application" / "widgets").rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                if not isinstance(node.func, ast.Attribute):
+                    continue
+                if node.func.attr == "now":
+                    violations.append(
+                        f"{path.relative_to(SOURCE)}:{node.lineno}:wall-clock"
+                    )
+        self.assertEqual([], violations)
+
     def test_source_comments_follow_project_rule(self) -> None:
         violations: list[str] = []
         for path in ROOT.rglob("*.py"):

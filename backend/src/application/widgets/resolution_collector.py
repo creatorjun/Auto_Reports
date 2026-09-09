@@ -6,22 +6,30 @@ from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import ResolutionTypeEntry, ResolutionTypeWidgetData
-from src.application.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraIssueField, JiraPort
 
 logger = logging.getLogger(__name__)
 
 
 class ResolutionCollector(AbstractWidgetCollector):
-    def __init__(self, jira: JiraPort, q: ResolvedQueries):
+    def __init__(self, jira: JiraPort, q: ResolvedQueries, now: datetime):
         self._jira = jira
         self._q = q
+        self._now = now.replace(tzinfo=None)
 
     async def collect(self) -> WidgetResult[ResolutionTypeWidgetData]:
         jql = self._q.w14_resolution_resolved()
         issues = await self._jira.get_issues(
-            jql, max_results=None, fields="summary,issuetype,status,created,resolutiondate",
+            jql,
+            max_results=None,
+            fields=frozenset({
+                JiraIssueField.SUMMARY,
+                JiraIssueField.ISSUE_TYPE,
+                JiraIssueField.STATUS,
+                JiraIssueField.CREATED,
+                JiraIssueField.RESOLVED,
+            }),
         )
-        now_ts = datetime.now()
         by_type: dict[str, list[float]] = {}
         by_semester: dict[str, dict[str, list[float]]] = {"h1": {}, "h2": {}}
         by_status_type: dict[str, dict[str, list[float]]] = {}
@@ -30,14 +38,13 @@ class ResolutionCollector(AbstractWidgetCollector):
             "h2": {},
         }
         for issue in issues:
-            fields = issue.get("fields") or {}
-            itype = (fields.get("issuetype") or {}).get("name", "기타")
-            status = (fields.get("status") or {}).get("name", "기타")
-            created = fields.get("created", "")
-            resolved = fields.get("resolutiondate", "")
+            itype = issue.issue_type or "기타"
+            status = issue.status or "기타"
+            created = issue.created
+            resolved = issue.resolved
             if not created:
                 continue
-            end_ts = datetime.fromisoformat(resolved[:19]) if resolved else now_ts
+            end_ts = datetime.fromisoformat(resolved[:19]) if resolved else self._now
             elapsed = (end_ts - datetime.fromisoformat(created[:19])).total_seconds() / 3600
             by_type.setdefault(itype, []).append(elapsed)
             semester = "h1" if end_ts.month <= 6 else "h2"

@@ -1,8 +1,10 @@
 # backend/src/presentation/schemas/partner_schema.py
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class PartnerOrgSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     issue_count: int
@@ -13,6 +15,8 @@ class PartnerOrgsResponse(BaseModel):
 
 
 class PartnerMemberSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     account_id: str
     display_name: str
     email: str
@@ -24,6 +28,8 @@ class PartnerMembersResponse(BaseModel):
 
 
 class RecentIssueSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     key: str
     summary: str
     type: str

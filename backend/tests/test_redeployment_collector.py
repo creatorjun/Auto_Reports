@@ -3,11 +3,13 @@ import datetime
 import pathlib
 import sys
 import unittest
+from dataclasses import replace
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
+from src.application.ports.jira_port import JiraAssetReference, JiraIssue
 from src.application.widgets.redeployment_collector import RedeploymentAnalyticsCollector
 from src.domain.entities.widget_data import RedeploymentAnalyticsWidgetData
 from src.domain.value_objects.widget_id import WidgetId
@@ -22,22 +24,18 @@ def issue(
     cause: str,
     assignee: str,
     partner_id: str,
-) -> dict:
-    return {
-        "key": key,
-        "fields": {
-            "summary": f"{key} summary",
-            "issuetype": {"name": issue_type},
-            "priority": {"name": "Medium"},
-            "resolutiondate": resolved,
-            "assignee": {"displayName": assignee},
-            "customfield_12421": {"value": month},
-            "customfield_11885": {"value": cause},
-            "customfield_10859": [
-                {"workspaceId": "workspace", "objectId": partner_id}
-            ],
-        },
-    }
+) -> JiraIssue:
+    return JiraIssue(
+        key=key,
+        summary=f"{key} summary",
+        issue_type=issue_type,
+        priority="Medium",
+        resolved=resolved,
+        assignee=assignee,
+        redeployment_month=month,
+        redeployment_cause=cause,
+        partner_references=(JiraAssetReference("workspace", partner_id),),
+    )
 
 
 class RedeploymentJira:
@@ -51,18 +49,18 @@ class RedeploymentJira:
     async def get_issue_count(self, jql: str) -> int:
         return 3 if "\uc7ac\ubc30\ud3ec \uc5ec\ubd80" in jql else 10
 
-    async def get_issues(self, jql: str, max_results: int | None, fields: str) -> list[dict]:
+    async def get_redeployment_issues(self, jql: str, max_results: int | None) -> list[JiraIssue]:
         if max_results is not None:
             raise AssertionError("redeployment collection must not be capped")
         return self.issues
 
     async def get_asset_object_labels(
         self,
-        references: list[tuple[str, str]],
-    ) -> dict[tuple[str, str], str]:
+        references: list[JiraAssetReference],
+    ) -> dict[JiraAssetReference, str]:
         return {
-            ("workspace", "1"): "\ud30c\ud2b8\ub108 A",
-            ("workspace", "2"): "\ud30c\ud2b8\ub108 B",
+            JiraAssetReference("workspace", "1"): "\ud30c\ud2b8\ub108 A",
+            JiraAssetReference("workspace", "2"): "\ud30c\ud2b8\ub108 B",
         }
 
 
@@ -105,7 +103,7 @@ class RedeploymentCollectorTest(unittest.IsolatedAsyncioTestCase):
             "\ub2f4\ub2f9\uc790 D",
             "4",
         )
-        empty_partner_issue["fields"]["customfield_10859"] = []
+        empty_partner_issue = replace(empty_partner_issue, partner_references=())
         unassigned_label_issue = issue(
             "TACEA-5",
             "\uac1c\uc120",
@@ -119,7 +117,7 @@ class RedeploymentCollectorTest(unittest.IsolatedAsyncioTestCase):
         empty_detail = RedeploymentAnalyticsCollector._to_detail(empty_partner_issue, {})
         label_detail = RedeploymentAnalyticsCollector._to_detail(
             unassigned_label_issue,
-            {("workspace", "5"): "\ubbf8\uc9c0\uc815"},
+            {JiraAssetReference("workspace", "5"): "\ubbf8\uc9c0\uc815"},
         )
 
         self.assertEqual(["\uc2dc\ud050\ub808\uc774\uc5b4"], empty_detail.partners)

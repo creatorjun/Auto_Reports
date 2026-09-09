@@ -1,8 +1,8 @@
 # backend/src/application/widgets/created_vs_resolved_collector.py
 import asyncio
 import logging
-from datetime import datetime
 
+from src.application.ports.jira_port import JiraIssue, JiraIssueField, JiraPort
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
@@ -11,7 +11,6 @@ from src.domain.entities.widget_data import (
     CreatedResolvedIssueDetail,
     ResolvedIssueDetail,
 )
-from src.application.ports.jira_port import JiraPort
 logger = logging.getLogger(__name__)
 
 
@@ -25,35 +24,39 @@ class CreatedVsResolvedCollector(AbstractWidgetCollector):
         created_issues, resolved_issues = await asyncio.gather(
             self._jira.get_issues(
                 created_jql, max_results=None,
-                fields="summary,issuetype,status,created",
+                fields=frozenset({
+                    JiraIssueField.SUMMARY,
+                    JiraIssueField.ISSUE_TYPE,
+                    JiraIssueField.STATUS,
+                    JiraIssueField.CREATED,
+                }),
             ),
             self._jira.get_issues(
                 resolved_jql, max_results=None,
-                fields="summary,issuetype,status,resolutiondate",
+                fields=frozenset({
+                    JiraIssueField.SUMMARY,
+                    JiraIssueField.ISSUE_TYPE,
+                    JiraIssueField.STATUS,
+                    JiraIssueField.RESOLVED,
+                }),
             ),
         )
-        now_ts = datetime.now()
-
-        def _to_created(issue: dict) -> CreatedResolvedIssueDetail:
-            fields = issue.get("fields") or {}
-            created = fields.get("created", "")
+        def _to_created(issue: JiraIssue) -> CreatedResolvedIssueDetail:
             return CreatedResolvedIssueDetail(
-                key=issue.get("key", ""),
-                summary=(fields.get("summary") or "")[:60],
-                type=(fields.get("issuetype") or {}).get("name", "기타"),
-                status=(fields.get("status") or {}).get("name", "기타"),
-                created=created[:16].replace("T", " ") if created else "",
+                key=issue.key,
+                summary=issue.summary[:60],
+                type=issue.issue_type or "기타",
+                status=issue.status or "기타",
+                created=issue.created[:16].replace("T", " "),
             )
 
-        def _to_resolved(issue: dict) -> ResolvedIssueDetail:
-            fields = issue.get("fields") or {}
-            resolved = fields.get("resolutiondate", "") or ""
+        def _to_resolved(issue: JiraIssue) -> ResolvedIssueDetail:
             return ResolvedIssueDetail(
-                key=issue.get("key", ""),
-                summary=(fields.get("summary") or "")[:60],
-                type=(fields.get("issuetype") or {}).get("name", "기타"),
-                status=(fields.get("status") or {}).get("name", "기타"),
-                resolved=resolved[:16].replace("T", " ") if resolved else "",
+                key=issue.key,
+                summary=issue.summary[:60],
+                type=issue.issue_type or "기타",
+                status=issue.status or "기타",
+                resolved=issue.resolved[:16].replace("T", " "),
             )
 
         created_details  = [_to_created(i)  for i in created_issues]

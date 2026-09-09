@@ -8,6 +8,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
+from src.application.ports.jira_port import JiraIssue, JiraIssueField
 from src.application.widgets.count_collector import TypeCountCollector
 from src.application.widgets.monthly_collector import MonthlyCollector
 from src.application.widgets.monthly_count_collector import MonthlyCountCollector
@@ -17,50 +18,44 @@ from src.infrastructure.persistence.widget_serializer import deserialize_widget,
 
 
 class BatchCountJira:
-    async def get_issues(self, jql: str, max_results: int | None, fields: str) -> list[dict]:
+    async def get_issues(self, jql: str, max_results: int | None, fields: frozenset[JiraIssueField]) -> list[JiraIssue]:
         if 'issuetype != "라이선스"' not in jql:
             raise AssertionError("라이선스 제외 조건이 필요합니다")
         if max_results is not None:
             raise AssertionError("상태별 집계는 전체 이슈를 수집해야 합니다")
-        if fields != "issuetype,status,created,resolutiondate":
+        if fields != frozenset({
+            JiraIssueField.ISSUE_TYPE,
+            JiraIssueField.STATUS,
+            JiraIssueField.CREATED,
+            JiraIssueField.RESOLVED,
+        }):
             raise AssertionError("상태, 요청 유형, 월 분류 필드가 필요합니다")
-        issues = [
-            {"fields": {"issuetype": {"name": "인시던트"}, "status": {"name": "할 일"}}},
-            {"fields": {"issuetype": {"name": "인시던트"}, "status": {"name": "Closed"}}},
-            {"fields": {"issuetype": {"name": "인시던트"}, "status": {"name": "Closed"}}},
-            {"fields": {"issuetype": {"name": "토글 외 요청"}, "status": {"name": "할 일"}}},
-            {"fields": {"issuetype": {"name": "토글 외 요청"}, "status": {"name": "할 일"}}},
-            {"fields": {"issuetype": {"name": "토글 외 요청"}, "status": {"name": "Closed"}}},
+        return [
+            JiraIssue(issue_type="인시던트", status="할 일", created="2026-01-10T09:00:00.000+0900", resolved="2026-01-12T09:00:00.000+0900"),
+            JiraIssue(issue_type="인시던트", status="Closed", created="2026-01-10T09:00:00.000+0900", resolved="2026-01-12T09:00:00.000+0900"),
+            JiraIssue(issue_type="인시던트", status="Closed", created="2026-01-10T09:00:00.000+0900", resolved="2026-01-12T09:00:00.000+0900"),
+            JiraIssue(issue_type="토글 외 요청", status="할 일", created="2026-01-10T09:00:00.000+0900", resolved="2026-01-12T09:00:00.000+0900"),
+            JiraIssue(issue_type="토글 외 요청", status="할 일", created="2026-01-10T09:00:00.000+0900", resolved="2026-01-12T09:00:00.000+0900"),
+            JiraIssue(issue_type="토글 외 요청", status="Closed", created="2026-01-10T09:00:00.000+0900", resolved="2026-01-12T09:00:00.000+0900"),
         ]
-        for issue in issues:
-            issue["fields"]["created"] = "2026-01-10T09:00:00.000+0900"
-            issue["fields"]["resolutiondate"] = "2026-01-12T09:00:00.000+0900"
-        return issues
 
 
 class SlaJira:
-    async def get_issues_with_sla(self, jql: str, max_results: int, extra_fields: str = "") -> list[dict]:
+    async def get_issues_with_sla(self, jql: str, max_results: int) -> list[JiraIssue]:
         if 'issuetype != "라이선스"' not in jql:
             raise AssertionError("라이선스 제외 조건이 필요합니다")
         return [
-            {
-                "fields": {
-                    "issuetype": {"name": "인시던트"},
-                    "status": {"name": "할 일"},
-                    "created": "2026-01-10T09:00:00.000+0900",
-                    "_sla_initial": {"completedCycles": [{"breached": False}]},
-                    "_sla_resolution": {"completedCycles": [{"breached": False}]},
-                },
-            },
-            {
-                "fields": {
-                    "issuetype": {"name": "토글 외 요청"},
-                    "status": {"name": "Closed"},
-                    "created": "2026-01-11T09:00:00.000+0900",
-                    "_sla_initial": {"completedCycles": [{"breached": False}]},
-                    "_sla_resolution": {"completedCycles": [{"breached": True}]},
-                },
-            },
+            JiraIssue(
+                issue_type="인시던트",
+                status="할 일",
+                created="2026-01-10T09:00:00.000+0900",
+            ),
+            JiraIssue(
+                issue_type="토글 외 요청",
+                status="Closed",
+                created="2026-01-11T09:00:00.000+0900",
+                resolution_breached=True,
+            ),
         ]
 
 

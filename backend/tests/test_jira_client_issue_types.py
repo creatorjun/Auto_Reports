@@ -5,10 +5,72 @@ import unittest
 
 import httpx
 
+from src.application.ports.jira_port import JiraIssueField
 from src.infrastructure.external.jira_client import JiraClient
 
 
 class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
+    async def test_maps_provider_fields_at_the_adapter_boundary(self) -> None:
+        requested_fields: list[list[str]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requested_fields.append(json.loads(request.content)["fields"])
+            return httpx.Response(200, json={"issues": [{
+                "key": "TACEA-1",
+                "fields": {
+                    "summary": "경계 변환",
+                    "issuetype": {"name": "인시던트"},
+                    "status": {"name": "할 일"},
+                    "created": "2026-09-01T09:00:00.000+0900",
+                    "customfield_90001": {"completedCycles": [{"breached": True}]},
+                    "customfield_90002": {"completedCycles": [{"breached": False}]},
+                    "customfield_90003": {"displayName": "TAC 담당자"},
+                    "customfield_90004": {"displayName": "QA 담당자"},
+                    "customfield_90005": [None, {}, {"name": "최근 담당자"}],
+                    "customfield_12421": {"value": "2026-09"},
+                    "customfield_11885": {"value": "배포 실수"},
+                    "customfield_10859": [{
+                        "workspaceId": "workspace",
+                        "objectId": "partner-1",
+                    }],
+                },
+            }]})
+
+        client = JiraClient(
+            "https://jira.example.com",
+            "user",
+            "token",
+            sla_initial_response_field_id="customfield_90001",
+            sla_resolution_field_id="customfield_90002",
+            jira_tac_assignee_field_id="customfield_90003",
+            jira_qa_assignee_field_id="customfield_90004",
+            jira_recent_tac_assignee_field_id="customfield_90005",
+        )
+        await client._client.aclose()
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            sla_issue = (await client.get_issues_with_sla("project = TACEA"))[0]
+            assignee_issue = (
+                await client.get_issues_with_assignees("project = TACEA")
+            )[0]
+            redeployment_issue = (
+                await client.get_redeployment_issues("project = TACEA")
+            )[0]
+        finally:
+            await client.aclose()
+
+        self.assertTrue(sla_issue.initial_response_breached)
+        self.assertFalse(sla_issue.resolution_breached)
+        self.assertEqual("TAC 담당자", assignee_issue.tac_assignee)
+        self.assertEqual("QA 담당자", assignee_issue.qa_assignee)
+        self.assertEqual("최근 담당자", assignee_issue.recent_tac_assignee)
+        self.assertEqual("2026-09", redeployment_issue.redeployment_month)
+        self.assertEqual("배포 실수", redeployment_issue.redeployment_cause)
+        self.assertEqual("partner-1", redeployment_issue.partner_references[0].object_id)
+        self.assertIn("customfield_90001", requested_fields[0])
+        self.assertIn("customfield_90005", requested_fields[1])
+        self.assertIn("customfield_10859", requested_fields[2])
+
     async def test_concurrent_identical_queries_share_inflight_requests(self) -> None:
         requests = {"issues": 0, "counts": 0}
 
@@ -26,7 +88,10 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         try:
             issue_results = await asyncio.gather(*(
-                client.get_issues("project = TACEA", fields="summary")
+                client.get_issues(
+                    "project = TACEA",
+                    fields=frozenset({JiraIssueField.SUMMARY}),
+                )
                 for _ in range(20)
             ))
             count_results = await asyncio.gather(*(
@@ -36,7 +101,7 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         finally:
             await client.aclose()
 
-        self.assertTrue(all(result == [{"key": "TACEA-1"}] for result in issue_results))
+        self.assertTrue(all([issue.key for issue in result] == ["TACEA-1"] for result in issue_results))
         self.assertEqual([7] * 20, count_results)
         self.assertEqual({"issues": 1, "counts": 1}, requests)
 
@@ -63,7 +128,7 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
             result = await client.get_issues(
                 "project = TACEA",
                 max_results=None,
-                fields="summary",
+                fields=frozenset({JiraIssueField.SUMMARY}),
             )
         finally:
             await client.aclose()
@@ -120,7 +185,7 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         finally:
             await client.aclose()
 
-        self.assertEqual([{"id": "10001"}], comments)
+        self.assertEqual(["10001"], [comment.id for comment in comments])
         self.assertEqual("renderedBody", requests[0].url.params["expand"])
         self.assertEqual(
             "/rest/api/3/attachment/content/10017",
@@ -159,8 +224,8 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         finally:
             await client.aclose()
 
-        self.assertEqual(["12", "11", "10", "9", "8", "7"], [c["id"] for c in first])
-        self.assertEqual(["7", "6", "5", "4", "3", "2"], [c["id"] for c in second])
+        self.assertEqual(["12", "11", "10", "9", "8", "7"], [c.id for c in first])
+        self.assertEqual(["7", "6", "5", "4", "3", "2"], [c.id for c in second])
         self.assertEqual(first, first_reloaded)
         self.assertEqual(second, second_reloaded)
         self.assertEqual(first[:5], smaller)
@@ -194,9 +259,9 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         finally:
             await client.aclose()
 
-        self.assertEqual([str(index) for index in range(20, 9, -1)], [c["id"] for c in first])
-        self.assertEqual([str(index) for index in range(21, 10, -1)], [c["id"] for c in second])
-        self.assertEqual(["21", *[str(index) for index in range(19, 9, -1)]], [c["id"] for c in third])
+        self.assertEqual([str(index) for index in range(20, 9, -1)], [c.id for c in first])
+        self.assertEqual([str(index) for index in range(21, 10, -1)], [c.id for c in second])
+        self.assertEqual(["21", *[str(index) for index in range(19, 9, -1)]], [c.id for c in third])
         self.assertEqual(3, len(requests))
 
     async def test_loads_single_comment_scoped_to_issue_with_rendered_body(self) -> None:
@@ -224,8 +289,8 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         finally:
             await client.aclose()
 
-        self.assertEqual("10001", comment["id"])
-        self.assertIn("10017", comment["renderedBody"])
+        self.assertEqual("10001", comment.id)
+        self.assertEqual("10017", comment.images[0].attachment_id)
         self.assertIsNone(missing)
         self.assertEqual(
             "/rest/api/3/issue/TACEA-4501/comment/10001", requests[0].url.path,
@@ -256,8 +321,8 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         finally:
             await client.aclose()
 
-        self.assertEqual([str(index) for index in range(106)], [c["id"] for c in comments])
-        self.assertEqual([str(index) for index in range(125, 130)], [c["id"] for c in final])
+        self.assertEqual([str(index) for index in range(106)], [c.id for c in comments])
+        self.assertEqual([str(index) for index in range(125, 130)], [c.id for c in final])
         self.assertEqual([(0, 100), (100, 6), (125, 16)], requests)
 
     async def test_comment_limit_handles_smaller_jira_pages_until_requested_size(self) -> None:
@@ -283,5 +348,5 @@ class JiraClientIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         finally:
             await client.aclose()
 
-        self.assertEqual([str(index) for index in range(11)], [c["id"] for c in comments])
+        self.assertEqual([str(index) for index in range(11)], [c.id for c in comments])
         self.assertEqual([(0, 11), (4, 7), (8, 3)], requests)

@@ -1,19 +1,31 @@
 # backend/src/infrastructure/external/jira_client.py
 import asyncio
 import logging
+import re
+from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import quote
 
 import httpx
 
-from src.application.ports.jira_port import JiraAttachmentContent, JiraPort
+from src.application.ports.jira_port import (
+    JiraAssetReference,
+    JiraAttachmentContent,
+    JiraComment,
+    JiraCommentImage,
+    JiraIssue,
+    JiraIssueField,
+    JiraPort,
+)
 from src.application.ports.service_desk_port import ServiceDeskPort
+from src.application.ports.search_port import SearchPort
 from src.domain.constants import JIRA_MAX_RESULT
+from src.domain.entities.partner import PartnerMember, PartnerOrganization
+from src.domain.entities.search import SearchResult, SearchSource
 from src.infrastructure.cache.lru_cache import LruCache
 
 logger = logging.getLogger(__name__)
 
-SLA_SCHEMA_TYPE = "sd-servicelevelagreement"
 _JIRA_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0)
 _JIRA_LIMITS  = httpx.Limits(max_connections=30, max_keepalive_connections=15)
 
@@ -23,10 +35,20 @@ _SD_HEADERS = {
     "X-ExperimentalApi": "opt-in",
 }
 
-_SLA_INITIAL_KEY    = "_sla_initial"
-_SLA_RESOLUTION_KEY = "_sla_resolution"
-_TAC_ASSIGNEE_KEY   = "_tac_assignee"
-_QA_ASSIGNEE_KEY    = "_qa_assignee"
+_REDEPLOYMENT_MONTH_FIELD = "customfield_12421"
+_REDEPLOYMENT_CAUSE_FIELD = "customfield_11885"
+_REDEPLOYMENT_PARTNER_FIELD = "customfield_10859"
+_JIRA_FIELD_NAMES: dict[JiraIssueField, str] = {
+    JiraIssueField.SUMMARY: "summary",
+    JiraIssueField.ISSUE_TYPE: "issuetype",
+    JiraIssueField.STATUS: "status",
+    JiraIssueField.CREATED: "created",
+    JiraIssueField.UPDATED: "updated",
+    JiraIssueField.RESOLVED: "resolutiondate",
+    JiraIssueField.PRIORITY: "priority",
+    JiraIssueField.REPORTER: "reporter",
+    JiraIssueField.ASSIGNEE: "assignee",
+}
 
 _FETCH_PAGE_SIZE      = 100
 
@@ -47,9 +69,74 @@ _COMMENT_IMAGE_MEDIA_TYPES = frozenset({
     "image/png",
     "image/webp",
 })
+_ATTACHMENT_ID_PATTERN = re.compile(
+    r"/(?:rest/api/[23]/attachment/content|secure/attachment)/(\d+)(?:[/?#]|$)",
+    re.IGNORECASE,
+)
 
 
-class JiraClient(JiraPort, ServiceDeskPort):
+class _CommentImageParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.images: list[JiraCommentImage] = []
+        self._seen: set[str] = set()
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        if tag.lower() != "img":
+            return
+        values = {name.lower(): value or "" for name, value in attrs}
+        match = _ATTACHMENT_ID_PATTERN.search(values.get("src", ""))
+        if match is None or match.group(1) in self._seen:
+            return
+        attachment_id = match.group(1)
+        self._seen.add(attachment_id)
+        self.images.append(
+            JiraCommentImage(
+                attachment_id=attachment_id,
+                alt=values.get("alt") or values.get("title") or "댓글 첨부 이미지",
+            )
+        )
+
+
+def _adf_text(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "".join(_adf_text(item) for item in value)
+    if not isinstance(value, dict):
+        return ""
+    node_type = value.get("type", "")
+    attrs = value.get("attrs") or {}
+    if node_type == "text":
+        return str(value.get("text", ""))
+    if node_type == "hardBreak":
+        return "\n"
+    if node_type == "mention":
+        return str(attrs.get("text") or attrs.get("displayName") or "")
+    if node_type == "emoji":
+        return str(attrs.get("text") or attrs.get("shortName") or "")
+    content = _adf_text(value.get("content") or [])
+    if node_type == "listItem":
+        return f"- {content.strip()}\n"
+    if node_type in {"paragraph", "heading", "blockquote", "codeBlock"}:
+        return f"{content.rstrip()}\n"
+    return content
+
+
+def _comment_images(value: object) -> tuple[JiraCommentImage, ...]:
+    if not isinstance(value, str) or not value:
+        return ()
+    parser = _CommentImageParser()
+    parser.feed(value)
+    parser.close()
+    return tuple(parser.images)
+
+
+class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
     def __init__(
         self,
         base_url: str,
@@ -59,6 +146,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
         sla_resolution_field_id: str = "",
         jira_tac_assignee_field_id: str = "",
         jira_qa_assignee_field_id: str = "",
+        jira_recent_tac_assignee_field_id: str = "",
     ):
         self._base_url = base_url.rstrip("/")
         self._client = httpx.AsyncClient(
@@ -76,24 +164,114 @@ class JiraClient(JiraPort, ServiceDeskPort):
             headers=_SD_HEADERS,
             timeout=_SD_TIMEOUT,
         )
-        self._sla_field_ids_cache: dict[str, str] | None = None
         self._sla_initial_fid    = sla_initial_response_field_id
         self._sla_resolution_fid = sla_resolution_field_id
         self._tac_assignee_fid   = jira_tac_assignee_field_id
         self._qa_assignee_fid    = jira_qa_assignee_field_id
+        self._recent_tac_assignee_fid = jira_recent_tac_assignee_field_id
 
         self._count_cache: LruCache[str, int] = LruCache(
             maxsize=_COUNT_CACHE_MAXSIZE,
             ttl_seconds=_COUNT_CACHE_TTL,
             stale_ttl_seconds=_COUNT_CACHE_STALE,
         )
-        self._issues_cache: LruCache[str, list[dict[str, Any]]] = LruCache(
+        self._issues_cache: LruCache[str, list[JiraIssue]] = LruCache(
             maxsize=_ISSUES_CACHE_MAXSIZE,
             ttl_seconds=_ISSUES_CACHE_TTL,
             stale_ttl_seconds=_ISSUES_CACHE_STALE,
         )
         self._org_name_cache: dict[str, str] = {}
-        self._asset_object_label_cache: dict[tuple[str, str], str] = {}
+        self._asset_object_label_cache: dict[JiraAssetReference, str] = {}
+
+    @staticmethod
+    def _display_name(value: object) -> str:
+        if isinstance(value, list):
+            return next(
+                (
+                    name
+                    for item in value
+                    if (name := JiraClient._display_name(item))
+                ),
+                "",
+            )
+        if isinstance(value, dict):
+            return str(value.get("displayName") or value.get("name") or "")
+        return ""
+
+    @staticmethod
+    def _sla_breached(value: object) -> bool:
+        if not isinstance(value, dict):
+            return False
+        if any(
+            isinstance(cycle, dict) and cycle.get("breached")
+            for cycle in value.get("completedCycles") or []
+        ):
+            return True
+        ongoing = value.get("ongoingCycle")
+        return bool(isinstance(ongoing, dict) and ongoing.get("breached"))
+
+    @staticmethod
+    def _option_value(value: object) -> str:
+        if isinstance(value, dict):
+            return str(value.get("value") or "")
+        return str(value or "")
+
+    def _map_issue(self, issue: dict[str, Any]) -> JiraIssue:
+        fields = issue.get("fields") or {}
+        partner_references = tuple(
+            JiraAssetReference(
+                workspace_id=str(partner.get("workspaceId") or ""),
+                object_id=str(partner.get("objectId") or ""),
+            )
+            for partner in fields.get(_REDEPLOYMENT_PARTNER_FIELD) or []
+            if isinstance(partner, dict)
+            and partner.get("workspaceId")
+            and partner.get("objectId")
+        )
+        return JiraIssue(
+            key=str(issue.get("key") or ""),
+            summary=str(fields.get("summary") or ""),
+            issue_type=str((fields.get("issuetype") or {}).get("name") or ""),
+            status=str((fields.get("status") or {}).get("name") or ""),
+            created=str(fields.get("created") or ""),
+            updated=str(fields.get("updated") or ""),
+            resolved=str(fields.get("resolutiondate") or ""),
+            priority=str((fields.get("priority") or {}).get("name") or ""),
+            reporter=self._display_name(fields.get("reporter")),
+            assignee=self._display_name(fields.get("assignee")),
+            tac_assignee=self._display_name(fields.get(self._tac_assignee_fid)),
+            qa_assignee=self._display_name(fields.get(self._qa_assignee_fid)),
+            recent_tac_assignee=self._display_name(
+                fields.get(self._recent_tac_assignee_fid)
+            ),
+            initial_response_breached=self._sla_breached(
+                fields.get(self._sla_initial_fid)
+            ),
+            resolution_breached=self._sla_breached(
+                fields.get(self._sla_resolution_fid)
+            ),
+            redeployment_month=self._option_value(
+                fields.get(_REDEPLOYMENT_MONTH_FIELD)
+            ),
+            redeployment_cause=self._option_value(
+                fields.get(_REDEPLOYMENT_CAUSE_FIELD)
+            ),
+            partner_references=partner_references,
+        )
+
+    @staticmethod
+    def _map_comment(comment: dict[str, Any]) -> JiraComment:
+        author = comment.get("author") or {}
+        return JiraComment(
+            id=str(comment.get("id") or ""),
+            author=str(
+                author.get("displayName") or author.get("name") or "알 수 없음"
+            ),
+            body=_adf_text(comment.get("body")).strip(),
+            created=str(comment.get("created") or ""),
+            updated=str(comment.get("updated") or ""),
+            images=_comment_images(comment.get("renderedBody")),
+        )
 
     async def get_project_issue_types(self, project_key: str) -> list[str]:
         encoded_key = quote(project_key, safe="")
@@ -154,29 +332,45 @@ class JiraClient(JiraPort, ServiceDeskPort):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
             return [], None
 
-    def _issues_cache_key(self, jql: str, max_results: int | None, fields: str) -> str:
-        return f"{jql}|{max_results}|{fields}"
-
-    async def get_issues(
+    def _issues_cache_key(
         self,
         jql: str,
-        max_results: int | None = JIRA_MAX_RESULT,
-        fields: str = "",
-    ) -> list[dict[str, Any]]:
+        max_results: int | None,
+        fields: tuple[str, ...],
+    ) -> str:
+        return f"{jql}|{max_results}|{','.join(fields)}"
+
+    async def _get_mapped_issues(
+        self,
+        jql: str,
+        max_results: int | None,
+        fields: tuple[str, ...],
+    ) -> list[JiraIssue]:
         cache_key = self._issues_cache_key(jql, max_results, fields)
         issues = await self._issues_cache.async_get(
             cache_key,
             refresh_fn=lambda _: self._load_issues(jql, max_results, fields),
         )
-        return issues if issues is not None else []
+        return list(issues) if issues is not None else []
+
+    async def get_issues(
+        self,
+        jql: str,
+        max_results: int | None = JIRA_MAX_RESULT,
+        fields: frozenset[JiraIssueField] = frozenset(),
+    ) -> list[JiraIssue]:
+        jira_fields = tuple(sorted(
+            (_JIRA_FIELD_NAMES[field] for field in fields),
+        ))
+        return await self._get_mapped_issues(jql, max_results, jira_fields)
 
     async def _load_issues(
         self,
         jql: str,
         max_results: int | None,
-        fields: str,
-    ) -> list[dict[str, Any]]:
-        field_list = [f.strip() for f in fields.split(",") if f.strip()] if fields else None
+        fields: tuple[str, ...],
+    ) -> list[JiraIssue]:
+        field_list = list(fields) if fields else None
         page_size = _FETCH_PAGE_SIZE if max_results is None else min(_FETCH_PAGE_SIZE, max_results)
 
         first_page, first_token = await self._fetch_page(jql, field_list, None, page_size)
@@ -186,11 +380,11 @@ class JiraClient(JiraPort, ServiceDeskPort):
             return []
 
         if max_results is not None and len(first_page) >= max_results:
-            return first_page[:max_results]
+            return [self._map_issue(issue) for issue in first_page[:max_results]]
 
         if first_token is None:
             logger.info(f"JQL 단일 페이지 완료: {len(first_page)}건 (nextPageToken 없음)")
-            return first_page
+            return [self._map_issue(issue) for issue in first_page]
 
         all_issues = list(first_page)
         next_token: str | None = first_token
@@ -202,46 +396,51 @@ class JiraClient(JiraPort, ServiceDeskPort):
                 break
 
         logger.info(f"JQL 수집 완료: 총={len(all_issues)}건")
-        return all_issues if max_results is None else all_issues[:max_results]
+        selected = all_issues if max_results is None else all_issues[:max_results]
+        return [self._map_issue(issue) for issue in selected]
 
     async def get_issues_with_sla(
         self,
         jql: str,
         max_results: int | None = JIRA_MAX_RESULT,
-        extra_fields: str = "",
-    ) -> list[dict[str, Any]]:
+    ) -> list[JiraIssue]:
         base = "summary,issuetype,status,created,resolutiondate"
         sla_part = ",".join(filter(None, [self._sla_initial_fid, self._sla_resolution_fid]))
-        fields_str = ",".join(filter(None, [base, sla_part, extra_fields]))
-        issues = await self.get_issues(jql, max_results=max_results, fields=fields_str)
-        for issue in issues:
-            f = issue.get("fields") or {}
-            f[_SLA_INITIAL_KEY]    = f.get(self._sla_initial_fid)
-            f[_SLA_RESOLUTION_KEY] = f.get(self._sla_resolution_fid)
-        return issues
+        fields = tuple(filter(None, f"{base},{sla_part}".split(",")))
+        return await self._get_mapped_issues(jql, max_results, fields)
 
     async def get_issues_with_assignees(
         self,
         jql: str,
         max_results: int | None = JIRA_MAX_RESULT,
-        extra_fields: str = "",
-    ) -> list[dict[str, Any]]:
+    ) -> list[JiraIssue]:
         base = "summary,issuetype,status,created,reporter,assignee"
-        assignee_part = ",".join(filter(None, [self._tac_assignee_fid, self._qa_assignee_fid]))
-        fields_str = ",".join(filter(None, [base, assignee_part, extra_fields]))
-        issues = await self.get_issues(jql, max_results=max_results, fields=fields_str)
-        for issue in issues:
-            f = issue.get("fields") or {}
-            f[_TAC_ASSIGNEE_KEY] = f.get(self._tac_assignee_fid)
-            f[_QA_ASSIGNEE_KEY]  = f.get(self._qa_assignee_fid)
-        return issues
+        assignee_part = ",".join(filter(None, [
+            self._tac_assignee_fid,
+            self._qa_assignee_fid,
+            self._recent_tac_assignee_fid,
+        ]))
+        fields = tuple(filter(None, f"{base},{assignee_part}".split(",")))
+        return await self._get_mapped_issues(jql, max_results, fields)
+
+    async def get_redeployment_issues(
+        self,
+        jql: str,
+        max_results: int | None = JIRA_MAX_RESULT,
+    ) -> list[JiraIssue]:
+        fields = tuple((
+            "summary,issuetype,priority,resolutiondate,assignee,"
+            f"{_REDEPLOYMENT_MONTH_FIELD},{_REDEPLOYMENT_CAUSE_FIELD},"
+            f"{_REDEPLOYMENT_PARTNER_FIELD}"
+        ).split(","))
+        return await self._get_mapped_issues(jql, max_results, fields)
 
     async def get_issue_comments(
         self,
         issue_key: str,
         max_results: int = 5,
         offset: int = 0,
-    ) -> list[dict[str, Any]]:
+    ) -> list[JiraComment]:
         if offset < 0:
             raise ValueError("Comment offset must be nonnegative")
         limit = max(1, max_results)
@@ -276,13 +475,13 @@ class JiraClient(JiraPort, ServiceDeskPort):
             logger.error(f"Jira 댓글 조회 실패: {issue_key} -> {error}")
             raise RuntimeError("Jira comments request failed") from error
 
-        return result
+        return [self._map_comment(comment) for comment in result]
 
     async def get_issue_comment(
         self,
         issue_key: str,
         comment_id: str,
-    ) -> dict[str, Any] | None:
+    ) -> JiraComment | None:
         encoded_key = quote(issue_key, safe="")
         encoded_id = quote(comment_id, safe="")
         url = f"{self._base_url}/rest/api/3/issue/{encoded_key}/comment/{encoded_id}"
@@ -291,7 +490,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
             if response.status_code == 404:
                 return None
             response.raise_for_status()
-            return response.json()
+            return self._map_comment(response.json())
         except httpx.HTTPError as error:
             logger.error(f"Jira 댓글 조회 실패: {issue_key}/{comment_id} -> {error}")
             raise RuntimeError("Jira comment request failed") from error
@@ -325,84 +524,36 @@ class JiraClient(JiraPort, ServiceDeskPort):
             raise RuntimeError("Jira attachment image is too large")
         return JiraAttachmentContent(data=response.content, media_type=media_type)
 
-    async def get_sla_field_ids(self) -> dict[str, str]:
-        if self._sla_field_ids_cache is not None:
-            return self._sla_field_ids_cache
-
-        url = f"{self._base_url}/rest/api/3/field"
-        try:
-            resp = await self._client.get(url)
-            resp.raise_for_status()
-            all_fields = resp.json()
-        except httpx.HTTPError as e:
-            logger.error(f"field 목록 조회 실패: {e}")
-            return {}
-
-        result: dict[str, str] = {}
-        for f in all_fields:
-            schema     = f.get("schema") or {}
-            field_type = schema.get("type", "")
-            field_id   = f.get("id", "")
-            field_name = f.get("name", "")
-            if (
-                field_type == SLA_SCHEMA_TYPE
-                and field_id.startswith("customfield_")
-                and field_name
-            ):
-                result[field_name] = field_id
-                logger.info(f"SLA 필드 발견: '{field_name}' = {field_id}")
-
-        if not result:
-            for f in all_fields:
-                schema      = f.get("schema") or {}
-                custom_type = schema.get("custom", "")
-                field_id    = f.get("id", "")
-                field_name  = f.get("name", "")
-                if (
-                    "sd-sla" in custom_type.lower()
-                    and field_id.startswith("customfield_")
-                    and field_name
-                ):
-                    result[field_name] = field_id
-                    logger.info(f"SLA 필드 (fallback): '{field_name}' = {field_id}")
-
-        if not result:
-            logger.error("SLA 필드를 하나도 발견하지 못했습니다!")
-
-        self._sla_field_ids_cache = result
-        return result
-
     async def get_asset_object_labels(
         self,
-        references: list[tuple[str, str]],
-    ) -> dict[tuple[str, str], str]:
+        references: list[JiraAssetReference],
+    ) -> dict[JiraAssetReference, str]:
         unique_references = list(dict.fromkeys(references))
 
-        async def resolve(reference: tuple[str, str]) -> tuple[tuple[str, str], str]:
+        async def resolve(reference: JiraAssetReference) -> tuple[JiraAssetReference, str]:
             cached = self._asset_object_label_cache.get(reference)
             if cached is not None:
                 return reference, cached
-            workspace_id, object_id = reference
-            workspace = quote(workspace_id, safe="")
-            object_key = quote(object_id, safe="")
+            workspace = quote(reference.workspace_id, safe="")
+            object_key = quote(reference.object_id, safe="")
             url = (
                 f"{self._base_url}/gateway/api/jsm/assets/workspace/"
                 f"{workspace}/v1/object/{object_key}"
             )
-            label = f"\ud30c\ud2b8\ub108 \uac1d\uccb4 {object_id}"
+            label = f"\ud30c\ud2b8\ub108 \uac1d\uccb4 {reference.object_id}"
             try:
                 response = await self._client.get(url)
                 response.raise_for_status()
                 label = str(response.json().get("label") or label)
             except httpx.HTTPError as error:
-                logger.warning(f"Assets \uac1d\uccb4 \uc870\ud68c \uc2e4\ud328: {object_id} -> {error}")
+                logger.warning(f"Assets \uac1d\uccb4 \uc870\ud68c \uc2e4\ud328: {reference.object_id} -> {error}")
             self._asset_object_label_cache[reference] = label
             return reference, label
 
         resolved = await asyncio.gather(*(resolve(reference) for reference in unique_references))
         return dict(resolved)
 
-    async def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+    async def search(self, query: str, limit: int = 5) -> list[SearchResult]:
         jira_url = f"{self._base_url}/rest/api/3/search/jql"
         jira_payload: dict[str, Any] = {
             "jql": f'text ~ "{query}" ORDER BY updated DESC',
@@ -423,21 +574,22 @@ class JiraClient(JiraPort, ServiceDeskPort):
             jira_task, confluence_task, return_exceptions=True
         )
 
-        results: list[dict[str, Any]] = []
+        results: list[SearchResult] = []
 
         if isinstance(jira_resp, httpx.Response):
             try:
                 jira_resp.raise_for_status()
                 for issue in jira_resp.json().get("issues", []):
                     fields = issue.get("fields", {})
-                    results.append({
-                        "type": "jira",
-                        "key": issue.get("key", ""),
-                        "title": fields.get("summary", ""),
-                        "status": (fields.get("status") or {}).get("name", ""),
-                        "issue_type": (fields.get("issuetype") or {}).get("name", ""),
-                        "url": f"{self._base_url}/browse/{issue.get('key', '')}",
-                    })
+                    key = str(issue.get("key") or "")
+                    results.append(SearchResult(
+                        source=SearchSource.JIRA,
+                        key=key,
+                        title=str(fields.get("summary") or ""),
+                        status=str((fields.get("status") or {}).get("name") or ""),
+                        item_type=str((fields.get("issuetype") or {}).get("name") or ""),
+                        url=f"{self._base_url}/browse/{key}",
+                    ))
             except httpx.HTTPError as e:
                 logger.error(f"Jira 검색 실패: {e}")
         else:
@@ -448,23 +600,24 @@ class JiraClient(JiraPort, ServiceDeskPort):
                 confluence_resp.raise_for_status()
                 for page in confluence_resp.json().get("results", []):
                     space_key = (page.get("space") or {}).get("key", "")
-                    results.append({
-                        "type": "confluence",
-                        "key": page.get("id", ""),
-                        "title": page.get("title", ""),
-                        "status": (page.get("space") or {}).get("name", ""),
-                        "issue_type": page.get("type", "page"),
-                        "url": f"{self._base_url}/wiki/spaces/{space_key}/pages/{page.get('id', '')}",
-                    })
+                    page_id = str(page.get("id") or "")
+                    results.append(SearchResult(
+                        source=SearchSource.CONFLUENCE,
+                        key=page_id,
+                        title=str(page.get("title") or ""),
+                        status=str((page.get("space") or {}).get("name") or ""),
+                        item_type=str(page.get("type") or "page"),
+                        url=f"{self._base_url}/wiki/spaces/{space_key}/pages/{page_id}",
+                    ))
             except httpx.HTTPError as e:
                 logger.warning(f"Confluence 검색 실패 (옵션): {e}")
         else:
             logger.warning(f"Confluence 검색 실패 (옵션): {confluence_resp}")
 
-        results.sort(key=lambda x: x["type"])
+        results.sort(key=lambda result: result.source)
         return results[:limit]
 
-    async def get_organizations(self) -> list[dict]:
+    async def get_organizations(self) -> list[PartnerOrganization]:
         results, start = [], 0
         while True:
             resp = await self._sd_client.get(
@@ -477,13 +630,13 @@ class JiraClient(JiraPort, ServiceDeskPort):
             for v in values:
                 if v.get("id") and v.get("name"):
                     oid  = str(v["id"])
-                    name = v["name"]
-                    results.append({"id": oid, "name": name})
+                    name = str(v["name"])
+                    results.append(PartnerOrganization(id=oid, name=name))
                     self._org_name_cache[oid] = name
             if data.get("isLastPage", True):
                 break
             start += len(values)
-        results.sort(key=lambda x: x["name"])
+        results.sort(key=lambda organization: organization.name)
         logger.info(f"[파트너] 조직 {len(results)}개")
         return results
 
@@ -496,7 +649,7 @@ class JiraClient(JiraPort, ServiceDeskPort):
         self._org_name_cache[org_id] = name
         return name
 
-    async def get_members(self, org_id: str) -> list[dict]:
+    async def get_members(self, org_id: str) -> list[PartnerMember]:
         results, start = [], 0
         while True:
             resp = await self._sd_client.get(
@@ -507,17 +660,17 @@ class JiraClient(JiraPort, ServiceDeskPort):
             data   = resp.json()
             values = data.get("values", [])
             results.extend(
-                {
-                    "account_id":   v.get("accountId", ""),
-                    "display_name": v.get("displayName", ""),
-                    "email":        v.get("emailAddress", ""),
-                }
+                PartnerMember(
+                    account_id=str(v.get("accountId") or ""),
+                    display_name=str(v.get("displayName") or ""),
+                    email=str(v.get("emailAddress") or ""),
+                )
                 for v in values
             )
             if data.get("isLastPage", True):
                 break
             start += len(values)
-        results.sort(key=lambda x: x["display_name"])
+        results.sort(key=lambda member: member.display_name)
         logger.info(f"[파트너] org_id={org_id} 멤버 {len(results)}명")
         return results
 

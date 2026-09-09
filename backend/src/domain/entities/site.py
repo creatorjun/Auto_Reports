@@ -107,7 +107,7 @@ class VisitHistory:
     action_content:   Optional[str]      = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class Site:
     site_name:           str
     id:                  Optional[int]               = None

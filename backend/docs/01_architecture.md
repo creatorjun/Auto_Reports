@@ -29,6 +29,7 @@
 - `domain`은 표준 라이브러리 외 프레임워크를 import하지 않습니다.
 - `application`은 `domain`과 `application` 내부만 import합니다.
 - 저장소, 외부 API, 토큰, 캐시, 감사 로그, 파일 변환 계약은 Application 포트입니다.
+- 외부 API 포트는 공급자의 원시 JSON을 반환하지 않고 `JiraIssue`, `JiraComment`, `PartnerMember` 같은 내부 경계 타입을 반환합니다.
 - `infrastructure`는 포트를 구현하고 SQLAlchemy, httpx, APScheduler, 파일시스템을 소유합니다.
 - `presentation`은 HTTP와 Pydantic 변환만 담당하고 구체 인프라 구현을 알지 못합니다.
 - `bootstrap`과 `main.py`만 양쪽의 구체 구현을 조립합니다.
@@ -43,7 +44,11 @@
 
 ### Application
 
-`src/application/ports`에 Jira, Service Desk, AI, 이메일, 저장소, 캐시, 인증 토큰, 감사, 파일 저장소와 변환기, 잡 실행 계약이 있습니다. `use_cases`는 이 추상화만 조합하며 FastAPI 요청 객체, SQLAlchemy 세션, APScheduler, 로컬 경로를 받지 않습니다.
+`src/application/ports`에 Jira, Service Desk, AI, 이메일, 저장소, 캐시, 인증 토큰, 감사, 파일 저장소와 변환기, 잡 실행 계약이 있습니다. `use_cases`는 이 추상화만 조합하며 FastAPI 요청 객체, SQLAlchemy 세션, APScheduler를 받지 않습니다.
+
+Jira 필드 선택은 `JiraIssueField`로 표현합니다. `issuetype`, `resolutiondate`, `customfield_*`, SLA cycle, ADF와 rendered HTML 같은 공급자 표현의 해석은 Jira adapter 한 곳에만 있으며, Application은 불변 경계 타입의 속성만 사용합니다. Jira/Confluence 통합 검색 역시 Presentation에서 출력 포트를 직접 호출하지 않고 `SearchUseCase`를 통과합니다.
+
+보고서 위젯 수집기는 시스템 시계를 직접 읽지 않습니다. 보고서 생성·갱신 경계에서 결정된 기준 시각을 전달받아 경과일과 미해결 처리 시간을 계산하므로, 과거/연간 보고서를 다시 생성해도 실행 시점에 따라 값이 바뀌지 않습니다.
 
 사이트 하위 엔티티 갱신은 frozen dataclass를 직접 변경하지 않고 `dataclasses.replace`로 새 값을 만든 뒤 aggregate 전체를 저장합니다. 없는 aggregate나 하위 엔티티는 `EntityNotFoundError`로 표현하고 HTTP 404 매핑은 바깥 레이어에서 수행합니다.
 

@@ -2,6 +2,7 @@
 import datetime
 import unittest
 
+from src.application.ports.jira_port import JiraIssue, JiraIssueField
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
 from src.application.widgets.created_vs_resolved_collector import CreatedVsResolvedCollector
@@ -13,56 +14,48 @@ from src.infrastructure.persistence.widget_serializer import deserialize_widget,
 
 
 class ResolutionJira:
-    async def get_issues(self, jql: str, max_results: int, fields: str) -> list[dict]:
+    async def get_issues(self, jql: str, max_results: int, fields: frozenset[JiraIssueField]) -> list[JiraIssue]:
         return [
-            {
-                "fields": {
-                    "issuetype": {"name": "인시던트"},
-                    "status": {"name": "할 일"},
-                    "created": "2026-01-10T00:00:00.000+0900",
-                    "resolutiondate": "2026-03-10T00:00:00.000+0900",
-                },
-            },
-            {
-                "fields": {
-                    "issuetype": {"name": "인시던트"},
-                    "status": {"name": "Closed"},
-                    "created": "2026-07-10T00:00:00.000+0900",
-                    "resolutiondate": "2026-08-10T00:00:00.000+0900",
-                },
-            },
+            JiraIssue(
+                issue_type="인시던트",
+                status="할 일",
+                created="2026-01-10T00:00:00.000+0900",
+                resolved="2026-03-10T00:00:00.000+0900",
+            ),
+            JiraIssue(
+                issue_type="인시던트",
+                status="Closed",
+                created="2026-07-10T00:00:00.000+0900",
+                resolved="2026-08-10T00:00:00.000+0900",
+            ),
         ]
 
 
 class CreatedResolvedJira:
-    async def get_issues(self, jql: str, max_results: int | None, fields: str) -> list[dict]:
+    async def get_issues(self, jql: str, max_results: int | None, fields: frozenset[JiraIssueField]) -> list[JiraIssue]:
         if max_results is not None:
             raise AssertionError("w3 collection must not be capped")
         if "resolved >=" in jql:
-            if "resolutiondate" not in fields:
+            if JiraIssueField.RESOLVED not in fields:
                 raise AssertionError("resolutiondate is required")
-            return [{
-                "key": "TACEA-2",
-                "fields": {
-                    "summary": "해결 이슈",
-                    "issuetype": {"name": "개선"},
-                    "status": {"name": "Closed"},
-                    "resolutiondate": "2026-07-15T12:30:00.000+0900",
-                },
-            }]
-        return [{
-            "key": "TACEA-1",
-            "fields": {
-                "summary": "생성 이슈",
-                "issuetype": {"name": "개선"},
-                "status": {"name": "할 일"},
-                "created": "2026-02-15T09:00:00.000+0900",
-            },
-        }]
+            return [JiraIssue(
+                key="TACEA-2",
+                summary="해결 이슈",
+                issue_type="개선",
+                status="Closed",
+                resolved="2026-07-15T12:30:00.000+0900",
+            )]
+        return [JiraIssue(
+            key="TACEA-1",
+            summary="생성 이슈",
+            issue_type="개선",
+            status="할 일",
+            created="2026-02-15T09:00:00.000+0900",
+        )]
 
 
 class UnlimitedReviewJira:
-    async def get_issues(self, jql: str, max_results: int | None, fields: str) -> list[dict]:
+    async def get_issues(self, jql: str, max_results: int | None, fields: frozenset[JiraIssueField]) -> list[JiraIssue]:
         if max_results is not None:
             raise AssertionError("w4 collection must not be capped")
         return []
@@ -84,7 +77,11 @@ class SemesterDashboardDataTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_resolution_stats_are_split_by_semester_and_restored(self) -> None:
-        result = await ResolutionCollector(ResolutionJira(), self.queries).collect()
+        result = await ResolutionCollector(
+            ResolutionJira(),
+            self.queries,
+            datetime.datetime(2026, 12, 31),
+        ).collect()
 
         self.assertEqual(2, result.data.by_type["인시던트"].count)
         self.assertEqual(1, result.data.by_semester["h1"]["인시던트"].count)
@@ -117,6 +114,7 @@ class SemesterDashboardDataTest(unittest.IsolatedAsyncioTestCase):
             UnlimitedReviewJira(),
             "이슈 리뷰 중",
             self.queries.w4_issue_review(),
+            datetime.datetime(2026, 12, 31),
             max_results=None,
         ).collect()
 

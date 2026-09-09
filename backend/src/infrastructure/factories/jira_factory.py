@@ -15,4 +15,5 @@ class JiraFactory:
             sla_resolution_field_id=settings.sla_resolution_field_id,
             jira_tac_assignee_field_id=settings.jira_tac_assignee_field_id,
             jira_qa_assignee_field_id=settings.jira_qa_assignee_field_id,
+            jira_recent_tac_assignee_field_id=settings.jira_recent_tac_assignee_field_id,
         )

@@ -6,6 +6,8 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.use_cases.partner_use_case import PartnerUseCase
+from src.application.ports.jira_port import JiraIssue
+from src.domain.entities.partner import PartnerMember, PartnerOrganization
 
 
 class PartnerJira:
@@ -20,31 +22,29 @@ class PartnerJira:
         }
         return [next(count for account_id, count in counts.items() if account_id in jql) for jql in jqls]
 
-    async def get_issues(self, jql: str, max_results: int | None, fields: str) -> list[dict]:
+    async def get_issues_with_assignees(self, jql: str, max_results: int | None) -> list[JiraIssue]:
         self.issue_limit = max_results
-        return [{
-            "key": "TACEA-1",
-            "fields": {
-                "summary": "상태 필터 검증",
-                "issuetype": {"name": "인시던트"},
-                "status": {"name": "할 일"},
-                "created": "2026-09-01T09:00:00.000+0900",
-            },
-        }]
+        return [JiraIssue(
+            key="TACEA-1",
+            summary="상태 필터 검증",
+            issue_type="인시던트",
+            status="할 일",
+            created="2026-09-01T09:00:00.000+0900",
+        )]
 
 
 class PartnerServiceDesk:
-    async def get_organizations(self) -> list[dict]:
+    async def get_organizations(self) -> list[PartnerOrganization]:
         return [
-            {"id": "1", "name": "가나다 파트너"},
-            {"id": "2", "name": "라마바 파트너"},
-            {"id": "3", "name": "이슈 없는 파트너"},
+            PartnerOrganization(id="1", name="가나다 파트너"),
+            PartnerOrganization(id="2", name="라마바 파트너"),
+            PartnerOrganization(id="3", name="이슈 없는 파트너"),
         ]
 
-    async def get_members(self, org_id: str) -> list[dict]:
+    async def get_members(self, org_id: str) -> list[PartnerMember]:
         return {
-            "1": [{"account_id": "account-a"}],
-            "2": [{"account_id": "account-b"}],
+            "1": [PartnerMember("account-a", "", "")],
+            "2": [PartnerMember("account-b", "", "")],
             "3": [],
         }[org_id]
 
@@ -56,8 +56,6 @@ class PartnerUseCaseTest(unittest.IsolatedAsyncioTestCase):
             jira=jira,
             service_desk=PartnerServiceDesk(),
             project_key="TACEA",
-            tac_assignee_fid="",
-            qa_assignee_fid="",
         )
 
         organizations = await use_case.get_organizations()
@@ -68,7 +66,7 @@ class PartnerUseCaseTest(unittest.IsolatedAsyncioTestCase):
                 ("가나다 파트너", 17),
                 ("이슈 없는 파트너", 0),
             ],
-            [(org["name"], org["issue_count"]) for org in organizations],
+            [(org.name, org.issue_count) for org in organizations],
         )
         self.assertEqual(2, len(jira.jqls))
         self.assertTrue(all('project = "TACEA"' in jql for jql in jira.jqls))
@@ -80,11 +78,9 @@ class PartnerUseCaseTest(unittest.IsolatedAsyncioTestCase):
             jira=jira,
             service_desk=PartnerServiceDesk(),
             project_key="TACEA",
-            tac_assignee_fid="",
-            qa_assignee_fid="",
         )
 
         issues = await use_case.get_issues_by_member("account-a")
 
         self.assertIsNone(jira.issue_limit)
-        self.assertEqual("할 일", issues[0]["status"])
+        self.assertEqual("할 일", issues[0].status)

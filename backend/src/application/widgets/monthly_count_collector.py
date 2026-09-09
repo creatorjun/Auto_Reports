@@ -8,7 +8,7 @@ from src.application.widgets.base import AbstractWidgetCollector
 from src.application.widgets.issue_breakdown import count_issue_type_statuses
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import MonthlyCountEntry, MonthlyCountWidgetData
-from src.application.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraIssue, JiraIssueField, JiraPort
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,12 @@ class MonthlyCountCollector(AbstractWidgetCollector):
             for month in range(1, self.MONTHS_PER_YEAR + 1)
         ]
 
-        fields = "issuetype,status,created,resolutiondate"
+        fields = frozenset({
+            JiraIssueField.ISSUE_TYPE,
+            JiraIssueField.STATUS,
+            JiraIssueField.CREATED,
+            JiraIssueField.RESOLVED,
+        })
         created_issues = await self._jira.get_issues(
             self._q.w1_yearly_created(),
             max_results=None,
@@ -38,8 +43,16 @@ class MonthlyCountCollector(AbstractWidgetCollector):
             max_results=None,
             fields=fields,
         )
-        created_results = self._bucket_by_month(created_issues, "created", months)
-        resolved_results = self._bucket_by_month(resolved_issues, "resolutiondate", months)
+        created_results = self._bucket_by_month(
+            created_issues,
+            JiraIssueField.CREATED,
+            months,
+        )
+        resolved_results = self._bucket_by_month(
+            resolved_issues,
+            JiraIssueField.RESOLVED,
+            months,
+        )
 
         w8_entries: list[MonthlyCountEntry] = []
         w9_entries: list[MonthlyCountEntry] = []
@@ -93,13 +106,17 @@ class MonthlyCountCollector(AbstractWidgetCollector):
 
     @staticmethod
     def _bucket_by_month(
-        issues: list[dict],
-        field_name: str,
+        issues: list[JiraIssue],
+        date_field: JiraIssueField,
         months: list[tuple[int, int]],
-    ) -> dict[tuple[int, int], list[dict]]:
+    ) -> dict[tuple[int, int], list[JiraIssue]]:
         buckets = {month: [] for month in months}
         for issue in issues:
-            raw_value = str((issue.get("fields") or {}).get(field_name) or "")
+            raw_value = (
+                issue.created
+                if date_field == JiraIssueField.CREATED
+                else issue.resolved
+            )
             try:
                 key = (int(raw_value[:4]), int(raw_value[5:7]))
             except ValueError:

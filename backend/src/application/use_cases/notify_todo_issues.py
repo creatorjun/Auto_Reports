@@ -1,56 +1,44 @@
 # backend/src/application/use_cases/notify_todo_issues.py
 import logging
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Optional
 
-from src.domain.entities.widget_data import RecentIssueWidgetData
 from src.application.ports.email_port import EmailPort
-from src.domain.value_objects.widget_id import WidgetId
+from src.domain.entities.widget import WidgetResult
+from src.domain.entities.widget_data import RecentIssueDetail, RecentIssueWidgetData
 from src.domain.constants import KST
+from src.domain.value_objects.widget_id import WidgetId
 
 logger = logging.getLogger(__name__)
 
 TODO_STATUSES = {"\ud560 \uc77c", "\uc7ac\uc624\ud508"}
 
 
-def extract_todo_issues(widgets: dict) -> list[dict]:
+def extract_todo_issues(
+    widgets: Mapping[WidgetId, WidgetResult],
+) -> list[RecentIssueDetail]:
     recent_result = widgets.get(WidgetId.RECENT_ISSUES)
     if recent_result is None:
         return []
     data = recent_result.data
     if not isinstance(data, RecentIssueWidgetData):
         return []
-    return [
-        {
-            "key": d.key,
-            "fields": {
-                "summary": d.summary,
-                "issuetype": {"name": d.type},
-                "created": d.created,
-                "status": {"name": d.status},
-            },
-        }
-        for d in data.issue_details
-        if d.status in TODO_STATUSES
-    ]
+    return [detail for detail in data.issue_details if detail.status in TODO_STATUSES]
 
 
-def _build_html(issues: list[dict], jira_base_url: str) -> str:
+def _build_html(issues: list[RecentIssueDetail], jira_base_url: str) -> str:
     now_str = datetime.now(KST).strftime("%Y-%m-%d %H:%M")
     rows = ""
     for issue in issues:
-        key = issue.get("key", "")
-        fields = issue.get("fields") or {}
-        summary = (fields.get("summary") or "")[:80]
-        issue_type = (fields.get("issuetype") or {}).get("name", "")
-        created = (fields.get("created") or "")[:16].replace("T", " ")
-        url = f"{jira_base_url}/browse/{key}"
+        summary = issue.summary[:80]
+        created = issue.created[:16].replace("T", " ")
+        url = f"{jira_base_url}/browse/{issue.key}"
         rows += (
             f"<tr>"
             f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;'>"
-            f"<a href='{url}' style='color:#2563eb;text-decoration:none;font-weight:bold;'>{key}</a></td>"
+            f"<a href='{url}' style='color:#2563eb;text-decoration:none;font-weight:bold;'>{issue.key}</a></td>"
             f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;'>{summary}</td>"
-            f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;'>{issue_type}</td>"
+            f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;'>{issue.type}</td>"
             f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;'>{created}</td>"
             f"</tr>"
         )
@@ -92,25 +80,27 @@ class NotifyTodoIssuesUseCase:
             logger.info(f"[NotifyTodoIssues] \ud574\uc18c\ub41c \uc774\uc288 \uc13c\ud2f8\ub10c \uc81c\uac70: {resolved}")
             self._notified_keys -= resolved
 
-    async def execute(self, todo_issues: list[dict]) -> None:
+    async def execute(self, todo_issues: list[RecentIssueDetail]) -> None:
         if not todo_issues:
             return
 
-        current_keys = {i.get("key", "") for i in todo_issues}
+        current_keys = {issue.key for issue in todo_issues}
         self.clear_resolved(current_keys)
 
-        new_issues = [i for i in todo_issues if i.get("key", "") not in self._notified_keys]
+        new_issues = [
+            issue for issue in todo_issues if issue.key not in self._notified_keys
+        ]
 
         if not new_issues:
             excluded = str(self._notified_keys) if self._notified_keys else "없음"
             logger.info(f"[NotifyTodoIssues] 신규 할일 없음 (이미 알림 {len(self._notified_keys)}건 제외: {excluded})")
             return
 
-        keys_str = ", ".join(i.get("key", "") for i in new_issues)
+        keys_str = ", ".join(issue.key for issue in new_issues)
         subject = f"[TAC] \ud560\uc77c \uc774\uc288: {keys_str}"
         body = _build_html(new_issues, self._jira_base_url)
         excluded_str = str(self._notified_keys) if self._notified_keys else "없음"
         logger.info(f"[NotifyTodoIssues] 신규 {len(new_issues)}건 메일 발송 → {self._notify_to} (제외: {excluded_str})")
         await self._email.send(to=self._notify_to, subject=subject, body=body)
 
-        self._notified_keys.update(i.get("key", "") for i in new_issues)
+        self._notified_keys.update(issue.key for issue in new_issues)

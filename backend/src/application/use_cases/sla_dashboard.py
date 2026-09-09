@@ -1,10 +1,13 @@
 # backend/src/application/use_cases/sla_dashboard.py
 import re
-from html.parser import HTMLParser
-from typing import Any
 
 from src.application.errors import EntityNotFoundError
-from src.application.ports.jira_port import JiraAttachmentContent, JiraPort
+from src.application.ports.jira_port import (
+    JiraAttachmentContent,
+    JiraComment,
+    JiraIssueField,
+    JiraPort,
+)
 from src.application.use_cases.get_report import GetReportUseCase
 from src.domain.constants import JIRA_MAX_RESULT
 from src.domain.entities.sla_dashboard import (
@@ -17,83 +20,12 @@ from src.domain.entities.widget_data import RecentIssueDetail, RecentIssueWidget
 from src.domain.value_objects.widget_id import WidgetId
 
 _RECENT_COMMENT_LIMIT = 5
-_ATTACHMENT_ID_PATTERN = re.compile(
-    r"/(?:rest/api/[23]/attachment/content|secure/attachment)/(\d+)(?:[/?#]|$)",
-    re.IGNORECASE,
-)
-
-
-class _CommentImageParser(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self.images: list[SlaDashboardCommentImage] = []
-        self._seen: set[str] = set()
-
-    def handle_starttag(
-        self,
-        tag: str,
-        attrs: list[tuple[str, str | None]],
-    ) -> None:
-        if tag.lower() != "img":
-            return
-        values = {name.lower(): value or "" for name, value in attrs}
-        match = _ATTACHMENT_ID_PATTERN.search(values.get("src", ""))
-        if match is None or match.group(1) in self._seen:
-            return
-        attachment_id = match.group(1)
-        self._seen.add(attachment_id)
-        self.images.append(
-            SlaDashboardCommentImage(
-                attachment_id=attachment_id,
-                alt=values.get("alt") or values.get("title") or "댓글 첨부 이미지",
-            )
-        )
 
 
 def _format_timestamp(value: object) -> str:
     if not isinstance(value, str) or not value:
         return ""
     return value[:16].replace("T", " ")
-
-
-def _adf_text(value: object) -> str:
-    if isinstance(value, str):
-        return value
-    if isinstance(value, list):
-        return "".join(_adf_text(item) for item in value)
-    if not isinstance(value, dict):
-        return ""
-
-    node_type = value.get("type", "")
-    attrs = value.get("attrs") or {}
-    if node_type == "text":
-        return str(value.get("text", ""))
-    if node_type == "hardBreak":
-        return "\n"
-    if node_type == "mention":
-        return str(attrs.get("text") or attrs.get("displayName") or "")
-    if node_type == "emoji":
-        return str(attrs.get("text") or attrs.get("shortName") or "")
-
-    content = _adf_text(value.get("content") or [])
-    if node_type == "listItem":
-        return f"- {content.strip()}\n"
-    if node_type in {"paragraph", "heading", "blockquote", "codeBlock"}:
-        return f"{content.rstrip()}\n"
-    return content
-
-
-def _comment_body(value: object) -> str:
-    return _adf_text(value).strip()
-
-
-def _comment_images(value: object) -> tuple[SlaDashboardCommentImage, ...]:
-    if not isinstance(value, str) or not value:
-        return ()
-    parser = _CommentImageParser()
-    parser.feed(value)
-    parser.close()
-    return tuple(parser.images)
 
 
 class SlaDashboardUseCase:
@@ -123,12 +55,18 @@ class SlaDashboardUseCase:
         issues = await self._jira.get_issues(
             jql,
             max_results=JIRA_MAX_RESULT,
-            fields="summary,issuetype,created,updated,status",
+            fields=frozenset({
+                JiraIssueField.SUMMARY,
+                JiraIssueField.ISSUE_TYPE,
+                JiraIssueField.CREATED,
+                JiraIssueField.UPDATED,
+                JiraIssueField.STATUS,
+            }),
         )
         live_by_key = {
-            str(issue.get("key", "")).upper(): issue
+            issue.key.upper(): issue
             for issue in issues
-            if issue.get("key")
+            if issue.key
         }
 
         result: list[SlaDashboardIssue] = []
@@ -136,20 +74,15 @@ class SlaDashboardUseCase:
             key = detail.key.upper()
             if not self._is_valid_key(key):
                 continue
-            fields = (live_by_key.get(key) or {}).get("fields") or {}
-            status = (fields.get("status") or {}).get("name") or detail.status
+            live = live_by_key.get(key)
             result.append(
                 SlaDashboardIssue(
                     key=key,
-                    type=str(
-                        (fields.get("issuetype") or {}).get("name") or detail.type
-                    ),
-                    summary=str(fields.get("summary") or detail.summary),
-                    created=(
-                        _format_timestamp(fields.get("created")) or detail.created
-                    ),
-                    updated=_format_timestamp(fields.get("updated")),
-                    status=status,
+                    type=(live.issue_type if live else "") or detail.type,
+                    summary=(live.summary if live else "") or detail.summary,
+                    created=_format_timestamp(live.created if live else "") or detail.created,
+                    updated=_format_timestamp(live.updated if live else ""),
+                    status=(live.status if live else "") or detail.status,
                 )
             )
         return sorted(
@@ -195,11 +128,11 @@ class SlaDashboardUseCase:
         if not comment_id.isdigit():
             raise EntityNotFoundError("Comment", comment_id)
         comment = await self._jira.get_issue_comment(normalized_key, comment_id)
-        if comment is None or str(comment.get("id", "")) != comment_id:
+        if comment is None or comment.id != comment_id:
             raise EntityNotFoundError("Comment", comment_id)
         allowed = {
             image.attachment_id
-            for image in _comment_images(comment.get("renderedBody"))
+            for image in comment.images
         }
         if attachment_id not in allowed:
             raise EntityNotFoundError("Comment image", attachment_id)
@@ -230,15 +163,18 @@ class SlaDashboardUseCase:
         return self._issue_key_pattern.fullmatch(issue_key.upper()) is not None
 
     @staticmethod
-    def _to_comment(comment: dict[str, Any]) -> SlaDashboardComment:
-        author = comment.get("author") or {}
+    def _to_comment(comment: JiraComment) -> SlaDashboardComment:
         return SlaDashboardComment(
-            id=str(comment.get("id", "")),
-            author=str(
-                author.get("displayName") or author.get("name") or "알 수 없음"
+            id=comment.id,
+            author=comment.author,
+            body=comment.body,
+            created=_format_timestamp(comment.created),
+            updated=_format_timestamp(comment.updated),
+            images=tuple(
+                SlaDashboardCommentImage(
+                    attachment_id=image.attachment_id,
+                    alt=image.alt,
+                )
+                for image in comment.images
             ),
-            body=_comment_body(comment.get("body")),
-            created=_format_timestamp(comment.get("created")),
-            updated=_format_timestamp(comment.get("updated")),
-            images=_comment_images(comment.get("renderedBody")),
         )

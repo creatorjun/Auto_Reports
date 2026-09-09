@@ -3,9 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import AsyncIterator
 
-from src.application.ports.jira_port import JiraPort
 from src.application.ports.report_cache_port import ReportCachePort
-from src.application.ports.service_desk_port import ServiceDeskPort
 from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.auth_service import AuthService
 from src.application.services.query_builder import WidgetQueryBuilder
@@ -17,6 +15,7 @@ from src.application.use_cases.notify_tac_assigned import NotifyTacAssignedUseCa
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase
 from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.refresh_report import RefreshReportUseCase
+from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
@@ -35,16 +34,14 @@ from src.infrastructure.security.jwt_service import JwtService
 from src.infrastructure.storage.document_converter import LibreOfficeDocumentConverter
 from src.infrastructure.storage.local_storage import LocalStorageAdapter
 
+
 class Container:
     def __init__(self, settings: Settings, database: Database) -> None:
         self._settings = settings
         self._database = database
         self._jira = JiraFactory.create(settings)
         ai = AiFactory.create(settings)
-        collectors = WidgetCollectorFactory(
-            self._jira,
-            recent_tac_assignee_field_id=settings.jira_recent_tac_assignee_field_id,
-        )
+        collectors = WidgetCollectorFactory(self._jira)
         query_builder = WidgetQueryBuilder(
             QueryConfig(
                 project_key=settings.project_key,
@@ -83,9 +80,8 @@ class Container:
             jira=self._jira,
             service_desk=self._jira,
             project_key=settings.project_key,
-            tac_assignee_fid=settings.jira_tac_assignee_field_id,
-            qa_assignee_fid=settings.jira_qa_assignee_field_id,
         )
+        self.search = SearchUseCase(self._jira)
         self._credential_encryptor = (
             CredentialEncryptor(settings.credential_encryption_key)
             if settings.credential_encryption_key
@@ -111,14 +107,6 @@ class Container:
             if smtp and settings.notify_tac_enabled and settings.notify_tac_to
             else None
         )
-
-    @property
-    def jira(self) -> JiraPort:
-        return self._jira
-
-    @property
-    def service_desk(self) -> ServiceDeskPort:
-        return self._jira
 
     @property
     def jira_base_url(self) -> str:

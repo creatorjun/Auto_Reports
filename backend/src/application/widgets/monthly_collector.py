@@ -12,12 +12,9 @@ from src.domain.entities.widget_data import (
     SlaMonthlyTypeStats,
     SlaMonthlyWidgetData,
 )
-from src.application.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraIssue, JiraPort
 
 logger = logging.getLogger(__name__)
-
-_SLA_INITIAL_KEY    = "_sla_initial"
-_SLA_RESOLUTION_KEY = "_sla_resolution"
 
 
 class MonthlyCollector(AbstractWidgetCollector):
@@ -37,7 +34,6 @@ class MonthlyCollector(AbstractWidgetCollector):
         issues = await self._jira.get_issues_with_sla(
             self._q.w1_yearly_created(),
             max_results=None,
-            extra_fields="resolutiondate",
         )
         issues_by_month = self._bucket_by_created_month(issues, months)
 
@@ -59,7 +55,6 @@ class MonthlyCollector(AbstractWidgetCollector):
             init_by_status_type: dict[str, dict[str, SlaMonthlyTypeStats]] = {}
             res_by_status_type: dict[str, dict[str, SlaMonthlyTypeStats]] = {}
             for issue in month_issues:
-                fields = issue.get("fields") or {}
                 issue_type = issue_type_name(issue)
                 status = issue_status_name(issue)
                 init_stats = init_by_type.get(issue_type, init_always_included)
@@ -76,10 +71,10 @@ class MonthlyCollector(AbstractWidgetCollector):
                 res_stats.total += 1
                 init_status_stats.total += 1
                 res_status_stats.total += 1
-                if not self._breached(fields.get(_SLA_INITIAL_KEY)):
+                if not issue.initial_response_breached:
                     init_stats.met += 1
                     init_status_stats.met += 1
-                if not self._breached(fields.get(_SLA_RESOLUTION_KEY)):
+                if not issue.resolution_breached:
                     res_stats.met += 1
                     res_status_stats.met += 1
 
@@ -113,12 +108,12 @@ class MonthlyCollector(AbstractWidgetCollector):
 
     @staticmethod
     def _bucket_by_created_month(
-        issues: list[dict],
+        issues: list[JiraIssue],
         months: list[tuple[int, int]],
-    ) -> dict[tuple[int, int], list[dict]]:
+    ) -> dict[tuple[int, int], list[JiraIssue]]:
         buckets = {month: [] for month in months}
         for issue in issues:
-            created = str((issue.get("fields") or {}).get("created") or "")
+            created = issue.created
             try:
                 key = (int(created[:4]), int(created[5:7]))
             except ValueError:
@@ -126,13 +121,3 @@ class MonthlyCollector(AbstractWidgetCollector):
             if key in buckets:
                 buckets[key].append(issue)
         return buckets
-
-    @staticmethod
-    def _breached(sla_val: dict | None) -> bool:
-        if not sla_val:
-            return False
-        for cycle in sla_val.get("completedCycles") or []:
-            if cycle.get("breached"):
-                return True
-        ongoing = sla_val.get("ongoingCycle")
-        return bool(ongoing and ongoing.get("breached"))

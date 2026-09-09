@@ -1,19 +1,19 @@
 # backend/src/application/widgets/issue_breakdown.py
 from collections.abc import Iterable
 
-
-def issue_type_name(issue: dict) -> str:
-    fields = issue.get("fields") or {}
-    return (fields.get("issuetype") or {}).get("name", "기타")
+from src.application.ports.jira_port import JiraIssue
 
 
-def issue_status_name(issue: dict) -> str:
-    fields = issue.get("fields") or {}
-    return (fields.get("status") or {}).get("name", "기타")
+def issue_type_name(issue: JiraIssue) -> str:
+    return issue.issue_type or "기타"
+
+
+def issue_status_name(issue: JiraIssue) -> str:
+    return issue.status or "기타"
 
 
 def count_issue_type_statuses(
-    issues: Iterable[dict],
+    issues: Iterable[JiraIssue],
     controlled_types: Iterable[str],
 ) -> tuple[dict[str, int], int, dict[str, dict[str, int]]]:
     by_type = {issue_type: 0 for issue_type in controlled_types}

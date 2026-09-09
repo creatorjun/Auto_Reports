@@ -10,9 +10,6 @@ from src.domain.constants import SUMMARY_TRUNCATE_LEN
 
 logger = logging.getLogger(__name__)
 
-_SLA_INITIAL_KEY    = "_sla_initial"
-_SLA_RESOLUTION_KEY = "_sla_resolution"
-
 
 class SlaDelayCollector(AbstractWidgetCollector):
     def __init__(self, jira: JiraPort, q: ResolvedQueries):
@@ -27,22 +24,20 @@ class SlaDelayCollector(AbstractWidgetCollector):
         by_status_details: dict[str, list[SlaDelayIssueDetail]] = {}
 
         for issue in issues:
-            fields = issue.get("fields") or {}
-            initial_breached    = self._is_sla_breached(fields.get(_SLA_INITIAL_KEY))
-            resolution_breached = self._is_sla_breached(fields.get(_SLA_RESOLUTION_KEY))
+            initial_breached = issue.initial_response_breached
+            resolution_breached = issue.resolution_breached
             if not (initial_breached or resolution_breached):
                 continue
 
-            status = (fields.get("status") or {}).get("name", "알 수 없음")
+            status = issue.status or "알 수 없음"
             by_status[status] = by_status.get(status, 0) + 1
 
-            created_raw = fields.get("created") or ""
             detail = SlaDelayIssueDetail(
-                key=issue.get("key", ""),
-                summary=(fields.get("summary") or "")[:SUMMARY_TRUNCATE_LEN],
-                type=(fields.get("issuetype") or {}).get("name", "기타"),
+                key=issue.key,
+                summary=issue.summary[:SUMMARY_TRUNCATE_LEN],
+                type=issue.issue_type or "기타",
                 status=status,
-                created=created_raw[:16].replace("T", " "),
+                created=issue.created[:16].replace("T", " "),
             )
             by_status_details.setdefault(status, []).append(detail)
 
@@ -57,13 +52,3 @@ class SlaDelayCollector(AbstractWidgetCollector):
                 by_status_details=by_status_details,
             ),
         )
-
-    @staticmethod
-    def _is_sla_breached(sla_val: dict | None) -> bool:
-        if not sla_val:
-            return False
-        for cycle in sla_val.get("completedCycles") or []:
-            if cycle.get("breached"):
-                return True
-        ongoing = sla_val.get("ongoingCycle")
-        return bool(ongoing and ongoing.get("breached"))

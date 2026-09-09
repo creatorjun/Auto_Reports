@@ -15,7 +15,7 @@ from src.domain.entities.widget_data import (
     SlaViolationIssueDetail,
     TypeCountWidgetData,
 )
-from src.application.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraIssueField, JiraPort
 from src.domain.constants import SUMMARY_TRUNCATE_LEN
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,12 @@ class TypeCountCollector(AbstractWidgetCollector):
         issues = await self._jira.get_issues(
             self._jql,
             max_results=None,
-            fields="issuetype,status,created,resolutiondate",
+            fields=frozenset({
+                JiraIssueField.ISSUE_TYPE,
+                JiraIssueField.STATUS,
+                JiraIssueField.CREATED,
+                JiraIssueField.RESOLVED,
+            }),
         )
         by_type, always_included, by_status_type = count_issue_type_statuses(
             issues,
@@ -69,35 +74,39 @@ class SimpleWithDetailsCollector(AbstractWidgetCollector):
         jira: JiraPort,
         name: str,
         jql: str,
+        now: datetime,
         max_results: int | None = None,
     ):
         self._jira = jira
         self._name = name
         self._jql = jql
+        self._now = now.replace(tzinfo=None)
         self._max_results = max_results
 
     async def collect(self) -> WidgetResult[SimpleIssueWidgetData]:
         issues = await self._jira.get_issues(
             self._jql,
             max_results=self._max_results,
-            fields="summary,issuetype,status,created",
+            fields=frozenset({
+                JiraIssueField.SUMMARY,
+                JiraIssueField.ISSUE_TYPE,
+                JiraIssueField.STATUS,
+                JiraIssueField.CREATED,
+            }),
         )
-        now_ts = datetime.now()
         details: list[IssueDetail] = []
         for issue in issues:
-            key = issue.get("key", "")
-            fields = issue.get("fields", {})
-            created = fields.get("created") or ""
+            created = issue.created
             elapsed_days = 0
             if created:
                 created_dt = datetime.fromisoformat(created[:19])
-                elapsed_days = (now_ts - created_dt).days
+                elapsed_days = (self._now - created_dt).days
             details.append(
                 IssueDetail(
-                    key=key,
-                    summary=fields.get("summary", "")[:SUMMARY_TRUNCATE_LEN],
-                    type=(fields.get("issuetype") or {}).get("name", "기타"),
-                    status=(fields.get("status") or {}).get("name", "기타"),
+                    key=issue.key,
+                    summary=issue.summary[:SUMMARY_TRUNCATE_LEN],
+                    type=issue.issue_type or "기타",
+                    status=issue.status or "기타",
                     created=created[:16].replace("T", " "),
                     elapsed_days=elapsed_days,
                 )
@@ -147,20 +156,18 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
         both_issues: list[SlaViolationIssueDetail] = []
 
         for issue in issues:
-            fields = issue.get("fields") or {}
-            initial_breached    = self._is_sla_breached(fields.get(_SLA_INITIAL_KEY))
-            resolution_breached = self._is_sla_breached(fields.get(_SLA_RESOLUTION_KEY))
+            initial_breached = issue.initial_response_breached
+            resolution_breached = issue.resolution_breached
 
             if not (initial_breached or resolution_breached):
                 continue
 
-            created_raw = fields.get("created") or ""
             detail = SlaViolationIssueDetail(
-                key=issue.get("key", ""),
-                summary=(fields.get("summary") or "")[:SUMMARY_TRUNCATE_LEN],
-                type=(fields.get("issuetype") or {}).get("name", "기타"),
-                status=(fields.get("status") or {}).get("name", "기타"),
-                created=created_raw[:16].replace("T", " "),
+                key=issue.key,
+                summary=issue.summary[:SUMMARY_TRUNCATE_LEN],
+                type=issue.issue_type or "기타",
+                status=issue.status or "기타",
+                created=issue.created[:16].replace("T", " "),
             )
 
             if initial_breached and resolution_breached:
@@ -223,15 +230,3 @@ class SlaMetVsViolatedCollector(AbstractWidgetCollector):
                 violation_distribution=violation_distribution,
             ),
         )
-
-    @staticmethod
-    def _is_sla_breached(sla_val: dict | None) -> bool:
-        if not sla_val:
-            return False
-        for cycle in sla_val.get("completedCycles") or []:
-            if cycle.get("breached"):
-                return True
-        ongoing = sla_val.get("ongoingCycle")
-        if ongoing and ongoing.get("breached"):
-            return True
-        return False

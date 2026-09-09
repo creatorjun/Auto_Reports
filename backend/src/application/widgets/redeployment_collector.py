@@ -1,9 +1,8 @@
 # backend/src/application/widgets/redeployment_collector.py
 import asyncio
 from collections import Counter, defaultdict
-from typing import Any
 
-from src.application.ports.jira_port import JiraPort
+from src.application.ports.jira_port import JiraAssetReference, JiraIssue, JiraPort
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.constants import REDEPLOYMENT_CLASSIFICATION_START_YEAR, SUMMARY_TRUNCATE_LEN
@@ -14,9 +13,6 @@ from src.domain.entities.widget_data import (
     RedeploymentMonthlyEntry,
 )
 
-_MONTH_FIELD = "customfield_12421"
-_CAUSE_FIELD = "customfield_11885"
-_PARTNER_FIELD = "customfield_10859"
 _ANALYTICS_TYPES = frozenset({"\uac1c\uc120", "\uc778\uc2dc\ub358\ud2b8", "\uc11c\ube44\uc2a4 \uc694\uccad"})
 
 
@@ -31,13 +27,9 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
         analytics_jql = self._queries.w15_redeployment_analytics()
         resolved_total, issues = await asyncio.gather(
             self._jira.get_issue_count(resolved_jql),
-            self._jira.get_issues(
+            self._jira.get_redeployment_issues(
                 f"{redeployment_jql} ORDER BY resolved DESC",
                 max_results=None,
-                fields=(
-                    "summary,issuetype,priority,resolutiondate,assignee,"
-                    f"{_MONTH_FIELD},{_CAUSE_FIELD},{_PARTNER_FIELD}"
-                ),
             ),
         )
         references = self._asset_references(issues)
@@ -77,58 +69,38 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
         )
 
     @staticmethod
-    def _asset_references(issues: list[dict[str, Any]]) -> list[tuple[str, str]]:
-        references: list[tuple[str, str]] = []
+    def _asset_references(issues: list[JiraIssue]) -> list[JiraAssetReference]:
+        references: list[JiraAssetReference] = []
         for issue in issues:
-            fields = issue.get("fields") or {}
-            for partner in fields.get(_PARTNER_FIELD) or []:
-                workspace_id = str(partner.get("workspaceId") or "")
-                object_id = str(partner.get("objectId") or "")
-                if workspace_id and object_id:
-                    references.append((workspace_id, object_id))
+            references.extend(issue.partner_references)
         return list(dict.fromkeys(references))
 
     @staticmethod
-    def _option_value(value: Any, fallback: str) -> str:
-        if isinstance(value, dict):
-            return str(value.get("value") or fallback)
-        if value:
-            return str(value)
-        return fallback
-
-    @staticmethod
     def _to_detail(
-        issue: dict[str, Any],
-        asset_labels: dict[tuple[str, str], str],
+        issue: JiraIssue,
+        asset_labels: dict[JiraAssetReference, str],
     ) -> RedeploymentIssueDetail:
-        fields = issue.get("fields") or {}
-        resolved_raw = str(fields.get("resolutiondate") or "")
+        resolved_raw = issue.resolved
         resolved_month = resolved_raw[:7]
-        month = RedeploymentAnalyticsCollector._option_value(
-            fields.get(_MONTH_FIELD),
-            resolved_month or "\ubbf8\uc9c0\uc815",
-        )
+        month = issue.redeployment_month or resolved_month or "\ubbf8\uc9c0\uc815"
         partners: list[str] = []
-        for partner in fields.get(_PARTNER_FIELD) or []:
-            reference = (
-                str(partner.get("workspaceId") or ""),
-                str(partner.get("objectId") or ""),
+        for reference in issue.partner_references:
+            partner_name = asset_labels.get(
+                reference,
+                f"\ud30c\ud2b8\ub108 \uac1d\uccb4 {reference.object_id}",
             )
-            if all(reference):
-                partner_name = asset_labels.get(reference, f"\ud30c\ud2b8\ub108 \uac1d\uccb4 {reference[1]}")
-                partners.append("\uc2dc\ud050\ub808\uc774\uc5b4" if partner_name == "\ubbf8\uc9c0\uc815" else partner_name)
+            partners.append(
+                "\uc2dc\ud050\ub808\uc774\uc5b4" if partner_name == "\ubbf8\uc9c0\uc815" else partner_name
+            )
         return RedeploymentIssueDetail(
-            key=str(issue.get("key") or ""),
-            summary=str(fields.get("summary") or "")[:SUMMARY_TRUNCATE_LEN],
-            type=str((fields.get("issuetype") or {}).get("name") or "\uae30\ud0c0"),
-            priority=str((fields.get("priority") or {}).get("name") or "\ubbf8\uc9c0\uc815"),
+            key=issue.key,
+            summary=issue.summary[:SUMMARY_TRUNCATE_LEN],
+            type=issue.issue_type or "\uae30\ud0c0",
+            priority=issue.priority or "\ubbf8\uc9c0\uc815",
             resolved=resolved_raw[:16].replace("T", " "),
             month=month,
-            cause=RedeploymentAnalyticsCollector._option_value(
-                fields.get(_CAUSE_FIELD),
-                "\ubbf8\uc9c0\uc815",
-            ),
-            assignee=str((fields.get("assignee") or {}).get("displayName") or "\ubbf8\uc9c0\uc815"),
+            cause=issue.redeployment_cause or "\ubbf8\uc9c0\uc815",
+            assignee=issue.assignee or "\ubbf8\uc9c0\uc815",
             partners=list(dict.fromkeys(partners)) or ["\uc2dc\ud050\ub808\uc774\uc5b4"],
         )
 

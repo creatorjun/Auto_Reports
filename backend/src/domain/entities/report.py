@@ -6,6 +6,7 @@ from typing import Optional
 
 from src.domain.entities.widget import WidgetResult
 from src.domain.value_objects.ai_analysis import AiAnalysis
+from src.domain.value_objects.widget_id import WidgetId
 
 
 class ReportScope(str, Enum):
@@ -18,7 +19,7 @@ class NewReport:
     week_start: date
     week_end: date
     report_date: str
-    widgets: dict = field(default_factory=dict)
+    widgets: dict[WidgetId, WidgetResult] = field(default_factory=dict)
     ai_analysis: Optional[AiAnalysis] = None
     scope: ReportScope = ReportScope.STANDARD
     report_year: Optional[int] = None
