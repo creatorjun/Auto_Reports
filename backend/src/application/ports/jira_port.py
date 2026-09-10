@@ -66,8 +66,30 @@ class JiraAttachmentContent:
     media_type: str
 
 
+@dataclass(frozen=True)
+class JiraChartIssuePage:
+    issues: list[JiraIssue]
+    has_more: bool
+
+
 class JiraPort(ABC):
     MAX_RESULTS: int = 100
+
+    @abstractmethod
+    async def get_report_chart_issues(
+        self,
+        jql: str,
+        max_results: int | None,
+        fields: frozenset[JiraIssueField],
+        with_sla: bool = False,
+        with_redeployment: bool = False,
+    ) -> JiraChartIssuePage: ...
+
+    @abstractmethod
+    async def get_report_chart_asset_labels(
+        self,
+        references: list[JiraAssetReference],
+    ) -> dict[JiraAssetReference, str]: ...
 
     @abstractmethod
     async def get_project_issue_types(self, project_key: str) -> list[str]: ...

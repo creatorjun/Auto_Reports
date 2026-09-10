@@ -39,9 +39,13 @@ class ReportAssembler:
         now: datetime,
         week_start_override: datetime | None = None,
         annual_report_year: int | None = None,
+        collected_at: datetime | None = None,
     ) -> NewReport:
         if now.tzinfo is None:
             now = now.replace(tzinfo=KST)
+        collected_at = collected_at or datetime.now(tz=KST)
+        if collected_at.tzinfo is None:
+            collected_at = collected_at.replace(tzinfo=KST)
         issue_types: list[str] | None = None
         if self._issue_type_provider is not None:
             try:
@@ -59,7 +63,7 @@ class ReportAssembler:
         )
         logger.info(f"데이터 수집 시작 ({q.date_start} ~ {q.date_end})")
 
-        entries: list[CollectorEntry] = self._base_factory(q, now)
+        entries: list[CollectorEntry] = self._base_factory(q, collected_at)
         if annual_report_year is not None and self._annual_factory is not None:
             entries.extend(self._annual_factory(q, now))
         monthly_pairs = self._monthly_factory(q, now)

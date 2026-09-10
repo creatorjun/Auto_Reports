@@ -9,6 +9,7 @@ from src.application.ports.audit_port import AuditPort
 from src.application.ports.job_runner_port import JobRunnerPort
 from src.application.services.auth_service import AuthService
 from src.application.use_cases.get_report import GetReportUseCase
+from src.application.use_cases.get_report_chart_issues import GetReportChartIssuesUseCase
 from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
@@ -28,6 +29,7 @@ class ApiServices:
     get_report: Callable[[], AsyncContextManager[GetReportUseCase]]
     get_site: Callable[[], AsyncContextManager[SiteUseCase]]
     get_sla_dashboard: Callable[[], AsyncContextManager[SlaDashboardUseCase]]
+    get_report_chart_issues: Callable[[], AsyncContextManager[GetReportChartIssuesUseCase]]
 
 
 def get_api_services(request: Request) -> ApiServices:

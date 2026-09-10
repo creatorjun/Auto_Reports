@@ -4,12 +4,65 @@
   margin-inline: auto;
 }
 
+.annual-report-view .annual-metric-label {
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.annual-report-view .annual-primary-value {
+  font-size: 60px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.annual-report-view .annual-count-unit {
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.annual-report-view .annual-detail-value {
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.annual-report-view .annual-status-label {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.annual-report-view .annual-status-value {
+  font-size: 36px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.annual-report-view [data-pdf-section='업무 유형별 열린 요청'] [data-pdf-metric] {
+  flex-wrap: wrap;
+}
+
+.annual-report-view [data-pdf-section='업무 유형별 열린 요청'] [data-pdf-metric] > .tabular-nums {
+  max-width: 100%;
+  font-size: 60px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.annual-report-view .redeployment-analytics [data-pdf-metric] .tabular-nums {
+  font-size: 40px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.annual-report-view .redeployment-analytics [data-pdf-metric] .tabular-nums > span {
+  font-size: 18px;
+}
+
 .annual-report-view [data-pdf-kind='chart'] {
   min-width: 0;
 }
 
 .annual-report-view [data-pdf-kind='chart'] h3 {
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1.5;
   color: rgb(var(--color-apple-dark));
 }
@@ -20,12 +73,58 @@
 }
 
 .annual-report-view .recharts-cartesian-axis-tick text {
-  font-size: 13px;
+  font-size: 16px;
   fill: rgb(var(--color-apple-dark));
 }
 
-.annual-report-view .recharts-legend-item-text {
-  color: rgb(var(--color-apple-dark)) !important;
+.annual-report-view .recharts-legend-item-text,
+.annual-report-view .recharts-legend-item-text > span {
+  font-size: 18px !important;
+  line-height: 1.5;
+  color: rgb(var(--color-chart-axis)) !important;
+}
+
+.annual-report-view .recharts-tooltip-wrapper > div {
+  max-width: min(360px, calc(100vw - 48px));
+  font-size: 18px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.annual-report-view .recharts-label-list text,
+.annual-report-view .recharts-pie-labels text,
+.annual-report-view .recharts-reference-line .recharts-label {
+  font-size: 16px;
+}
+
+.annual-report-view .redeployment-analytics [data-pdf-kind='chart'] li .tabular-nums {
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.annual-report-view .redeployment-analytics [data-pdf-kind='chart'] li > .tabular-nums:last-child {
+  width: auto;
+  min-width: 4rem;
+}
+
+.annual-report-view section[aria-labelledby='annual-comparison-title'] > table tbody .tabular-nums {
+  font-size: 28px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.annual-report-view [data-pdf-kind='table'] tbody td.tabular-nums {
+  font-size: 18px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.annual-report-view [data-pdf-section='월별 이슈 현황'] [data-pdf-kind='table'] tbody td.tabular-nums {
+  font-size: 20px;
+}
+
+.annual-report-view .annual-issue-details table {
+  min-width: 900px;
 }
 
 .annual-report-view .recharts-tooltip-wrapper[style*='visibility: hidden'] {
@@ -37,7 +136,48 @@
 }
 
 @media (max-width: 639px) {
+  .annual-report-view .annual-primary-value {
+    font-size: 48px;
+  }
+
+  .annual-report-view .annual-status-value {
+    font-size: 30px;
+  }
+
+  .annual-report-view [data-pdf-section='업무 유형별 열린 요청'] [data-pdf-metric] > .tabular-nums {
+    font-size: 48px;
+  }
+
+  .annual-report-view .redeployment-analytics [data-pdf-metric] .tabular-nums {
+    font-size: 34px;
+  }
+
   .annual-report-view [data-pdf-kind='chart'].card {
     padding: 16px 12px;
+  }
+
+  .annual-report-view .recharts-cartesian-axis-tick text,
+  .annual-report-view .recharts-label-list text,
+  .annual-report-view .recharts-pie-labels text,
+  .annual-report-view .recharts-reference-line .recharts-label {
+    font-size: 14px;
+  }
+
+  .annual-report-view .recharts-legend-item-text,
+  .annual-report-view .recharts-legend-item-text > span {
+    font-size: 16px !important;
+  }
+
+  .annual-report-view .recharts-tooltip-wrapper > div,
+  .annual-report-view .redeployment-analytics [data-pdf-kind='chart'] li .tabular-nums {
+    font-size: 16px;
+  }
+
+  .annual-report-view section[aria-labelledby='annual-comparison-title'] > table tbody .tabular-nums {
+    font-size: 20px;
+  }
+
+  .annual-report-view [data-pdf-section='월별 이슈 현황'] [data-pdf-kind='table'] tbody td.tabular-nums {
+    padding-inline: 12px;
   }
 }

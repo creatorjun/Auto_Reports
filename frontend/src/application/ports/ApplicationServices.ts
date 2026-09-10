@@ -5,6 +5,7 @@ import type { DashboardPdfDocument } from '@/domain/DashboardExport'
 import type { JobStatus, TriggerAccepted, TriggerParams } from '@/domain/Job'
 import type { PartnerIssue, PartnerMember, PartnerOrg } from '@/domain/Partner'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
+import type { ChartIssuesRequest, ChartIssuesResult } from '@/domain/ReportChartDetails'
 import type { SearchResult } from '@/domain/Search'
 import type { SlaDashboardCommentPage, SlaDashboardIssue } from '@/domain/SlaDashboard'
 import type {
@@ -64,6 +65,7 @@ export interface ReportGateway {
   getLatest: () => Promise<ReportDetail | null>
   getAnnual: (year: number) => Promise<ReportDetail>
   getById: (id: number) => Promise<ReportDetail>
+  getChartIssues: (id: number, request: ChartIssuesRequest, signal?: CancellationSignal) => Promise<ChartIssuesResult>
   getAll: (limit?: number, offset?: number) => Promise<ReportSummary[]>
   trigger: (params?: TriggerParams) => Promise<TriggerAccepted>
   watchJob: (

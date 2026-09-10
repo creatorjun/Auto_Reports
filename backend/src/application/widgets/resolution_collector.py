@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 
 from src.application.services.query_builder import ResolvedQueries
+from src.application.services.report_issue_metrics import resolution_elapsed
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import ResolutionTypeEntry, ResolutionTypeWidgetData
@@ -40,14 +41,12 @@ class ResolutionCollector(AbstractWidgetCollector):
         for issue in issues:
             itype = issue.issue_type or "기타"
             status = issue.status or "기타"
-            created = issue.created
-            resolved = issue.resolved
-            if not created:
+            elapsed_data = resolution_elapsed(issue.created, issue.resolved, self._now)
+            if elapsed_data is None:
                 continue
-            end_ts = datetime.fromisoformat(resolved[:19]) if resolved else self._now
-            elapsed = (end_ts - datetime.fromisoformat(created[:19])).total_seconds() / 3600
+            elapsed, resolved_month = elapsed_data
             by_type.setdefault(itype, []).append(elapsed)
-            semester = "h1" if end_ts.month <= 6 else "h2"
+            semester = "h1" if resolved_month <= 6 else "h2"
             by_semester[semester].setdefault(itype, []).append(elapsed)
             by_status_type.setdefault(status, {}).setdefault(itype, []).append(elapsed)
             by_semester_status_type[semester].setdefault(status, {}).setdefault(itype, []).append(elapsed)

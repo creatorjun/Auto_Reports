@@ -1,5 +1,6 @@
 // frontend/src/presentation/components/charts/SlaMonthlyLineChart.tsx
-import { memo, useId } from 'react'
+import { memo, useId, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
@@ -19,6 +20,19 @@ interface Props {
   subtitle: string
   monthly: MonthlyEntry[]
   color: string
+  onMonthClick?: (entry: MonthlyEntry, status: 'all' | 'met' | 'violated') => void
+}
+
+interface ChartPoint {
+  month: string
+  rate: number | null
+  meta: MonthlyEntry
+}
+
+interface ChartDotProps {
+  cx?: number
+  cy?: number
+  payload?: ChartPoint
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -42,15 +56,70 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-function SlaMonthlyLineChart({ title, subtitle, monthly, color }: Props) {
+function SlaMonthlyLineChart({ title, subtitle, monthly, color, onMonthClick }: Props) {
   const exportMode = useDashboardExportMode()
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const gradientId = `sla-grad-${useId().replace(/:/g, '')}`
+  const interactive = !exportMode && Boolean(onMonthClick)
   const chartData  = monthly.map((e) => ({
     month: e.month,
     rate:  e.total > 0 ? e.rate : null,
     meta:  e,
   }))
   const hasData = chartData.some((d) => d.rate !== null)
+  const renderDot = ({ cx, cy, payload }: ChartDotProps, active = false) => {
+    if (!payload || payload.rate === null) return <g key={`dot-${payload?.month ?? 'empty'}`} />
+    return (
+      <circle
+        key={`dot-${payload.month}`}
+        cx={cx} cy={cy} r={active ? CHART_ACTIVE_DOT_RADIUS : CHART_DOT_RADIUS}
+        fill={color} stroke="none"
+        style={interactive ? { cursor: 'pointer' } : undefined}
+        onClick={interactive ? (event) => {
+          event.stopPropagation()
+          onMonthClick?.(payload.meta, 'all')
+        } : undefined}
+      />
+    )
+  }
+  const detailTable = interactive && monthly.length > 0 && (
+    <details open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)} className="group mt-4 border-t border-apple-divider pt-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg py-2 text-base font-semibold text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
+        건수 상세 보기<ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" />
+      </summary>
+      <div data-pdf-kind="table" className="mt-2 overflow-x-auto rounded-xl border border-apple-divider">
+        <table className="w-full min-w-[320px] text-sm text-apple-dark">
+          <caption className="sr-only">{title} 월별 대상, 준수 및 위반 건수</caption>
+          <thead className="bg-apple-gray">
+            <tr>
+              <th scope="col" className="px-3 py-3 text-left font-semibold">월</th>
+              <th scope="col" className="px-2 py-3 text-right font-semibold">대상</th>
+              <th scope="col" className="px-2 py-3 text-right font-semibold">준수</th>
+              <th scope="col" className="px-2 py-3 text-right font-semibold">위반</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-apple-divider">
+            {monthly.map((entry) => (
+              <tr key={`${entry.year}-${entry.month_num}`}>
+                <th scope="row" className="whitespace-nowrap px-3 py-2 text-left font-medium">{entry.month_num}월</th>
+                {([
+                  { status: 'all', label: '대상', count: entry.total },
+                  { status: 'met', label: '준수', count: entry.met },
+                  { status: 'violated', label: '위반', count: Math.max(0, entry.total - entry.met) },
+                ] as const).map(({ status, label, count }) => (
+                  <td key={status} className="px-2 py-2 text-right tabular-nums">
+                    <button type="button" onClick={() => onMonthClick?.(entry, status)} aria-label={`${title} ${entry.year}년 ${entry.month_num}월 ${label} ${count.toLocaleString('ko-KR')}건 상세 보기`} className="min-h-10 min-w-10 rounded-lg px-2 py-1 font-semibold text-brand-600 underline underline-offset-4 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                      {count.toLocaleString('ko-KR')}
+                    </button>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  )
 
   if (!hasData) {
     return (
@@ -62,6 +131,7 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color }: Props) {
         <div className="flex items-center justify-center" style={{ height: CHART_HEIGHT }}>
           <p className="text-ui-sm text-apple-light">SLA 데이터가 없습니다</p>
         </div>
+        {detailTable}
       </div>
     )
   }
@@ -73,7 +143,13 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color }: Props) {
         <span className="text-ui-xs text-apple-light">{subtitle}</span>
       </div>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-        <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+          style={interactive ? { cursor: 'pointer' } : undefined}
+          onClick={interactive ? (state) => {
+            const entry: MonthlyEntry | undefined = state?.activePayload?.[0]?.payload?.meta
+            if (entry) onMonthClick?.(entry, 'all')
+          } : undefined}
+        >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={CHART_GRADIENT_STOP_START} />
@@ -102,16 +178,13 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color }: Props) {
             type="monotone" dataKey="rate" name="달성률"
             stroke={color} strokeWidth={CHART_STROKE_WIDTH}
             fill={`url(#${gradientId})`}
-            dot={({ cx, cy, payload }: any) =>
-              payload.rate !== null
-                ? <circle key={`dot-${payload.month}`} cx={cx} cy={cy} r={CHART_DOT_RADIUS} fill={color} stroke="none" />
-                : <g key={`dot-${payload.month}`} />
-            }
-            activeDot={{ r: CHART_ACTIVE_DOT_RADIUS }}
+            dot={(props: ChartDotProps) => renderDot(props)}
+            activeDot={interactive ? (props: ChartDotProps) => renderDot(props, true) : { r: CHART_ACTIVE_DOT_RADIUS }}
             connectNulls
           />
         </AreaChart>
       </ResponsiveContainer>
+      {detailTable}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/annual/AnnualYearComparison.tsx
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowUpRight } from 'lucide-react'
 import type { ReportDetail } from '@/domain/Report'
@@ -8,8 +8,11 @@ import { RequestError } from '@/application/errors/RequestError'
 import { useAnnualReport } from '@/presentation/hooks/useReport'
 import { buildDashboardData } from '@/presentation/hooks/useDashboardData'
 import { ANNUAL_REPORT_YEARS, isRefreshableAnnualReport } from '@/presentation/config/annualReports'
+import { MONTHLY_COUNT_COLORS } from '@/presentation/config/constants'
+import AnnualIssueDetailsModal, { type AnnualDetailIssue } from './AnnualIssueDetailsModal'
 
 export default function AnnualYearComparison({ report }: { report: ReportDetail }) {
+  const [details, setDetails] = useState<{ title: string; total: number; issues: AnnualDetailIssue[] } | null>(null)
   const query2024 = useAnnualReport(2024)
   const query2025 = useAnnualReport(2025)
   const query2026 = useAnnualReport(2026)
@@ -38,7 +41,7 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
           <h2 id="annual-comparison-title" className="text-lg font-semibold text-apple-dark">3개년 실적 비교</h2>
           <p className="mt-1 text-[13px] text-apple-mid">전체 요청 유형 · 각 보고서의 연간 누적 기준</p>
         </div>
-        <span className="text-[12px] text-apple-mid">연도를 선택하면 상세 보고서로 이동합니다.</span>
+        <span className="text-[12px] text-apple-mid">연도는 보고서로 이동 · 건수는 개별 이슈 조회</span>
       </div>
       <table className="w-full table-fixed border-collapse text-sm text-apple-dark">
         <caption className="sr-only">2024년부터 2026년까지 연간 생성 및 해결 건수. 2026년은 집계 기간까지의 누적 실적입니다.</caption>
@@ -57,14 +60,19 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
           </tr>
         </thead>
         <tbody>
-          {([{ key: 'created', label: '생성', color: 'rgb(var(--color-chart-created))' }, { key: 'resolved', label: '해결', color: 'rgb(var(--color-chart-resolved))' }] as const).map((metric) => (
+          {([{ key: 'created', label: '생성', color: MONTHLY_COUNT_COLORS.created }, { key: 'resolved', label: '해결', color: MONTHLY_COUNT_COLORS.resolved }] as const).map((metric) => (
             <tr key={metric.key} className="border-b border-apple-divider last:border-0">
               <th scope="row" className="px-3 py-4 text-left font-semibold md:px-6">{metric.label}<span className="ml-1 text-[12px] font-normal text-apple-mid">(건)</span></th>
               {columns.map((column) => {
                 const value = column[metric.key]
                 return (
                   <td key={column.year} className={`px-2 py-4 text-center md:px-6 ${column.year === report.report_year ? 'bg-brand-50/50' : ''}`}>
-                    <span className="block text-lg font-semibold tabular-nums tracking-tight sm:text-2xl">{value === null ? '—' : value.toLocaleString('ko-KR')}</span>
+                    <span className="block text-lg font-semibold tabular-nums tracking-tight sm:text-2xl">{value === null || !column.data ? '—' : (
+                      <button type="button" aria-label={`${column.year}년 ${metric.label} ${value.toLocaleString('ko-KR')}건 상세 보기`} className="rounded px-1 underline decoration-apple-divider underline-offset-4 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" onClick={() => {
+                        const weekly = buildDashboardData(column.data!).weekly
+                        setDetails({ title: `${column.year}년 ${metric.label} 이슈`, total: value, issues: metric.key === 'created' ? weekly.weeklyCreated : weekly.weeklyResolved })
+                      }}>{value.toLocaleString('ko-KR')}</button>
+                    )}</span>
                     {value === null ? (
                       <span className="mt-1 block text-[11px] text-apple-mid">{column.data ? '집계 없음' : column.state}</span>
                     ) : (
@@ -86,6 +94,7 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
           </p>
         ))}
       </div>
+      {details && <AnnualIssueDetailsModal {...details} description="선택한 연도의 전체 요청 유형 기준입니다." onClose={() => setDetails(null)} />}
     </section>
   )
 }

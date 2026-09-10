@@ -9,7 +9,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
-from src.application.ports.jira_port import JiraAssetReference, JiraIssue
+from src.application.ports.jira_port import JiraAssetReference, JiraChartIssuePage, JiraIssue, JiraIssueField
 from src.application.widgets.redeployment_collector import RedeploymentAnalyticsCollector
 from src.domain.entities.widget_data import RedeploymentAnalyticsWidgetData
 from src.domain.value_objects.widget_id import WidgetId
@@ -65,6 +65,51 @@ class RedeploymentJira:
 
 
 class RedeploymentCollectorTest(unittest.IsolatedAsyncioTestCase):
+    async def test_fresh_details_use_typed_chart_queries_and_fresh_partner_labels(self) -> None:
+        class FreshJira(RedeploymentJira):
+            def __init__(self):
+                super().__init__()
+                self.chart_calls = []
+                self.label_references = []
+
+            async def get_report_chart_issues(self, jql, max_results, fields, with_redeployment=False):
+                self.chart_calls.append((jql, max_results, fields, with_redeployment))
+                return JiraChartIssuePage(self.issues, False)
+
+            async def get_report_chart_asset_labels(self, references):
+                self.label_references = references
+                return {reference: "갱신된 파트너" for reference in references}
+
+            async def get_redeployment_issues(self, *args, **kwargs):
+                raise AssertionError("Fresh details must use the chart query")
+
+            async def get_asset_object_labels(self, references):
+                raise AssertionError("Fresh details must use fresh asset labels")
+
+        jira = FreshJira()
+        queries = WidgetQueryBuilder(QueryConfig("TACEA", [], [], [], 30, 2026)).build(
+            datetime.datetime(2024, 12, 31),
+        )
+
+        details = await RedeploymentAnalyticsCollector(jira, queries).load_details(fresh=True)
+
+        self.assertEqual(["TACEA-3", "TACEA-2", "TACEA-1"], [detail.key for detail in details])
+        self.assertEqual("CVE", details[0].type)
+        self.assertEqual(["갱신된 파트너"], details[0].partners)
+        self.assertEqual(
+            [JiraAssetReference("workspace", "1"), JiraAssetReference("workspace", "2")],
+            jira.label_references,
+        )
+        self.assertEqual(1, len(jira.chart_calls))
+        jql, limit, fields, with_redeployment = jira.chart_calls[0]
+        self.assertEqual(f"{queries.w15_redeployment_issues()} ORDER BY resolved DESC", jql)
+        self.assertIsNone(limit)
+        self.assertTrue(with_redeployment)
+        self.assertEqual(frozenset({
+            JiraIssueField.SUMMARY, JiraIssueField.ISSUE_TYPE, JiraIssueField.RESOLVED,
+            JiraIssueField.ASSIGNEE, JiraIssueField.PRIORITY,
+        }), fields)
+
     async def test_keeps_every_redeployment_issue_for_frontend_pagination(self) -> None:
         jira = RedeploymentJira()
         jira.issues.extend([

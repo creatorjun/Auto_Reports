@@ -13,6 +13,7 @@ from src.application.ports.jira_port import (
     JiraAttachmentContent,
     JiraComment,
     JiraCommentImage,
+    JiraChartIssuePage,
     JiraIssue,
     JiraIssueField,
     JiraPort,
@@ -409,6 +410,64 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         fields = tuple(filter(None, f"{base},{sla_part}".split(",")))
         return await self._get_mapped_issues(jql, max_results, fields)
 
+    async def get_report_chart_issues(
+        self,
+        jql: str,
+        max_results: int | None,
+        fields: frozenset[JiraIssueField],
+        with_sla: bool = False,
+        with_redeployment: bool = False,
+    ) -> JiraChartIssuePage:
+        if max_results is not None and max_results <= 0:
+            raise ValueError("Chart issue limit must be positive")
+        field_list = sorted(_JIRA_FIELD_NAMES[field] for field in fields)
+        if with_sla:
+            field_list.extend(filter(None, [self._sla_initial_fid, self._sla_resolution_fid]))
+        if with_redeployment:
+            field_list.extend([
+                _REDEPLOYMENT_MONTH_FIELD,
+                _REDEPLOYMENT_CAUSE_FIELD,
+                _REDEPLOYMENT_PARTNER_FIELD,
+            ])
+        issues: list[dict[str, Any]] = []
+        next_token: str | None = None
+        seen_tokens: set[str] = set()
+        while True:
+            remaining = _FETCH_PAGE_SIZE if max_results is None else min(_FETCH_PAGE_SIZE, max_results - len(issues))
+            payload: dict[str, Any] = {"jql": jql, "maxResults": remaining, "fields": list(dict.fromkeys(field_list))}
+            if next_token is not None:
+                payload["nextPageToken"] = next_token
+            try:
+                response = await self._client.post(f"{self._base_url}/rest/api/3/search/jql", json=payload)
+                response.raise_for_status()
+                data = response.json()
+            except (httpx.HTTPError, ValueError) as error:
+                raise RuntimeError("Jira chart issue query failed") from error
+            if not isinstance(data, dict):
+                raise RuntimeError("Jira chart issue response is invalid")
+            page = data.get("issues")
+            if not isinstance(page, list) or any(
+                not isinstance(issue, dict)
+                or (issue.get("fields") is not None and not isinstance(issue["fields"], dict))
+                for issue in page
+            ):
+                raise RuntimeError("Jira chart issue response is invalid")
+            issues.extend(page)
+            next_token = data.get("nextPageToken") or None
+            if next_token is not None and not isinstance(next_token, str):
+                raise RuntimeError("Jira chart issue pagination token is invalid")
+            if next_token is not None and (not page or next_token in seen_tokens):
+                raise RuntimeError("Jira chart issue pagination did not advance")
+            if next_token is None or (max_results is not None and len(issues) >= max_results):
+                break
+            seen_tokens.add(next_token)
+        selected = issues if max_results is None else issues[:max_results]
+        try:
+            mapped = [self._map_issue(issue) for issue in selected]
+        except (AttributeError, TypeError, ValueError) as error:
+            raise RuntimeError("Jira chart issue response is invalid") from error
+        return JiraChartIssuePage(issues=mapped, has_more=next_token is not None or len(selected) < len(issues))
+
     async def get_issues_with_assignees(
         self,
         jql: str,
@@ -551,6 +610,27 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
             return reference, label
 
         resolved = await asyncio.gather(*(resolve(reference) for reference in unique_references))
+        return dict(resolved)
+
+    async def get_report_chart_asset_labels(
+        self,
+        references: list[JiraAssetReference],
+    ) -> dict[JiraAssetReference, str]:
+        async def resolve(reference: JiraAssetReference) -> tuple[JiraAssetReference, str]:
+            workspace = quote(reference.workspace_id, safe="")
+            object_id = quote(reference.object_id, safe="")
+            url = f"{self._base_url}/gateway/api/jsm/assets/workspace/{workspace}/v1/object/{object_id}"
+            try:
+                response = await self._client.get(url)
+                response.raise_for_status()
+                data = response.json()
+            except (httpx.HTTPError, ValueError) as error:
+                raise RuntimeError("Jira chart partner label query failed") from error
+            label = data.get("label") if isinstance(data, dict) else None
+            if not isinstance(label, str) or not label.strip():
+                raise RuntimeError("Jira chart partner label response is invalid")
+            return reference, label
+        resolved = await asyncio.gather(*(resolve(reference) for reference in dict.fromkeys(references)))
         return dict(resolved)
 
     async def search(self, query: str, limit: int = 5) -> list[SearchResult]:

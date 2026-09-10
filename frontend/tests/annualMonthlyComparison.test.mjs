@@ -112,3 +112,35 @@ test('PDF mode expands all rows and disables both bar animations without losing 
   assert.equal(view.root.findAllByType('YAxis').length, 1)
   act(() => view.unmount())
 })
+
+test('monthly bars and count buttons preserve selected month, series and zero values', () => {
+  const selected = []
+  let view
+  act(() => {
+    view = TestRenderer.create(React.createElement(AnnualMonthlyComparison, {
+      created: [entry(1, 0), entry(2, 4)], resolved: [entry(1, 3)], year: 2026,
+      periodEnd: '2026-09-09', subtitle: '전체 기간', onSelectMonth: (...value) => selected.push(value),
+    }))
+  })
+  act(() => view.root.findAllByType('Bar')[0].props.onClick({ payload: { monthNumber: 2, created: 4, resolved: null } }))
+  act(() => view.root.findByProps({ 'aria-label': '1월 등록 0건 상세 보기' }).props.onClick())
+  act(() => view.root.findByProps({ 'aria-label': '1월 해결 3건 상세 보기' }).props.onClick())
+  assert.deepEqual(selected, [[2, 'created', 4], [1, 'created', 0], [1, 'resolved', 3]])
+  assert.equal(view.root.findAllByType('button').length, 3)
+  act(() => view.unmount())
+})
+
+test('monthly PDF export suppresses drilldown even when a callback is supplied', () => {
+  let view
+  act(() => {
+    view = TestRenderer.create(React.createElement(DashboardExportProvider, null,
+      React.createElement(AnnualMonthlyComparison, {
+        created: [entry(1, 4)], resolved: [entry(1, 3)], year: 2026,
+        periodEnd: '2026-09-09', subtitle: '전체 기간', onSelectMonth: () => assert.fail('Export must not query details'),
+      }),
+    ))
+  })
+  assert.equal(view.root.findAllByType('button').length, 0)
+  assert.ok(view.root.findAllByType('Bar').every((bar) => bar.props.onClick === undefined))
+  act(() => view.unmount())
+})

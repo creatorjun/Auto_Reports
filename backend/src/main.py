@@ -55,6 +55,7 @@ def create_app(settings: Settings) -> FastAPI:
                     get_report=container.get_report,
                     get_site=container.get_site,
                     get_sla_dashboard=container.get_sla_dashboard,
+                    get_report_chart_issues=container.get_report_chart_issues,
                 )
                 scheduler = create_scheduler(
                     schedule_cron=settings.schedule_cron,

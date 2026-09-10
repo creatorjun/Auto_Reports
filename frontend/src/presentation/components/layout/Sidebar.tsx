@@ -1,6 +1,7 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
-import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Gauge, History, Building2, HardDrive, Users, ChevronLeft, ChevronRight, LogOut, CalendarRange } from 'lucide-react'
+import { useId, useState } from 'react'
+import { NavLink, useMatch } from 'react-router-dom'
+import { LayoutDashboard, Gauge, History, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange } from 'lucide-react'
 import TriggerButton from '../common/TriggerButton'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout } from '@/presentation/hooks/useAuth'
@@ -9,13 +10,13 @@ import { ANNUAL_REPORT_YEARS } from '@/presentation/config/annualReports'
 
 const annualReportLinks = ANNUAL_REPORT_YEARS.map((year) => ({
   to: `/reports/annual/${year}`,
-  label: `${year} 연간 보고서`,
-  icon: <CalendarRange size={16} />,
+  label: `${year}`,
+  ariaLabel: `${year} 연간 보고서`,
 }))
 
 const reportLinks = [
   { to: '/',         label: '대시보드',      icon: <LayoutDashboard size={16} /> },
-  ...annualReportLinks,
+  { label: '연간 보고서', icon: <CalendarRange size={16} />, children: annualReportLinks },
   { to: '/sla-dashboard', label: 'SLA 대시보드', icon: <Gauge size={16} /> },
   { to: '/history',  label: '보고서 히스토리', icon: <History         size={16} /> },
   { to: '/partners', label: '파트너 관리',    icon: <Users           size={16} /> },
@@ -29,6 +30,10 @@ interface Props {
 }
 
 export default function Sidebar({ collapsed, setCollapsed }: Props) {
+  const [annualReportsExpanded, setAnnualReportsExpanded] = useState(false)
+  const annualReportsId = useId()
+  const annualReportMatch = useMatch('/reports/annual/:year')
+  const showAnnualReports = annualReportsExpanded && !collapsed
   const { loginRequired, username } = useAuthStore()
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
 
@@ -53,24 +58,83 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
       </button>
 
       <div className="flex flex-col gap-0.5 flex-1">
-        {reportLinks.map(({ to, icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            title={collapsed ? label : undefined}
-            className={({ isActive }) =>
-              ['nav-link',
-               collapsed ? 'justify-center px-0' : '',
-               isActive ? 'nav-link-active' : '',
-               '3xl:text-sm 3xl:py-2.5',
-              ].join(' ')
-            }
-          >
-            <span className="flex-shrink-0">{icon}</span>
-            {!collapsed && <span>{label}</span>}
-          </NavLink>
-        ))}
+        {reportLinks.map((item) => {
+          if (item.children) {
+            return (
+              <div key={item.label}>
+                <button
+                  type="button"
+                  aria-label={item.label}
+                  aria-expanded={showAnnualReports}
+                  aria-controls={annualReportsId}
+                  title={collapsed ? item.label : undefined}
+                  onClick={() => {
+                    if (collapsed) {
+                      setCollapsed(false)
+                      setAnnualReportsExpanded(true)
+                    } else {
+                      setAnnualReportsExpanded((expanded) => !expanded)
+                    }
+                  }}
+                  className={[
+                    'nav-link w-full text-left 3xl:text-sm 3xl:py-2.5',
+                    collapsed ? 'justify-center px-0' : '',
+                    annualReportMatch ? 'nav-link-active' : '',
+                  ].join(' ')}
+                >
+                  <span className="flex-shrink-0">{item.icon}</span>
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1">{item.label}</span>
+                      <ChevronDown
+                        size={14}
+                        aria-hidden="true"
+                        className={`flex-shrink-0 transition-transform duration-200 ${showAnnualReports ? '' : '-rotate-90'}`}
+                      />
+                    </>
+                  )}
+                </button>
+                <div id={annualReportsId} hidden={!showAnnualReports}>
+                  <div className="ml-5 mt-1 flex flex-col gap-0.5 border-l border-apple-divider/80 pl-2">
+                    {item.children.map(({ to, label, ariaLabel }) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        aria-label={ariaLabel}
+                        className={({ isActive }) =>
+                          ['nav-link 3xl:text-sm 3xl:py-2.5', isActive ? 'nav-link-active' : ''].join(' ')
+                        }
+                      >
+                        {label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          const { to, icon, label } = item
+
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              title={collapsed ? label : undefined}
+              className={({ isActive }) =>
+                ['nav-link',
+                 collapsed ? 'justify-center px-0' : '',
+                 isActive ? 'nav-link-active' : '',
+                 '3xl:text-sm 3xl:py-2.5',
+                ].join(' ')
+              }
+            >
+              <span className="flex-shrink-0">{icon}</span>
+              {!collapsed && <span>{label}</span>}
+            </NavLink>
+          )
+        })}
       </div>
 
       <div className={['mt-auto pt-4 border-t border-apple-divider/60 flex flex-col', collapsed ? 'items-center' : ''].join(' ')}>

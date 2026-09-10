@@ -76,6 +76,27 @@ class SemesterDashboardDataTest(unittest.IsolatedAsyncioTestCase):
             week_start_override=datetime.datetime(2026, 1, 1),
         )
 
+    async def test_resolution_fallback_uses_injected_time_and_keeps_status_breakdowns(self) -> None:
+        class UnresolvedJira:
+            async def get_issues(self, jql, max_results, fields):
+                if max_results is not None:
+                    raise AssertionError("Resolution collection must not be capped")
+                return [
+                    JiraIssue(issue_type="개선", status="할 일", created="2026-07-01T12:00:00+09:00"),
+                    JiraIssue(issue_type="개선", status="할 일", created=""),
+                ]
+
+        result = await ResolutionCollector(
+            UnresolvedJira(), self.queries,
+            datetime.datetime(2026, 7, 2, 12, tzinfo=datetime.timezone(datetime.timedelta(hours=9))),
+        ).collect()
+
+        self.assertEqual(1, result.total)
+        self.assertEqual(24, result.data.by_type["개선"].avg_hours)
+        self.assertEqual(1, result.data.by_semester["h2"]["개선"].count)
+        self.assertEqual(24, result.data.by_status_type["할 일"]["개선"].avg_hours)
+        self.assertEqual(1, result.data.by_semester_status_type["h2"]["할 일"]["개선"].count)
+
     async def test_resolution_stats_are_split_by_semester_and_restored(self) -> None:
         result = await ResolutionCollector(
             ResolutionJira(),

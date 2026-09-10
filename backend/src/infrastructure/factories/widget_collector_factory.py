@@ -27,9 +27,10 @@ class WidgetCollectorFactory:
         jira = self._jira
         yearly_created_jql = q.w1_yearly_created()
         yearly_resolved_jql = q.w2_yearly_resolved()
+        report_year = q.week_end.year
         return [
-            CollectorEntry(WidgetId.YEARLY_CREATED,      TypeCountCollector(jira, f"{now.year}\ub144 \ub204\uc801 \uc0dd\uc131", yearly_created_jql, list(q.issue_types))),
-            CollectorEntry(WidgetId.YEARLY_RESOLVED,     TypeCountCollector(jira, f"{now.year}\ub144 \ub204\uc801 \ud574\uacb0", yearly_resolved_jql, list(q.issue_types))),
+            CollectorEntry(WidgetId.YEARLY_CREATED,      TypeCountCollector(jira, f"{report_year}\ub144 \ub204\uc801 \uc0dd\uc131", yearly_created_jql, list(q.issue_types))),
+            CollectorEntry(WidgetId.YEARLY_RESOLVED,     TypeCountCollector(jira, f"{report_year}\ub144 \ub204\uc801 \ud574\uacb0", yearly_resolved_jql, list(q.issue_types))),
             CollectorEntry(WidgetId.CREATED_VS_RESOLVED, CreatedVsResolvedCollector(jira, q)),
             CollectorEntry(WidgetId.ISSUE_REVIEW,        SimpleWithDetailsCollector(jira, "\uc774\uc288 \ub9ac\ubdf0 \uc911", q.w4_issue_review(), now, max_results=None)),
             CollectorEntry(WidgetId.DATA_REQUEST,        SimpleWithDetailsCollector(jira, "\uc790\ub8cc \uc694\uccad \uc911", q.w5_data_request(), now)),
@@ -37,7 +38,7 @@ class WidgetCollectorFactory:
             CollectorEntry(WidgetId.RECENT_ISSUES,       RecentCollector(jira, q, now)),
             CollectorEntry(WidgetId.SLA_MET_VS_VIOLATED, SlaMetVsViolatedCollector(jira, q)),
             CollectorEntry(WidgetId.SLA_DELAY_REASON,    SlaDelayCollector(jira, q)),
-            CollectorEntry(WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(jira, q, now)),
+            CollectorEntry(WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(jira, q, q.week_end)),
         ]
 
     def monthly_collectors(self, q: ResolvedQueries, now: datetime) -> list[tuple[list[WidgetId], object]]:

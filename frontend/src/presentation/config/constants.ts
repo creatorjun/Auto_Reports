@@ -32,6 +32,8 @@ export const PIE_COLORS = [
   'rgb(var(--color-chart-orange))',
 ] as const
 
+export const CATEGORICAL_CHART_COLORS = PIE_COLORS
+
 export const SLA_COLOR_MAP = {
   green:  { ring: 'rgb(var(--color-chart-resolved))', track: 'rgb(var(--color-green-100))', text: 'text-green-600',  badge: 'bg-green-50 text-green-700'  },
   yellow: { ring: 'rgb(var(--color-chart-warning))',  track: 'rgb(var(--color-amber-100))', text: 'text-amber-600',  badge: 'bg-amber-50 text-amber-700'  },

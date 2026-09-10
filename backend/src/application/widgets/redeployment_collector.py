@@ -2,7 +2,7 @@
 import asyncio
 from collections import Counter, defaultdict
 
-from src.application.ports.jira_port import JiraAssetReference, JiraIssue, JiraPort
+from src.application.ports.jira_port import JiraAssetReference, JiraIssue, JiraIssueField, JiraPort
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.constants import REDEPLOYMENT_CLASSIFICATION_START_YEAR, SUMMARY_TRUNCATE_LEN
@@ -25,17 +25,10 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
         resolved_jql = self._queries.w15_redeployment_resolved()
         redeployment_jql = self._queries.w15_redeployment_issues()
         analytics_jql = self._queries.w15_redeployment_analytics()
-        resolved_total, issues = await asyncio.gather(
+        resolved_total, details = await asyncio.gather(
             self._jira.get_issue_count(resolved_jql),
-            self._jira.get_redeployment_issues(
-                f"{redeployment_jql} ORDER BY resolved DESC",
-                max_results=None,
-            ),
+            self.load_details(),
         )
-        references = self._asset_references(issues)
-        asset_labels = await self._jira.get_asset_object_labels(references)
-        details = [self._to_detail(issue, asset_labels) for issue in issues]
-        details.sort(key=lambda issue: issue.resolved, reverse=True)
         redeployment_total = len(details)
         analytics_details = [issue for issue in details if issue.type in _ANALYTICS_TYPES]
         monthly = self._monthly(analytics_details, self._queries.week_end.year)
@@ -67,6 +60,33 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
                 },
             ),
         )
+
+    async def load_details(self, fresh: bool = False) -> list[RedeploymentIssueDetail]:
+        jql = f"{self._queries.w15_redeployment_issues()} ORDER BY resolved DESC"
+        if fresh:
+            page = await self._jira.get_report_chart_issues(
+                jql,
+                max_results=None,
+                fields=frozenset({
+                    JiraIssueField.SUMMARY,
+                    JiraIssueField.ISSUE_TYPE,
+                    JiraIssueField.RESOLVED,
+                    JiraIssueField.ASSIGNEE,
+                    JiraIssueField.PRIORITY,
+                }),
+                with_redeployment=True,
+            )
+            issues = page.issues
+        else:
+            issues = await self._jira.get_redeployment_issues(jql, max_results=None)
+        references = self._asset_references(issues)
+        asset_labels = await (
+            self._jira.get_report_chart_asset_labels(references)
+            if fresh else self._jira.get_asset_object_labels(references)
+        )
+        details = [self._to_detail(issue, asset_labels) for issue in issues]
+        details.sort(key=lambda issue: issue.resolved, reverse=True)
+        return details
 
     @staticmethod
     def _asset_references(issues: list[JiraIssue]) -> list[JiraAssetReference]:

@@ -41,9 +41,15 @@ class BatchCountJira:
 
 
 class SlaJira:
-    async def get_issues_with_sla(self, jql: str, max_results: int) -> list[JiraIssue]:
+    def __init__(self):
+        self.calls = []
+
+    async def get_issues_with_sla(self, jql: str, max_results: int | None) -> list[JiraIssue]:
         if 'issuetype != "라이선스"' not in jql:
             raise AssertionError("라이선스 제외 조건이 필요합니다")
+        if max_results is not None:
+            raise AssertionError("Monthly SLA collection must not be capped")
+        self.calls.append(jql)
         return [
             JiraIssue(
                 issue_type="인시던트",
@@ -132,14 +138,16 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(2, restored.data.monthly[0].by_status_type["할 일"]["토글 외 요청"])
 
     async def test_monthly_sla_keeps_met_and_total_by_type(self) -> None:
+        jira = SlaJira()
         initial, resolution = await MonthlyCollector(
-            SlaJira(),
+            jira,
             self.queries,
             self.now,
         ).collect()
 
         initial_entry = initial.data.monthly[0]
         resolution_entry = resolution.data.monthly[0]
+        self.assertEqual([self.queries.w1_yearly_created()], jira.calls)
         self.assertEqual(12, len(initial.data.monthly))
         self.assertEqual((2026, 1), (initial_entry.year, initial_entry.month_num))
         self.assertEqual((2026, 12), (

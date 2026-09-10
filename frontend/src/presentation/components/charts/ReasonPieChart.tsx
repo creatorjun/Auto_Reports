@@ -3,11 +3,11 @@ import { memo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { TooltipProps } from 'recharts'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
-import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
+import { CATEGORICAL_CHART_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
 import type { SlaDelayIssue } from '@/domain/Dashboard'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 
-const REASON_COLORS = PIE_COLORS
+const REASON_COLORS = CATEGORICAL_CHART_COLORS
 
 const RADIAN = Math.PI / 180
 

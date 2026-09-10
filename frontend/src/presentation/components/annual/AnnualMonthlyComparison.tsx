@@ -5,6 +5,7 @@ import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import type { MonthlyCountEntry } from '@/domain/Dashboard'
+import { MONTHLY_COUNT_COLORS } from '@/presentation/config/constants'
 import { CHART_COLORS } from '@/presentation/config/ui'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 import {
@@ -18,11 +19,12 @@ interface Props {
   year: number
   periodEnd: string
   subtitle: string
+  onSelectMonth?: (month: number, series: 'created' | 'resolved', count: number) => void
 }
 
 const SERIES = [
-  { key: 'created', name: '등록', color: 'rgb(var(--color-chart-created))' },
-  { key: 'resolved', name: '해결', color: 'rgb(var(--color-chart-resolved))' },
+  { key: 'created', name: '등록', color: MONTHLY_COUNT_COLORS.created },
+  { key: 'resolved', name: '해결', color: MONTHLY_COUNT_COLORS.resolved },
 ] as const
 
 const formatCount = (value: number | null) => value === null ? '—' : value.toLocaleString('ko-KR')
@@ -49,7 +51,7 @@ function ComparisonTooltip({ active, payload }: {
   )
 }
 
-function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle }: Props) {
+function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle, onSelectMonth }: Props) {
   const exportMode = useDashboardExportMode()
   const [tableOpen, setTableOpen] = useState(false)
   const rows = buildAnnualMonthlyComparison(created, resolved, year, periodEnd)
@@ -78,7 +80,14 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle 
                   <Tooltip filterNull={false} cursor={{ fill: 'rgb(var(--color-apple-gray))' }} content={<ComparisonTooltip />} />
                   <Legend iconType="square" iconSize={10} wrapperStyle={{ paddingTop: 12 }} formatter={(value: string) => <span className="ml-1 text-ui-sm font-medium text-apple-dark">{value}</span>} />
                   {SERIES.map((series) => (
-                    <Bar key={series.key} dataKey={series.key} name={series.name} fill={series.color} radius={[4, 4, 0, 0]} maxBarSize={32} isAnimationActive={!exportMode} />
+                    <Bar key={series.key} dataKey={series.key} name={series.name} fill={series.color} radius={[4, 4, 0, 0]} maxBarSize={32} isAnimationActive={!exportMode}
+                      cursor={onSelectMonth && !exportMode ? 'pointer' : undefined}
+                      onClick={onSelectMonth && !exportMode ? (entry) => {
+                        const row = entry.payload as AnnualMonthlyComparisonEntry
+                        const count = row?.[series.key]
+                        if (count != null) onSelectMonth(row.monthNumber, series.key, count)
+                      } : undefined}
+                    />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
@@ -88,6 +97,7 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle 
           <p className="flex min-h-44 items-center justify-center text-ui-sm text-apple-dark">해당 기간의 월별 데이터가 없습니다.</p>
         )}
         {allZero && <p className="mt-2 text-ui-sm text-apple-dark">해당 기간의 등록·해결 건수가 모두 0건입니다.</p>}
+        {onSelectMonth && !exportMode && <p className="mt-2 text-sm text-apple-mid">막대 또는 아래 월별 건수를 선택하면 개별 이슈를 확인할 수 있습니다.</p>}
       </div>
       {rows.length > 0 && (
         <details open={exportMode || tableOpen} onToggle={(event) => { if (!exportMode) setTableOpen(event.currentTarget.open) }} className="group mt-5 border-t border-apple-divider pt-4">
@@ -109,8 +119,13 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle 
                 {rows.map((row) => (
                   <tr key={row.monthNumber} className="even:bg-apple-gray/40">
                     <th scope="row" className="px-4 py-2.5 text-left font-medium">{row.month}</th>
-                    <td className="px-4 py-2.5 text-right font-semibold tabular-nums" aria-label={row.created === null ? '등록 데이터 없음' : undefined}>{formatCount(row.created)}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold tabular-nums" aria-label={row.resolved === null ? '해결 데이터 없음' : undefined}>{formatCount(row.resolved)}</td>
+                    {SERIES.map((series) => (
+                      <td key={series.key} className="px-4 py-2.5 text-right font-semibold tabular-nums" aria-label={row[series.key] === null ? `${series.name} 데이터 없음` : undefined}>
+                        {onSelectMonth && !exportMode && row[series.key] !== null ? (
+                          <button type="button" aria-label={`${row.month} ${series.name} ${formatCount(row[series.key])}건 상세 보기`} onClick={() => onSelectMonth(row.monthNumber, series.key, row[series.key]!)} className="rounded px-2 py-1 text-brand-600 underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">{formatCount(row[series.key])}</button>
+                        ) : formatCount(row[series.key])}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

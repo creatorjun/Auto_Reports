@@ -6,6 +6,7 @@ import type {
   ReportGateway,
 } from '@/application/ports/ApplicationServices'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
+import type { ChartIssuesResult } from '@/domain/ReportChartDetails'
 import type { TriggerAccepted, JobStatus, TriggerParams } from '@/domain/Job'
 import type { AppConfig } from '@/domain/Config'
 
@@ -167,6 +168,15 @@ export const reportApi: ReportGateway = {
   },
   trigger: async (params?: TriggerParams): Promise<TriggerAccepted> => {
     const res = await client.post<TriggerAccepted>('/trigger/', params ?? {})
+    return res.data
+  },
+  getChartIssues: async (id, request, signal): Promise<ChartIssuesResult> => {
+    const res = await client.get<ChartIssuesResult>(`/reports/${id}/chart-issues`, {
+      params: request,
+      paramsSerializer: { indexes: null },
+      signal,
+      timeout: 120_000,
+    })
     return res.data
   },
   watchJob,

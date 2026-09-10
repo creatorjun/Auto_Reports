@@ -89,14 +89,17 @@ class InMemoryReportCache(ReportCachePort):
 class RecordingAssembler:
     def __init__(self) -> None:
         self.calls: list[tuple[datetime.datetime, datetime.datetime | None]] = []
+        self.collected_at: list[datetime.datetime | None] = []
 
     async def collect(
         self,
         now: datetime.datetime,
         week_start_override: datetime.datetime | None = None,
         annual_report_year: int | None = None,
+        collected_at: datetime.datetime | None = None,
     ) -> NewReport:
         self.calls.append((now, week_start_override))
+        self.collected_at.append(collected_at)
         return NewReport(
             week_start=week_start_override.date(),
             week_end=now.date(),
@@ -162,3 +165,4 @@ class AnnualReportTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(datetime.date(2026, 9, 1), repository.updated[1].week_end)
         self.assertEqual(ReportScope.ANNUAL, repository.updated[1].scope)
         self.assertEqual(1, cache.latest_id)
+        self.assertEqual([FixedDateTime.now(KST)] * 2, assembler.collected_at)

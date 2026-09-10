@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.application.services.auth_service import AuthService
 from src.application.use_cases.get_report import GetReportUseCase
+from src.application.use_cases.get_report_chart_issues import GetReportChartIssuesUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.presentation.api.deps import ApiServices, get_api_services, get_auth
@@ -40,6 +41,13 @@ async def get_site_use_case(
     services: ApiServices = Depends(get_api_services),
 ) -> AsyncIterator[SiteUseCase]:
     async with services.get_site() as use_case:
+        yield use_case
+
+
+async def get_report_chart_issues_use_case(
+    services: ApiServices = Depends(get_api_services),
+) -> AsyncIterator[GetReportChartIssuesUseCase]:
+    async with services.get_report_chart_issues() as use_case:
         yield use_case
 
 

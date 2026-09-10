@@ -14,6 +14,7 @@ import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
 import { ModalFallback, ChartFallback } from '@/presentation/components/common/DashboardFallbacks'
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/constants'
 import type { ReportDetail } from '@/domain/Report'
+import type { ChartIssue, ChartIssuesRequest } from '@/domain/ReportChartDetails'
 import type { DashboardPdfDocument } from '@/domain/DashboardExport'
 import DashboardPdfExportStage from '@/presentation/components/export/DashboardPdfExportStage'
 import '@/presentation/styles/dashboardExport.css'
@@ -22,6 +23,7 @@ import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViol
 import AnnualReportHeader from '@/presentation/components/annual/AnnualReportHeader'
 import AnnualYearComparison from '@/presentation/components/annual/AnnualYearComparison'
 import AnnualSummaryMetrics from '@/presentation/components/annual/AnnualSummaryMetrics'
+import AnnualIssueDetailsModal from '@/presentation/components/annual/AnnualIssueDetailsModal'
 import '@/presentation/styles/annualReport.css'
 import { WIDGET_ID } from '@/domain/WidgetId'
 
@@ -34,6 +36,7 @@ const SlaMonthlyLineChart = lazy(() => import('@/presentation/components/charts/
 const MonthlyCountChart   = lazy(() => import('@/presentation/components/charts/MonthlyCountChart'))
 const RedeploymentAnnualSection = lazy(() => import('@/presentation/components/annual/RedeploymentAnnualSection'))
 const AnnualMonthlyComparison = lazy(() => import('@/presentation/components/annual/AnnualMonthlyComparison'))
+const AnnualRemoteIssueDetailsModal = lazy(() => import('@/presentation/components/annual/AnnualRemoteIssueDetailsModal'))
 
 const WeeklyCreatedModal  = lazy(() => import('@/presentation/components/tables/WeeklyCreatedModal'))
 const WeeklyResolvedModal = lazy(() => import('@/presentation/components/tables/WeeklyResolvedModal'))
@@ -76,10 +79,17 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const [slaDelayEntry,      setSlaDelayEntry]      = useState<{ status: string; issues: SlaDelayIssue[] } | null>(null)
   const [exportSnapshot, setExportSnapshot] = useState<ExportSnapshot | null>(null)
   const [exportError, setExportError] = useState('')
+  const [annualDetails, setAnnualDetails] = useState<{ title: string; total: number; issues: ChartIssue[] } | null>(null)
+  const [remoteDetails, setRemoteDetails] = useState<{ title: string; total: number; request: ChartIssuesRequest } | null>(null)
   const exportPending = useRef(false)
   const effectiveIssueTypes = exportSelection ? exportSelection.selectedIssueTypes : selectedIssueTypes
   const effectiveStatuses = exportSelection ? exportSelection.selectedStatuses : selectedStatuses
   const effectiveSemester = exportSelection ? exportSelection.selectedSemester : selectedSemester
+
+  useEffect(() => {
+    setAnnualDetails(null)
+    setRemoteDetails(null)
+  }, [report.id, effectiveIssueTypes, effectiveStatuses, effectiveSemester])
 
   useEffect(() => {
     if (exportSelection) return
@@ -103,6 +113,12 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const redeploymentData = report.scope === 'annual'
     ? report.widgets[WIDGET_ID.REDEPLOYMENT_ANALYTICS]?.data as unknown as RedeploymentAnalytics | null
     : null
+  const chartFilters = {
+    filter_statuses: supportsStatusFiltering && effectiveStatuses !== null,
+    selected_statuses: supportsStatusFiltering && effectiveStatuses !== null ? [...effectiveStatuses] : undefined,
+    filter_types: supportsIssueTypeFiltering && effectiveIssueTypes !== null,
+    selected_types: supportsIssueTypeFiltering && effectiveIssueTypes !== null ? [...effectiveIssueTypes] : undefined,
+  }
 
   const slaModalIssues: SlaViolationIssue[] = useMemo(() => {
     if (!slaViolationEntry) return []
@@ -191,7 +207,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
 
   return (
     <>
-    <div className={`${isAnnual ? 'dashboard-report-view annual-report-view space-y-6 md:space-y-8' : 'dashboard-report-view space-y-4 md:space-y-6 3xl:space-y-8'}${exportSelection ? ' dashboard-report-export-view' : ''}`}>
+    <div className={`${isAnnual ? 'dashboard-report-view dashboard-view annual-report-view space-y-6 md:space-y-8' : 'dashboard-report-view dashboard-view space-y-4 md:space-y-6 3xl:space-y-8'}${exportSelection ? ' dashboard-report-export-view' : ''}`}>
       {isAnnual ? <AnnualReportHeader report={report} actions={exportActions} /> : exportActions}
       {isAnnual && !exportSelection && <AnnualYearComparison report={report} />}
       {!exportSelection && <IssueTypeFilter
@@ -244,6 +260,16 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
       {showWeeklyCreated && (
         <Suspense fallback={<ModalFallback />}>
           <WeeklyCreatedModal issues={weeklyCreated} total={w3Created} dateRange={dateRange} onClose={() => setShowWeeklyCreated(false)} />
+        </Suspense>
+      )}
+      {annualDetails && !exportSelection && (
+        <Suspense fallback={<ModalFallback />}>
+          <AnnualIssueDetailsModal {...annualDetails} onClose={() => setAnnualDetails(null)} />
+        </Suspense>
+      )}
+      {remoteDetails && !exportSelection && (
+        <Suspense fallback={<ModalFallback />}>
+          <AnnualRemoteIssueDetailsModal reportId={report.id} {...remoteDetails} onClose={() => setRemoteDetails(null)} />
         </Suspense>
       )}
       {showWeeklyResolved && (
@@ -320,7 +346,15 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
           <SectionTitle icon={BarChart2} title="월별 이슈 현황" subtitle={semesterLabel} />
           {isAnnual ? (
             <Suspense fallback={<ChartFallback />}>
-              <AnnualMonthlyComparison created={w8Monthly} resolved={w9Monthly} year={reportYear} periodEnd={report.week_end} subtitle={semesterLabel} />
+              <AnnualMonthlyComparison created={w8Monthly} resolved={w9Monthly} year={reportYear} periodEnd={report.week_end} subtitle={semesterLabel}
+                onSelectMonth={!exportSelection ? (month, series, total) => {
+                  const prefix = `${reportYear}-${String(month).padStart(2, '0')}`
+                  const issues = series === 'created'
+                    ? weeklyCreated.filter((issue) => issue.created?.slice(0, 7) === prefix)
+                    : weeklyResolved.filter((issue) => issue.resolved?.slice(0, 7) === prefix)
+                  setAnnualDetails({ title: `${reportYear}년 ${month}월 ${series === 'created' ? '등록' : '해결'} 이슈`, total, issues })
+                } : undefined}
+              />
             </Suspense>
           ) : <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
             <Suspense fallback={<ChartFallback />}>
@@ -337,10 +371,22 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
           <SectionTitle icon={ShieldAlert} title="SLA 준수율" subtitle={semesterLabel} />
           <div className={isAnnual ? 'grid grid-cols-1 xl:grid-cols-2 gap-4' : 'grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5'}>
             <Suspense fallback={<ChartFallback />}>
-              <SlaMonthlyLineChart title="최초응답 SLA" subtitle={`${semesterLabel} · 응답시간 위반 여부`} monthly={w10Monthly} color={SLA_MONTHLY_COLORS.initial}    />
+              <SlaMonthlyLineChart title="최초응답 SLA" subtitle={`${semesterLabel} · 응답시간 위반 여부`} monthly={isAnnual ? w10Monthly.filter((entry) => entry.year === reportYear && entry.month_num <= Number(report.week_end.slice(5, 7))) : w10Monthly} color={SLA_MONTHLY_COLORS.initial}
+                onMonthClick={isAnnual && !exportSelection ? (entry, status) => setRemoteDetails({
+                  title: `${entry.year}년 ${entry.month_num}월 최초응답 SLA · ${status === 'met' ? '준수' : status === 'violated' ? '위반' : '전체'}`,
+                  total: status === 'met' ? entry.met : status === 'violated' ? entry.total - entry.met : entry.total,
+                  request: { chart: 'sla_initial', month: entry.month_num, sla_status: status, ...chartFilters },
+                }) : undefined}
+              />
             </Suspense>
             <Suspense fallback={<ChartFallback />}>
-              <SlaMonthlyLineChart title="해결시간 SLA" subtitle={`${semesterLabel} · 해결시간 위반 여부`} monthly={w11Monthly} color={SLA_MONTHLY_COLORS.resolution} />
+              <SlaMonthlyLineChart title="해결시간 SLA" subtitle={`${semesterLabel} · 해결시간 위반 여부`} monthly={isAnnual ? w11Monthly.filter((entry) => entry.year === reportYear && entry.month_num <= Number(report.week_end.slice(5, 7))) : w11Monthly} color={SLA_MONTHLY_COLORS.resolution}
+                onMonthClick={isAnnual && !exportSelection ? (entry, status) => setRemoteDetails({
+                  title: `${entry.year}년 ${entry.month_num}월 해결시간 SLA · ${status === 'met' ? '준수' : status === 'violated' ? '위반' : '전체'}`,
+                  total: status === 'met' ? entry.met : status === 'violated' ? entry.total - entry.met : entry.total,
+                  request: { chart: 'sla_resolution', month: entry.month_num, sla_status: status, ...chartFilters },
+                }) : undefined}
+              />
             </Suspense>
           </div>
         </div>
@@ -371,13 +417,19 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
             />
           </Suspense>
           <Suspense fallback={<ChartFallback />}>
-            <TypeBarChart byType={resolutionByType} />
+            <TypeBarChart byType={resolutionByType}
+              onTypeClick={isAnnual && !exportSelection ? (issueType) => setRemoteDetails({
+                title: `${semesterLabel} ${issueType} 처리 이슈`,
+                total: resolutionByType[issueType].count,
+                request: { chart: 'resolution_type', issue_type: issueType, semester: filter.selectedSemester ?? undefined, ...chartFilters },
+              }) : undefined}
+            />
           </Suspense>
         </div>
       </div>
       {redeploymentData && report.report_year != null && (
         <Suspense fallback={<ChartFallback />}>
-          <RedeploymentAnnualSection data={redeploymentData} year={report.report_year} />
+          <RedeploymentAnnualSection key={report.id} reportId={report.id} data={redeploymentData} year={report.report_year} />
         </Suspense>
       )}
       <div data-pdf-section="최근 이슈 현황" className="space-y-1">

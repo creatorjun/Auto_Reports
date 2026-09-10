@@ -11,6 +11,7 @@ from src.application.services.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
+from src.application.use_cases.get_report_chart_issues import GetReportChartIssuesUseCase
 from src.application.use_cases.notify_tac_assigned import NotifyTacAssignedUseCase
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase
 from src.application.use_cases.partner_use_case import PartnerUseCase
@@ -52,6 +53,7 @@ class Container:
                 year_start=settings.year_start,
             )
         )
+        self._query_builder = query_builder
         self._cache: ReportCachePort = ReportLruCache(maxsize=50)
         self._assembler = ReportAssembler(
             query_builder=query_builder,
@@ -119,6 +121,11 @@ class Container:
                 ReportRepositoryImpl(session),
                 cache=self._cache,
             )
+
+    @asynccontextmanager
+    async def get_report_chart_issues(self) -> AsyncIterator[GetReportChartIssuesUseCase]:
+        async with self.get_report() as reports:
+            yield GetReportChartIssuesUseCase(reports, self._jira, self._query_builder)
 
     @asynccontextmanager
     async def get_site(self) -> AsyncIterator[SiteUseCase]:

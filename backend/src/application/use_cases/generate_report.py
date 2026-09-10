@@ -51,6 +51,7 @@ class GenerateReportUseCase:
             now=end_date or now,
             week_start_override=start_date,
             annual_report_year=report_year,
+            collected_at=now,
         )
         new_report = dataclasses.replace(
             new_report,

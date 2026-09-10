@@ -40,11 +40,11 @@ class RefreshReportUseCase:
 
         refreshed_latest: NewReport | None = None
         if latest is not None:
-            refreshed_latest = await self._refresh_one(latest, self._report_end(latest))
+            refreshed_latest = await self._refresh_one(latest, self._report_end(latest), now)
             await self._cache.set_latest_id(latest.id)
 
         if annual is not None:
-            await self._refresh_one(annual, now)
+            await self._refresh_one(annual, now, now)
 
         if refreshed_latest is None:
             return
@@ -63,7 +63,7 @@ class RefreshReportUseCase:
             except Exception as exc:
                 logger.error(f"[RefreshReport] TAC \ub2f4\ub2f9\uc790 \uba54\uc77c \uc2e4\ud328: {exc}")
 
-    async def _refresh_one(self, report: Report, end_at: datetime) -> NewReport:
+    async def _refresh_one(self, report: Report, end_at: datetime, collected_at: datetime) -> NewReport:
         start_at = datetime(
             report.week_start.year,
             report.week_start.month,
@@ -74,6 +74,7 @@ class RefreshReportUseCase:
             now=end_at,
             week_start_override=start_at,
             annual_report_year=report.report_year if report.scope == ReportScope.ANNUAL else None,
+            collected_at=collected_at,
         )
         refreshed = dataclasses.replace(
             refreshed,
