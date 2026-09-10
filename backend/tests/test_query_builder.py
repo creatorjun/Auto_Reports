@@ -1,13 +1,18 @@
 # backend/tests/test_query_builder.py
 import datetime
+import operator
 import pathlib
+import re
 import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.services.query_builder import WidgetQueryBuilder
+from src.application.ports.jira_port import JiraIssue
 from src.application.services.query_config import QueryConfig
+from src.application.widgets.created_vs_resolved_collector import CreatedVsResolvedCollector
+from src.application.widgets.resolution_collector import ResolutionCollector
 from src.domain.value_objects.widget_id import WidgetId
 
 
@@ -54,6 +59,49 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             'AND resolved >= "2024-01-01" AND resolved < "2025-01-01"',
             historical.w2_yearly_resolved(),
         )
+
+    def test_report_period_includes_the_full_end_date(self) -> None:
+        periods = [
+            ("2026-01-01", "2026-09-10", "2026-09-11"),
+            ("2026-09-10", "2026-09-10", "2026-09-11"),
+            ("2026-08-01", "2026-08-31", "2026-09-01"),
+            ("2024-01-01", "2024-12-31", "2025-01-01"),
+            ("2024-02-01", "2024-02-29", "2024-03-01"),
+        ]
+        for start, end, exclusive_end in periods:
+            with self.subTest(start=start, end=end):
+                queries = WidgetQueryBuilder(self.config).build(
+                    datetime.datetime.fromisoformat(f"{end}T23:59:59+09:00"),
+                    week_start_override=datetime.datetime.fromisoformat(f"{start}T00:00:00+09:00"),
+                )
+                created, resolved = queries.w3_created_vs_resolved()
+                for field, query in (("created", created), ("resolved", resolved)):
+                    self.assertIn(f'{field} >= "{start}" AND {field} < "{exclusive_end}"', query)
+                    self.assertNotIn("<=", query)
+                self.assertEqual(
+                    f'{resolved} ORDER BY resolved DESC',
+                    queries.w14_resolution_resolved(),
+                )
+                self.assertEqual(end, queries.date_end)
+                self.assertEqual(end, queries.week_end.date().isoformat())
+
+    def test_full_year_detail_queries_match_yearly_totals(self) -> None:
+        queries = WidgetQueryBuilder(self.config).build(
+            datetime.datetime(2024, 12, 31),
+            week_start_override=datetime.datetime(2024, 1, 1),
+        )
+
+        self.assertEqual(
+            (queries.w1_yearly_created(), queries.w2_yearly_resolved()),
+            queries.w3_created_vs_resolved(),
+        )
+
+    def test_resolution_type_filter_preserves_date_boundary_and_sort_order(self) -> None:
+        query = self.queries.by_issue_type(self.queries.w14_resolution_resolved())["개선"]
+
+        self.assertTrue(query.endswith(
+            'AND resolved < "2026-08-19" AND issuetype = "개선" ORDER BY resolved DESC'
+        ))
 
     def test_incomplete_issues_exclude_license_requests(self) -> None:
         self.assertEqual(
@@ -181,3 +229,54 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             'AND type IN (\uac1c\uc120, \uc778\uc2dc\ub358\ud2b8, "\uc11c\ube44\uc2a4 \uc694\uccad") '
             'ORDER BY cf[12421] DESC, resolved DESC'
         ))
+
+
+class PeriodJira:
+    def __init__(self):
+        self.issues = [JiraIssue(
+            key=key,
+            summary=key,
+            issue_type="개선",
+            status="Closed",
+            created=timestamp,
+            resolved=timestamp,
+        ) for key, timestamp in (
+            ("BEFORE", "2025-12-31T23:59:59+09:00"),
+            ("START", "2026-01-01T00:00:00+09:00"),
+            ("END-MIDNIGHT", "2026-09-10T00:00:00+09:00"),
+            ("END-LATE", "2026-09-10T23:59:59+09:00"),
+            ("AFTER", "2026-09-11T00:00:00+09:00"),
+        )]
+
+    async def get_issues(self, jql, max_results, fields):
+        comparisons = {">=": operator.ge, "<=": operator.le, "<": operator.lt}
+        conditions = re.findall(r'(created|resolved) (>=|<=|<) "(\d{4}-\d{2}-\d{2})"', jql)
+        result = self.issues
+        for field, comparison, date in conditions:
+            boundary = datetime.datetime.fromisoformat(f"{date}T00:00:00+09:00")
+            result = [issue for issue in result if comparisons[comparison](
+                datetime.datetime.fromisoformat(getattr(issue, field)), boundary,
+            )]
+        return result
+
+
+class ReportPeriodCollectorsTest(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        self.queries = WidgetQueryBuilder(QueryConfig("TACEA", ["개선"], [], [], 30, 2026)).build(
+            datetime.datetime(2026, 9, 10),
+            week_start_override=datetime.datetime(2026, 1, 1),
+        )
+
+    async def test_created_and_resolved_details_include_end_day_but_not_next_day(self) -> None:
+        result = await CreatedVsResolvedCollector(PeriodJira(), self.queries).collect()
+
+        self.assertEqual((3, 3), (result.data.created, result.data.resolved))
+        for details in (result.data.created_details, result.data.resolved_details):
+            self.assertEqual(["START", "END-MIDNIGHT", "END-LATE"], [issue.key for issue in details])
+
+    async def test_resolution_statistics_include_end_day_but_not_next_day(self) -> None:
+        result = await ResolutionCollector(PeriodJira(), self.queries, self.queries.week_end).collect()
+
+        self.assertEqual(3, result.total)
+        self.assertEqual(3, result.data.by_type["개선"].count)
+        self.assertEqual(2, result.data.by_semester["h2"]["개선"].count)

@@ -120,6 +120,26 @@ class ReportChartIssuesTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('resolved < "2025-01-01" ORDER BY resolved DESC', jira.calls[0][0])
         self.assertNotIn('issuetype = "개선"', jira.calls[0][0])
 
+    async def test_resolution_details_query_includes_the_reports_final_day(self):
+        self.report = dataclasses.replace(
+            self.report, report_year=2026,
+            week_start=datetime.date(2026, 1, 1),
+            week_end=datetime.date(2026, 9, 10),
+        )
+        jira = ChartJira([chart_issue(
+            "T-END", "개선", created="2026-09-09T23:59:59+09:00",
+            resolved="2026-09-10T23:59:59+09:00",
+        )])
+
+        result = await self.use_case(jira).execute(7, ReportChartSelection(ReportChartKind.RESOLUTION_TYPE))
+
+        self.assertEqual(["T-END"], [issue.key for issue in result.issues])
+        self.assertEqual(24, result.issues[0].elapsed_hours)
+        self.assertIn(
+            'resolved >= "2026-01-01" AND resolved < "2026-09-11" ORDER BY resolved DESC',
+            jira.calls[0][0],
+        )
+
     async def test_partner_returns_cve_issue_missing_from_legacy_analytics_list(self):
         issue = dataclasses.replace(
             chart_issue("T-CVE", "CVE"),
