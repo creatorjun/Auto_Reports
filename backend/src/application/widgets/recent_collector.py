@@ -2,6 +2,7 @@
 import logging
 from datetime import datetime
 
+from src.application.services.issue_age import issue_created_display, issue_elapsed_days
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
@@ -19,7 +20,7 @@ class RecentCollector(AbstractWidgetCollector):
     def __init__(self, jira: JiraPort, q: ResolvedQueries, now: datetime):
         self._jira = jira
         self._q = q
-        self._now = now.replace(tzinfo=None)
+        self._now = now
 
     async def collect(self) -> WidgetResult[RecentIssueWidgetData]:
         jql = self._q.w7_recent()
@@ -31,11 +32,7 @@ class RecentCollector(AbstractWidgetCollector):
         for issue in issues:
             created = issue.created
             status_name = issue.status or "기타"
-            elapsed_days = (
-                (self._now - datetime.fromisoformat(created[:19])).days
-                if created
-                else 0
-            )
+            elapsed_days = issue_elapsed_days(created, self._now)
             reporter = issue.reporter or "미지정"
             tac_team = (
                 issue.tac_assignee
@@ -50,7 +47,7 @@ class RecentCollector(AbstractWidgetCollector):
                     type=issue.issue_type or "기타",
                     status=status_name,
                     stage_index=STAGE_MAP.get(status_name, 0),
-                    created=created[:16].replace("T", " "),
+                    created=issue_created_display(created),
                     elapsed_days=elapsed_days,
                     reporter=reporter,
                     tac_team=tac_team,

@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/sla/SlaIssueActivityTable.tsx
-import { useEffect, useState } from 'react'
-import { ChevronDown, ExternalLink, MessageSquare, RefreshCw } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ExternalLink, MessageSquare, RefreshCw } from 'lucide-react'
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import { IssueTypeIcon } from '@/presentation/components/common/IssueTypeIcon'
 import { TABLE_PAGE_SIZE } from '@/presentation/config/constants'
@@ -15,6 +15,15 @@ import type {
 } from '@/domain/SlaDashboard'
 
 const SLA_DESKTOP_MEDIA_QUERY = '(min-width: 1280px)'
+const SORT_COLUMNS = [
+  { key: 'key', label: '티켓 번호' },
+  { key: 'summary', label: '티켓 제목' },
+  { key: 'created', label: '생성일' },
+  { key: 'status', label: '진행상태' },
+] as const
+type SortKey = typeof SORT_COLUMNS[number]['key']
+type SortState = { key: SortKey; direction: 'asc' | 'desc' }
+const SORT_COLLATOR = new Intl.Collator('ko', { numeric: true, sensitivity: 'base' })
 
 function useIsDesktopSlaLayout(): boolean {
   const [isDesktop, setIsDesktop] = useState(
@@ -323,15 +332,35 @@ export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboard
   const { jiraBase } = useJira()
   const isDesktopLayout = useIsDesktopSlaLayout()
   const [page, setPage] = useState(1)
+  const [sort, setSort] = useState<SortState | null>(null)
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(() => new Set())
   const totalPages = Math.max(1, Math.ceil(issues.length / TABLE_PAGE_SIZE))
+  const sortedIssues = useMemo(() => {
+    if (!sort) return issues
+    return [...issues].sort((a, b) => {
+      const left = a[sort.key].trim()
+      const right = b[sort.key].trim()
+      if (!left) return right ? 1 : 0
+      if (!right) return -1
+      const result = SORT_COLLATOR.compare(left, right)
+      return sort.direction === 'asc' ? result : -result
+    })
+  }, [issues, sort])
 
   useEffect(() => {
     setPage((current) => Math.min(current, totalPages))
   }, [totalPages])
 
   const start = (page - 1) * TABLE_PAGE_SIZE
-  const pageItems = issues.slice(start, start + TABLE_PAGE_SIZE)
+  const pageItems = sortedIssues.slice(start, start + TABLE_PAGE_SIZE)
+
+  const toggleSort = (key: SortKey) => {
+    setSort((current) => ({
+      key,
+      direction: current?.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }))
+    setPage(1)
+  }
 
   const toggleIssue = (issueKey: string) => {
     setCollapsedKeys((current) => {
@@ -355,10 +384,30 @@ export default function SlaIssueActivityTable({ issues }: { issues: SlaDashboard
             </colgroup>
             <thead className="bg-apple-gray/70">
               <tr className="border-b border-apple-divider/70">
-                <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">티켓 번호</th>
-                <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">티켓 제목</th>
-                <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">생성일</th>
-                <th className="px-5 py-3 text-left text-[12px] font-semibold text-apple-light">진행상태</th>
+                {SORT_COLUMNS.map(({ key, label }) => {
+                  const direction = sort?.key === key ? sort.direction : null
+                  const nextDirection = direction === 'asc' ? '내림차순' : '오름차순'
+                  const SortIcon = direction === 'asc' ? ArrowUp : direction === 'desc' ? ArrowDown : ArrowUpDown
+                  return (
+                    <th
+                      key={key}
+                      scope="col"
+                      aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none'}
+                      className="text-left text-[12px] font-semibold text-apple-light"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(key)}
+                        aria-label={`${label} ${nextDirection} 정렬`}
+                        title={`${label} ${nextDirection} 정렬`}
+                        className={`flex w-full items-center gap-1.5 px-5 py-3 text-left transition-colors hover:bg-apple-divider/40 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 ${direction ? 'text-brand-600' : ''}`}
+                      >
+                        {label}
+                        <SortIcon size={13} aria-hidden="true" className={`shrink-0 ${direction ? '' : 'opacity-50'}`} />
+                      </button>
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>

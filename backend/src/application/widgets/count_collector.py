@@ -2,6 +2,7 @@
 import logging
 from datetime import datetime
 
+from src.application.services.issue_age import issue_created_display, issue_elapsed_days
 from src.application.services.query_builder import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.application.widgets.issue_breakdown import count_issue_type_statuses
@@ -80,7 +81,7 @@ class SimpleWithDetailsCollector(AbstractWidgetCollector):
         self._jira = jira
         self._name = name
         self._jql = jql
-        self._now = now.replace(tzinfo=None)
+        self._now = now
         self._max_results = max_results
 
     async def collect(self) -> WidgetResult[SimpleIssueWidgetData]:
@@ -97,17 +98,14 @@ class SimpleWithDetailsCollector(AbstractWidgetCollector):
         details: list[IssueDetail] = []
         for issue in issues:
             created = issue.created
-            elapsed_days = 0
-            if created:
-                created_dt = datetime.fromisoformat(created[:19])
-                elapsed_days = (self._now - created_dt).days
+            elapsed_days = issue_elapsed_days(created, self._now)
             details.append(
                 IssueDetail(
                     key=issue.key,
                     summary=issue.summary[:SUMMARY_TRUNCATE_LEN],
                     type=issue.issue_type or "기타",
                     status=issue.status or "기타",
-                    created=created[:16].replace("T", " "),
+                    created=issue_created_display(created),
                     elapsed_days=elapsed_days,
                 )
             )

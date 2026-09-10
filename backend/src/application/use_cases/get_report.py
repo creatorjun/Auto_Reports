@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 
 from src.application.ports.report_cache_port import ReportCachePort
+from src.application.services.issue_age import with_current_issue_age
 from src.domain.entities.report import Report
 from src.application.ports.report_repository import ReportRepository
 
@@ -20,11 +21,11 @@ class GetReportUseCase:
             refresh_fn=self._fetch_by_id,
         )
         if cached is not None:
-            return cached
+            return with_current_issue_age(cached)
         report = await self._repository.find_by_id(report_id)
         if report:
             await self._cache.set(report.id, report)
-        return report
+        return with_current_issue_age(report)
 
     async def get_latest(self) -> Optional[Report]:
         latest_id = await self._cache.get_latest_id()
@@ -34,19 +35,19 @@ class GetReportUseCase:
                 refresh_fn=self._fetch_by_id,
             )
             if cached is not None:
-                return cached
+                return with_current_issue_age(cached)
 
         report = await self._repository.find_latest()
         if report:
             await self._cache.set(report.id, report)
             await self._cache.set_latest_id(report.id)
-        return report
+        return with_current_issue_age(report)
 
     async def get_annual(self, year: int) -> Optional[Report]:
         report = await self._repository.find_annual(year)
         if report:
             await self._cache.set(report.id, report)
-        return report
+        return with_current_issue_age(report)
 
     async def get_all(self, limit: int = 20, offset: int = 0) -> list[Report]:
         return await self._repository.find_all(limit=limit, offset=offset)

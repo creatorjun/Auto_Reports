@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test:pdf": "node --test tests/dashboardPdf.test.mjs",
     "test:storage": "node --test tests/storagePreview.test.mjs tests/filePreviewModal.test.mjs",
-    "test:dashboard": "node --test tests/dashboardIssueTypeFilters.test.mjs tests/slaComments.test.mjs tests/annualMonthlyComparison.test.mjs tests/annualChartInteractions.test.mjs tests/annualIssueDetails.test.mjs tests/annualChartApi.test.mjs",
+    "test:dashboard": "node --test tests/dashboardIssueTypeFilters.test.mjs tests/slaComments.test.mjs tests/slaIssueSorting.test.mjs tests/annualMonthlyComparison.test.mjs tests/annualChartInteractions.test.mjs tests/annualIssueDetails.test.mjs tests/annualChartApi.test.mjs",
     "test:partner": "node --test tests/partnerOrganizations.test.mjs"
   },
   "dependencies": {
