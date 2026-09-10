@@ -4,6 +4,7 @@ import type { Semester } from './Dashboard'
 import {
   isDashboardDateInSemester,
   isDashboardIssueTypeIncluded,
+  isLicenseIssueType,
 } from './DashboardIssueTypePolicy'
 import { isDashboardStatusIncluded } from './DashboardStatusPolicy'
 
@@ -47,7 +48,8 @@ export function filterPartnerIssues(
 ): PartnerIssue[] {
   const controlledTypeSet = new Set(controlledTypes)
   return issues.filter((issue) => (
-    isDashboardIssueTypeIncluded(issue.type, selectedTypes, controlledTypeSet)
+    !isLicenseIssueType(issue.type)
+    && isDashboardIssueTypeIncluded(issue.type, selectedTypes, controlledTypeSet)
     && isDashboardStatusIncluded(issue.status, selectedStatuses)
     && (
       selectedSemester === null

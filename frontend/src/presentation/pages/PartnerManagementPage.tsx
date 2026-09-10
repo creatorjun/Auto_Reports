@@ -9,6 +9,7 @@ import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
 import { useLatestReport } from '@/presentation/hooks/useReport'
 import { buildDashboardData } from '@/presentation/hooks/useDashboardData'
 import { sortDashboardStatuses } from '@/domain/DashboardStatusPolicy'
+import { isLicenseIssueType } from '@/domain/DashboardIssueTypePolicy'
 
 export default function PartnerManagementPage() {
   const [organizationQuery, setOrganizationQuery] = useState('')
@@ -25,7 +26,7 @@ export default function PartnerManagementPage() {
     () => latestReport.data ? buildDashboardData(latestReport.data).filter : null,
     [latestReport.data],
   )
-  const issueTypes = reportFilter?.issueTypes ?? []
+  const issueTypes = (reportFilter?.issueTypes ?? []).filter((issueType) => !isLicenseIssueType(issueType))
   const reportStatusTypes = reportFilter?.statusTypes ?? []
   const statusTypes = useMemo(
     () => sortDashboardStatuses([...reportStatusTypes, ...loadedPartnerStatuses]),

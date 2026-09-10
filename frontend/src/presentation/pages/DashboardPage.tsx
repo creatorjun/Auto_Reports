@@ -26,6 +26,7 @@ import AnnualSummaryMetrics from '@/presentation/components/annual/AnnualSummary
 import AnnualIssueDetailsModal from '@/presentation/components/annual/AnnualIssueDetailsModal'
 import '@/presentation/styles/annualReport.css'
 import { WIDGET_ID } from '@/domain/WidgetId'
+import { getIssueTypeLabel } from '@/presentation/utils/issueTypeLabel'
 
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
 const ReasonPieChart      = lazy(() => import('@/presentation/components/charts/ReasonPieChart'))
@@ -165,7 +166,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
     const title = report.scope === 'annual' ? `${report.report_year} 연간 보고서` : 'TAC 대시보드'
     const filters = [
       effectiveSemester === 'h1' ? '상반기' : effectiveSemester === 'h2' ? '하반기' : '전체 기간',
-      effectiveIssueTypes === null ? '전체 업무 유형' : effectiveIssueTypes.size ? [...effectiveIssueTypes].join(', ') : '선택된 업무 유형 없음',
+      effectiveIssueTypes === null ? '전체 업무 유형' : effectiveIssueTypes.size ? [...effectiveIssueTypes].map(getIssueTypeLabel).join(', ') : '선택된 업무 유형 없음',
       effectiveStatuses === null ? '전체 현재 상태' : effectiveStatuses.size ? [...effectiveStatuses].join(', ') : '선택된 현재 상태 없음',
     ]
     if (redeploymentData && (effectiveSemester !== null || effectiveIssueTypes !== null || effectiveStatuses !== null)) {

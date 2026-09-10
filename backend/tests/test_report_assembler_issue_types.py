@@ -9,6 +9,7 @@ from src.application.widgets.collector_factory import CollectorEntry
 from src.domain.constants import KST
 from src.domain.entities.widget import WidgetResult
 from src.domain.value_objects.widget_id import WidgetId
+from src.infrastructure.config.settings import Settings
 
 
 class StaticCollector:
@@ -17,6 +18,9 @@ class StaticCollector:
 
 
 class ReportAssemblerIssueTypesTest(unittest.IsolatedAsyncioTestCase):
+    def test_default_issue_types_include_the_canonical_jira_license_name(self) -> None:
+        self.assertIn("라이선스", Settings.model_fields["issue_types"].default)
+
     def setUp(self) -> None:
         self.query_builder = WidgetQueryBuilder(QueryConfig(
             project_key="TACEA",
@@ -47,7 +51,7 @@ class ReportAssemblerIssueTypesTest(unittest.IsolatedAsyncioTestCase):
         await assembler.collect(datetime.datetime(2026, 8, 24))
 
         self.assertEqual(
-            ["인시던트", "H/W 장애 요청", "승인된 서비스 요청"],
+            ["인시던트", "라이선스", "H/W 장애 요청", "승인된 서비스 요청"],
             captured_types,
         )
 
@@ -70,7 +74,7 @@ class ReportAssemblerIssueTypesTest(unittest.IsolatedAsyncioTestCase):
 
         await assembler.collect(datetime.datetime(2026, 8, 24))
 
-        self.assertEqual(["기본 유형"], captured_types)
+        self.assertEqual(["기본 유형", "라이선스"], captured_types)
 
     async def test_current_collection_time_is_separate_from_historical_period(self) -> None:
         period_end = datetime.datetime(2025, 12, 31, 23, 59, tzinfo=KST)

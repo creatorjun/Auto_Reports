@@ -292,7 +292,7 @@ test('annual reports render every redeployment dashboard view', () => {
   assert.match(section, /REDEPLOYMENT_PAGE_SIZE = 5/)
   assert.match(section, /latest_issues\.filter/)
   assert.match(section, /issues\.slice/)
-  assert.match(section, /isDashboardExcludedIssueType/)
+  assert.match(section, /isLicenseIssueType/)
   assert.match(section, /Array\.from\(\{ length: totalPages \}\)/)
   assert.match(section, /onClick=\{\(\) => setPage\(pageNumber\)\}/)
   assert.match(section, /classification_complete/)

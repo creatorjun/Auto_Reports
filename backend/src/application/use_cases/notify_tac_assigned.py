@@ -7,6 +7,7 @@ from src.application.ports.email_port import EmailPort
 from src.domain.constants import KST
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import RecentIssueDetail, RecentIssueWidgetData
+from src.domain.services.issue_type_policy import is_license_issue_type
 from src.domain.value_objects.widget_id import WidgetId
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ def extract_tac_assigned_issues(
     return [
         detail
         for detail in data.issue_details
-        if keyword in (detail.tac_team or "")
+        if keyword in (detail.tac_team or "") and not is_license_issue_type(detail.type)
     ]
 
 

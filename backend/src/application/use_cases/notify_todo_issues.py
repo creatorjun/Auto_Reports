@@ -6,6 +6,7 @@ from datetime import datetime
 from src.application.ports.email_port import EmailPort
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import RecentIssueDetail, RecentIssueWidgetData
+from src.domain.services.issue_type_policy import is_license_issue_type
 from src.domain.constants import KST
 from src.domain.value_objects.widget_id import WidgetId
 
@@ -23,7 +24,10 @@ def extract_todo_issues(
     data = recent_result.data
     if not isinstance(data, RecentIssueWidgetData):
         return []
-    return [detail for detail in data.issue_details if detail.status in TODO_STATUSES]
+    return [
+        detail for detail in data.issue_details
+        if detail.status in TODO_STATUSES and not is_license_issue_type(detail.type)
+    ]
 
 
 def _build_html(issues: list[RecentIssueDetail], jira_base_url: str) -> str:

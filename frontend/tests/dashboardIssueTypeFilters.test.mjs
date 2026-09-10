@@ -7,6 +7,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import TestRenderer, { act } from 'react-test-renderer'
 import ts from 'typescript'
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src')
@@ -34,10 +35,11 @@ function loadSource(relativePath) {
 
 const { buildDashboardData } = loadSource('presentation/hooks/useDashboardData.ts')
 const { default: IssueTypeFilter } = loadSource('presentation/components/common/IssueTypeFilter.tsx')
-const { isDashboardExcludedIssueType, isDashboardIssueTypeFilterOption } = loadSource('domain/DashboardIssueTypePolicy.ts')
-const VISIBLE_TYPES = ['서비스 요청', '개선']
+const { isLicenseIssueType, isDashboardIssueTypeFilterOption } = loadSource('domain/DashboardIssueTypePolicy.ts')
+const { getIssueTypeLabel } = loadSource('presentation/utils/issueTypeLabel.ts')
+const VISIBLE_TYPES = ['서비스 요청', '개선', '라이선스']
 const HIDDEN_TYPES = ['승인된 서비스 요청', '케이스']
-const ALL_TYPES = [...VISIBLE_TYPES, ...HIDDEN_TYPES, '라이선스', '기타']
+const ALL_TYPES = [...VISIBLE_TYPES, ...HIDDEN_TYPES, '기타']
 const STATUSES = ['할 일', '닫힘']
 
 function widget(data, total = 0) {
@@ -99,7 +101,7 @@ function fixtureReport(scope = 'standard') {
     week_start: '2026-01-01', week_end: '2026-12-31', report_date: '2026-12-31',
     created_at: '2026-12-31T09:00:00', sentiment: null, ai_analysis: null,
     widgets: {
-      w1: widget({ issue_types: [...VISIBLE_TYPES, ...HIDDEN_TYPES, '라이선스'], by_type: { ...byType }, always_included: 7, by_status_type: structuredClone(byStatusType), status_breakdown_available: true }, 144),
+      w1: widget({ issue_types: [...VISIBLE_TYPES, ...HIDDEN_TYPES], by_type: { ...byType }, always_included: 7, by_status_type: structuredClone(byStatusType), status_breakdown_available: true }, 144),
       w2: widget({ by_type: { ...byType }, always_included: 7, by_status_type: structuredClone(byStatusType), status_breakdown_available: true }, 144),
       w3: widget({ created: issues.length, resolved: issues.length, created_details: issues, resolved_details: issues.map((issue) => ({ ...issue, resolved: issue.created })) }),
       w4: widget({ issue_details: issues }),
@@ -143,10 +145,53 @@ test('hidden filter choices remain eligible for dashboard statistics', () => {
   for (const type of HIDDEN_TYPES) {
     assert.equal(isDashboardIssueTypeFilterOption(type), false)
     assert.equal(isDashboardIssueTypeFilterOption(` ${type} `), false)
-    assert.equal(isDashboardExcludedIssueType(type), false)
+    assert.equal(isLicenseIssueType(type), false)
   }
   assert.equal(isDashboardIssueTypeFilterOption('서비스 요청'), true)
-  assert.equal(isDashboardExcludedIssueType('라이선스'), true)
+  for (const type of ['라이선스', '라이센스', '라이선스 요청', '라이센스 요청']) {
+    assert.equal(isLicenseIssueType(type), true)
+    assert.equal(isDashboardIssueTypeFilterOption(type), true)
+  }
+})
+
+test('license filter displays 라이센스 while toggles retain the Jira issue type', (t) => {
+  const calls = []
+  const props = {
+    issueTypes: VISIBLE_TYPES,
+    statuses: STATUSES,
+    selectedTypes: null,
+    selectedStatuses: null,
+    selectedSemester: null,
+    supported: true,
+    statusSupported: true,
+    semesterSupported: true,
+    onToggle: (type) => calls.push(type),
+    onStatusToggle() {}, onSemesterChange() {}, onReset() {},
+  }
+  let view
+  act(() => { view = TestRenderer.create(createElement(IssueTypeFilter, props)) })
+  t.after(() => act(() => view.unmount()))
+  const licenseButton = () => view.root.findAllByType('button').find((button) => button.children.includes('라이센스'))
+
+  assert.equal(licenseButton().props['aria-pressed'], true)
+  act(() => licenseButton().props.onClick())
+  assert.deepEqual(calls, ['라이선스'])
+  act(() => view.update(createElement(IssueTypeFilter, { ...props, selectedTypes: new Set(['서비스 요청', '개선']) })))
+  assert.equal(licenseButton().props['aria-pressed'], false)
+  act(() => licenseButton().props.onClick())
+  assert.deepEqual(calls, ['라이선스', '라이선스'])
+  act(() => view.update(createElement(IssueTypeFilter, props)))
+  assert.equal(licenseButton().props['aria-pressed'], true)
+  assert.equal(getIssueTypeLabel('라이선스 요청'), '라이센스 요청')
+  assert.equal(getIssueTypeLabel('라이센스'), '라이센스')
+  assert.equal(getIssueTypeLabel('서비스 요청'), '서비스 요청')
+})
+
+test('saved reports without license metadata do not fabricate a selectable license category', () => {
+  const report = fixtureReport()
+  report.widgets.w1.data.issue_types = ['서비스 요청', '개선']
+  const data = buildDashboardData(report)
+  assert.deepEqual(data.filter.issueTypes, ['서비스 요청', '개선'])
 })
 
 for (const scope of ['standard', 'annual']) {
@@ -174,17 +219,48 @@ for (const scope of ['standard', 'annual']) {
     assert.match(markup, /aria-controls="issue-filter-options"/)
     assert.match(markup, /필터 펼치기/)
     assert.match(markup, /id="issue-filter-options" class="hidden"/)
-    assert.match(markup, /2\/2/)
+    assert.match(markup, /요청 유형 3\/3/)
     assert.match(markup, /현재 상태 2\/2/)
     assert.match(markup, /할 일/)
     assert.match(markup, /닫힘/)
-    for (const type of VISIBLE_TYPES) assert.ok(markup.includes(type))
-    assert.equal(data.yearly.w1YearlyCreated, 45)
-    assert.equal(data.yearly.w2YearlyResolved, 45)
-    assert.equal(data.monthlyCount.w8Monthly[0].count, 45)
-    assert.equal(data.slaMonthly.w10Monthly[0].total, 45)
-    assertHiddenIssuesIncluded(data, [...VISIBLE_TYPES, ...HIDDEN_TYPES, '기타'], 10)
+    for (const type of VISIBLE_TYPES) assert.ok(markup.includes(getIssueTypeLabel(type)))
+    assert.equal(data.yearly.w1YearlyCreated, 144)
+    assert.equal(data.yearly.w2YearlyResolved, 144)
+    assert.equal(data.monthlyCount.w8Monthly[0].count, 144)
+    assert.equal(data.slaMonthly.w10Monthly[0].total, 144)
+    assertHiddenIssuesIncluded(data, [...VISIBLE_TYPES, ...HIDDEN_TYPES, '기타'], 12)
     assert.deepEqual(report, before)
+  })
+
+  test(`${scope} selecting and deselecting license updates every dashboard view without dropping hidden types`, () => {
+    const report = fixtureReport(scope)
+    const selected = buildDashboardData(report, new Set(['라이선스']))
+    assert.equal(selected.yearly.w1YearlyCreated, 114)
+    assert.equal(selected.yearly.w2YearlyResolved, 114)
+    for (const entry of [...selected.monthlyCount.w8Monthly, ...selected.monthlyCount.w9Monthly]) assert.equal(entry.count, 114)
+    for (const entry of [...selected.slaMonthly.w10Monthly, ...selected.slaMonthly.w11Monthly]) {
+      assert.equal(entry.total, 114)
+      assert.equal(entry.met, 111)
+    }
+    assertHiddenIssuesIncluded(selected, ['라이선스', ...HIDDEN_TYPES, '기타'], 8)
+
+    const deselected = buildDashboardData(report, new Set(['서비스 요청', '개선']))
+    assert.equal(deselected.yearly.w1YearlyCreated, 45)
+    assert.equal(deselected.yearly.w2YearlyResolved, 45)
+    assert.equal(deselected.monthlyCount.w8Monthly[0].count, 45)
+    assert.equal(deselected.slaMonthly.w10Monthly[0].total, 45)
+    assertHiddenIssuesIncluded(deselected, ['서비스 요청', '개선', ...HIDDEN_TYPES, '기타'], 10)
+
+    const intersected = buildDashboardData(report, new Set(['라이선스']), 'h1', new Set(['할 일']))
+    assert.equal(intersected.yearly.w1YearlyCreated, 330)
+    assert.equal(intersected.yearly.w2YearlyResolved, 330)
+    assert.equal(intersected.monthlyCount.w8Monthly.length, 6)
+    for (const entry of [...intersected.monthlyCount.w8Monthly, ...intersected.monthlyCount.w9Monthly]) assert.equal(entry.count, 55)
+    for (const entry of [...intersected.slaMonthly.w10Monthly, ...intersected.slaMonthly.w11Monthly]) {
+      assert.equal(entry.total, 55)
+      assert.equal(entry.met, 55)
+    }
+    assertHiddenIssuesIncluded(intersected, ['라이선스', ...HIDDEN_TYPES, '기타'], 4)
   })
 
   test(`${scope} selecting another type keeps hidden choices and outside totals exactly once`, () => {
@@ -248,8 +324,8 @@ test('legacy reports keep status selection disabled until refreshed status break
 
   assert.equal(data.filter.supportsStatusFiltering, false)
   assert.equal(data.filter.selectedStatuses, null)
-  assert.equal(data.yearly.w1YearlyCreated, 45)
-  assert.equal(data.recentAndIncomplete.recentIssues.length, 10)
+  assert.equal(data.yearly.w1YearlyCreated, 144)
+  assert.equal(data.recentAndIncomplete.recentIssues.length, 12)
 })
 
 test('reports that already aggregate hidden types outside by_type do not double count them', () => {

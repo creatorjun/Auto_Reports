@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import type { Semester } from '@/domain/Dashboard'
+import { getIssueTypeLabel } from '@/presentation/utils/issueTypeLabel'
 
 interface Props {
   issueTypes: string[]
@@ -112,7 +113,7 @@ export default function IssueTypeFilter({
                     }`}>
                       {selected && <Check size={12} strokeWidth={3} aria-hidden="true" />}
                     </span>
-                    {issueType}
+                    {getIssueTypeLabel(issueType)}
                   </button>
                 )
               })}

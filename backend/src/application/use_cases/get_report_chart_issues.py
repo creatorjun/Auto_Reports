@@ -4,7 +4,7 @@ from typing import Any
 
 from src.application.errors import EntityNotFoundError
 from src.application.ports.jira_port import JiraIssue, JiraIssueField, JiraPort
-from src.application.services.query_builder import WidgetQueryBuilder, is_dashboard_excluded_issue_type
+from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.report_issue_metrics import resolution_elapsed
 from src.application.use_cases.get_report import GetReportUseCase
 from src.application.widgets.redeployment_collector import RedeploymentAnalyticsCollector
@@ -16,6 +16,7 @@ from src.domain.entities.report_chart import (
     ReportChartKind,
     ReportChartSelection,
 )
+from src.domain.services.issue_type_policy import is_license_issue_type
 from src.domain.value_objects.widget_id import WidgetId
 
 _WIDGETS = {
@@ -64,7 +65,7 @@ class GetReportChartIssuesUseCase:
         issue_types = _value(yearly_data, "issue_types", []) or []
         controlled = {
             name for name in issue_types
-            if not is_dashboard_excluded_issue_type(name) and name not in _HIDDEN_FILTER_TYPES
+            if name not in _HIDDEN_FILTER_TYPES
         }
         queries = self._query_builder.build(
             datetime.combine(report.week_end, time.min),
@@ -144,7 +145,7 @@ class GetReportChartIssuesUseCase:
     @staticmethod
     def _includes_type(issue_type: str, selection: ReportChartSelection, controlled: set[str]) -> bool:
         return (
-            not is_dashboard_excluded_issue_type(issue_type)
+            (selection.chart != ReportChartKind.REDEPLOYMENT or not is_license_issue_type(issue_type))
             and (selection.issue_type is None or issue_type == selection.issue_type)
             and (selection.selected_types is None or issue_type not in controlled or issue_type in selection.selected_types)
         )

@@ -1,7 +1,7 @@
 // frontend/src/domain/DashboardIssueTypePolicy.ts
 import type { Semester } from './Dashboard'
 
-const DASHBOARD_EXCLUDED_ISSUE_TYPES = new Set([
+const LICENSE_ISSUE_TYPES = new Set([
   '라이선스',
   '라이센스',
   '라이선스 요청',
@@ -13,13 +13,12 @@ const DASHBOARD_HIDDEN_FILTER_ISSUE_TYPES = new Set([
   '케이스',
 ])
 
-export function isDashboardExcludedIssueType(issueType: string): boolean {
-  return DASHBOARD_EXCLUDED_ISSUE_TYPES.has(issueType.normalize('NFKC').trim())
+export function isLicenseIssueType(issueType: string): boolean {
+  return LICENSE_ISSUE_TYPES.has(issueType.normalize('NFKC').trim())
 }
 
 export function isDashboardIssueTypeFilterOption(issueType: string): boolean {
-  return !isDashboardExcludedIssueType(issueType)
-    && !DASHBOARD_HIDDEN_FILTER_ISSUE_TYPES.has(issueType.normalize('NFKC').trim())
+  return !DASHBOARD_HIDDEN_FILTER_ISSUE_TYPES.has(issueType.normalize('NFKC').trim())
 }
 
 export function isDashboardIssueTypeIncluded(
@@ -27,8 +26,7 @@ export function isDashboardIssueTypeIncluded(
   selectedTypes: ReadonlySet<string> | null,
   controlledTypes: ReadonlySet<string>,
 ): boolean {
-  return !isDashboardExcludedIssueType(issueType)
-    && (selectedTypes === null || !controlledTypes.has(issueType) || selectedTypes.has(issueType))
+  return selectedTypes === null || !controlledTypes.has(issueType) || selectedTypes.has(issueType)
 }
 
 export function isDashboardMonthInSemester(semester: Semester, month: number): boolean {

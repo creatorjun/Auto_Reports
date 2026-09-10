@@ -122,7 +122,7 @@ test('chart API preserves empty active type and status filters, cancellation sig
 test('chart API serializes type and status filters as repeated unindexed parameters and propagates upstream errors', async () => {
   const calls = []
   const api = createApi(async (...args) => { calls.push(args); return { data: result() } })
-  const selectedTypes = ['개선', '인시던트', '서비스 요청']
+  const selectedTypes = ['개선', '인시던트', '서비스 요청', '라이선스']
   const selectedStatuses = ['Closed', '처리 중']
   await api.getChartIssues(8, { chart: 'resolution_type', filter_types: true, selected_types: selectedTypes, filter_statuses: true, selected_statuses: selectedStatuses, semester: 'h1' })
   const [url, options] = calls[0]

@@ -60,7 +60,7 @@ class ReportChartIssuesTest(unittest.IsolatedAsyncioTestCase):
             always_included=SlaMonthlyTypeStats(1, 1),
         )
         widgets = {
-            WidgetId.YEARLY_CREATED: WidgetResult("생성", 4, data=TypeCountWidgetData(issue_types=["개선", "인시던트", "케이스"])),
+            WidgetId.YEARLY_CREATED: WidgetResult("생성", 4, data=TypeCountWidgetData(issue_types=["개선", "인시던트", "케이스", "라이선스"])),
             WidgetId.SLA_INITIAL_RESPONSE: WidgetResult("응답 SLA", 0, data=SlaMonthlyWidgetData(monthly=[stats])),
             WidgetId.SLA_RESOLUTION_MONTHLY: WidgetResult("해결 SLA", 0, data=SlaMonthlyWidgetData(monthly=[stats])),
             WidgetId.AVG_RESOLUTION_TYPE: WidgetResult("처리일", 5, data=ResolutionTypeWidgetData(
@@ -102,6 +102,46 @@ class ReportChartIssuesTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(["T-2"], [issue.key for issue in result.issues])
         self.assertEqual(1, result.snapshot_count)
         self.assertTrue(result.issues[0].sla_met)
+
+    async def test_license_type_can_be_selected_in_sla_and_resolution_details(self):
+        license_issue = chart_issue("T-LICENSE", "라이선스")
+        for chart, kwargs in (
+            (ReportChartKind.SLA_INITIAL, {"month": 1}),
+            (ReportChartKind.RESOLUTION_TYPE, {}),
+        ):
+            with self.subTest(chart=chart):
+                jira = ChartJira([license_issue, chart_issue("T-OTHER", "개선")])
+                result = await self.use_case(jira).execute(7, ReportChartSelection(
+                    chart, issue_type="라이선스", selected_types=("라이선스",), **kwargs,
+                ))
+                self.assertEqual(["T-LICENSE"], [issue.key for issue in result.issues])
+                self.assertNotIn('issuetype != "라이선스"', jira.calls[0][0])
+
+    async def test_unfiltered_sla_details_include_license_counts(self):
+        stats = self.report.widgets[WidgetId.SLA_INITIAL_RESPONSE].data.monthly[0]
+        stats.by_type["라이선스"] = SlaMonthlyTypeStats(1, 1)
+        stats.total += 1
+        stats.met += 1
+        jira = ChartJira([chart_issue("T-LICENSE", "라이선스")])
+        result = await self.use_case(jira).execute(7, ReportChartSelection(
+            ReportChartKind.SLA_INITIAL, month=1,
+        ))
+        self.assertEqual(["T-LICENSE"], [issue.key for issue in result.issues])
+        self.assertEqual(5, result.snapshot_count)
+        result = await self.use_case(jira).execute(7, ReportChartSelection(
+            ReportChartKind.SLA_INITIAL, month=1, issue_type="라이선스", selected_types=("라이선스",),
+        ))
+        self.assertEqual(1, result.snapshot_count)
+
+    async def test_deselected_license_type_is_excluded_from_current_and_snapshot_counts(self):
+        stats = self.report.widgets[WidgetId.SLA_INITIAL_RESPONSE].data.monthly[0]
+        stats.by_type["라이선스"] = SlaMonthlyTypeStats(1, 1)
+        jira = ChartJira([chart_issue("T-LICENSE", "라이선스"), chart_issue("T-OTHER", "개선")])
+        result = await self.use_case(jira).execute(7, ReportChartSelection(
+            ReportChartKind.SLA_INITIAL, month=1, selected_types=("개선",),
+        ))
+        self.assertEqual(["T-OTHER"], [issue.key for issue in result.issues])
+        self.assertEqual(4, result.snapshot_count)
 
     async def test_resolution_filters_after_sampling_and_reuses_collector_elapsed_formula(self):
         jira = ChartJira([
@@ -153,6 +193,14 @@ class ReportChartIssuesTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result.collection_limit)
         self.assertIsNone(jira.calls[0][1])
         self.assertTrue(jira.calls[0][4])
+
+    async def test_redeployment_keeps_its_existing_license_exclusion(self):
+        jira = ChartJira([
+            chart_issue("T-LICENSE", "라이선스"), chart_issue("T-CVE", "CVE"),
+        ])
+        result = await self.use_case(jira).execute(7, ReportChartSelection(ReportChartKind.REDEPLOYMENT))
+        self.assertEqual(["T-CVE"], [issue.key for issue in result.issues])
+        self.assertIn('issuetype != "라이선스"', jira.calls[0][0])
 
     async def test_selection_text_never_becomes_jql(self):
         jira = ChartJira([])

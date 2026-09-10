@@ -19,8 +19,8 @@ from src.infrastructure.persistence.widget_serializer import deserialize_widget,
 
 class BatchCountJira:
     async def get_issues(self, jql: str, max_results: int | None, fields: frozenset[JiraIssueField]) -> list[JiraIssue]:
-        if 'issuetype != "라이선스"' not in jql:
-            raise AssertionError("라이선스 제외 조건이 필요합니다")
+        if 'issuetype != "라이선스"' in jql:
+            raise AssertionError("라이선스 요청을 집계에서 제외하면 안 됩니다")
         if max_results is not None:
             raise AssertionError("상태별 집계는 전체 이슈를 수집해야 합니다")
         if fields != frozenset({
@@ -31,6 +31,7 @@ class BatchCountJira:
         }):
             raise AssertionError("상태, 요청 유형, 월 분류 필드가 필요합니다")
         return [
+            JiraIssue(issue_type="라이선스", status="할 일", created="2026-01-10T09:00:00.000+0900", resolved="2026-01-12T09:00:00.000+0900"),
             JiraIssue(issue_type="인시던트", status="할 일", created="2026-01-10T09:00:00.000+0900", resolved="2026-01-12T09:00:00.000+0900"),
             JiraIssue(issue_type="인시던트", status="Closed", created="2026-01-10T09:00:00.000+0900", resolved="2026-01-12T09:00:00.000+0900"),
             JiraIssue(issue_type="인시던트", status="Closed", created="2026-01-10T09:00:00.000+0900", resolved="2026-01-12T09:00:00.000+0900"),
@@ -45,12 +46,18 @@ class SlaJira:
         self.calls = []
 
     async def get_issues_with_sla(self, jql: str, max_results: int | None) -> list[JiraIssue]:
-        if 'issuetype != "라이선스"' not in jql:
-            raise AssertionError("라이선스 제외 조건이 필요합니다")
+        if 'issuetype != "라이선스"' in jql:
+            raise AssertionError("라이선스 요청을 집계에서 제외하면 안 됩니다")
         if max_results is not None:
             raise AssertionError("Monthly SLA collection must not be capped")
         self.calls.append(jql)
         return [
+            JiraIssue(
+                issue_type="라이선스",
+                status="Closed",
+                created="2026-01-11T09:00:00.000+0900",
+                initial_response_breached=True,
+            ),
             JiraIssue(
                 issue_type="인시던트",
                 status="할 일",
@@ -78,7 +85,7 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
         self.now = datetime.datetime(2026, 8, 21)
         self.queries = WidgetQueryBuilder(config).build(self.now)
 
-    async def test_yearly_counts_exclude_license_requests(self) -> None:
+    async def test_yearly_counts_include_license_requests_as_a_selectable_type(self) -> None:
         jql = self.queries.w1_yearly_created()
         collector = TypeCountCollector(
             BatchCountJira(),
@@ -89,12 +96,12 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
 
         result = await collector.collect()
 
-        self.assertEqual(6, result.total)
+        self.assertEqual(7, result.total)
         self.assertIsInstance(result.data, TypeCountWidgetData)
-        self.assertEqual(["인시던트"], result.data.issue_types)
-        self.assertEqual({"인시던트": 3}, result.data.by_type)
+        self.assertEqual(["인시던트", "라이선스"], result.data.issue_types)
+        self.assertEqual({"인시던트": 3, "라이선스": 1}, result.data.by_type)
         self.assertEqual(3, result.data.always_included)
-        self.assertEqual({"인시던트": 1, "토글 외 요청": 2}, result.data.by_status_type["할 일"])
+        self.assertEqual({"인시던트": 1, "토글 외 요청": 2, "라이선스": 1}, result.data.by_status_type["할 일"])
         self.assertEqual({"인시던트": 2, "토글 외 요청": 1}, result.data.by_status_type["Closed"])
         self.assertTrue(result.data.status_breakdown_available)
 
@@ -121,12 +128,12 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
             created.data.monthly[-1].year,
             created.data.monthly[-1].month_num,
         ))
-        self.assertEqual(6, first_created.count)
-        self.assertEqual({"인시던트": 3}, first_created.by_type)
+        self.assertEqual(7, first_created.count)
+        self.assertEqual({"인시던트": 3, "라이선스": 1}, first_created.by_type)
         self.assertEqual(3, first_created.always_included)
         self.assertEqual(1, first_created.by_status_type["할 일"]["인시던트"])
-        self.assertEqual(6, first_resolved.count)
-        self.assertEqual({"인시던트": 3}, first_resolved.by_type)
+        self.assertEqual(7, first_resolved.count)
+        self.assertEqual({"인시던트": 3, "라이선스": 1}, first_resolved.by_type)
         self.assertEqual(3, first_resolved.always_included)
         self.assertEqual(1, first_resolved.by_status_type["Closed"]["토글 외 요청"])
 
@@ -158,8 +165,9 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
             initial_entry.by_type["인시던트"].met,
             initial_entry.by_type["인시던트"].total,
         ))
-        self.assertNotIn("라이선스", initial_entry.by_type)
-        self.assertNotIn("라이선스", resolution_entry.by_type)
+        self.assertEqual((0, 1), (initial_entry.by_type["라이선스"].met, initial_entry.by_type["라이선스"].total))
+        self.assertEqual((1, 1), (resolution_entry.by_type["라이선스"].met, resolution_entry.by_type["라이선스"].total))
+        self.assertEqual((3, 3), (initial_entry.total, resolution_entry.total))
         self.assertEqual((1, 1), (
             initial_entry.always_included.met,
             initial_entry.always_included.total,
@@ -181,7 +189,7 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
             WidgetId.SLA_INITIAL_RESPONSE,
             serialize_widget(initial),
         )
-        self.assertNotIn("라이선스", restored.data.monthly[0].by_type)
+        self.assertEqual(1, restored.data.monthly[0].by_type["라이선스"].total)
         restored_always = restored.data.monthly[0].always_included
         self.assertEqual((1, 1), (restored_always.met, restored_always.total))
         restored_status = restored.data.monthly[0].by_status_type["Closed"]["토글 외 요청"]

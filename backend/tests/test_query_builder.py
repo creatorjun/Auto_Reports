@@ -30,16 +30,16 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             datetime.datetime(2026, 8, 18)
         )
 
-    def test_yearly_created_excludes_license_requests(self) -> None:
+    def test_yearly_created_includes_license_requests(self) -> None:
         self.assertEqual(
-            'project = TACEA AND issuetype != "라이선스" '
+            'project = TACEA '
             'AND created >= "2026-01-01" AND created < "2027-01-01"',
             self.queries.w1_yearly_created(),
         )
 
-    def test_yearly_resolved_excludes_license_requests(self) -> None:
+    def test_yearly_resolved_includes_license_requests(self) -> None:
         self.assertEqual(
-            'project = TACEA AND issuetype != "라이선스" '
+            'project = TACEA '
             'AND resolved >= "2026-01-01" AND resolved < "2027-01-01"',
             self.queries.w2_yearly_resolved(),
         )
@@ -50,12 +50,12 @@ class WidgetQueryBuilderTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            'project = TACEA AND issuetype != "라이선스" '
+            'project = TACEA '
             'AND created >= "2024-01-01" AND created < "2025-01-01"',
             historical.w1_yearly_created(),
         )
         self.assertEqual(
-            'project = TACEA AND issuetype != "라이선스" '
+            'project = TACEA '
             'AND resolved >= "2024-01-01" AND resolved < "2025-01-01"',
             historical.w2_yearly_resolved(),
         )
@@ -103,15 +103,15 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             'AND resolved < "2026-08-19" AND issuetype = "개선" ORDER BY resolved DESC'
         ))
 
-    def test_incomplete_issues_exclude_license_requests(self) -> None:
+    def test_incomplete_issues_include_license_requests(self) -> None:
         self.assertEqual(
-            'project = TACEA AND issuetype != "라이선스" '
+            'project = TACEA '
             'AND status NOT IN ("Closed", "반려됨", "중복 이슈", "취소됨") '
             'ORDER BY issuekey DESC',
             self.queries.w7_recent(),
         )
 
-    def test_every_dashboard_query_excludes_license_requests(self) -> None:
+    def test_every_dashboard_query_includes_license_requests(self) -> None:
         created, resolved = self.queries.w3_created_vs_resolved()
         dashboard_queries = [
             self.queries.w1_yearly_created(),
@@ -132,14 +132,15 @@ class WidgetQueryBuilderTest(unittest.TestCase):
         for query in dashboard_queries:
             with self.subTest(query=query):
                 self.assertNotIn("issuetype IN", query)
-                self.assertIn('issuetype != "라이선스"', query)
+                self.assertNotIn('issuetype !=', query)
 
     def test_type_breakdown_query_keeps_order_by_at_the_end(self) -> None:
         queries = self.queries.by_issue_type(self.queries.w7_recent())
 
-        self.assertNotIn("라이선스", queries)
+        self.assertIn("라이선스", queries)
+        self.assertIn('AND issuetype = "라이선스" ORDER BY', queries["라이선스"])
         self.assertEqual(
-            'project = TACEA AND issuetype != "라이선스" '
+            'project = TACEA '
             'AND status NOT IN ("Closed", "반려됨", "중복 이슈", "취소됨") '
             'AND issuetype = "서비스 요청" ORDER BY issuekey DESC',
             queries["서비스 요청"],
@@ -149,9 +150,9 @@ class WidgetQueryBuilderTest(unittest.TestCase):
         query = self.queries.outside_issue_types(self.queries.w7_recent())
 
         self.assertEqual(
-            'project = TACEA AND issuetype != "라이선스" '
+            'project = TACEA '
             'AND status NOT IN ("Closed", "반려됨", "중복 이슈", "취소됨") '
-            'AND issuetype NOT IN ("인시던트", "개선", "CVE", "서비스 요청") '
+            'AND issuetype NOT IN ("인시던트", "개선", "CVE", "서비스 요청", "라이선스") '
             'ORDER BY issuekey DESC',
             query,
         )
@@ -163,15 +164,15 @@ class WidgetQueryBuilderTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            ("인시던트", "H/W 장애 요청", "승인된 서비스 요청"),
+            ("인시던트", "라이선스", "H/W 장애 요청", "승인된 서비스 요청"),
             queries.issue_types,
         )
         self.assertEqual(
-            ["인시던트", "H/W 장애 요청", "승인된 서비스 요청"],
+            ["인시던트", "라이선스", "H/W 장애 요청", "승인된 서비스 요청"],
             list(queries.by_issue_type(queries.w1_yearly_created())),
         )
 
-    def test_license_request_aliases_never_become_filter_options(self) -> None:
+    def test_license_request_names_remain_available_as_jira_filter_values(self) -> None:
         queries = WidgetQueryBuilder(self.config).build(
             datetime.datetime(2026, 8, 18),
             issue_types_override=[
@@ -183,7 +184,10 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             ],
         )
 
-        self.assertEqual(("인시던트",), queries.issue_types)
+        self.assertEqual(
+            ("인시던트", "라이선스", "라이센스", "라이선스 요청", "라이센스 요청"),
+            queries.issue_types,
+        )
 
     def test_widget_ids_follow_dashboard_render_order(self) -> None:
         self.assertEqual(

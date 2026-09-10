@@ -4,19 +4,6 @@ from typing import Tuple
 
 from src.application.services.query_config import QueryConfig
 
-DASHBOARD_EXCLUDED_ISSUE_TYPE = "라이선스"
-_DASHBOARD_EXCLUDED_ISSUE_TYPE_ALIASES = frozenset({
-    "라이선스",
-    "라이센스",
-    "라이선스 요청",
-    "라이센스 요청",
-})
-
-
-def is_dashboard_excluded_issue_type(issue_type: str) -> bool:
-    return issue_type.strip() in _DASHBOARD_EXCLUDED_ISSUE_TYPE_ALIASES
-
-
 class WidgetQueryBuilder:
     def __init__(self, config: QueryConfig):
         self._c = config
@@ -55,15 +42,16 @@ class ResolvedQueries:
             issue_type.strip()
             for issue_type in raw_issue_types
             if issue_type.strip()
-            and not is_dashboard_excluded_issue_type(issue_type)
         ))
 
     def _project(self) -> str:
         return f"project = {self._c.project_key}"
 
     def _base(self) -> str:
-        escaped = self._escape_issue_type(DASHBOARD_EXCLUDED_ISSUE_TYPE)
-        return f'{self._project()} AND issuetype != "{escaped}"'
+        return self._project()
+
+    def _redeployment_base(self) -> str:
+        return f'{self._project()} AND issuetype != "라이선스"'
 
     @property
     def issue_types(self) -> tuple[str, ...]:
@@ -188,7 +176,7 @@ class ResolvedQueries:
     def w15_redeployment_resolved(self) -> str:
         year = self._now.year
         return (
-            f"{self._base()} AND status = Closed AND resolution != Unresolved "
+            f"{self._redeployment_base()} AND status = Closed AND resolution != Unresolved "
             f"AND resolved >= \"{year}-01-01\" AND resolved < \"{year + 1}-01-01\" "
             f"AND type IN (\uac1c\uc120, \uc778\uc2dc\ub358\ud2b8, \"\uc11c\ube44\uc2a4 \uc694\uccad\")"
         )
@@ -196,7 +184,7 @@ class ResolvedQueries:
     def w15_redeployment_issues(self) -> str:
         year = self._now.year
         return (
-            f"{self._base()} AND status = Closed "
+            f"{self._redeployment_base()} AND status = Closed "
             f"AND cf[11819] = Y "
             f"AND resolved >= \"{year}-01-01\" AND resolved < \"{year + 1}-01-01\""
         )

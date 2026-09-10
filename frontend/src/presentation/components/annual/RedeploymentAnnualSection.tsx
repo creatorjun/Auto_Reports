@@ -17,7 +17,7 @@ import {
 } from 'recharts'
 import type { RedeploymentAnalytics, RedeploymentIssue, RedeploymentMonthlyEntry } from '@/domain/Dashboard'
 import type { ChartIssuesRequest } from '@/domain/ReportChartDetails'
-import { isDashboardExcludedIssueType } from '@/domain/DashboardIssueTypePolicy'
+import { isLicenseIssueType } from '@/domain/DashboardIssueTypePolicy'
 import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
 import { useJira } from '@/presentation/context/JiraContext'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
@@ -87,12 +87,12 @@ function MonthlyRedeploymentChart({ data, onDetails }: { data: RedeploymentAnaly
   const [selectedType, setSelectedType] = useState('')
   const issueTypes = Array.from(new Set(
     data.monthly.flatMap((entry) => Object.keys(entry.by_type))
-      .filter((issueType) => !isDashboardExcludedIssueType(issueType)),
+      .filter((issueType) => !isLicenseIssueType(issueType)),
   ))
   const chartData = data.monthly.map((entry) => {
     const byType = Object.fromEntries(
       Object.entries(entry.by_type)
-        .filter(([issueType]) => !isDashboardExcludedIssueType(issueType)),
+        .filter(([issueType]) => !isLicenseIssueType(issueType)),
     )
     return {
       month: entry.month,
@@ -105,7 +105,7 @@ function MonthlyRedeploymentChart({ data, onDetails }: { data: RedeploymentAnaly
     ? selectedType
       ? selectedMonth.by_type[selectedType] ?? 0
       : Object.entries(selectedMonth.by_type)
-        .filter(([issueType]) => !isDashboardExcludedIssueType(issueType))
+        .filter(([issueType]) => !isLicenseIssueType(issueType))
         .reduce((sum, [, count]) => sum + count, 0)
     : 0
   return (
@@ -259,7 +259,7 @@ function PartnerMatrix({ matrix, onDetails }: { matrix: Record<string, Record<st
     partner,
     Object.fromEntries(
       Object.entries(counts)
-        .filter(([issueType]) => !isDashboardExcludedIssueType(issueType)),
+        .filter(([issueType]) => !isLicenseIssueType(issueType)),
     ),
   ] as const)).filter(([, counts]) => Object.keys(counts).length > 0)
   const issueTypes = Array.from(new Set(partners.flatMap(([, counts]) => Object.keys(counts))))
@@ -307,7 +307,7 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
   const exportMode = useDashboardExportMode()
   const { jiraBrowse } = useJira()
   const [page, setPage] = useState(1)
-  const issues = data.latest_issues.filter((issue) => !isDashboardExcludedIssueType(issue.type))
+  const issues = data.latest_issues.filter((issue) => !isLicenseIssueType(issue.type))
   const totalPages = Math.max(1, Math.ceil(issues.length / REDEPLOYMENT_PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const visibleIssues = exportMode ? issues : issues.slice(
@@ -386,10 +386,10 @@ export default function RedeploymentAnnualSection({ data, year, reportId }: Prop
   const exportMode = useDashboardExportMode()
   const [details, setDetails] = useState<IssueDetails | null>(null)
   const classificationComplete = data.classification_complete
-  const issues = data.latest_issues.filter((issue) => !isDashboardExcludedIssueType(issue.type))
+  const issues = data.latest_issues.filter((issue) => !isLicenseIssueType(issue.type))
   const showMonthlyDetails = (month: RedeploymentMonthlyEntry, issueType?: string) => {
     const total = Object.entries(month.by_type)
-      .filter(([type]) => !isDashboardExcludedIssueType(type) && (!issueType || type === issueType))
+      .filter(([type]) => !isLicenseIssueType(type) && (!issueType || type === issueType))
       .reduce((sum, [, count]) => sum + count, 0)
     setDetails({
       title: `${month.year}년 ${month.month} 재배포 · ${issueType || '전체 유형'}`,
