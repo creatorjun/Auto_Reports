@@ -14,3 +14,7 @@ export interface BaseIssue {
 export interface RecentIssue extends BaseIssue {
   tac_assignee?: string | null
 }
+
+export function filterRecentIssuesByElapsedDays(issues: RecentIssue[], maxDays: number | null): RecentIssue[] {
+  return maxDays === null ? issues : issues.filter((issue) => issue.elapsed_days <= maxDays)
+}

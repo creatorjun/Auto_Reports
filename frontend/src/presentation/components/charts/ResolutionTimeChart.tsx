@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { useJira } from '@/presentation/context/JiraContext'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 import { STATUS_STYLE } from '@/presentation/config/ui'
@@ -22,6 +22,7 @@ const DEFAULT_FRACS: Record<ColKey, number> = {
 
 interface Props {
   details: RecentIssue[]
+  emptyMessage?: string
 }
 
 function getStatusStyle(status: string) {
@@ -117,7 +118,7 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
   )
 }
 
-export default function ResolutionTimeChart({ details }: Props) {
+export default function ResolutionTimeChart({ details, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
   const exportMode = useDashboardExportMode()
   const { jiraBase } = useJira()
   const [page,    setPage]    = useState(1)
@@ -126,6 +127,8 @@ export default function ResolutionTimeChart({ details }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const tableRef      = useRef<HTMLTableElement>(null)
   const tableWidthRef = useRef<number>(0)
+
+  useEffect(() => { setPage(1) }, [details])
 
   const handleSort = useCallback((col: ColKey) => {
     setSortKey((prev) => {
@@ -157,7 +160,7 @@ export default function ResolutionTimeChart({ details }: Props) {
   if (!details || details.length === 0) {
     return (
       <div data-pdf-kind="table" data-pdf-title="최근 이슈 현황" className="card flex items-center justify-center h-48 text-apple-light text-ui-base">
-        최근 이슈 데이터가 없습니다.
+        {emptyMessage}
       </div>
     )
   }

@@ -303,7 +303,7 @@ test('annual reports render every redeployment dashboard view', () => {
   assert.match(page, /WIDGET_ID\.REDEPLOYMENT_ANALYTICS/)
   assert.match(
     page,
-    /<RedeploymentAnnualSection[\s\S]*?<SectionTitle icon={Pin} title="최근 이슈 현황"/,
+    /<RedeploymentAnnualSection[\s\S]*?<RecentIssuesWidget/,
   )
 })
 

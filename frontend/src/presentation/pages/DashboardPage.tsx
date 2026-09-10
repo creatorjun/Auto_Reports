@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
 import { lazy, Suspense, useCallback, useEffect, useState, useMemo, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { BarChart2, ShieldAlert, Activity, Pin, CalendarRange, RefreshCw, Download } from 'lucide-react'
+import { BarChart2, ShieldAlert, Activity, CalendarRange, RefreshCw, Download } from 'lucide-react'
 import { useAnnualReport, useLatestReport, useReportById } from '@/presentation/hooks/useReport'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useDashboardData } from '@/presentation/hooks/useDashboardData'
@@ -31,7 +31,7 @@ import { getIssueTypeLabel } from '@/presentation/utils/issueTypeLabel'
 const SlaDonutChart       = lazy(() => import('@/presentation/components/charts/SlaDonutChart'))
 const ReasonPieChart      = lazy(() => import('@/presentation/components/charts/ReasonPieChart'))
 const TypeBarChart        = lazy(() => import('@/presentation/components/charts/TypeBarChart'))
-const ResolutionTimeChart = lazy(() => import('@/presentation/components/charts/ResolutionTimeChart'))
+const RecentIssuesWidget = lazy(() => import('@/presentation/components/charts/RecentIssuesWidget'))
 const TrendLineChart      = lazy(() => import('@/presentation/components/charts/TrendLineChart'))
 const SlaMonthlyLineChart = lazy(() => import('@/presentation/components/charts/SlaMonthlyLineChart'))
 const MonthlyCountChart   = lazy(() => import('@/presentation/components/charts/MonthlyCountChart'))
@@ -54,6 +54,7 @@ interface ExportSelection {
   selectedIssueTypes: Set<string> | null
   selectedStatuses: Set<string> | null
   selectedSemester: Semester | null
+  recentMaxElapsedDays: number | null
 }
 
 interface ExportSnapshot {
@@ -69,6 +70,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
   const [selectedStatuses,   setSelectedStatuses]   = useState<Set<string> | null>(null)
   const [selectedSemester,   setSelectedSemester]   = useState<Semester | null>(null)
+  const [recentMaxElapsedDays, setRecentMaxElapsedDays] = useState<number | null>(null)
   const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
   const [workTypeOpen,       setWorkTypeOpen]       = useState<WorkTypeOpenWidget | null>(null)
@@ -86,6 +88,9 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const effectiveIssueTypes = exportSelection ? exportSelection.selectedIssueTypes : selectedIssueTypes
   const effectiveStatuses = exportSelection ? exportSelection.selectedStatuses : selectedStatuses
   const effectiveSemester = exportSelection ? exportSelection.selectedSemester : selectedSemester
+  const effectiveRecentMaxElapsedDays = exportSelection ? exportSelection.recentMaxElapsedDays : recentMaxElapsedDays
+
+  useEffect(() => { setRecentMaxElapsedDays(null) }, [report.id])
 
   useEffect(() => {
     setAnnualDetails(null)
@@ -172,12 +177,16 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
     if (redeploymentData && (effectiveSemester !== null || effectiveIssueTypes !== null || effectiveStatuses !== null)) {
       filters.push('재배포 품질 지표는 연간 전체 기준')
     }
+    if (effectiveRecentMaxElapsedDays !== null) {
+      filters.push(`최근 이슈: 경과일 ${effectiveRecentMaxElapsedDays}일 이하`)
+    }
     setExportSnapshot({
       report,
       selection: {
         selectedIssueTypes: effectiveIssueTypes === null ? null : new Set(effectiveIssueTypes),
         selectedStatuses: effectiveStatuses === null ? null : new Set(effectiveStatuses),
         selectedSemester: effectiveSemester,
+        recentMaxElapsedDays: effectiveRecentMaxElapsedDays,
       },
       metadata: {
         title,
@@ -433,12 +442,14 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
           <RedeploymentAnnualSection key={report.id} reportId={report.id} data={redeploymentData} year={report.report_year} />
         </Suspense>
       )}
-      <div data-pdf-section="최근 이슈 현황" className="space-y-1">
-        <SectionTitle icon={Pin} title="최근 이슈 현황" subtitle={`최신 ${recentIssues.length}건`} />
-        <Suspense fallback={<ChartFallback />}>
-          <ResolutionTimeChart details={recentIssues} />
-        </Suspense>
-      </div>
+      <Suspense fallback={<ChartFallback />}>
+        <RecentIssuesWidget
+          key={report.id}
+          details={recentIssues}
+          maxElapsedDays={effectiveRecentMaxElapsedDays}
+          onMaxElapsedDaysChange={!exportSelection ? setRecentMaxElapsedDays : undefined}
+        />
+      </Suspense>
     </div>
     {exportSnapshot && !exportSelection && (
       <DashboardPdfExportStage
