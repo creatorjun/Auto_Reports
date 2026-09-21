@@ -10,27 +10,27 @@ import { useDashboardExportMode } from '@/presentation/context/DashboardExportCo
 
 interface Props {
   details: RecentIssue[]
-  maxElapsedDays: number | null
-  onMaxElapsedDaysChange?: (value: number | null) => void
+  elapsedDaysThreshold: number | null
+  onElapsedDaysThresholdChange?: (value: number | null) => void
 }
 
-export default function RecentIssuesWidget({ details, maxElapsedDays, onMaxElapsedDaysChange }: Props) {
+export default function RecentIssuesWidget({ details, elapsedDaysThreshold, onElapsedDaysThresholdChange }: Props) {
   const exportMode = useDashboardExportMode()
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
-  const [draft, setDraft] = useState(maxElapsedDays === null ? '' : String(maxElapsedDays))
+  const [draft, setDraft] = useState(elapsedDaysThreshold === null ? '' : String(elapsedDaysThreshold))
   const [badInput, setBadInput] = useState(false)
   const [error, setError] = useState('')
   const filteredIssues = useMemo(
-    () => filterRecentIssuesByElapsedDays(details, maxElapsedDays),
-    [details, maxElapsedDays],
+    () => filterRecentIssuesByElapsedDays(details, elapsedDaysThreshold),
+    [details, elapsedDaysThreshold],
   )
 
   useEffect(() => {
-    setDraft(maxElapsedDays === null ? '' : String(maxElapsedDays))
+    setDraft(elapsedDaysThreshold === null ? '' : String(elapsedDaysThreshold))
     setBadInput(false)
     setError('')
-  }, [maxElapsedDays])
+  }, [elapsedDaysThreshold])
 
   const search = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -40,7 +40,7 @@ export default function RecentIssuesWidget({ details, maxElapsedDays, onMaxElaps
       return
     }
     setError('')
-    onMaxElapsedDaysChange?.(value)
+    onElapsedDaysThresholdChange?.(value)
   }
 
   const reset = () => {
@@ -48,16 +48,16 @@ export default function RecentIssuesWidget({ details, maxElapsedDays, onMaxElaps
     setDraft('')
     setBadInput(false)
     setError('')
-    onMaxElapsedDaysChange?.(null)
+    onElapsedDaysThresholdChange?.(null)
   }
 
   return (
     <div data-pdf-section="최근 이슈 현황" className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <SectionTitle icon={Pin} title="최근 이슈 현황" subtitle={maxElapsedDays === null
+        <SectionTitle icon={Pin} title="최근 이슈 현황" subtitle={elapsedDaysThreshold === null
           ? `최신 ${filteredIssues.length}건`
-          : `${maxElapsedDays}일 이하 · ${filteredIssues.length}건`} />
-        {!exportMode && onMaxElapsedDaysChange && (
+          : `${elapsedDaysThreshold}일 초과 · ${filteredIssues.length}건`} />
+        {!exportMode && onElapsedDaysThresholdChange && (
           <form onSubmit={search} noValidate className="flex max-w-full flex-wrap items-center gap-2" aria-label="최근 이슈 경과일 검색">
             <label htmlFor={inputId} className="text-ui-sm font-medium text-apple-mid">경과일</label>
             <input
@@ -79,12 +79,12 @@ export default function RecentIssuesWidget({ details, maxElapsedDays, onMaxElaps
               aria-describedby={error ? `${inputId}-error` : undefined}
               className="h-10 w-24 rounded-lg border border-apple-divider bg-apple-surface px-3 text-ui-sm tabular-nums text-apple-dark focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             />
-            <span className="text-ui-sm text-apple-mid">일 이하</span>
+            <span className="text-ui-sm text-apple-mid">일 초과</span>
             <button type="submit" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-ui-sm font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
               <Search size={14} aria-hidden="true" />
               검색
             </button>
-            <button type="button" onClick={reset} disabled={maxElapsedDays === null && draft === '' && !badInput} className="min-h-10 rounded-lg px-3 text-ui-sm font-medium text-apple-mid transition-colors hover:bg-apple-gray disabled:cursor-default disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
+            <button type="button" onClick={reset} disabled={elapsedDaysThreshold === null && draft === '' && !badInput} className="min-h-10 rounded-lg px-3 text-ui-sm font-medium text-apple-mid transition-colors hover:bg-apple-gray disabled:cursor-default disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
               초기화
             </button>
             {error && <p id={`${inputId}-error`} role="alert" className="w-full text-ui-sm text-red-600">{error}</p>}
@@ -93,7 +93,7 @@ export default function RecentIssuesWidget({ details, maxElapsedDays, onMaxElaps
       </div>
       <ResolutionTimeChart
         details={filteredIssues}
-        emptyMessage={maxElapsedDays === null ? undefined : `경과일이 ${maxElapsedDays}일 이하인 이슈가 없습니다.`}
+        emptyMessage={elapsedDaysThreshold === null ? undefined : `경과일이 ${elapsedDaysThreshold}일 초과인 이슈가 없습니다.`}
       />
     </div>
   )

@@ -72,19 +72,19 @@ function issue(days, overrides = {}) {
   }
 }
 
-function render(t, details, { maxElapsedDays = null, exportMode = false } = {}) {
+function render(t, details, { elapsedDaysThreshold = null, exportMode = false } = {}) {
   const changes = []
-  let nativeValue = maxElapsedDays === null ? '' : String(maxElapsedDays)
+  let nativeValue = elapsedDaysThreshold === null ? '' : String(elapsedDaysThreshold)
   const numberInput = {
     validity: { badInput: false },
     get value() { return nativeValue },
     set value(value) { nativeValue = value; this.validity.badInput = false },
   }
   function Harness({ details }) {
-    const [maximum, setMaximum] = React.useState(maxElapsedDays)
+    const [threshold, setThreshold] = React.useState(elapsedDaysThreshold)
     return React.createElement(RecentIssuesWidget, {
-      details, maxElapsedDays: maximum,
-      onMaxElapsedDaysChange(value) { changes.push(value); setMaximum(value) },
+      details, elapsedDaysThreshold: threshold,
+      onElapsedDaysThresholdChange(value) { changes.push(value); setThreshold(value) },
     })
   }
   const content = (rows) => {
@@ -152,51 +152,51 @@ function header(view, label) {
   return view.root.findByType('thead').findAllByType('th').find((node) => node.props['data-pdf-header'] === label)
 }
 
-test('elapsed-day filtering includes the upper bound and zero without changing source rows', () => {
+test('elapsed-day filtering strictly excludes the threshold and zero without changing source rows', () => {
   const details = Object.freeze([29, 30, 31, 0].map((days) => Object.freeze(issue(days))))
-  assert.deepEqual(filterRecentIssuesByElapsedDays(details, 30).map((row) => row.elapsed_days), [29, 30, 0])
-  assert.deepEqual(filterRecentIssuesByElapsedDays(details, 0).map((row) => row.elapsed_days), [0])
+  assert.deepEqual(filterRecentIssuesByElapsedDays(details, 30).map((row) => row.elapsed_days), [31])
+  assert.deepEqual(filterRecentIssuesByElapsedDays(details, 0).map((row) => row.elapsed_days), [29, 30, 31])
   assert.deepEqual(filterRecentIssuesByElapsedDays(details, null), details)
   assert.deepEqual(details.map((row) => row.elapsed_days), [29, 30, 31, 0])
 })
 
-test('typing does not apply the filter until search submits and thirty includes twenty-nine and thirty', (t) => {
+test('typing does not apply the filter until search submits and thirty includes only older issues', (t) => {
   const details = Object.freeze([29, 30, 31].map((days) => Object.freeze(issue(days))))
   const { view, changes } = render(t, details)
   assert.equal(input(view).props.type, 'number')
   assert.equal(button(view, '검색').props.type, 'submit')
   assert.match(textOf(view.root), /경과일/)
-  assert.match(textOf(view.root), /일 이하/)
+  assert.match(textOf(view.root), /일 초과/)
   type(view, '30')
   assert.deepEqual(keys(view), ['TACEA-029', 'TACEA-030', 'TACEA-031'])
   assert.deepEqual(changes, [])
   submit(view)
-  assert.deepEqual(keys(view), ['TACEA-029', 'TACEA-030'])
+  assert.deepEqual(keys(view), ['TACEA-031'])
   assert.deepEqual(changes, [30])
   type(view, '29')
-  assert.deepEqual(keys(view), ['TACEA-029', 'TACEA-030'])
+  assert.deepEqual(keys(view), ['TACEA-031'])
   assert.deepEqual(details.map((row) => row.elapsed_days), [29, 30, 31])
 })
 
 test('zero is searchable and an empty submitted value restores every issue', (t) => {
-  const { view, changes } = render(t, [issue(0), issue(1), issue(30)], { maxElapsedDays: 30 })
+  const { view, changes } = render(t, [issue(0), issue(1), issue(30)], { elapsedDaysThreshold: 30 })
   type(view, '0')
   submit(view)
-  assert.deepEqual(keys(view), ['TACEA-000'])
+  assert.deepEqual(keys(view), ['TACEA-001', 'TACEA-030'])
   assert.equal(changes.at(-1), 0)
   type(view, '')
-  assert.deepEqual(keys(view), ['TACEA-000'])
+  assert.deepEqual(keys(view), ['TACEA-001', 'TACEA-030'])
   submit(view)
   assert.deepEqual(keys(view), ['TACEA-000', 'TACEA-001', 'TACEA-030'])
   assert.equal(changes.at(-1), null)
 })
 
 test('invalid numeric inputs leave the applied filter intact and expose an error', (t) => {
-  const { view, changes } = render(t, [issue(0), issue(30), issue(31)], { maxElapsedDays: 30 })
+  const { view, changes } = render(t, [issue(0), issue(30), issue(31)], { elapsedDaysThreshold: 30 })
   for (const value of ['-1', '1.5', 'NaN', 'Infinity', '9007199254740992']) {
     type(view, value)
     submit(view)
-    assert.deepEqual(keys(view), ['TACEA-000', 'TACEA-030'])
+    assert.deepEqual(keys(view), ['TACEA-031'])
     assert.deepEqual(changes, [])
     assert.equal(input(view).props['aria-invalid'], true)
     assert.ok(view.root.findAllByProps({ role: 'alert' }).some((node) => textOf(node).length > 0))
@@ -204,11 +204,11 @@ test('invalid numeric inputs leave the applied filter intact and expose an error
 })
 
 test('native invalid number input with an empty value cannot clear the applied filter', (t) => {
-  const { view, changes, numberInput } = render(t, [issue(0), issue(30), issue(31)], { maxElapsedDays: 30 })
+  const { view, changes, numberInput } = render(t, [issue(0), issue(30), issue(31)], { elapsedDaysThreshold: 30 })
   numberInput.validity.badInput = true
   type(view, '', true)
   submit(view)
-  assert.deepEqual(keys(view), ['TACEA-000', 'TACEA-030'])
+  assert.deepEqual(keys(view), ['TACEA-031'])
   assert.deepEqual(changes, [])
   assert.equal(input(view).props['aria-invalid'], true)
   assert.ok(view.root.findAllByProps({ role: 'alert' }).length > 0)
@@ -220,7 +220,7 @@ test('native invalid number input with an empty value cannot clear the applied f
 })
 
 test('reset clears native bad-input validity even when the controlled draft is already empty', (t) => {
-  const { view, changes, numberInput } = render(t, [issue(0), issue(30), issue(31)], { maxElapsedDays: 30 })
+  const { view, changes, numberInput } = render(t, [issue(0), issue(30), issue(31)], { elapsedDaysThreshold: 30 })
   numberInput.validity.badInput = true
   type(view, '', true)
   submit(view)
@@ -253,7 +253,7 @@ test('native input without a React change event enables reset when the sanitized
 })
 
 test('reset clears an invalid draft and the applied filter without submitting the form', (t) => {
-  const { view, changes } = render(t, [issue(0), issue(30), issue(31)], { maxElapsedDays: 30 })
+  const { view, changes } = render(t, [issue(0), issue(30), issue(31)], { elapsedDaysThreshold: 30 })
   type(view, '-1')
   submit(view)
   const reset = button(view, '초기화')
@@ -266,7 +266,7 @@ test('reset clears an invalid draft and the applied filter without submitting th
   assert.equal(view.root.findAllByProps({ role: 'alert' }).length, 0)
 })
 
-test('new data from other dashboard filters retains the applied elapsed-day limit', (t) => {
+test('new data from other dashboard filters retains the applied elapsed-day threshold', (t) => {
   const { view, updateDetails, changes } = render(t, [issue(29), issue(30), issue(31)])
   type(view, '30')
   submit(view)
@@ -276,7 +276,7 @@ test('new data from other dashboard filters retains the applied elapsed-day limi
     Object.freeze(issue(40, { type: '개선' })),
   ])
   updateDetails(replacement)
-  assert.deepEqual(keys(view), ['TACEA-010', 'TACEA-030'])
+  assert.deepEqual(keys(view), ['TACEA-040'])
   assert.equal(input(view).props.value, '30')
   assert.deepEqual(changes, [30])
   assert.deepEqual(replacement.map((row) => row.elapsed_days), [10, 30, 40])
@@ -294,40 +294,40 @@ test('applying a filter resets page two to page one while preserving sorting and
   assert.notEqual(widths[0], '10.00%')
   click(button(view, '2'))
   assert.equal(keys(view)[0], 'TACEA-050')
-  type(view, '90')
+  type(view, '30')
   submit(view)
-  assert.deepEqual(keys(view), Array.from({ length: 50 }, (_, index) => `TACEA-${String(index).padStart(3, '0')}`))
+  assert.deepEqual(keys(view), Array.from({ length: 50 }, (_, index) => `TACEA-${String(index + 31).padStart(3, '0')}`))
   assert.match(textOf(header(view, '생성일 (경과)')), /↑/)
   assert.deepEqual(view.root.findAllByType('col').map((column) => column.props.style.width), widths)
   click(header(view, '생성일 (경과)'))
-  assert.equal(keys(view)[0], 'TACEA-090')
+  assert.equal(keys(view)[0], 'TACEA-119')
   assert.match(textOf(header(view, '생성일 (경과)')), /↓/)
   assert.deepEqual(details.map((row) => row.elapsed_days), Array.from({ length: 120 }, (_, index) => 119 - index))
 })
 
 test('an empty filtered result has a filter-specific message and remains resettable', (t) => {
   const { view } = render(t, [issue(10)])
-  type(view, '0')
+  type(view, '10')
   submit(view)
   assert.deepEqual(keys(view), [])
-  assert.match(textOf(view.root), /경과일이 0일 이하인 이슈가 없습니다/)
+  assert.match(textOf(view.root), /경과일이 10일 초과인 이슈가 없습니다/)
   click(button(view, '초기화'))
   assert.deepEqual(keys(view), ['TACEA-010'])
 })
 
 test('PDF mode includes every matching row beyond one page and omits filter controls', (t) => {
   const details = Object.freeze(Array.from({ length: 85 }, (_, index) => Object.freeze(issue(index))))
-  const { view } = render(t, details, { maxElapsedDays: 64, exportMode: true })
+  const { view } = render(t, details, { elapsedDaysThreshold: 19, exportMode: true })
   assert.equal(view.root.findAllByType('form').length, 0)
   assert.equal(view.root.findAllByType('input').length, 0)
   assert.equal(view.root.findAllByType('button').length, 0)
   assert.equal(view.root.findByType('table').props['data-pdf-table-layout'], 'recent')
-  assert.deepEqual(keys(view), Array.from({ length: 65 }, (_, index) => `TACEA-${String(index).padStart(3, '0')}`))
+  assert.deepEqual(keys(view), Array.from({ length: 65 }, (_, index) => `TACEA-${String(index + 20).padStart(3, '0')}`))
   assert.equal(details.length, 85)
   assert.equal(details.at(-1).elapsed_days, 84)
 })
 
-test('dashboard export snapshots retain the applied limit and every matching row after the visible filter changes', async (t) => {
+test('dashboard export snapshots retain the applied threshold and every matching row after the visible filter changes', async (t) => {
   const DashboardContent = loadDashboardContent()
   const details = Object.freeze(Array.from({ length: 85 }, (_, index) => Object.freeze(issue(index))))
   const report = {
@@ -339,19 +339,21 @@ test('dashboard export snapshots retain the applied limit and every matching row
   let view
   await act(async () => { view = TestRenderer.create(React.createElement(DashboardContent, { report })) })
   t.after(() => act(() => view.unmount()))
-  type(view, '64')
+  type(view, '19')
   submit(view)
   await act(async () => button(view, 'PDF 내보내기').props.onClick())
 
   const stage = view.root.findByType('ExportStage')
-  assert.ok(stage.props.metadata.filters.includes('최근 이슈: 경과일 64일 이하'))
+  assert.ok(stage.props.metadata.filters.includes('최근 이슈: 경과일 19일 초과'))
   assert.equal(keys(stage).length, 65)
-  assert.equal(keys(stage).at(-1), 'TACEA-064')
+  assert.equal(keys(stage)[0], 'TACEA-020')
+  assert.equal(keys(stage).at(-1), 'TACEA-084')
   assert.equal(stage.findAllByType('form').length, 0)
-  type(view, '10')
+  type(view, '70')
   submit(view)
-  assert.equal(keys(view).length, 11)
+  assert.equal(keys(view).length, 14)
+  assert.equal(keys(view)[0], 'TACEA-071')
   assert.equal(keys(stage).length, 65)
-  assert.ok(stage.props.metadata.filters.includes('최근 이슈: 경과일 64일 이하'))
+  assert.ok(stage.props.metadata.filters.includes('최근 이슈: 경과일 19일 초과'))
   assert.equal(details.length, 85)
 })

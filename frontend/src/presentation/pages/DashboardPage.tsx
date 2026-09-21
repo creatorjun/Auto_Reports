@@ -54,7 +54,7 @@ interface ExportSelection {
   selectedIssueTypes: Set<string> | null
   selectedStatuses: Set<string> | null
   selectedSemester: Semester | null
-  recentMaxElapsedDays: number | null
+  recentElapsedDaysThreshold: number | null
 }
 
 interface ExportSnapshot {
@@ -70,7 +70,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
   const [selectedStatuses,   setSelectedStatuses]   = useState<Set<string> | null>(null)
   const [selectedSemester,   setSelectedSemester]   = useState<Semester | null>(null)
-  const [recentMaxElapsedDays, setRecentMaxElapsedDays] = useState<number | null>(null)
+  const [recentElapsedDaysThreshold, setRecentElapsedDaysThreshold] = useState<number | null>(null)
   const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
   const [workTypeOpen,       setWorkTypeOpen]       = useState<WorkTypeOpenWidget | null>(null)
@@ -88,9 +88,9 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const effectiveIssueTypes = exportSelection ? exportSelection.selectedIssueTypes : selectedIssueTypes
   const effectiveStatuses = exportSelection ? exportSelection.selectedStatuses : selectedStatuses
   const effectiveSemester = exportSelection ? exportSelection.selectedSemester : selectedSemester
-  const effectiveRecentMaxElapsedDays = exportSelection ? exportSelection.recentMaxElapsedDays : recentMaxElapsedDays
+  const effectiveRecentElapsedDaysThreshold = exportSelection ? exportSelection.recentElapsedDaysThreshold : recentElapsedDaysThreshold
 
-  useEffect(() => { setRecentMaxElapsedDays(null) }, [report.id])
+  useEffect(() => { setRecentElapsedDaysThreshold(null) }, [report.id])
 
   useEffect(() => {
     setAnnualDetails(null)
@@ -177,8 +177,8 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
     if (redeploymentData && (effectiveSemester !== null || effectiveIssueTypes !== null || effectiveStatuses !== null)) {
       filters.push('재배포 품질 지표는 연간 전체 기준')
     }
-    if (effectiveRecentMaxElapsedDays !== null) {
-      filters.push(`최근 이슈: 경과일 ${effectiveRecentMaxElapsedDays}일 이하`)
+    if (effectiveRecentElapsedDaysThreshold !== null) {
+      filters.push(`최근 이슈: 경과일 ${effectiveRecentElapsedDaysThreshold}일 초과`)
     }
     setExportSnapshot({
       report,
@@ -186,7 +186,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
         selectedIssueTypes: effectiveIssueTypes === null ? null : new Set(effectiveIssueTypes),
         selectedStatuses: effectiveStatuses === null ? null : new Set(effectiveStatuses),
         selectedSemester: effectiveSemester,
-        recentMaxElapsedDays: effectiveRecentMaxElapsedDays,
+        recentElapsedDaysThreshold: effectiveRecentElapsedDaysThreshold,
       },
       metadata: {
         title,
@@ -446,8 +446,8 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
         <RecentIssuesWidget
           key={report.id}
           details={recentIssues}
-          maxElapsedDays={effectiveRecentMaxElapsedDays}
-          onMaxElapsedDaysChange={!exportSelection ? setRecentMaxElapsedDays : undefined}
+          elapsedDaysThreshold={effectiveRecentElapsedDaysThreshold}
+          onElapsedDaysThresholdChange={!exportSelection ? setRecentElapsedDaysThreshold : undefined}
         />
       </Suspense>
     </div>
