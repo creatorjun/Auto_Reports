@@ -16,6 +16,7 @@ import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/
 import type { ReportDetail } from '@/domain/Report'
 import type { ChartIssue, ChartIssuesRequest } from '@/domain/ReportChartDetails'
 import type { DashboardPdfDocument } from '@/domain/DashboardExport'
+import type { ElapsedDaysComparison } from '@/domain/Issue'
 import DashboardPdfExportStage from '@/presentation/components/export/DashboardPdfExportStage'
 import '@/presentation/styles/dashboardExport.css'
 import type { RedeploymentAnalytics, Semester, SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
@@ -55,6 +56,7 @@ interface ExportSelection {
   selectedStatuses: Set<string> | null
   selectedSemester: Semester | null
   recentElapsedDaysThreshold: number | null
+  recentElapsedDaysComparison: ElapsedDaysComparison
 }
 
 interface ExportSnapshot {
@@ -71,6 +73,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const [selectedStatuses,   setSelectedStatuses]   = useState<Set<string> | null>(null)
   const [selectedSemester,   setSelectedSemester]   = useState<Semester | null>(null)
   const [recentElapsedDaysThreshold, setRecentElapsedDaysThreshold] = useState<number | null>(null)
+  const [recentElapsedDaysComparison, setRecentElapsedDaysComparison] = useState<ElapsedDaysComparison>('gte')
   const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
   const [workTypeOpen,       setWorkTypeOpen]       = useState<WorkTypeOpenWidget | null>(null)
@@ -89,8 +92,12 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const effectiveStatuses = exportSelection ? exportSelection.selectedStatuses : selectedStatuses
   const effectiveSemester = exportSelection ? exportSelection.selectedSemester : selectedSemester
   const effectiveRecentElapsedDaysThreshold = exportSelection ? exportSelection.recentElapsedDaysThreshold : recentElapsedDaysThreshold
+  const effectiveRecentElapsedDaysComparison = exportSelection ? exportSelection.recentElapsedDaysComparison : recentElapsedDaysComparison
 
-  useEffect(() => { setRecentElapsedDaysThreshold(null) }, [report.id])
+  useEffect(() => {
+    setRecentElapsedDaysThreshold(null)
+    setRecentElapsedDaysComparison('gte')
+  }, [report.id])
 
   useEffect(() => {
     setAnnualDetails(null)
@@ -178,7 +185,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
       filters.push('재배포 품질 지표는 연간 전체 기준')
     }
     if (effectiveRecentElapsedDaysThreshold !== null) {
-      filters.push(`최근 이슈: 경과일 ${effectiveRecentElapsedDaysThreshold}일 초과`)
+      filters.push(`최근 이슈: 경과일 ${effectiveRecentElapsedDaysThreshold}일 ${effectiveRecentElapsedDaysComparison === 'gte' ? '이상' : '이하'}`)
     }
     setExportSnapshot({
       report,
@@ -187,6 +194,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
         selectedStatuses: effectiveStatuses === null ? null : new Set(effectiveStatuses),
         selectedSemester: effectiveSemester,
         recentElapsedDaysThreshold: effectiveRecentElapsedDaysThreshold,
+        recentElapsedDaysComparison: effectiveRecentElapsedDaysComparison,
       },
       metadata: {
         title,
@@ -447,7 +455,11 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
           key={report.id}
           details={recentIssues}
           elapsedDaysThreshold={effectiveRecentElapsedDaysThreshold}
-          onElapsedDaysThresholdChange={!exportSelection ? setRecentElapsedDaysThreshold : undefined}
+          elapsedDaysComparison={effectiveRecentElapsedDaysComparison}
+          onElapsedDaysFilterChange={!exportSelection ? (value, comparison) => {
+            setRecentElapsedDaysThreshold(value)
+            setRecentElapsedDaysComparison(comparison)
+          } : undefined}
         />
       </Suspense>
     </div>

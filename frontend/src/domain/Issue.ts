@@ -15,6 +15,14 @@ export interface RecentIssue extends BaseIssue {
   tac_assignee?: string | null
 }
 
-export function filterRecentIssuesByElapsedDays(issues: RecentIssue[], thresholdDays: number | null): RecentIssue[] {
-  return thresholdDays === null ? issues : issues.filter((issue) => issue.elapsed_days > thresholdDays)
+export type ElapsedDaysComparison = 'gte' | 'lte'
+
+export function filterRecentIssuesByElapsedDays(
+  issues: RecentIssue[],
+  thresholdDays: number | null,
+  comparison: ElapsedDaysComparison = 'gte',
+): RecentIssue[] {
+  return thresholdDays === null ? issues : issues.filter((issue) => comparison === 'gte'
+    ? issue.elapsed_days >= thresholdDays
+    : issue.elapsed_days <= thresholdDays)
 }
