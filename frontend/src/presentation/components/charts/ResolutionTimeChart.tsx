@@ -5,10 +5,12 @@ import { useDashboardExportMode } from '@/presentation/context/DashboardExportCo
 import { STATUS_STYLE } from '@/presentation/config/ui'
 import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC } from '@/presentation/config/constants'
 import type { RecentIssue } from '@/domain/Issue'
-import type { IssueColumn, IssueColumnFilters } from '@/domain/IssueManagement'
+import type { IssueColumn, IssueColumnFilters } from '@/domain/IssueColumnSearch'
+import ColumnSearchInput from '@/presentation/components/common/ColumnSearchInput'
+import { ISSUE_COLUMNS } from '@/presentation/config/issueColumns'
 
-const COLS = ['key', 'summary', 'status', 'reporter', 'tac', 'tac_assignee', 'elapsed'] as const
-type ColKey = typeof COLS[number]
+const COLS = ISSUE_COLUMNS.map((column) => column.key)
+type ColKey = IssueColumn
 type SortDir = 'asc' | 'desc'
 
 const DEFAULT_FRACS: Record<ColKey, number> = {
@@ -165,11 +167,13 @@ export default function ResolutionTimeChart({ details, paginationResetKey, colum
     () => sortKey ? sortIssues(details, sortKey, sortDir) : details,
     [details, sortKey, sortDir],
   )
+  const hasColumnSearch = Object.values(columnFilters ?? {}).some((value) => value?.trim())
+  const noResultsMessage = hasColumnSearch ? '검색 조건에 맞는 이슈가 없습니다.' : emptyMessage
 
-  if (details.length === 0 && !onColumnFilterChange) {
+  if (details.length === 0 && (exportMode || !onColumnFilterChange)) {
     return (
       <div data-pdf-kind="table" data-pdf-title="최근 이슈 현황" className="card flex items-center justify-center h-48 text-apple-light text-ui-base">
-        {emptyMessage}
+        {noResultsMessage}
       </div>
     )
   }
@@ -181,27 +185,17 @@ export default function ResolutionTimeChart({ details, paginationResetKey, colum
   const pageItems  = sortedDetails.slice((page - 1) * TABLE_PAGE_SIZE, page * TABLE_PAGE_SIZE)
   const visibleItems = exportMode ? sortedDetails : pageItems
 
-  const headers: { key: ColKey; label: string; rightCol?: ColKey }[] = [
-    { key: 'key',      label: '이슈',          rightCol: 'summary'  },
-    { key: 'summary',  label: '제목',          rightCol: 'status'   },
-    { key: 'status',   label: '진행 상태',     rightCol: 'reporter' },
-    { key: 'reporter', label: '보고자',        rightCol: 'tac'      },
-    { key: 'tac',      label: '담당자',        rightCol: 'tac_assignee' },
-    { key: 'tac_assignee', label: 'TAC 담당자', rightCol: 'elapsed' },
-    { key: 'elapsed',  label: '생성일 (경과)' },
-  ]
+  const headers = ISSUE_COLUMNS.map((column, index) => ({ ...column, rightCol: ISSUE_COLUMNS[index + 1]?.key }))
   const searchInput = (key: ColKey, label: string, mobile = false) => (
-    <input type="text" value={columnFilters?.[key] ?? ''} aria-label={`${label} 컬럼 검색${mobile ? ' 모바일' : ''}`} placeholder="검색어"
-      onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}
-      onChange={(event) => onColumnFilterChange?.(key, event.target.value)}
-      className="mt-2 block h-9 w-full min-w-0 rounded-lg border border-apple-divider bg-apple-surface px-2 text-ui-sm font-normal text-apple-dark placeholder:text-apple-light focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+    <ColumnSearchInput label={label} value={columnFilters?.[key] ?? ''} mobile={mobile}
+      onChange={(value) => onColumnFilterChange?.(key, value)} />
   )
 
   return (
     <div data-pdf-kind="table" data-pdf-title="최근 이슈 현황" className="card p-0 overflow-hidden">
       <div data-pdf-mobile="" className="md:hidden">
         {!exportMode && onColumnFilterChange && <div className="grid grid-cols-2 gap-3 border-b border-apple-divider p-4">{headers.map(({ key, label }) => <label key={key} className="text-ui-sm font-semibold text-apple-mid">{label}{searchInput(key, label, true)}</label>)}</div>}
-        {pageItems.length === 0 && <p className="p-6 text-center text-ui-sm text-apple-light">검색 조건에 맞는 이슈가 없습니다.</p>}
+        {pageItems.length === 0 && <p className="p-6 text-center text-ui-sm text-apple-light">{noResultsMessage}</p>}
         {pageItems.map((issue) => (
           <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase} />
         ))}
@@ -225,7 +219,7 @@ export default function ResolutionTimeChart({ details, paginationResetKey, colum
             </tr>
           </thead>
           <tbody>
-            {visibleItems.length === 0 && <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-apple-light">검색 조건에 맞는 이슈가 없습니다.</td></tr>}
+            {visibleItems.length === 0 && <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-apple-light">{noResultsMessage}</td></tr>}
             {visibleItems.map((issue) => {
               const style   = getStatusStyle(issue.status)
               const jiraUrl = `${jiraBase}/browse/${issue.key}`

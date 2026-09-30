@@ -1,12 +1,14 @@
 # Frontend Domain Models
 
-`src/domain`은 순수 TypeScript 타입만 포함하며 React, axios, Zustand에 의존하지 않습니다.
+`src/domain`은 순수 TypeScript 모델과 필터 정책을 포함하며 React, axios, Zustand에 의존하지 않습니다.
 
 | 파일 | 주요 모델 |
 |------|-----------|
 | `Auth.ts` | `LoginRequest`, `TokenResponse`, `MeResponse` |
 | `Config.ts` | Jira base URL을 가진 `AppConfig` |
 | `Issue.ts` | 공통 Jira `RecentIssue` |
+| `IssueColumnSearch.ts` | 공통 이슈 컬럼 검색 조건과 순수 목록 필터링 |
+| `IssueManagement.ts` | 전체 이슈 동기화 상태와 업무 유형·현재 상태·반기·연도 필터 |
 | `Job.ts` | `TriggerParams`, `TriggerAccepted`, `JobStatus` |
 | `Partner.ts` | `PartnerOrg`, `PartnerMember`, `PartnerIssue` |
 | `Report.ts` | `ReportSummary`, `ReportDetail`, `WidgetResult`, `AiAnalysis` |

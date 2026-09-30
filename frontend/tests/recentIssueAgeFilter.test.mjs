@@ -52,6 +52,7 @@ function loadDashboardContent() {
     if (dependency === '@/presentation/hooks/useReport') return {}
     if (dependency === '@/presentation/state/reportStore') return { useReportStore: () => ({ setCurrentReport }) }
     if (dependency === '@/presentation/components/charts/RecentIssuesWidget') return { default: RecentIssuesWidget }
+    if (dependency === '@/presentation/components/annual/AnnualReportHeader') return loadSource('presentation/components/annual/AnnualReportHeader')
     if (['SlaMonthlyLineChart', 'TypeBarChart'].some(name => dependency.endsWith(`/charts/${name}`))) return {
       default: (props) => React.createElement('DashboardChart', props),
     }
@@ -146,7 +147,9 @@ function textOf(node) {
 
 function keys(view) {
   const bodies = (view.root ?? view).findAllByType('tbody')
-  return bodies.length ? bodies[0].findAllByType('tr').map((row) => textOf(row.findAllByType('td')[0])) : []
+  return bodies.length ? bodies[0].findAllByType('tr')
+    .filter((row) => row.findAllByType('td')[0]?.props.colSpan === undefined)
+    .map((row) => textOf(row.findAllByType('td')[0])) : []
 }
 
 function input(view) {
@@ -469,3 +472,108 @@ for (const { comparison, label, threshold, firstDay } of [
     assert.equal(details.length, 85)
   })
 }
+
+for (const scope of ['standard', 'annual']) {
+  test(`${scope} dashboard keeps column search in its PDF snapshot after live filters change`, async (t) => {
+    const DashboardContent = loadDashboardContent()
+    const details = Object.freeze(Array.from({ length: 130 }, (_, index) => Object.freeze(issue(index, {
+      summary: index < 65 ? '[서울교통공사] 요청' : '[부산] 요청',
+      tac_assignee: index < 65 ? '서울 담당' : '부산 담당',
+    }))))
+    const report = {
+      id: 1, scope, report_year: scope === 'annual' ? 2026 : null,
+      week_start: '2026-01-01', week_end: '2026-09-30', report_date: '2026-09-30 23:59',
+      ai_analysis: null,
+      widgets: { w7: { name: '최근 이슈', total: details.length, data: { issue_details: details } } },
+    }
+    let view
+    await act(async () => { view = TestRenderer.create(React.createElement(DashboardContent, { report })) })
+    t.after(() => act(() => view.unmount()))
+    const setColumn = (label, value) => act(() => {
+      view.root.findAllByType('input').find((node) => node.props['aria-label'] === `${label} 컬럼 검색`)
+        .props.onChange({ target: { value } })
+    })
+    setColumn('제목', ' 서울 ')
+    setColumn('TAC 담당자', '담당')
+    assert.equal(keys(view).length, 50)
+    await act(async () => button(view, 'PDF 내보내기').props.onClick())
+
+    const stage = view.root.findByType('ExportStage')
+    const expectedKeys = Array.from({ length: 65 }, (_, index) => `TACEA-${String(index).padStart(3, '0')}`)
+    assert.deepEqual(keys(stage), expectedKeys)
+    assert.equal(stage.findAllByType('input').length, 0)
+    assert.equal(stage.findAllByType('button').length, 0)
+    assert.ok(stage.props.metadata.filters.includes('최근 이슈 제목: 서울'))
+    assert.ok(stage.props.metadata.filters.includes('최근 이슈 TAC 담당자: 담당'))
+
+    setColumn('제목', '부산')
+    assert.equal(keys(view)[0], 'TACEA-065')
+    assert.deepEqual(keys(stage), expectedKeys)
+    assert.ok(stage.props.metadata.filters.includes('최근 이슈 제목: 서울'))
+    assert.equal(details[0].summary, '[서울교통공사] 요청')
+    assert.equal(details[65].summary, '[부산] 요청')
+  })
+}
+
+for (const filter of ['type', 'status', 'semester']) {
+  test(`dashboard ${filter} changes reset the shared issue table page and retain column search`, async (t) => {
+    const DashboardContent = loadDashboardContent()
+    const details = Array.from({ length: 120 }, (_, index) => issue(index, {
+      summary: '공통 검색 이슈',
+      type: index < 100 ? '인시던트' : '개선',
+      status: index < 100 ? '처리 중' : 'Closed',
+      created: index < 100 ? '2026-01-01 09:00' : '2026-09-01 09:00',
+    }))
+    const monthly = Array.from({ length: 12 }, (_, index) => ({
+      month: `2026-${String(index + 1).padStart(2, '0')}`, year: 2026, month_num: index + 1,
+      count: 0, by_type: {}, by_status_type: {}, always_included: 0,
+    }))
+    const slaMonthly = monthly.map((entry) => ({ ...entry, met: 0, total: 0, rate: 0, always_included: { met: 0, total: 0 } }))
+    const report = {
+      id: 1, scope: 'standard', report_year: null,
+      week_start: '2026-01-01', week_end: '2026-09-30', report_date: '2026-09-30 23:59',
+      ai_analysis: null,
+      widgets: {
+        w1: { total: 120, data: { issue_types: ['인시던트', '개선'], by_type: { '인시던트': 100, '개선': 20 }, always_included: 0, status_breakdown_available: true } },
+        w2: { total: 0, data: { by_type: {}, always_included: 0, status_breakdown_available: true } },
+        w7: { total: 120, data: { issue_details: details } },
+        w8: { data: { monthly } }, w9: { data: { monthly } },
+        w10: { data: { monthly: slaMonthly } }, w11: { data: { monthly: slaMonthly } },
+        w14: { data: { by_type: {}, by_status_type: {}, by_semester_status_type: {} } },
+      },
+    }
+    let view
+    await act(async () => { view = TestRenderer.create(React.createElement(DashboardContent, { report })) })
+    t.after(() => act(() => view.unmount()))
+    const columnInput = () => view.root.findAllByType('input').find((node) => node.props['aria-label'] === '제목 컬럼 검색')
+    act(() => columnInput().props.onChange({ target: { value: '공통' } }))
+    click(button(view, '2'))
+    assert.equal(keys(view)[0], 'TACEA-050')
+    const controls = view.root.find((node) => typeof node.props.onSemesterChange === 'function')
+    act(() => {
+      if (filter === 'type') controls.props.onToggle('개선')
+      else if (filter === 'status') controls.props.onStatusToggle('Closed')
+      else controls.props.onSemesterChange('h1')
+    })
+    assert.equal(keys(view)[0], 'TACEA-000')
+    assert.equal(columnInput().props.value, '공통')
+    click(button(view, '2'))
+    assert.deepEqual(keys(view), Array.from({ length: 50 }, (_, index) => `TACEA-${String(index + 50).padStart(3, '0')}`))
+    assert.equal(view.root.findAllByType('button').filter((node) => textOf(node) === '3').length, 0)
+  })
+}
+
+test('PDF with no column matches preserves the empty message without a synthetic issue row', (t) => {
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(DashboardExportProvider, null,
+    React.createElement(RecentIssuesWidget, {
+      details: [issue(1)], elapsedDaysThreshold: null, elapsedDaysComparison: 'gte',
+      columnFilters: { summary: '없는 제목' },
+    }),
+  )) })
+  t.after(() => act(() => view.unmount()))
+  assert.deepEqual(keys(view), [])
+  assert.equal(view.root.findAllByType('table').length, 0)
+  assert.equal(view.root.findAllByType('input').length, 0)
+  assert.match(textOf(view.root), /검색 조건에 맞는 이슈가 없습니다/)
+})

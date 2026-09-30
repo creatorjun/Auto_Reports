@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import type { Semester } from '@/domain/Dashboard'
 import type { ElapsedDaysComparison } from '@/domain/Issue'
-import { filterIssuesByColumns, filterManagedIssues } from '@/domain/IssueManagement'
+import { filterManagedIssues } from '@/domain/IssueManagement'
+import { filterIssuesByColumns } from '@/domain/IssueColumnSearch'
 import { sortDashboardStatuses } from '@/domain/DashboardStatusPolicy'
 import { useIssueManagement } from '@/presentation/hooks/useIssueManagement'
 import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
@@ -51,7 +52,7 @@ export default function IssueManagementPage() {
         onSemesterChange={setSemester}
         onReset={() => { setTypes(null); setStatuses(null); setSemester(null); setTitleSearch('') }} />
       {!query.data?.initialized && !query.data?.error && !query.isError ? <LoadingSpinner text="TACEA 전체 이슈 수집 중..." /> : (
-        <RecentIssuesWidget columnSearch title="전체 이슈 현황" paginationResetKey={JSON.stringify([types === null ? null : [...types].sort(), statuses === null ? null : [...statuses].sort(), semester, elapsed, comparison, titleSearch])} details={details} elapsedDaysThreshold={elapsed} elapsedDaysComparison={comparison} onElapsedDaysFilterChange={(value, condition) => { setElapsed(value); setComparison(condition) }} />
+        <RecentIssuesWidget title="전체 이슈 현황" paginationResetKey={JSON.stringify([types === null ? null : [...types].sort(), statuses === null ? null : [...statuses].sort(), semester, elapsed, comparison, titleSearch])} details={details} elapsedDaysThreshold={elapsed} elapsedDaysComparison={comparison} onElapsedDaysFilterChange={(value, condition) => { setElapsed(value); setComparison(condition) }} />
       )}
     </div>
   )

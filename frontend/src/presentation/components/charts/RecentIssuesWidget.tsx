@@ -4,8 +4,8 @@ import type { FormEvent } from 'react'
 import { Pin, Search } from 'lucide-react'
 import { filterRecentIssuesByElapsedDays } from '@/domain/Issue'
 import type { ElapsedDaysComparison, RecentIssue } from '@/domain/Issue'
-import { filterIssuesByColumns } from '@/domain/IssueManagement'
-import type { IssueColumnFilters } from '@/domain/IssueManagement'
+import type { IssueColumn, IssueColumnFilters } from '@/domain/IssueColumnSearch'
+import { useIssueColumnSearch } from '@/presentation/hooks/useIssueColumnSearch'
 import SectionTitle from '@/presentation/components/common/SectionTitle'
 import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTimeChart'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
@@ -13,14 +13,15 @@ import { useDashboardExportMode } from '@/presentation/context/DashboardExportCo
 interface Props {
   title?: string
   paginationResetKey?: string
-  columnSearch?: boolean
+  columnFilters?: IssueColumnFilters
+  onColumnFilterChange?: (column: IssueColumn, value: string) => void
   details: RecentIssue[]
   elapsedDaysThreshold: number | null
   elapsedDaysComparison: ElapsedDaysComparison
   onElapsedDaysFilterChange?: (value: number | null, comparison: ElapsedDaysComparison) => void
 }
 
-export default function RecentIssuesWidget({ title = '최근 이슈 현황', paginationResetKey, columnSearch = false, details, elapsedDaysThreshold, elapsedDaysComparison, onElapsedDaysFilterChange }: Props) {
+export default function RecentIssuesWidget({ title = '최근 이슈 현황', paginationResetKey, columnFilters: providedColumnFilters, onColumnFilterChange: providedColumnFilterChange, details, elapsedDaysThreshold, elapsedDaysComparison, onElapsedDaysFilterChange }: Props) {
   const exportMode = useDashboardExportMode()
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -28,11 +29,13 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', pag
   const [draftComparison, setDraftComparison] = useState(elapsedDaysComparison)
   const [badInput, setBadInput] = useState(false)
   const [error, setError] = useState('')
-  const [columnFilters, setColumnFilters] = useState<IssueColumnFilters>({})
   const comparisonLabel = elapsedDaysComparison === 'gte' ? '이상' : '이하'
-  const filteredIssues = useMemo(
-    () => filterIssuesByColumns(filterRecentIssuesByElapsedDays(details, elapsedDaysThreshold, elapsedDaysComparison), columnSearch ? columnFilters : {}),
-    [details, elapsedDaysThreshold, elapsedDaysComparison, columnSearch, columnFilters],
+  const elapsedIssues = useMemo(
+    () => filterRecentIssuesByElapsedDays(details, elapsedDaysThreshold, elapsedDaysComparison),
+    [details, elapsedDaysThreshold, elapsedDaysComparison],
+  )
+  const { columnFilters, onColumnFilterChange, filteredIssues } = useIssueColumnSearch(
+    elapsedIssues, providedColumnFilters, providedColumnFilterChange,
   )
 
   useEffect(() => {
@@ -113,9 +116,9 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', pag
       </div>
       <ResolutionTimeChart
         details={filteredIssues}
-        paginationResetKey={columnSearch ? JSON.stringify([paginationResetKey, columnFilters]) : paginationResetKey}
-        columnFilters={columnSearch ? columnFilters : undefined}
-        onColumnFilterChange={columnSearch ? (column, value) => setColumnFilters((current) => ({ ...current, [column]: value })) : undefined}
+        paginationResetKey={JSON.stringify([paginationResetKey, elapsedDaysThreshold, elapsedDaysComparison, columnFilters])}
+        columnFilters={columnFilters}
+        onColumnFilterChange={onColumnFilterChange}
         emptyMessage={elapsedDaysThreshold === null ? undefined : `경과일이 ${elapsedDaysThreshold}일 ${comparisonLabel}인 이슈가 없습니다.`}
       />
     </div>

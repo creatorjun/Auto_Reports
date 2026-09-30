@@ -17,6 +17,8 @@ import type { ReportDetail } from '@/domain/Report'
 import type { ChartIssue, ChartIssuesRequest } from '@/domain/ReportChartDetails'
 import type { DashboardPdfDocument } from '@/domain/DashboardExport'
 import type { ElapsedDaysComparison } from '@/domain/Issue'
+import type { IssueColumnFilters } from '@/domain/IssueColumnSearch'
+import { ISSUE_COLUMNS } from '@/presentation/config/issueColumns'
 import DashboardPdfExportStage from '@/presentation/components/export/DashboardPdfExportStage'
 import '@/presentation/styles/dashboardExport.css'
 import type { RedeploymentAnalytics, Semester, SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
@@ -57,6 +59,7 @@ interface ExportSelection {
   selectedSemester: Semester | null
   recentElapsedDaysThreshold: number | null
   recentElapsedDaysComparison: ElapsedDaysComparison
+  recentColumnFilters: IssueColumnFilters
 }
 
 interface ExportSnapshot {
@@ -74,6 +77,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const [selectedSemester,   setSelectedSemester]   = useState<Semester | null>(null)
   const [recentElapsedDaysThreshold, setRecentElapsedDaysThreshold] = useState<number | null>(null)
   const [recentElapsedDaysComparison, setRecentElapsedDaysComparison] = useState<ElapsedDaysComparison>('gte')
+  const [recentColumnFilters, setRecentColumnFilters] = useState<IssueColumnFilters>({})
   const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
   const [workTypeOpen,       setWorkTypeOpen]       = useState<WorkTypeOpenWidget | null>(null)
@@ -93,10 +97,12 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const effectiveSemester = exportSelection ? exportSelection.selectedSemester : selectedSemester
   const effectiveRecentElapsedDaysThreshold = exportSelection ? exportSelection.recentElapsedDaysThreshold : recentElapsedDaysThreshold
   const effectiveRecentElapsedDaysComparison = exportSelection ? exportSelection.recentElapsedDaysComparison : recentElapsedDaysComparison
+  const effectiveRecentColumnFilters = exportSelection ? exportSelection.recentColumnFilters : recentColumnFilters
 
   useEffect(() => {
     setRecentElapsedDaysThreshold(null)
     setRecentElapsedDaysComparison('gte')
+    setRecentColumnFilters({})
   }, [report.id])
 
   useEffect(() => {
@@ -187,6 +193,10 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
     if (effectiveRecentElapsedDaysThreshold !== null) {
       filters.push(`최근 이슈: 경과일 ${effectiveRecentElapsedDaysThreshold}일 ${effectiveRecentElapsedDaysComparison === 'gte' ? '이상' : '이하'}`)
     }
+    for (const { key, label } of ISSUE_COLUMNS) {
+      const query = effectiveRecentColumnFilters[key]?.trim()
+      if (query) filters.push(`최근 이슈 ${label}: ${query}`)
+    }
     setExportSnapshot({
       report,
       selection: {
@@ -195,6 +205,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
         selectedSemester: effectiveSemester,
         recentElapsedDaysThreshold: effectiveRecentElapsedDaysThreshold,
         recentElapsedDaysComparison: effectiveRecentElapsedDaysComparison,
+        recentColumnFilters: { ...effectiveRecentColumnFilters },
       },
       metadata: {
         title,
@@ -474,9 +485,18 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
       <Suspense fallback={<ChartFallback />}>
         <RecentIssuesWidget
           key={report.id}
+          paginationResetKey={JSON.stringify([
+            effectiveIssueTypes === null ? null : [...effectiveIssueTypes].sort(),
+            effectiveStatuses === null ? null : [...effectiveStatuses].sort(),
+            effectiveSemester,
+          ])}
           details={recentIssues}
           elapsedDaysThreshold={effectiveRecentElapsedDaysThreshold}
           elapsedDaysComparison={effectiveRecentElapsedDaysComparison}
+          columnFilters={effectiveRecentColumnFilters}
+          onColumnFilterChange={!exportSelection ? (column, value) => {
+            setRecentColumnFilters((current) => ({ ...current, [column]: value }))
+          } : undefined}
           onElapsedDaysFilterChange={!exportSelection ? (value, comparison) => {
             setRecentElapsedDaysThreshold(value)
             setRecentElapsedDaysComparison(comparison)

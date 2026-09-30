@@ -23,6 +23,14 @@
 - query key와 표시 상수는 `presentation/config`, formatter는 `presentation/utils`를 사용합니다.
 - 큰 파일 preview renderer는 lazy loading하고 보고서 생성 modal은 배포 안정성을 위해 메인 bundle에 포함합니다.
 
+## 이슈 컬럼 검색
+
+이슈 관리와 대시보드·과거 보고서·연간 보고서의 `RecentIssuesWidget`은 모든 이슈 컬럼에서 같은 검색 기능을 제공합니다. 데스크톱은 컬럼명 아래에, 모바일은 표 위에 검색창을 표시하며 입력 즉시 전체 목록을 검색합니다. 여러 컬럼의 검색 조건은 AND로 결합하고 기존 경과일·업무 유형·현재 상태·반기 필터와 함께 적용합니다.
+
+`domain/IssueColumnSearch.ts`는 검색 조건과 순수 필터링을, `useIssueColumnSearch`는 위젯별 검색 상태를, `ColumnSearchInput`은 공통 입력 UI를 담당합니다. 컬럼명은 `presentation/config/issueColumns.ts`에서 공유합니다. 검색 조건이 바뀌면 첫 페이지로 이동하며 정렬과 컬럼 너비는 유지합니다. 데이터 갱신은 검색 조건과 현재 페이지를 유지합니다.
+
+PDF에는 내보내기 시작 시 복사한 검색 조건과 일치하는 전체 행을 포함하고 검색 입력 UI는 제외합니다. 내보내기 중 화면의 검색 조건을 바꿔도 PDF의 결과는 바뀌지 않습니다.
+
 ## File preview
 
 `FilePreviewModal`은 PDF, Word, Excel, Markdown, 이미지와 텍스트를 표시합니다. Storage gateway를 주입받아 preview·download URL을 생성하며 token과 API base URL의 세부사항을 직접 구성하지 않습니다.
