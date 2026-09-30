@@ -42,6 +42,27 @@ const HIDDEN_TYPES = ['승인된 서비스 요청', '케이스']
 const ALL_TYPES = [...VISIBLE_TYPES, ...HIDDEN_TYPES, '기타']
 const STATUSES = ['할 일', '닫힘']
 
+test('stage duration averages use per-issue totals and follow semester type and current-status filters', () => {
+  const report = fixtureReport()
+  report.widgets.w14.data.stage_issues = [
+    { key: 'A', type: '개선', status: '할 일', resolved: '2026-01-02', by_stage_hours: { '할 일': 24, '구현 중': 48 } },
+    { key: 'B', type: '개선', status: '닫힘', resolved: '2026-02-02', by_stage_hours: { '할 일': 72 } },
+    { key: 'C', type: '서비스 요청', status: '닫힘', resolved: '2026-08-02', by_stage_hours: { '구현 중': 96 } },
+  ]
+  const all = buildDashboardData(report)
+  assert.equal(all.hasStageDurationData, true)
+  assert.deepEqual(all.resolutionByStage['할 일'], { avg_days: 2, avg_hours: 48, count: 2 })
+  assert.deepEqual(all.resolutionByStage['구현 중'], { avg_days: 3, avg_hours: 72, count: 2 })
+  const selected = buildDashboardData(report, new Set(['개선']), 'h1', new Set(['할 일']))
+  assert.deepEqual(selected.resolutionByStage['구현 중'], { avg_days: 2, avg_hours: 48, count: 1 })
+  assert.deepEqual(buildDashboardData(report, new Set()).resolutionByStage, {})
+  assert.deepEqual(buildDashboardData(report, null, 'h2').resolutionByStage, {
+    '구현 중': { avg_days: 4, avg_hours: 96, count: 1 },
+  })
+  delete report.widgets.w14.data.stage_issues
+  assert.equal(buildDashboardData(report).hasStageDurationData, false)
+})
+
 function widget(data, total = 0) {
   return { name: '검증 지표', total, jql: '', data }
 }

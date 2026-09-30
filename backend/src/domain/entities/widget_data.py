@@ -134,11 +134,21 @@ class ResolutionTypeEntry:
 
 
 @dataclass
+class StageDurationIssue:
+    key: str
+    type: str
+    status: str
+    resolved: str
+    by_stage_hours: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
 class ResolutionTypeWidgetData:
     by_type: dict[str, ResolutionTypeEntry] = field(default_factory=dict)
     by_semester: dict[str, dict[str, ResolutionTypeEntry]] = field(default_factory=dict)
     by_status_type: dict[str, dict[str, ResolutionTypeEntry]] = field(default_factory=dict)
     by_semester_status_type: dict[str, dict[str, dict[str, ResolutionTypeEntry]]] = field(default_factory=dict)
+    stage_issues: list[StageDurationIssue] | None = None
 
 
 @dataclass

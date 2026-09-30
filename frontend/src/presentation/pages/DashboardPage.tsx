@@ -113,7 +113,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
     return () => setCurrentReport(null)
   }, [exportSelection, report, setCurrentReport])
 
-  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, recentAndIncomplete, statusIssues } = useDashboardData(report, effectiveIssueTypes, effectiveSemester, effectiveStatuses)
+  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, resolutionByStage, hasStageDurationData, recentAndIncomplete, statusIssues } = useDashboardData(report, effectiveIssueTypes, effectiveSemester, effectiveStatuses)
   const { issueTypes, statusTypes, reportYear, supportsIssueTypeFiltering, supportsStatusFiltering, supportsSemesterFiltering, semesterLabel } = filter
   const { w1YearlyCreated, w2YearlyResolved } = yearly
   const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeDays } = weekly
@@ -409,9 +409,39 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
           </div>
         </div>
       )}
+      <div data-pdf-section="평균 소요 시간" className="space-y-1">
+        <SectionTitle icon={Activity} title="평균 소요 시간" subtitle={semesterLabel} />
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
+          <Suspense fallback={<ChartFallback />}>
+            <TypeBarChart
+              title="해결 단계별 평균 소요 시간"
+              subtitle={`${semesterLabel} 해결 이슈 · 상태별 실제 체류 시간 · 재진입 합산 · 경과시간 기준`}
+              byType={resolutionByStage}
+              horizontal
+              valueUnit="hours"
+              emptyMessage={hasStageDurationData ? '선택 조건에 해당하는 단계 체류 데이터가 없습니다.' : '상태 변경 이력이 없는 보고서입니다. 새로고침 후 확인해 주세요.'}
+            />
+          </Suspense>
+          <Suspense fallback={<ChartFallback />}>
+            <TypeBarChart
+              title="요청 분류별 평균 소요 시간"
+              subtitle={`${semesterLabel} 해결 이슈 · 업무 유형별 생성부터 해결까지 · 경과시간 기준`}
+              byType={resolutionByType}
+              horizontal
+              valueUnit="hours"
+              emptyMessage="선택 조건에 해당하는 해결 이슈가 없습니다."
+              onTypeClick={isAnnual && !exportSelection ? (issueType) => setRemoteDetails({
+                title: `${semesterLabel} ${issueType} 처리 이슈`,
+                total: resolutionByType[issueType].count,
+                request: { chart: 'resolution_type', issue_type: issueType, semester: filter.selectedSemester ?? undefined, ...chartFilters },
+              }) : undefined}
+            />
+          </Suspense>
+        </div>
+      </div>
       <div data-pdf-section="분석 차트" className="space-y-1">
         <SectionTitle icon={Activity} title="분석 차트" />
-        <div className={isAnnual ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5'}>
+        <div className={isAnnual ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4 3xl:gap-5'}>
           <Suspense fallback={<ChartFallback />}>
             <SlaDonutChart
               total={w12Total}
@@ -432,15 +462,6 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
               resolved={w3Resolved}
               periodLabel={isAnnual ? semesterLabel : undefined}
               onBarClick={handleTrendBarClick}
-            />
-          </Suspense>
-          <Suspense fallback={<ChartFallback />}>
-            <TypeBarChart byType={resolutionByType}
-              onTypeClick={isAnnual && !exportSelection ? (issueType) => setRemoteDetails({
-                title: `${semesterLabel} ${issueType} 처리 이슈`,
-                total: resolutionByType[issueType].count,
-                request: { chart: 'resolution_type', issue_type: issueType, semester: filter.selectedSemester ?? undefined, ...chartFilters },
-              }) : undefined}
             />
           </Suspense>
         </div>

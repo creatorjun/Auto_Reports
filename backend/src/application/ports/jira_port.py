@@ -45,6 +45,13 @@ class JiraIssue:
 
 
 @dataclass(frozen=True)
+class JiraStatusChange:
+    changed_at: str
+    from_status: str
+    to_status: str
+
+
+@dataclass(frozen=True)
 class JiraCommentImage:
     attachment_id: str
     alt: str
@@ -74,6 +81,10 @@ class JiraChartIssuePage:
 
 class JiraPort(ABC):
     MAX_RESULTS: int = 100
+
+    @abstractmethod
+    async def get_issue_status_changes(self, issue_key: str) -> list[JiraStatusChange]:
+        raise NotImplementedError
 
     @abstractmethod
     async def get_report_chart_issues(

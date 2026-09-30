@@ -236,6 +236,9 @@ class WidgetQueryBuilderTest(unittest.TestCase):
 
 
 class PeriodJira:
+    async def get_issue_status_changes(self, issue_key):
+        return []
+
     def __init__(self):
         self.issues = [JiraIssue(
             key=key,

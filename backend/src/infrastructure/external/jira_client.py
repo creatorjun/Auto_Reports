@@ -18,6 +18,7 @@ from src.application.ports.jira_port import (
     JiraChartIssuePage,
     JiraIssue,
     JiraIssueField,
+    JiraStatusChange,
     JiraPort,
 )
 from src.application.ports.service_desk_port import ServiceDeskPort
@@ -185,6 +186,9 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
             stale_ttl_seconds=_ISSUES_CACHE_STALE,
         )
         self._org_name_cache: dict[str, str] = {}
+        self._status_changes_cache: LruCache[str, list[JiraStatusChange]] = LruCache(
+            maxsize=1024, ttl_seconds=300.0, stale_ttl_seconds=0.0,
+        )
         self._asset_object_label_cache: dict[JiraAssetReference, str] = {}
 
     @contextmanager
@@ -194,6 +198,46 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
             yield
         finally:
             self._bypass_cache.reset(token)
+
+    async def get_issue_status_changes(self, issue_key: str) -> list[JiraStatusChange]:
+        async def fetch(_: str) -> list[JiraStatusChange]:
+            changes: list[JiraStatusChange] = []
+            start_at = 0
+            while True:
+                response = await self._client.get(
+                    f"{self._base_url}/rest/api/3/issue/{quote(issue_key, safe='')}/changelog",
+                    params={"startAt": start_at, "maxResults": 100},
+                )
+                response.raise_for_status()
+                data = response.json()
+                values = data.get("values")
+                if not isinstance(values, list) or data.get("startAt") != start_at:
+                    raise RuntimeError("Jira status history page is invalid")
+                for history in values:
+                    for item in history.get("items", []):
+                        if item.get("fieldId") == "status" or item.get("field") == "status":
+                            changes.append(JiraStatusChange(
+                                changed_at=history["created"],
+                                from_status=item.get("fromString") or "",
+                                to_status=item.get("toString") or "",
+                            ))
+                next_at = start_at + len(values)
+                total = data.get("total")
+                if not isinstance(total, int) or total < next_at:
+                    raise RuntimeError("Jira status history total is invalid")
+                if next_at >= total:
+                    return changes
+                if not values or data.get("isLast") is True:
+                    raise RuntimeError("Jira status history is truncated")
+                start_at = next_at
+
+        if self._bypass_cache.get():
+            return await fetch(issue_key)
+        changes = await self._status_changes_cache.async_get(issue_key)
+        if changes is None:
+            changes = await fetch(issue_key)
+            await self._status_changes_cache.async_set(issue_key, changes)
+        return list(changes)
 
     @staticmethod
     def _display_name(value: object) -> str:
@@ -780,6 +824,7 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         await asyncio.gather(
             self._count_cache.aclose(),
             self._issues_cache.aclose(),
+            self._status_changes_cache.aclose(),
         )
         await self._client.aclose()
         await self._sd_client.aclose()

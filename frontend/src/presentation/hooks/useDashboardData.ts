@@ -57,6 +57,13 @@ interface ResolutionTypeEntry {
 }
 
 interface ResolutionTypeData {
+  stage_issues?: Array<{
+    key: string
+    type: string
+    status: string
+    resolved: string
+    by_stage_hours: Record<string, number>
+  }> | null
   by_type: Record<string, ResolutionTypeEntry>
   by_semester?: Partial<Record<Semester, Record<string, ResolutionTypeEntry>>>
   by_status_type?: Record<string, Record<string, ResolutionTypeEntry>>
@@ -529,6 +536,36 @@ export function buildDashboardData(
           .filter(([issueType]) => isDashboardIssueTypeIncluded(issueType, selectedTypes, controlledTypes)),
       )
 
+  const stageTotals: Record<string, { hours: number; count: number }> = {}
+  const stageIssues = filterIssues(
+    w14Data?.stage_issues ?? [],
+    selectedTypes,
+    controlledTypes,
+    selectedStatuses,
+    selectedSemester,
+    reportYear,
+    (issue) => issue.resolved,
+  )
+  for (const issue of stageIssues) {
+    for (const [stage, hours] of Object.entries(issue.by_stage_hours)) {
+      if (!Number.isFinite(hours) || hours < 0) continue
+      const total = stageTotals[stage] ?? { hours: 0, count: 0 }
+      total.hours += hours
+      total.count += 1
+      stageTotals[stage] = total
+    }
+  }
+  const resolutionByStage: Record<string, ResolutionTypeEntry> = Object.fromEntries(
+    sortDashboardStatuses(Object.keys(stageTotals)).map((stage) => {
+      const total = stageTotals[stage]
+      const avgHours = total.hours / total.count
+      return [stage, {
+        avg_days: avgHours / 24,
+        avg_hours: avgHours,
+        count: total.count,
+      }]
+    }),
+  )
   const w7Data = getData<{ issue_details: RecentIssue[] }>(w[WIDGET_ID.RECENT_ISSUES])
   const recentIssues = filterIssues(
     w7Data?.issue_details ?? [],
@@ -611,6 +648,8 @@ export function buildDashboardData(
     slaDonut,
     slaDelay,
     resolutionByType,
+    resolutionByStage,
+    hasStageDurationData: w14Data?.stage_issues != null,
     recentAndIncomplete,
     statusIssues,
   }

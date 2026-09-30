@@ -48,6 +48,20 @@ const byType = {
   '제품 설치': { avg_days: 0, avg_hours: 0, count: 0 },
 }
 
+test('duration widgets expose exact requested titles, hours and a useful empty state', () => {
+  const title = '해결 단계별 평균 소요 시간'
+  const view = render(React.createElement(TypeBarChart, { byType, title, subtitle: '상태 이력 기준', horizontal: true, valueUnit: 'hours' }))
+  assert.equal(view.root.findByType('h3').children.join(''), title)
+  assert.equal(view.root.findByType('Bar').props.dataKey, 'avg_hours')
+  assert.equal(view.root.findByType('BarChart').props.layout, 'vertical')
+  assert.equal(view.root.findByType('XAxis').props.unit, '시간')
+  act(() => view.unmount())
+  const empty = render(React.createElement(TypeBarChart, { byType: {}, title, emptyMessage: '새로고침 후 확인해 주세요.' }))
+  assert.equal(empty.root.findAllByType('BarChart').length, 0)
+  assert.ok(empty.root.findAllByType('p').some(node => node.children.join('') === '새로고침 후 확인해 주세요.'))
+  act(() => empty.unmount())
+})
+
 function render(element) {
   let view
   act(() => { view = TestRenderer.create(element) })

@@ -14,16 +14,29 @@ interface ResolutionTypeEntry {
 
 interface Props {
   byType: Record<string, ResolutionTypeEntry>
+  title?: string
+  subtitle?: string
+  emptyMessage?: string
+  horizontal?: boolean
+  valueUnit?: 'days' | 'hours'
   onTypeClick?: (issueType: string) => void
 }
 
-function TypeBarChart({ byType, onTypeClick }: Props) {
+function TypeBarChart({ byType, title = '⏱️ 유형별 평균 처리일', subtitle, emptyMessage, horizontal = false, valueUnit = 'days', onTypeClick }: Props) {
   const exportMode = useDashboardExportMode()
   const [chartWidth, setChartWidth] = useState(0)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const interactive = !exportMode && Boolean(onTypeClick)
+  const unitLabel = valueUnit === 'hours' ? '시간' : '일'
+  const averageField = valueUnit === 'hours' ? 'avg_hours' : 'avg_days'
   const data = Object.entries(byType).map(([name, d]) => ({ name, avg_days: d.avg_days, avg_hours: d.avg_hours, count: d.count }))
-  if (!data.length) return null
+  if (!data.length) return emptyMessage ? (
+    <div data-pdf-kind="text" className="card">
+      <h3 className="text-sm font-semibold text-apple-dark mb-4">{title}</h3>
+      {subtitle && <p className="text-ui-xs text-apple-light mb-4">{subtitle}</p>}
+      <p className="py-8 text-center text-ui-sm text-apple-light">{emptyMessage}</p>
+    </div>
+  ) : null
   const exportTickLimit = Math.max(2, Math.floor(((chartWidth - 80) / data.length - 12) / 14))
   const formatExportTick = (value: string) => {
     const characters = Array.from(value)
@@ -33,13 +46,17 @@ function TypeBarChart({ byType, onTypeClick }: Props) {
   }
   return (
     <div data-pdf-kind="chart" className="card">
-      <h3 className="text-sm font-semibold text-gray-700 mb-4">⏱️ 유형별 평균 처리일</h3>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT} onResize={exportMode ? (width) => setChartWidth(width) : undefined}>
-        <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+      <h3 className="text-sm font-semibold text-apple-dark mb-4">{title}</h3>
+      {subtitle && <p className="text-ui-xs text-apple-light mb-4">{subtitle}</p>}
+      <ResponsiveContainer width="100%" height={horizontal ? Math.max(CHART_HEIGHT, data.length * 36) : CHART_HEIGHT} onResize={exportMode ? (width) => setChartWidth(width) : undefined}>
+        <BarChart data={data} layout={horizontal ? 'vertical' : 'horizontal'} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
-          <XAxis dataKey="name" tick={{ fontSize: CHART_TICK_FONT_SIZE }} tickFormatter={exportMode ? formatExportTick : undefined} />
-          <YAxis tick={{ fontSize: CHART_TICK_FONT_SIZE }} unit="일" />
-          <Tooltip formatter={(v) => [`${v}일`]} />
+          <XAxis type={horizontal ? 'number' : 'category'} dataKey={horizontal ? undefined : 'name'} unit={horizontal ? unitLabel : undefined} tick={{ fontSize: CHART_TICK_FONT_SIZE }} tickFormatter={!horizontal && exportMode ? formatExportTick : undefined} />
+          <YAxis type={horizontal ? 'category' : 'number'} dataKey={horizontal ? 'name' : undefined} width={horizontal ? 120 : undefined} tick={{ fontSize: CHART_TICK_FONT_SIZE }} unit={horizontal ? undefined : unitLabel} />
+          <Tooltip formatter={(v, _name, item) => [
+            `${Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}${unitLabel}`,
+            `평균 · ${item.payload.count}건`,
+          ]} />
           <Legend
             layout="horizontal"
             verticalAlign="bottom"
@@ -53,7 +70,7 @@ function TypeBarChart({ byType, onTypeClick }: Props) {
               </span>
             )}
           />
-          <Bar isAnimationActive={!exportMode} dataKey="avg_days" radius={[6, 6, 0, 0]}
+          <Bar isAnimationActive={!exportMode} dataKey={averageField} radius={horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0]}
             style={interactive ? { cursor: 'pointer' } : undefined}
             onClick={interactive ? (entry: { payload?: { name?: string }; name?: string }) => {
               const issueType = entry?.payload?.name ?? entry?.name

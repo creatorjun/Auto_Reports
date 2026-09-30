@@ -1,6 +1,7 @@
 # backend/src/infrastructure/persistence/widget_serializer.py
 import dataclasses
-from typing import Any
+import types
+from typing import Any, get_args, get_origin
 
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import (
@@ -73,8 +74,8 @@ def _dict_to_dataclass(cls: type, data: Any) -> Any:
 
 
 def _coerce_field(type_hint: Any, value: Any) -> Any:
-    origin = getattr(type_hint, "__origin__", None)
-    args   = getattr(type_hint, "__args__", ())
+    origin = get_origin(type_hint)
+    args = get_args(type_hint)
 
     if origin is list and args:
         item_type = args[0]
@@ -87,6 +88,12 @@ def _coerce_field(type_hint: Any, value: Any) -> Any:
             val_type = args[1]
             return {k: _coerce_field(val_type, item) for k, item in value.items()}
         return value if value is not None else {}
+
+    if origin is types.UnionType:
+        if value is None:
+            return None
+        candidate = next((arg for arg in args if arg is not type(None)), None)
+        return _coerce_field(candidate, value)
 
     if isinstance(type_hint, type) and dataclasses.is_dataclass(type_hint) and isinstance(value, dict):
         return _dict_to_dataclass(type_hint, value)

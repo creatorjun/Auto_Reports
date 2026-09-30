@@ -52,6 +52,9 @@ function loadDashboardContent() {
     if (dependency === '@/presentation/hooks/useReport') return {}
     if (dependency === '@/presentation/state/reportStore') return { useReportStore: () => ({ setCurrentReport }) }
     if (dependency === '@/presentation/components/charts/RecentIssuesWidget') return { default: RecentIssuesWidget }
+    if (['SlaMonthlyLineChart', 'TypeBarChart'].some(name => dependency.endsWith(`/charts/${name}`))) return {
+      default: (props) => React.createElement('DashboardChart', props),
+    }
     if (dependency === '@/presentation/components/export/DashboardPdfExportStage') return {
       default: ({ children, ...props }) => React.createElement('ExportStage', props,
         React.createElement(DashboardExportProvider, null, children)),
@@ -71,6 +74,32 @@ function issue(days, overrides = {}) {
     elapsed_days: days, reporter: '보고자', tac_team: '담당자', ...overrides,
   }
 }
+
+test('dashboard renders stage and request duration widgets immediately after resolution SLA', async (t) => {
+  const DashboardContent = loadDashboardContent()
+  const monthly = [{ month: '2026-01', year: 2026, month_num: 1, met: 1, total: 1, rate: 100, always_included: { met: 1, total: 1 } }]
+  const report = {
+    id: 1, scope: 'standard', week_start: '2026-01-01', week_end: '2026-01-03',
+    report_date: '2026-01-03', ai_analysis: null,
+    widgets: {
+      w10: { data: { monthly } }, w11: { data: { monthly } },
+      w14: { data: { by_type: { '개선': { avg_days: 2, avg_hours: 48, count: 1 } }, stage_issues: [
+        { key: 'T-1', type: '개선', status: 'Closed', resolved: '2026-01-03', by_stage_hours: { '구현 중': 24 } },
+      ] } },
+    },
+  }
+  let view
+  await act(async () => { view = TestRenderer.create(React.createElement(DashboardContent, { report })) })
+  t.after(() => act(() => view.unmount()))
+  const charts = view.root.findAllByType('DashboardChart')
+  assert.deepEqual(charts.map(chart => chart.props.title), [
+    '최초응답 SLA', '해결시간 SLA', '해결 단계별 평균 소요 시간', '요청 분류별 평균 소요 시간',
+  ])
+  assert.equal(charts[2].props.byType['구현 중'].avg_hours, 24)
+  assert.equal(charts[3].props.byType['개선'].avg_hours, 48)
+  assert.equal(charts[2].props.valueUnit, 'hours')
+  assert.equal(charts[3].props.valueUnit, 'hours')
+})
 
 function render(t, details, { elapsedDaysThreshold = null, elapsedDaysComparison = 'gte', exportMode = false } = {}) {
   const changes = []

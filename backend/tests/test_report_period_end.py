@@ -41,6 +41,9 @@ def issue(key: str, created: str, resolved: str) -> JiraIssue:
 
 
 class DateRangeJira:
+    async def get_issue_status_changes(self, issue_key):
+        return []
+
     def __init__(self, issues: list[JiraIssue]) -> None:
         self.issues = issues
         self.requested_limits: list[int | None] = []
