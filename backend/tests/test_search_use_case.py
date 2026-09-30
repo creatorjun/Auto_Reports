@@ -34,3 +34,13 @@ class SearchUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(("검색어", 7), gateway.request)
         self.assertEqual("jira", schema.type)
         self.assertEqual("인시던트", schema.issue_type)
+
+    async def test_trims_outer_whitespace_and_preserves_word_spacing(self) -> None:
+        gateway = SearchGateway()
+        await SearchUseCase(gateway).execute(" \t서울 교통공사\n ", 7)
+        self.assertEqual(("서울 교통공사", 7), gateway.request)
+
+    async def test_whitespace_only_query_does_not_call_gateway(self) -> None:
+        gateway = SearchGateway()
+        self.assertEqual([], await SearchUseCase(gateway).execute(" \t\n "))
+        self.assertIsNone(gateway.request)

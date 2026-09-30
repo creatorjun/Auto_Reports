@@ -7,3 +7,7 @@ export interface SearchResult {
   issue_type: string
   url: string
 }
+
+export function normalizeSearchText(value: string): string {
+  return value.normalize('NFKC').trim().toLocaleLowerCase('ko-KR')
+}

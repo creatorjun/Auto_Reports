@@ -35,6 +35,15 @@ function loadSource(relative) {
 const { filterManagedIssues, filterIssuesByColumns } = loadSource('domain/IssueManagement')
 const { default: RecentIssuesWidget } = loadSource('presentation/components/charts/RecentIssuesWidget')
 const { TABLE_PAGE_SIZE } = loadSource('presentation/config/constants')
+const { normalizeSearchText } = loadSource('domain/Search')
+
+test('search normalization trims both operands without removing word spacing', () => {
+  assert.equal(normalizeSearchText(' \tＳＥＯＵＬ 교통공사\n '), 'seoul 교통공사')
+  assert.equal(normalizeSearchText(' \t\n '), '')
+  const rows = [issue('T-1', { summary: ' \t[서울교통공사] 확인\n ' }), issue('T-2', { summary: '부산 확인' })]
+  assert.deepEqual(filterIssuesByColumns(rows, { summary: ' \t서울교통공사\n ' }).map((row) => row.key), ['T-1'])
+  assert.deepEqual(filterIssuesByColumns(rows, { summary: ' \t\n ' }), rows)
+})
 
 function issue(key, values = {}) {
   return { key, summary: key, type: '인시던트', status: 'Closed', created: '2026-01-01 09:00', stage_index: 99, elapsed_days: 1, reporter: '', tac_team: '', ...values }

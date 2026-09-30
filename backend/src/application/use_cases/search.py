@@ -8,4 +8,7 @@ class SearchUseCase:
         self._search = search
 
     async def execute(self, query: str, limit: int = 5) -> list[SearchResult]:
-        return await self._search.search(query=query, limit=limit)
+        normalized_query = query.strip()
+        if not normalized_query:
+            return []
+        return await self._search.search(query=normalized_query, limit=limit)

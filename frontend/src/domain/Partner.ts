@@ -1,6 +1,7 @@
 // frontend/src/domain/Partner.ts
 import type { BaseIssue } from './Issue'
 import type { Semester } from './Dashboard'
+import { normalizeSearchText } from './Search'
 import {
   isDashboardDateInSemester,
   isDashboardIssueTypeIncluded,
@@ -23,11 +24,11 @@ export interface PartnerMember {
 export type PartnerIssue = BaseIssue
 
 export function normalizePartnerSearch(value: string): string {
-  return value.normalize('NFKC').trim().toLocaleLowerCase('ko-KR')
+  return normalizeSearchText(value)
 }
 
 export function matchesPartnerSearch(value: string, normalizedQuery: string): boolean {
-  return normalizePartnerSearch(value).includes(normalizedQuery)
+  return normalizePartnerSearch(value).includes(normalizePartnerSearch(normalizedQuery))
 }
 
 export function sortPartnerOrganizationsByIssueCount(organizations: PartnerOrg[]): PartnerOrg[] {

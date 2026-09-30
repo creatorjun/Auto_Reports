@@ -4,6 +4,7 @@ import IssueTableModal, { type ColumnDef } from '@/presentation/components/commo
 import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import type { ChartIssue } from '@/domain/ReportChartDetails'
+import { normalizeSearchText } from '@/domain/Search'
 
 export type AnnualDetailIssue = ChartIssue
 
@@ -23,9 +24,9 @@ export default function AnnualIssueDetailsModal({ title, total, issues, descript
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const filtered = useMemo(() => {
-    const keyword = search.trim().toLocaleLowerCase('ko-KR')
+    const keyword = normalizeSearchText(search)
     return issues.filter((issue) => [issue.key, issue.summary, issue.type, issue.status, issue.cause, issue.assignee, ...(issue.partners ?? [])]
-      .some((value) => value?.toLocaleLowerCase('ko-KR').includes(keyword)))
+      .some((value) => normalizeSearchText(value ?? '').includes(keyword)))
   }, [issues, search])
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, pages)

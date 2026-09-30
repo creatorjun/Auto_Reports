@@ -9,7 +9,7 @@ async function fetchSearchResults(
   signal?: CancellationSignal,
 ): Promise<SearchResult[]> {
   const { data } = await client.get<SearchResult[]>('/search', {
-    params: { q: query, limit },
+    params: { q: query.trim(), limit },
     signal,
   })
   return data

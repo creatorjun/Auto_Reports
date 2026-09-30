@@ -37,7 +37,7 @@ export default function SiteManagementPage() {
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(-1)
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const debouncedQuery = useDebounce(query, 300)
+  const debouncedQuery = useDebounce(query.trim(), 300)
 
   const { data: searchResults = [], isLoading: isSearching } = useQuery({
     queryKey: ['site-search', debouncedQuery],
