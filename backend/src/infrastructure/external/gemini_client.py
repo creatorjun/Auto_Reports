@@ -52,3 +52,13 @@ class GeminiClient(AiPort):
         except Exception as e:
             logger.error(f"Gemini 분석 실패: {e}")
             return None
+
+    async def aclose(self) -> None:
+        client = self._client
+        if client is None:
+            return
+        self._client = None
+        try:
+            await asyncio.to_thread(client.close)
+        finally:
+            await client.aio.aclose()

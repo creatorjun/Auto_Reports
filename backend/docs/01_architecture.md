@@ -76,7 +76,7 @@ Presentation dependency는 이미 조립된 유스케이스 또는 요청 단위
 
 ## 트랜잭션과 리소스 수명
 
-요청 단위 DB 유스케이스는 `Database.session()` context manager 안에서 만들어집니다. 정상 종료 시 commit, 예외 시 rollback이며 엔진은 FastAPI lifespan 종료 때 dispose됩니다. Jira HTTP client, 보고서 캐시, 잡 task도 각 소유자의 `aclose()`에서 정리됩니다.
+요청 단위 DB 유스케이스는 `Database.session()` context manager 안에서 만들어집니다. 정상 종료 시 commit, 예외 시 rollback이며 엔진은 FastAPI lifespan 종료 때 dispose됩니다. Jira와 Gemini HTTP client, 보고서 캐시, 잡 task도 각 소유자의 `aclose()`에서 정리됩니다. `Container`는 AI 포트의 수명을 소유하며, `AsyncExitStack`으로 한 리소스의 종료가 실패해도 나머지 종료를 수행합니다. Gemini SDK의 동기·비동기 전송 리소스 해제는 어댑터 안에서 처리합니다.
 
 파일시스템과 LibreOffice 같은 동기 I/O는 `StorageUseCase`가 `asyncio.to_thread` 경계를 통해 호출하므로 이벤트 루프를 차단하지 않습니다.
 

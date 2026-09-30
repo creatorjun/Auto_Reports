@@ -127,6 +127,20 @@ test('presentation delegates network transport to application gateways', () => {
   assert.deepEqual(violations, [])
 })
 
+test('presentation stays independent from transport-specific error names', () => {
+  const violations = []
+  for (const file of files(path.join(source, 'presentation'))) {
+    const visit = (node) => {
+      if (ts.isStringLiteral(node) && ['AxiosError', 'CanceledError', 'ERR_CANCELED'].includes(node.text)) {
+        violations.push(`${path.relative(source, file)}:${node.text}`)
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(parsedSource(file))
+  }
+  assert.deepEqual(violations, [])
+})
+
 test('application contracts stay independent from browser platform objects', () => {
   const services = fs.readFileSync(
     path.join(source, 'application/ports/ApplicationServices.ts'),

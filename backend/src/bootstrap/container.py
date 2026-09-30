@@ -1,5 +1,5 @@
 # backend/src/bootstrap/container.py
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import datetime
 from typing import AsyncIterator
 
@@ -42,7 +42,7 @@ class Container:
         self._settings = settings
         self._database = database
         self._jira = JiraFactory.create(settings)
-        ai = AiFactory.create(settings)
+        self._ai = AiFactory.create(settings)
         collectors = WidgetCollectorFactory(self._jira)
         query_builder = WidgetQueryBuilder(
             QueryConfig(
@@ -63,7 +63,7 @@ class Container:
             annual_collector_factory=collectors.annual_collectors,
             issue_type_provider=lambda: self._jira.get_project_issue_types(settings.project_key),
         )
-        self._analyzer = AiAnalyzer(ai=ai, enabled=settings.ai_enabled)
+        self._analyzer = AiAnalyzer(ai=self._ai, enabled=settings.ai_enabled)
         tokens = JwtService(settings)
         self.auth = AuthService(
             tokens=tokens,
@@ -180,9 +180,12 @@ class Container:
             await use_case.execute()
 
     async def aclose(self) -> None:
-        await self.issue_management.aclose()
-        await self._cache.aclose()
-        await self._jira.aclose()
+        async with AsyncExitStack() as stack:
+            stack.push_async_callback(self._jira.aclose)
+            if self._ai is not None:
+                stack.push_async_callback(self._ai.aclose)
+            stack.push_async_callback(self._cache.aclose)
+            stack.push_async_callback(self.issue_management.aclose)
 
     @staticmethod
     def _build_smtp(settings: Settings) -> SmtpEmailClient | None:

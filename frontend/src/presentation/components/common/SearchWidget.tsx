@@ -190,21 +190,23 @@ export default function SearchWidget() {
   const fetchSuggestions = useCallback(
     async (q: string) => {
       if (abortRef.current) abortRef.current.abort()
-      abortRef.current = new AbortController()
+      const controller = new AbortController()
+      abortRef.current = controller
       setIsLoading(true)
       try {
-        const results = await search.search(q, 5, abortRef.current.signal)
+        const results = await search.search(q, 5, controller.signal)
+        if (controller.signal.aborted || abortRef.current !== controller) return
         const merged  = prependDirectIfNeeded(q, results)
         setSuggestions(merged)
         setIsDropdownOpen(merged.length > 0)
         setActiveIndex(-1)
-      } catch (err: unknown) {
-        if ((err as { name?: string })?.name === 'CanceledError') return
+      } catch {
+        if (controller.signal.aborted || abortRef.current !== controller) return
         const fallback = prependDirectIfNeeded(q, [])
         setSuggestions(fallback)
         setIsDropdownOpen(fallback.length > 0)
       } finally {
-        setIsLoading(false)
+        if (!controller.signal.aborted && abortRef.current === controller) setIsLoading(false)
       }
     },
     [prependDirectIfNeeded, search],

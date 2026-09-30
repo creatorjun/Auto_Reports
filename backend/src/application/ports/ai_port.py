@@ -8,3 +8,7 @@ from src.domain.value_objects.ai_analysis import AiAnalysis
 class AiPort(ABC):
     @abstractmethod
     async def analyze(self, prompt: str) -> Optional[AiAnalysis]: ...
+
+    @abstractmethod
+    async def aclose(self) -> None:
+        raise NotImplementedError

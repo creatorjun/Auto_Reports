@@ -40,6 +40,8 @@ main.tsx Composition Root
 
 axios 오류는 Infrastructure에서 `RequestError`로 정규화됩니다. Presentation은 axios response 구조를 알지 않고 상태 코드와 detail만 처리합니다.
 
+검색 UI는 자신이 생성한 취소 신호로 요청 수명을 판단하므로 HTTP 라이브러리의 오류 이름에 의존하지 않으며, 취소된 이전 응답이 현재 검색 결과나 로딩 상태를 변경하지 않습니다.
+
 파일 업로드와 바이너리 응답은 Application의 `UploadSource`와 `BinaryContent` 계약을 사용합니다. 따라서 Application 포트는 브라우저 `File`, `Blob`, `AbortSignal` 타입을 알지 않으며, FormData·Blob 수명·미리보기 변환 요청은 Infrastructure adapter가 담당합니다. 바이너리는 필요한 화면에서만 지연 읽고 object URL은 명시적 `close()`로 해제합니다.
 
 ## UI 상태
