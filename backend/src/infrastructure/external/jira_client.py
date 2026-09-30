@@ -681,7 +681,7 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         if isinstance(jira_resp, httpx.Response):
             try:
                 jira_resp.raise_for_status()
-                for issue in jira_resp.json().get("issues", []):
+                for issue in jira_resp.json().get("issues", [])[:limit]:
                     fields = issue.get("fields", {})
                     key = str(issue.get("key") or "")
                     results.append(SearchResult(
@@ -700,7 +700,7 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         if isinstance(confluence_resp, httpx.Response):
             try:
                 confluence_resp.raise_for_status()
-                for page in confluence_resp.json().get("results", []):
+                for page in confluence_resp.json().get("results", [])[:limit]:
                     space_key = (page.get("space") or {}).get("key", "")
                     page_id = str(page.get("id") or "")
                     results.append(SearchResult(
@@ -717,7 +717,7 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
             logger.warning(f"Confluence 검색 실패 (옵션): {confluence_resp}")
 
         results.sort(key=lambda result: result.source)
-        return results[:limit]
+        return results
 
     async def get_organizations(self) -> list[PartnerOrganization]:
         results, start = [], 0
