@@ -207,7 +207,7 @@ export default function ResolutionTimeChart({ details, paginationResetKey, colum
         ))}
       </div>
 
-      <div data-pdf-desktop="" className="hidden md:block overflow-x-auto px-4 md:px-5">
+      <div data-pdf-desktop="" className="hidden md:block overflow-x-auto">
         <table data-pdf-table-layout="recent" ref={tableRef} className="w-full min-w-[1040px] text-ui-base border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>{COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * 100).toFixed(2)}%` }} />)}</colgroup>
           <thead className="bg-apple-gray/60">
