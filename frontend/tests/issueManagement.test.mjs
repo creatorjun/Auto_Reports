@@ -74,3 +74,17 @@ test('live updates preserve page and sorting while filter changes reset the page
   assert.ok(textOf(header()).includes('↑'))
   assert.ok(JSON.stringify(view.toJSON()).includes('전체 이슈 현황'))
 })
+
+test('thousands of cached issues use bounded pagination and can reach the final page', (t) => {
+  const rows = Array.from({ length: 3241 }, (_, index) => issue(`T-${index}`))
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(RecentIssuesWidget, { paginationResetKey: 'all', details: rows, elapsedDaysThreshold: null, elapsedDaysComparison: 'gte' })) })
+  t.after(() => act(() => view.unmount()))
+  const numbered = () => view.root.findAllByType('button').filter((button) => /^\d+$/.test(textOf(button)))
+  assert.ok(numbered().length <= 7)
+  const lastPage = numbered().find((button) => textOf(button) === '65')
+  act(() => lastPage.props.onClick({ stopPropagation() {} }))
+  assert.equal(view.root.findByType('tbody').findAllByType('tr').length, 41)
+  assert.equal(view.root.findByProps({ 'aria-label': '다음 페이지' }).props.disabled, true)
+  assert.ok(numbered().length <= 7)
+})

@@ -172,6 +172,9 @@ export default function ResolutionTimeChart({ details, paginationResetKey, empty
   }
 
   const totalPages = Math.ceil(sortedDetails.length / TABLE_PAGE_SIZE)
+  const pageNumbers = paginationResetKey === undefined
+    ? Array.from({ length: totalPages }, (_, index) => index + 1)
+    : [...new Set([1, totalPages, page - 2, page - 1, page, page + 1, page + 2])].filter((value) => value >= 1 && value <= totalPages).sort((a, b) => a - b)
   const pageItems  = sortedDetails.slice((page - 1) * TABLE_PAGE_SIZE, page * TABLE_PAGE_SIZE)
   const visibleItems = exportMode ? sortedDetails : pageItems
 
@@ -238,13 +241,18 @@ export default function ResolutionTimeChart({ details, paginationResetKey, empty
       </div>
 
       {!exportMode && totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 md:px-5 py-3 mt-0 border-t border-apple-divider">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-5 py-3 mt-0 border-t border-apple-divider">
           <span className="text-ui-sm text-apple-light">{(page - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(page * TABLE_PAGE_SIZE, sortedDetails.length)} / {sortedDetails.length}건</span>
-          <div className="flex gap-1">
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button key={i} onClick={(e) => { e.stopPropagation(); setPage(i + 1) }}
-                className={`px-3 py-1 rounded text-ui-sm font-medium transition-colors ${page === i + 1 ? 'bg-brand-500 text-white' : 'bg-gray-100 text-apple-mid hover:bg-gray-200'}`}>{i + 1}</button>
+          <div className="flex flex-wrap items-center gap-1">
+            {paginationResetKey !== undefined && <button type="button" aria-label="이전 페이지" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded bg-gray-100 px-3 py-1 text-ui-sm text-apple-mid disabled:opacity-40">이전</button>}
+            {pageNumbers.map((value, index) => (
+              <span key={value} className="inline-flex items-center gap-1">
+                {index > 0 && value - pageNumbers[index - 1] > 1 && <span className="px-1 text-apple-light">…</span>}
+                <button type="button" aria-current={page === value ? 'page' : undefined} onClick={(event) => { event.stopPropagation(); setPage(value) }}
+                  className={`px-3 py-1 rounded text-ui-sm font-medium transition-colors ${page === value ? 'bg-brand-500 text-white' : 'bg-gray-100 text-apple-mid hover:bg-gray-200'}`}>{value}</button>
+              </span>
             ))}
+            {paginationResetKey !== undefined && <button type="button" aria-label="다음 페이지" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded bg-gray-100 px-3 py-1 text-ui-sm text-apple-mid disabled:opacity-40">다음</button>}
           </div>
         </div>
       )}
