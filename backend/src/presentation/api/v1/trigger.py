@@ -46,7 +46,7 @@ async def trigger_report(
         )
 
     job_id = str(uuid.uuid4())
-    await job_runner.submit(job_id, start_dt, end_dt)
+    await job_runner.submit(job_id, start_dt, end_dt, bypass_jira_cache=True)
 
     ip = get_client_ip(request)
     audit.record(

@@ -2,8 +2,8 @@
 import asyncio
 import logging
 import uuid
-from collections.abc import Awaitable, Callable
 from datetime import datetime
+from typing import Protocol
 
 from src.application.errors import JobAlreadyRunningError
 from src.application.ports.job_repository import JobRepository
@@ -14,13 +14,21 @@ from src.domain.entities.report import Report
 logger = logging.getLogger(__name__)
 
 
+class ReportGenerator(Protocol):
+    async def __call__(
+        self,
+        start_date: datetime | None,
+        end_date: datetime | None,
+        *,
+        bypass_jira_cache: bool = False,
+    ) -> Report:
+        raise NotImplementedError
+
+
 class JobRunner(JobRunnerPort):
     def __init__(
         self,
-        generate_report: Callable[
-            [datetime | None, datetime | None],
-            Awaitable[Report],
-        ],
+        generate_report: ReportGenerator,
         job_repository: JobRepository,
     ) -> None:
         self._generate_report = generate_report
@@ -65,6 +73,8 @@ class JobRunner(JobRunnerPort):
         job_id: str,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
+        *,
+        bypass_jira_cache: bool = False,
     ) -> None:
         async with self._lock:
             if self._running_job_id is not None:
@@ -80,7 +90,7 @@ class JobRunner(JobRunnerPort):
             raise
 
         task = asyncio.create_task(
-            self._execute(job_id, start_date, end_date),
+            self._execute(job_id, start_date, end_date, bypass_jira_cache),
             name=f"report-job-{job_id}",
         )
         self._tasks.add(task)
@@ -91,13 +101,16 @@ class JobRunner(JobRunnerPort):
         job_id: str,
         start_date: datetime | None,
         end_date: datetime | None,
+        bypass_jira_cache: bool,
     ) -> None:
         try:
             await self._repo.save(
                 JobRecord(job_id=job_id, status=JobStatus.RUNNING)
             )
             self._notify(job_id)
-            report = await self._generate_report(start_date, end_date)
+            report = await self._generate_report(
+                start_date, end_date, bypass_jira_cache=bypass_jira_cache,
+            )
             await self._repo.save(
                 JobRecord(job_id=job_id, status=JobStatus.DONE, report_id=report.id)
             )

@@ -1,12 +1,11 @@
 # backend/src/infrastructure/factories/jira_factory.py
-from src.application.ports.jira_port import JiraPort
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.jira_client import JiraClient
 
 
 class JiraFactory:
     @staticmethod
-    def create(settings: Settings) -> JiraPort:
+    def create(settings: Settings) -> JiraClient:
         return JiraClient(
             base_url=settings.jira_base_url,
             email=settings.jira_email,

@@ -12,6 +12,8 @@ class JobRunnerPort(ABC):
         job_id: str,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
+        *,
+        bypass_jira_cache: bool = False,
     ) -> None: ...
 
     @abstractmethod

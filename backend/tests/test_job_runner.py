@@ -27,11 +27,15 @@ class InMemoryJobRepository(JobRepository):
 class JobRunnerTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.repository = InMemoryJobRepository()
+        self.cache_modes: list[bool] = []
 
         async def generate(
             start: datetime.datetime | None,
             end: datetime.datetime | None,
+            *,
+            bypass_jira_cache: bool = False,
         ) -> Report:
+            self.cache_modes.append(bypass_jira_cache)
             return Report(
                 id=1,
                 week_start=datetime.date(2026, 8, 3),
@@ -62,3 +66,13 @@ class JobRunnerTest(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.runner.aclose()
+
+    async def test_manual_job_bypasses_jira_cache(self) -> None:
+        await self.runner.submit("manual", bypass_jira_cache=True)
+        await self.runner.wait_for_update("manual", JobStatus.PENDING, timeout=1)
+        self.assertEqual([True], self.cache_modes)
+
+    async def test_scheduled_job_preserves_jira_cache(self) -> None:
+        await self.runner.run_scheduled_job()
+        await asyncio.sleep(0)
+        self.assertEqual([False], self.cache_modes)

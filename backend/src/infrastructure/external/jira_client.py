@@ -2,8 +2,10 @@
 import asyncio
 import logging
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
 from html.parser import HTMLParser
-from typing import Any
+from typing import Any, Iterator
 from urllib.parse import quote
 
 import httpx
@@ -170,6 +172,7 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         self._tac_assignee_fid   = jira_tac_assignee_field_id
         self._qa_assignee_fid    = jira_qa_assignee_field_id
         self._recent_tac_assignee_fid = jira_recent_tac_assignee_field_id
+        self._bypass_cache: ContextVar[bool] = ContextVar("jira_bypass_cache", default=False)
 
         self._count_cache: LruCache[str, int] = LruCache(
             maxsize=_COUNT_CACHE_MAXSIZE,
@@ -183,6 +186,14 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         )
         self._org_name_cache: dict[str, str] = {}
         self._asset_object_label_cache: dict[JiraAssetReference, str] = {}
+
+    @contextmanager
+    def bypass_cache(self, enabled: bool = True) -> Iterator[None]:
+        token = self._bypass_cache.set(enabled or self._bypass_cache.get())
+        try:
+            yield
+        finally:
+            self._bypass_cache.reset(token)
 
     @staticmethod
     def _display_name(value: object) -> str:
@@ -294,11 +305,15 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
                 resp.raise_for_status()
                 return int(resp.json().get("count", 0))
             except httpx.HTTPError as e:
+                if self._bypass_cache.get():
+                    raise RuntimeError("Jira fresh count query failed") from e
                 logger.error(f"JQL 카운트 실패: {jql[:80]}... -> {e}")
                 if isinstance(e, httpx.HTTPStatusError):
                     logger.error(f"응답 상세: {e.response.text[:200]}")
                 return 0
 
+        if self._bypass_cache.get():
+            return await fetch(jql)
         count = await self._count_cache.async_get(jql, refresh_fn=fetch)
         return count if count is not None else 0
 
@@ -328,6 +343,8 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
             token: str | None = data.get("nextPageToken") or None
             return data.get("issues", []), token
         except httpx.HTTPError as e:
+            if self._bypass_cache.get():
+                raise RuntimeError("Jira fresh issue query failed") from e
             logger.error(f"JQL 페이지 요청 실패 (nextPageToken={next_page_token}): {jql[:80]}... -> {e}")
             if isinstance(e, httpx.HTTPStatusError):
                 logger.error(f"응답 상세: {e.response.text[:200]}")
@@ -347,6 +364,8 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         max_results: int | None,
         fields: tuple[str, ...],
     ) -> list[JiraIssue]:
+        if self._bypass_cache.get():
+            return await self._load_issues(jql, max_results, fields)
         cache_key = self._issues_cache_key(jql, max_results, fields)
         issues = await self._issues_cache.async_get(
             cache_key,
@@ -591,7 +610,7 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
 
         async def resolve(reference: JiraAssetReference) -> tuple[JiraAssetReference, str]:
             cached = self._asset_object_label_cache.get(reference)
-            if cached is not None:
+            if cached is not None and not self._bypass_cache.get():
                 return reference, cached
             workspace = quote(reference.workspace_id, safe="")
             object_key = quote(reference.object_id, safe="")
@@ -605,8 +624,11 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
                 response.raise_for_status()
                 label = str(response.json().get("label") or label)
             except httpx.HTTPError as error:
+                if self._bypass_cache.get():
+                    raise RuntimeError("Jira fresh asset query failed") from error
                 logger.warning(f"Assets \uac1d\uccb4 \uc870\ud68c \uc2e4\ud328: {reference.object_id} -> {error}")
-            self._asset_object_label_cache[reference] = label
+            if not self._bypass_cache.get():
+                self._asset_object_label_cache[reference] = label
             return reference, label
 
         resolved = await asyncio.gather(*(resolve(reference) for reference in unique_references))

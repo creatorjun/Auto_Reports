@@ -147,6 +147,8 @@ class Container:
         self,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
+        *,
+        bypass_jira_cache: bool = False,
     ) -> Report:
         async with self._database.session() as session:
             use_case = GenerateReportUseCase(
@@ -158,10 +160,11 @@ class Container:
                 notify=self._notify_todo,
                 notify_tac=self._notify_tac,
             )
-            return await use_case.execute(
-                start_date=start_date,
-                end_date=end_date,
-            )
+            with self._jira.bypass_cache(enabled=bypass_jira_cache):
+                return await use_case.execute(
+                    start_date=start_date,
+                    end_date=end_date,
+                )
 
     async def refresh_report(self) -> None:
         async with self._database.session() as session:
