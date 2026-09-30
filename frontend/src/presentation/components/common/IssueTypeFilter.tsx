@@ -5,6 +5,8 @@ import type { Semester } from '@/domain/Dashboard'
 import { getIssueTypeLabel } from '@/presentation/utils/issueTypeLabel'
 
 interface Props {
+  titleSearch?: string
+  onTitleSearchChange?: (value: string) => void
   issueTypes: string[]
   statuses: string[]
   selectedTypes: ReadonlySet<string> | null
@@ -20,6 +22,8 @@ interface Props {
 }
 
 export default function IssueTypeFilter({
+  titleSearch = '',
+  onTitleSearchChange,
   issueTypes,
   statuses,
   selectedTypes,
@@ -36,7 +40,7 @@ export default function IssueTypeFilter({
   const [expanded, setExpanded] = useState(false)
   const selectedCount = selectedTypes?.size ?? issueTypes.length
   const selectedStatusCount = selectedStatuses?.size ?? statuses.length
-  const hasFilters = selectedTypes !== null || selectedStatuses !== null || selectedSemester !== null
+  const hasFilters = selectedTypes !== null || selectedStatuses !== null || selectedSemester !== null || titleSearch !== ''
 
   return (
     <section className="card" aria-labelledby="issue-type-filter-title">
@@ -91,6 +95,13 @@ export default function IssueTypeFilter({
           : 'hidden'}
       >
         <div className="min-w-0 flex-1">
+          {onTitleSearchChange && (
+            <label className="mb-5 block text-xs font-semibold text-apple-mid">
+              제목 검색
+              <input type="text" value={titleSearch} onChange={(event) => onTitleSearchChange(event.target.value)} placeholder="검색어" aria-label="이슈 제목 검색"
+                className="mt-2 block h-10 w-full rounded-lg border border-apple-divider bg-apple-surface px-3 text-ui-sm font-normal text-apple-dark placeholder:text-apple-light focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+            </label>
+          )}
           <div className="mb-2 text-xs font-semibold text-apple-mid">요청 유형</div>
           {supported ? (
             <div className="flex flex-wrap gap-2" role="group" aria-label="요청 유형 포함 여부">

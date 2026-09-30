@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import type { Semester } from '@/domain/Dashboard'
 import type { ElapsedDaysComparison } from '@/domain/Issue'
-import { filterManagedIssues } from '@/domain/IssueManagement'
+import { filterIssuesByColumns, filterManagedIssues } from '@/domain/IssueManagement'
 import { sortDashboardStatuses } from '@/domain/DashboardStatusPolicy'
 import { useIssueManagement } from '@/presentation/hooks/useIssueManagement'
 import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
@@ -16,6 +16,7 @@ export default function IssueManagementPage() {
   const [statuses, setStatuses] = useState<Set<string> | null>(null)
   const [semester, setSemester] = useState<Semester | null>(null)
   const [year, setYear] = useState<number | null>(null)
+  const [titleSearch, setTitleSearch] = useState('')
   const [elapsed, setElapsed] = useState<number | null>(null)
   const [comparison, setComparison] = useState<ElapsedDaysComparison>('gte')
   const issues = query.data?.issues
@@ -24,7 +25,7 @@ export default function IssueManagementPage() {
     statuses: sortDashboardStatuses(issues?.map((issue) => issue.status) ?? []),
     years: [...new Set(issues?.map((issue) => Number(issue.created.slice(0, 4))).filter((value) => value > 0) ?? [])].sort((a, b) => b - a),
   }), [issues])
-  const details = useMemo(() => filterManagedIssues(issues ?? [], types, statuses, semester, year), [issues, types, statuses, semester, year])
+  const details = useMemo(() => filterIssuesByColumns(filterManagedIssues(issues ?? [], types, statuses, semester, year), { summary: titleSearch }), [issues, types, statuses, semester, year, titleSearch])
   const toggle = (current: Set<string> | null, all: string[], value: string) => {
     const next = new Set(current ?? all)
     if (next.has(value)) next.delete(value)
@@ -53,12 +54,13 @@ export default function IssueManagementPage() {
         </select>
       </div>
       <IssueTypeFilter issueTypes={options.types} statuses={options.statuses} selectedTypes={types} selectedStatuses={statuses} selectedSemester={semester} supported statusSupported semesterSupported
+        titleSearch={titleSearch} onTitleSearchChange={setTitleSearch}
         onToggle={(value) => setTypes((current) => toggle(current, options.types, value))}
         onStatusToggle={(value) => setStatuses((current) => toggle(current, options.statuses, value))}
         onSemesterChange={setSemester}
-        onReset={() => { setTypes(null); setStatuses(null); setSemester(null); setYear(null) }} />
+        onReset={() => { setTypes(null); setStatuses(null); setSemester(null); setYear(null); setTitleSearch('') }} />
       {!query.data?.initialized && !query.data?.error && !query.isError ? <LoadingSpinner text="TACEA 전체 이슈 수집 중..." /> : (
-        <RecentIssuesWidget columnSearch title="전체 이슈 현황" paginationResetKey={JSON.stringify([types === null ? null : [...types].sort(), statuses === null ? null : [...statuses].sort(), semester, year, elapsed, comparison])} details={details} elapsedDaysThreshold={elapsed} elapsedDaysComparison={comparison} onElapsedDaysFilterChange={(value, condition) => { setElapsed(value); setComparison(condition) }} />
+        <RecentIssuesWidget columnSearch title="전체 이슈 현황" paginationResetKey={JSON.stringify([types === null ? null : [...types].sort(), statuses === null ? null : [...statuses].sort(), semester, year, elapsed, comparison, titleSearch])} details={details} elapsedDaysThreshold={elapsed} elapsedDaysComparison={comparison} onElapsedDaysFilterChange={(value, condition) => { setElapsed(value); setComparison(condition) }} />
       )}
     </div>
   )
