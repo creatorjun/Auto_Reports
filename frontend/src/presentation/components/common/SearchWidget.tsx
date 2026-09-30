@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import type { SearchResult } from '@/domain/Search'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import { DEFAULT_JIRA_BASE_URL } from '@/presentation/config/constants'
+import IssueModalShell from '@/presentation/components/common/IssueModalShell'
 
 const JIRA_COLOR    = 'bg-blue-100 text-blue-700'
 const CONFLUENCE_COLOR = 'bg-purple-100 text-purple-700'
@@ -82,89 +83,76 @@ function SearchModal({
   jiraBaseUrl: string
   onClose: () => void
 }) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  const orderedResults = [
+    ...results.filter((item) => item.type === 'jira'),
+    ...results.filter((item) => item.type === 'confluence'),
+  ]
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
+    <IssueModalShell
+      title={`"${query}" 검색 결과`}
+      subtitle={`전체 ${results.length}건 · JIRA → Confluence`}
+      size="lg"
+      onClose={onClose}
     >
-      <div
-        className="bg-apple-surface rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b">
-          <span className="text-[15px] font-semibold text-gray-800">"{query}" 검색 결과</span>
-          <button className="text-gray-400 hover:text-gray-600 transition-colors" onClick={onClose}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-
-        {results.length === 0 ? (
-          <div className="px-5 py-10 text-center text-gray-400 text-[13px]">검색 결과가 없습니다.</div>
-        ) : (
-          <ul className="divide-y">
-            {results.map((item, idx) => {
-              const isDirect = item.issue_type === 'direct'
-              return (
-                <li key={`${item.type}-${item.key}-${idx}`}>
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-start gap-3 px-5 py-3.5 transition-colors ${
-                      isDirect ? 'bg-brand-50 hover:bg-brand-100' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <TypeBadge type={item.type} isDirect={isDirect} />
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-[13px] font-medium truncate ${
-                        isDirect ? 'text-brand-700' : 'text-gray-800'
-                      }`}>
-                        {!isDirect && item.key && (
-                          <span className="text-gray-400 mr-1.5">[{item.key}]</span>
-                        )}
-                        {item.title}
-                      </p>
-                      {!isDirect && (
-                        <p className="text-[11px] text-gray-400 mt-0.5">
-                          {item.issue_type}{item.status ? ` · ${item.status}` : ''}
-                        </p>
+      {results.length === 0 ? (
+        <div className="px-5 py-10 text-center text-gray-400 text-[13px]">검색 결과가 없습니다.</div>
+      ) : (
+        <ul className="divide-y">
+          {orderedResults.map((item, idx) => {
+            const isDirect = item.issue_type === 'direct'
+            return (
+              <li key={`${item.type}-${item.key}-${idx}`}>
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`flex items-start gap-3 px-5 py-3.5 transition-colors ${
+                    isDirect ? 'bg-brand-50 hover:bg-brand-100' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <TypeBadge type={item.type} isDirect={isDirect} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[13px] font-medium truncate ${
+                      isDirect ? 'text-brand-700' : 'text-gray-800'
+                    }`}>
+                      {!isDirect && item.key && (
+                        <span className="text-gray-400 mr-1.5">[{item.key}]</span>
                       )}
-                    </div>
-                    <svg
-                      className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
-                        isDirect ? 'text-brand-400' : 'text-gray-300'
-                      }`}
-                      fill="none" viewBox="0 0 16 16"
-                    >
-                      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </a>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+                      {item.title}
+                    </p>
+                    {!isDirect && (
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        {item.issue_type}{item.status ? ` · ${item.status}` : ''}
+                      </p>
+                    )}
+                  </div>
+                  <svg
+                    className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                      isDirect ? 'text-brand-400' : 'text-gray-300'
+                    }`}
+                    fill="none" viewBox="0 0 16 16"
+                  >
+                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </a>
+              </li>
+            )
+          })}
+        </ul>
+      )}
 
-        <div className="px-5 py-3 border-t bg-gray-50">
-          <a
-            href={`${jiraBaseUrl}/issues/?jql=${encodeURIComponent(`text ~ "${query}"`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[12px] text-brand-600 hover:underline"
-          >
-            JIRA에서 더 검색하기 →
-          </a>
-        </div>
+      <div className="px-5 py-3 border-t border-apple-divider/60">
+        <a
+          href={`${jiraBaseUrl}/issues/?jql=${encodeURIComponent(`text ~ "${query}"`)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[12px] text-brand-600 hover:underline"
+        >
+          JIRA에서 더 검색하기 →
+        </a>
       </div>
-    </div>
+    </IssueModalShell>
   )
 }
 

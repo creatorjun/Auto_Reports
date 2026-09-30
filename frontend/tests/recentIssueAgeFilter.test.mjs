@@ -420,7 +420,6 @@ for (const { comparison, label, threshold, firstDay } of [
     type(view, String(threshold))
     selectComparison(view, comparison)
     submit(view)
-    // Unsubmitted input and dropdown changes must not enter the export snapshot.
     type(view, '10')
     const otherComparison = comparison === 'gte' ? 'lte' : 'gte'
     selectComparison(view, otherComparison)
@@ -432,8 +431,6 @@ for (const { comparison, label, threshold, firstDay } of [
     assert.deepEqual(keys(stage), expectedKeys)
     assert.equal(stage.findAllByType('form').length, 0)
     assert.equal(stage.findAllByType('select').length, 0)
-    // Applying a different comparison at the same threshold updates the visible
-    // rows while the exported rows and filter description remain unchanged.
     type(view, String(threshold))
     submit(view)
     assert.equal(keys(view).length, 21)
