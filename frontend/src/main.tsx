@@ -11,6 +11,7 @@ import { reportApi } from '@/infrastructure/api/reportApi'
 import { searchApi } from '@/infrastructure/api/searchApi'
 import { siteApi } from '@/infrastructure/api/siteApi'
 import { slaDashboardApi } from '@/infrastructure/api/slaDashboardApi'
+import { issueManagementApi } from '@/infrastructure/api/issueManagementApi'
 import { dashboardPdfExporter } from '@/infrastructure/export/dashboardPdfExporter'
 import { storageApi } from '@/infrastructure/api/storageApi'
 import { configureHttpClient } from '@/infrastructure/api/client'
@@ -41,6 +42,7 @@ const services = {
   partners: partnerApi,
   search: searchApi,
   slaDashboard: slaDashboardApi,
+  issueManagement: issueManagementApi,
 }
 
 applyTheme(useThemeStore.getState().theme)

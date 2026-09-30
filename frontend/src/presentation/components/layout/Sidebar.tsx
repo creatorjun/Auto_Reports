@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { useId, useState } from 'react'
 import { NavLink, useMatch } from 'react-router-dom'
-import { LayoutDashboard, Gauge, History, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange } from 'lucide-react'
+import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange } from 'lucide-react'
 import TriggerButton from '../common/TriggerButton'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout } from '@/presentation/hooks/useAuth'
@@ -16,6 +16,7 @@ const annualReportLinks = ANNUAL_REPORT_YEARS.map((year) => ({
 
 const reportLinks = [
   { to: '/',         label: '대시보드',      icon: <LayoutDashboard size={16} /> },
+  { to: '/issues',   label: '이슈 관리',      icon: <ListChecks size={16} /> },
   { label: '연간 보고서', icon: <CalendarRange size={16} />, children: annualReportLinks },
   { to: '/sla-dashboard', label: 'SLA 대시보드', icon: <Gauge size={16} /> },
   { to: '/history',  label: '보고서 히스토리', icon: <History         size={16} /> },

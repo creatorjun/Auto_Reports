@@ -14,6 +14,9 @@ class JiraIssueField(StrEnum):
     PRIORITY = "priority"
     REPORTER = "reporter"
     ASSIGNEE = "assignee"
+    TAC_ASSIGNEE = "tac_assignee"
+    QA_ASSIGNEE = "qa_assignee"
+    RECENT_TAC_ASSIGNEE = "recent_tac_assignee"
 
 
 @dataclass(frozen=True)

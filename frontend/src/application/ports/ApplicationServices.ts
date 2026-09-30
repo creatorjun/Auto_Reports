@@ -1,6 +1,7 @@
 // frontend/src/application/ports/ApplicationServices.ts
 import type { LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
 import type { AppConfig } from '@/domain/Config'
+import type { IssueManagementSnapshot } from '@/domain/IssueManagement'
 import type { DashboardPdfDocument } from '@/domain/DashboardExport'
 import type { JobStatus, TriggerAccepted, TriggerParams } from '@/domain/Job'
 import type { PartnerIssue, PartnerMember, PartnerOrg } from '@/domain/Partner'
@@ -151,4 +152,5 @@ export interface ApplicationServices {
   partners: PartnerGateway
   search: SearchGateway
   slaDashboard: SlaDashboardGateway
+  issueManagement: { getIssues: () => Promise<IssueManagementSnapshot> }
 }

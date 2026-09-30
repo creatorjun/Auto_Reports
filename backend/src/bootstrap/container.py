@@ -19,6 +19,7 @@ from src.application.use_cases.refresh_report import RefreshReportUseCase
 from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
+from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
@@ -84,6 +85,7 @@ class Container:
             project_key=settings.project_key,
         )
         self.search = SearchUseCase(self._jira)
+        self.issue_management = IssueManagementUseCase(self._jira, "TACEA")
         self._credential_encryptor = (
             CredentialEncryptor(settings.credential_encryption_key)
             if settings.credential_encryption_key
@@ -178,6 +180,7 @@ class Container:
             await use_case.execute()
 
     async def aclose(self) -> None:
+        await self.issue_management.aclose()
         await self._cache.aclose()
         await self._jira.aclose()
 

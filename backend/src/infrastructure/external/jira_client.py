@@ -423,9 +423,13 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         max_results: int | None = JIRA_MAX_RESULT,
         fields: frozenset[JiraIssueField] = frozenset(),
     ) -> list[JiraIssue]:
-        jira_fields = tuple(sorted(
-            (_JIRA_FIELD_NAMES[field] for field in fields),
-        ))
+        field_names = {
+            **_JIRA_FIELD_NAMES,
+            JiraIssueField.TAC_ASSIGNEE: self._tac_assignee_fid,
+            JiraIssueField.QA_ASSIGNEE: self._qa_assignee_fid,
+            JiraIssueField.RECENT_TAC_ASSIGNEE: self._recent_tac_assignee_fid,
+        }
+        jira_fields = tuple(sorted(filter(None, (field_names[field] for field in fields))))
         return await self._get_mapped_issues(jql, max_results, jira_fields)
 
     async def _load_issues(
@@ -483,7 +487,13 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
     ) -> JiraChartIssuePage:
         if max_results is not None and max_results <= 0:
             raise ValueError("Chart issue limit must be positive")
-        field_list = sorted(_JIRA_FIELD_NAMES[field] for field in fields)
+        field_names = {
+            **_JIRA_FIELD_NAMES,
+            JiraIssueField.TAC_ASSIGNEE: self._tac_assignee_fid,
+            JiraIssueField.QA_ASSIGNEE: self._qa_assignee_fid,
+            JiraIssueField.RECENT_TAC_ASSIGNEE: self._recent_tac_assignee_fid,
+        }
+        field_list = sorted(filter(None, (field_names[field] for field in fields)))
         if with_sla:
             field_list.extend(filter(None, [self._sla_initial_fid, self._sla_resolution_fid]))
         if with_redeployment:

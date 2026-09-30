@@ -14,6 +14,7 @@ from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
+from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 
 
@@ -30,6 +31,7 @@ class ApiServices:
     get_site: Callable[[], AsyncContextManager[SiteUseCase]]
     get_sla_dashboard: Callable[[], AsyncContextManager[SlaDashboardUseCase]]
     get_report_chart_issues: Callable[[], AsyncContextManager[GetReportChartIssuesUseCase]]
+    issue_management: IssueManagementUseCase | None = None
 
 
 def get_api_services(request: Request) -> ApiServices:

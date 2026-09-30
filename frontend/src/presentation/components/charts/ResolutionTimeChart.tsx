@@ -23,6 +23,7 @@ const DEFAULT_FRACS: Record<ColKey, number> = {
 interface Props {
   details: RecentIssue[]
   emptyMessage?: string
+  paginationResetKey?: string
 }
 
 function getStatusStyle(status: string) {
@@ -118,7 +119,7 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
   )
 }
 
-export default function ResolutionTimeChart({ details, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
+export default function ResolutionTimeChart({ details, paginationResetKey, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
   const exportMode = useDashboardExportMode()
   const { jiraBase } = useJira()
   const [page,    setPage]    = useState(1)
@@ -128,7 +129,12 @@ export default function ResolutionTimeChart({ details, emptyMessage = '최근 �
   const tableRef      = useRef<HTMLTableElement>(null)
   const tableWidthRef = useRef<number>(0)
 
-  useEffect(() => { setPage(1) }, [details])
+  const previousResetKey = useRef(paginationResetKey)
+  useEffect(() => {
+    if (paginationResetKey === undefined || previousResetKey.current !== paginationResetKey) setPage(1)
+    else setPage((current) => Math.min(current, Math.max(1, Math.ceil(details.length / TABLE_PAGE_SIZE))))
+    previousResetKey.current = paginationResetKey
+  }, [details, paginationResetKey])
 
   const handleSort = useCallback((col: ColKey) => {
     setSortKey((prev) => {

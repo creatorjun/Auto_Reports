@@ -9,13 +9,15 @@ import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTime
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 
 interface Props {
+  title?: string
+  paginationResetKey?: string
   details: RecentIssue[]
   elapsedDaysThreshold: number | null
   elapsedDaysComparison: ElapsedDaysComparison
   onElapsedDaysFilterChange?: (value: number | null, comparison: ElapsedDaysComparison) => void
 }
 
-export default function RecentIssuesWidget({ details, elapsedDaysThreshold, elapsedDaysComparison, onElapsedDaysFilterChange }: Props) {
+export default function RecentIssuesWidget({ title = '최근 이슈 현황', paginationResetKey, details, elapsedDaysThreshold, elapsedDaysComparison, onElapsedDaysFilterChange }: Props) {
   const exportMode = useDashboardExportMode()
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -59,8 +61,8 @@ export default function RecentIssuesWidget({ details, elapsedDaysThreshold, elap
   return (
     <div data-pdf-section="최근 이슈 현황" className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <SectionTitle icon={Pin} title="최근 이슈 현황" subtitle={elapsedDaysThreshold === null
-          ? `최신 ${filteredIssues.length}건`
+        <SectionTitle icon={Pin} title={title} subtitle={elapsedDaysThreshold === null
+          ? `${title === '최근 이슈 현황' ? '최신' : '전체'} ${filteredIssues.length}건`
           : `${elapsedDaysThreshold}일 ${comparisonLabel} · ${filteredIssues.length}건`} />
         {!exportMode && onElapsedDaysFilterChange && (
           <form onSubmit={search} noValidate className="flex max-w-full flex-wrap items-center gap-2" aria-label="최근 이슈 경과일 검색">
@@ -107,6 +109,7 @@ export default function RecentIssuesWidget({ details, elapsedDaysThreshold, elap
       </div>
       <ResolutionTimeChart
         details={filteredIssues}
+        paginationResetKey={paginationResetKey}
         emptyMessage={elapsedDaysThreshold === null ? undefined : `경과일이 ${elapsedDaysThreshold}일 ${comparisonLabel}인 이슈가 없습니다.`}
       />
     </div>

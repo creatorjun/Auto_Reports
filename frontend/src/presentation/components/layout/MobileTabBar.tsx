@@ -1,13 +1,14 @@
 // frontend/src/presentation/components/layout/MobileTabBar.tsx
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Gauge, History, Building2, HardDrive, Plus } from 'lucide-react'
+import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Plus } from 'lucide-react'
 import { useTrigger } from '@/presentation/hooks/useTrigger'
 import { useUiStore } from '@/presentation/state/uiStore'
 import LazyGenerateReportModal from '@/presentation/components/common/LazyGenerateReportModal'
 
 const tabs = [
   { to: '/',        label: '대시보드', icon: <LayoutDashboard size={20} /> },
+  { to: '/issues',  label: '이슈 관리', icon: <ListChecks size={20} /> },
   { to: '/sla-dashboard', label: 'SLA 대시보드', icon: <Gauge size={20} /> },
   { to: '/history', label: '히스토리',   icon: <History        size={20} /> },
   { to: '/sites',   label: '사이트',     icon: <Building2      size={20} /> },
