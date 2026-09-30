@@ -5,6 +5,7 @@ import { useDashboardExportMode } from '@/presentation/context/DashboardExportCo
 import { STATUS_STYLE } from '@/presentation/config/ui'
 import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC } from '@/presentation/config/constants'
 import type { RecentIssue } from '@/domain/Issue'
+import type { IssueColumn, IssueColumnFilters } from '@/domain/IssueManagement'
 
 const COLS = ['key', 'summary', 'status', 'reporter', 'tac', 'tac_assignee', 'elapsed'] as const
 type ColKey = typeof COLS[number]
@@ -24,6 +25,8 @@ interface Props {
   details: RecentIssue[]
   emptyMessage?: string
   paginationResetKey?: string
+  columnFilters?: IssueColumnFilters
+  onColumnFilterChange?: (column: IssueColumn, value: string) => void
 }
 
 function getStatusStyle(status: string) {
@@ -119,7 +122,7 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
   )
 }
 
-export default function ResolutionTimeChart({ details, paginationResetKey, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
+export default function ResolutionTimeChart({ details, paginationResetKey, columnFilters, onColumnFilterChange, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
   const exportMode = useDashboardExportMode()
   const { jiraBase } = useJira()
   const [page,    setPage]    = useState(1)
@@ -163,7 +166,7 @@ export default function ResolutionTimeChart({ details, paginationResetKey, empty
     [details, sortKey, sortDir],
   )
 
-  if (!details || details.length === 0) {
+  if (details.length === 0 && !onColumnFilterChange) {
     return (
       <div data-pdf-kind="table" data-pdf-title="최근 이슈 현황" className="card flex items-center justify-center h-48 text-apple-light text-ui-base">
         {emptyMessage}
@@ -187,10 +190,18 @@ export default function ResolutionTimeChart({ details, paginationResetKey, empty
     { key: 'tac_assignee', label: 'TAC 담당자', rightCol: 'elapsed' },
     { key: 'elapsed',  label: '생성일 (경과)' },
   ]
+  const searchInput = (key: ColKey, label: string, mobile = false) => (
+    <input type="text" value={columnFilters?.[key] ?? ''} aria-label={`${label} 컬럼 검색${mobile ? ' 모바일' : ''}`} placeholder="포함 문자열"
+      onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}
+      onChange={(event) => onColumnFilterChange?.(key, event.target.value)}
+      className="mt-2 block h-9 w-full min-w-0 rounded-lg border border-apple-divider bg-apple-surface px-2 text-ui-sm font-normal text-apple-dark placeholder:text-apple-light focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+  )
 
   return (
     <div data-pdf-kind="table" data-pdf-title="최근 이슈 현황" className="card p-0 overflow-hidden">
       <div data-pdf-mobile="" className="md:hidden">
+        {!exportMode && onColumnFilterChange && <div className="grid grid-cols-2 gap-3 border-b border-apple-divider p-4">{headers.map(({ key, label }) => <label key={key} className="text-ui-sm font-semibold text-apple-mid">{label}{searchInput(key, label, true)}</label>)}</div>}
+        {pageItems.length === 0 && <p className="p-6 text-center text-ui-sm text-apple-light">검색 조건에 맞는 이슈가 없습니다.</p>}
         {pageItems.map((issue) => (
           <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase} />
         ))}
@@ -207,12 +218,14 @@ export default function ResolutionTimeChart({ details, paginationResetKey, empty
                   <span className="inline-flex items-center justify-center">
                     {label}<SortIcon dir={sortKey === key ? sortDir : null} />
                   </span>
+                  {!exportMode && onColumnFilterChange && searchInput(key, label)}
                   {rightCol && <ResizeHandle tableWidth={getTableWidth()} onDrag={(df) => resize(key, rightCol, df)} />}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
+            {visibleItems.length === 0 && <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-apple-light">검색 조건에 맞는 이슈가 없습니다.</td></tr>}
             {visibleItems.map((issue) => {
               const style   = getStatusStyle(issue.status)
               const jiraUrl = `${jiraBase}/browse/${issue.key}`

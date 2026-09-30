@@ -58,7 +58,7 @@ export default function IssueManagementPage() {
         onSemesterChange={setSemester}
         onReset={() => { setTypes(null); setStatuses(null); setSemester(null); setYear(null) }} />
       {!query.data?.initialized && !query.data?.error && !query.isError ? <LoadingSpinner text="TACEA 전체 이슈 수집 중..." /> : (
-        <RecentIssuesWidget title="전체 이슈 현황" paginationResetKey={JSON.stringify([types === null ? null : [...types].sort(), statuses === null ? null : [...statuses].sort(), semester, year, elapsed, comparison])} details={details} elapsedDaysThreshold={elapsed} elapsedDaysComparison={comparison} onElapsedDaysFilterChange={(value, condition) => { setElapsed(value); setComparison(condition) }} />
+        <RecentIssuesWidget columnSearch title="전체 이슈 현황" paginationResetKey={JSON.stringify([types === null ? null : [...types].sort(), statuses === null ? null : [...statuses].sort(), semester, year, elapsed, comparison])} details={details} elapsedDaysThreshold={elapsed} elapsedDaysComparison={comparison} onElapsedDaysFilterChange={(value, condition) => { setElapsed(value); setComparison(condition) }} />
       )}
     </div>
   )
