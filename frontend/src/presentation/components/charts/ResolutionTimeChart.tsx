@@ -24,6 +24,7 @@ const DEFAULT_FRACS: Record<ColKey, number> = {
 }
 
 interface Props {
+  title?: string
   details: RecentIssue[]
   emptyMessage?: string
   paginationResetKey?: string
@@ -124,7 +125,7 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
   )
 }
 
-export default function ResolutionTimeChart({ details, paginationResetKey, columnFilters, onColumnFilterChange, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
+export default function ResolutionTimeChart({ title = '최근 이슈 현황', details, paginationResetKey, columnFilters, onColumnFilterChange, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
   const exportMode = useDashboardExportMode()
   const { jiraBase } = useJira()
   const [page,    setPage]    = useState(1)
@@ -172,7 +173,7 @@ export default function ResolutionTimeChart({ details, paginationResetKey, colum
 
   if (details.length === 0 && (exportMode || !onColumnFilterChange)) {
     return (
-      <div data-pdf-kind="table" data-pdf-title="최근 이슈 현황" className="card flex items-center justify-center h-48 text-apple-light text-ui-base">
+      <div data-pdf-kind="table" data-pdf-title={title} className="card flex items-center justify-center h-48 text-apple-light text-ui-base">
         {noResultsMessage}
       </div>
     )
@@ -192,7 +193,7 @@ export default function ResolutionTimeChart({ details, paginationResetKey, colum
   )
 
   return (
-    <div data-pdf-kind="table" data-pdf-title="최근 이슈 현황" className="card p-0 overflow-hidden">
+    <div data-pdf-kind="table" data-pdf-title={title} className="card p-0 overflow-hidden">
       <div data-pdf-mobile="" className="md:hidden">
         {!exportMode && onColumnFilterChange && <div className="grid grid-cols-2 gap-3 border-b border-apple-divider p-4">{headers.map(({ key, label }) => <label key={key} className="text-ui-sm font-semibold text-apple-mid">{label}{searchInput(key, label, true)}</label>)}</div>}
         {pageItems.length === 0 && <p className="p-6 text-center text-ui-sm text-apple-light">{noResultsMessage}</p>}

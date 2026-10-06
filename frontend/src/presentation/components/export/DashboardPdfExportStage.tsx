@@ -22,7 +22,7 @@ class ExportBoundary extends Component<{ children: ReactNode; onError: Props['on
   }
 
   componentDidCatch() {
-    this.props.onError('차트를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    this.props.onError('내보낼 데이터를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.')
   }
 
   render() {

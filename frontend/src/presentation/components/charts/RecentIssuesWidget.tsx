@@ -66,7 +66,7 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', pag
   }
 
   return (
-    <div data-pdf-section="최근 이슈 현황" className="space-y-2">
+    <div data-pdf-section={title} className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SectionTitle icon={Pin} title={title} subtitle={elapsedDaysThreshold === null
           ? `${title === '최근 이슈 현황' ? '최신' : '전체'} ${filteredIssues.length}건`
@@ -115,6 +115,7 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', pag
         )}
       </div>
       <ResolutionTimeChart
+        title={title}
         details={filteredIssues}
         paginationResetKey={JSON.stringify([paginationResetKey, elapsedDaysThreshold, elapsedDaysComparison, columnFilters])}
         columnFilters={columnFilters}

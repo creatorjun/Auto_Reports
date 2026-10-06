@@ -12,6 +12,7 @@ import ts from 'typescript'
 const require = createRequire(import.meta.url)
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src')
 const modules = new Map()
+let managementQuery
 
 function loadSource(relative) {
   const base = path.join(sourceRoot, relative)
@@ -24,6 +25,12 @@ function loadSource(relative) {
     fileName: filename,
   }).outputText
   new Function('require', 'module', 'exports', code)((dependency) => {
+    if (dependency.endsWith('.css')) return {}
+    if (dependency === '@/presentation/hooks/useIssueManagement') return { useIssueManagement: () => managementQuery }
+    if (dependency === '@/presentation/components/export/DashboardPdfExportStage') return {
+      default: ({ children, ...props }) => React.createElement('ExportStage', props,
+        React.createElement(DashboardExportProvider, null, children)),
+    }
     if (dependency === '@/presentation/context/JiraContext') return { useJira: () => ({ jiraBase: 'https://jira.example.test' }) }
     if (dependency.startsWith('@/')) return loadSource(dependency.slice(2))
     if (dependency.startsWith('.')) return loadSource(path.relative(sourceRoot, path.resolve(path.dirname(filename), dependency)))
@@ -38,6 +45,7 @@ const { default: RecentIssuesWidget } = loadSource('presentation/components/char
 const { TABLE_PAGE_SIZE } = loadSource('presentation/config/constants')
 const { normalizeSearchText } = loadSource('domain/Search')
 const { DashboardExportProvider } = loadSource('presentation/context/DashboardExportContext')
+const { default: IssueManagementPage } = loadSource('presentation/pages/IssueManagementPage')
 
 test('search normalization trims both operands without removing word spacing', () => {
   assert.equal(normalizeSearchText(' \tＳＥＯＵＬ 교통공사\n '), 'seoul 교통공사')
@@ -269,4 +277,139 @@ test('controlled PDF column filters include every match and omit all search and 
   assert.equal(view.root.findAllByType('select').length, 0)
   assert.equal(view.root.findByType('table').props['data-pdf-table-layout'], 'recent')
   assert.equal(rows.length, 150)
+})
+
+function managementPage(t, rows, overrides = {}) {
+  managementQuery = { data: { issues: rows, initialized: true, refreshing: false, synced_at: '2026-10-06T00:00:00Z', error: null },
+    isFetching: false, isError: false, refetch: async () => {}, ...overrides }
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(IssueManagementPage)) })
+  t.after(() => act(() => view.unmount()))
+  const column = (label, value, mobile = false) => act(() => view.root.findByProps({ 'aria-label': `${label} 컬럼 검색${mobile ? ' 모바일' : ''}` }).props.onChange({ target: { value } }))
+  const download = (format) => {
+    act(() => view.root.findByProps({ 'aria-label': '다운로드 형식' }).props.onChange({ target: { value: format } }))
+    const button = view.root.findAllByType('button').find((node) => textOf(node) === `${format === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`)
+    assert.ok(button)
+    return button
+  }
+  return { view, column, download }
+}
+
+const searchableRows = [
+  issue('TACEA-TARGET', { summary: '서울 ABC 요청', status: '처리 중', reporter: '홍길동', tac_team: '지원팀', tac_assignee: '박담당', created: '2026-09-10 09:00', elapsed_days: 7 }),
+  issue('OTHER-ROW', { summary: '부산 요청', status: 'Closed', reporter: '김지원', tac_team: '개발팀', tac_assignee: '이담당', created: '2025-01-01 09:00', elapsed_days: 300 }),
+]
+
+for (const format of ['pdf', 'xlsx']) {
+  for (const [label, query] of [['이슈', 'tacea'], ['제목', '서울'], ['진행 상태', '처리'], ['보고자', '홍길'], ['담당자', '지원팀'], ['TAC 담당자', '박담당'], ['생성일 (경과)', '2026-09']]) {
+    test(`${format} issue-management export includes the active ${label} column query`, (t) => {
+      const { view, column, download } = managementPage(t, searchableRows)
+      column(label, query, true)
+      assert.deepEqual(tableKeys(view.root), ['TACEA-TARGET'])
+      assert.equal(view.root.findByProps({ 'aria-label': `${label} 컬럼 검색` }).props.value, query)
+      const button = download(format)
+      act(() => button.props.onClick())
+      const stage = view.root.findByType('ExportStage')
+      assert.equal(stage.props.format, format)
+      assert.ok(stage.props.fileName.endsWith(`.${format}`))
+      assert.ok(stage.props.metadata.filters.includes(`${label} 컬럼 검색: ${query}`))
+      assert.deepEqual(tableKeys(stage), ['TACEA-TARGET'])
+      assert.equal(stage.findByProps({ 'data-pdf-section': '전체 이슈 현황' }).props['data-pdf-section'], '전체 이슈 현황')
+      assert.equal(stage.findByProps({ 'data-pdf-kind': 'table' }).props['data-pdf-title'], '전체 이슈 현황')
+      assert.equal(stage.findAllByType('input').length, 0)
+      assert.equal(stage.findAllByType('button').length, 0)
+    })
+  }
+
+  test(`${format} issue-management export freezes every intersecting filter and all pages across refreshes and retries`, (t) => {
+    const matching = { summary: '서울 ABC 요청', status: 'Closed', type: '인시던트', reporter: '홍길동', tac_team: '기술 지원팀', tac_assignee: '담당자', created: '2026-09-01 09:00', elapsed_days: 30 }
+    const original = Array.from({ length: 90 }, (_, index) => issue(`TACEA-${String(index).padStart(3, '0')}`, {
+      ...matching, summary: index < 65 ? matching.summary : '부산 ABC 요청', created: index === 0 ? '2025-09-01 09:00' : matching.created,
+    }))
+    const rows = [...original,
+      issue('TACEA-TYPE', { ...matching, type: '개선' }),
+      issue('TACEA-STATUS', { ...matching, status: '처리 중' }),
+      issue('TACEA-SEMESTER', { ...matching, created: '2026-01-01 09:00' }),
+      issue('TACEA-AGE', { ...matching, elapsed_days: 1 }),
+      issue('TACEA-TITLE', { ...matching, summary: '서울 요청' }),
+    ]
+    const { view, column, download } = managementPage(t, rows)
+    const controls = view.root.find((node) => typeof node.props.onSemesterChange === 'function')
+    act(() => {
+      controls.props.onToggle('개선')
+      controls.props.onStatusToggle('처리 중')
+      controls.props.onSemesterChange('h2')
+      controls.props.onTitleSearchChange('ABC')
+      view.root.findByType(RecentIssuesWidget).props.onElapsedDaysFilterChange(20, 'gte')
+    })
+    for (const [label, query] of [['이슈', 'tacea-'], ['제목', ' 서울 '], ['진행 상태', 'closed'], ['보고자', '홍길'], ['담당자', '지원'], ['TAC 담당자', '담당'], ['생성일 (경과)', '09-01']]) column(label, query)
+    const expected = original.slice(0, 65).map((row) => row.key)
+    assert.equal(tableKeys(view.root).length, TABLE_PAGE_SIZE)
+    click(pageButton(view.root, 2))
+    assert.deepEqual(tableKeys(view.root), expected.slice(TABLE_PAGE_SIZE))
+    act(() => view.root.findByProps({ 'aria-label': '최근 이슈 경과일' }).props.onChange({ target: { value: '100' } }))
+    const button = download(format)
+    act(() => { button.props.onClick(); button.props.onClick() })
+    const stage = view.root.findByType('ExportStage')
+    assert.equal(view.root.findAllByType('ExportStage').length, 1)
+    assert.deepEqual(tableKeys(stage), expected)
+    assert.equal(stage.findAllByType('input').length, 0)
+    assert.equal(stage.findAllByType('select').length, 0)
+    assert.equal(stage.findAllByType('button').length, 0)
+    assert.equal(view.root.findByProps({ 'aria-label': '다운로드 형식' }).props.disabled, true)
+    for (const filter of ['전체 연도', '하반기', '인시던트', 'Closed', '제목 검색: ABC', '경과일 20일 이상', '제목 컬럼 검색: 서울']) assert.ok(stage.props.metadata.filters.includes(filter), filter)
+    const filters = [...stage.props.metadata.filters]
+    column('제목', '부산')
+    rows[0].summary = '자동 동기화로 바뀐 제목'
+    managementQuery = { ...managementQuery, data: { ...managementQuery.data, issues: [...rows, issue('TACEA-NEW', { ...matching, summary: '부산 ABC 요청' })], synced_at: '2026-10-06T00:00:30Z' } }
+    act(() => view.update(React.createElement(IssueManagementPage)))
+    assert.equal(tableKeys(view.root.findAllByType(RecentIssuesWidget)[0]).length, 26)
+    assert.deepEqual(tableKeys(stage), expected)
+    assert.ok(textOf(stage).includes('서울 ABC 요청'))
+    assert.ok(!textOf(stage).includes('자동 동기화로 바뀐 제목'))
+    assert.deepEqual(stage.props.metadata.filters, filters)
+    act(() => stage.props.onError('내보내기 실패'))
+    assert.equal(view.root.findAllByType('ExportStage').length, 0)
+    assert.equal(download(format).props.disabled, false)
+    const retryButton = download(format)
+    act(() => retryButton.props.onClick())
+    const retry = view.root.findByType('ExportStage')
+    assert.equal(tableKeys(retry).length, 26)
+    assert.ok(retry.props.metadata.filters.includes('제목 컬럼 검색: 부산'))
+    act(() => retry.props.onComplete())
+    assert.equal(view.root.findAllByType('ExportStage').length, 0)
+    assert.equal(download(format).props.disabled, false)
+  })
+
+  test(`${format} issue-management export preserves an empty filtered result and ignores whitespace-only column input`, (t) => {
+    const { view, column, download } = managementPage(t, searchableRows)
+    column('제목', '  \t ')
+    const firstButton = download(format)
+    act(() => firstButton.props.onClick())
+    let stage = view.root.findByType('ExportStage')
+    assert.deepEqual(tableKeys(stage), searchableRows.map((row) => row.key))
+    assert.ok(!stage.props.metadata.filters.some((value) => value.startsWith('제목 컬럼 검색:')))
+    act(() => stage.props.onComplete())
+    column('제목', '없는 제목')
+    const secondButton = download(format)
+    act(() => secondButton.props.onClick())
+    stage = view.root.findByType('ExportStage')
+    assert.equal(stage.findAllByType('tbody').length, 0)
+    assert.match(textOf(stage), /검색 조건에 맞는 이슈가 없습니다/)
+    assert.ok(stage.props.metadata.filters.includes('제목 컬럼 검색: 없는 제목'))
+  })
+}
+
+test('issue-management download waits for initial collection but remains available for a cached synchronization error', (t) => {
+  const { view, download } = managementPage(t, [], { data: { issues: [], initialized: false, refreshing: true, synced_at: null, error: null } })
+  assert.equal(download('xlsx').props.disabled, true)
+  const initialButton = download('xlsx')
+  act(() => initialButton.props.onClick())
+  assert.equal(view.root.findAllByType('ExportStage').length, 0)
+  managementQuery = { ...managementQuery, data: { issues: searchableRows, initialized: true, refreshing: false, synced_at: null, error: '동기화 실패' } }
+  act(() => view.update(React.createElement(IssueManagementPage)))
+  assert.equal(download('xlsx').props.disabled, false)
+  const cachedButton = download('xlsx')
+  act(() => cachedButton.props.onClick())
+  assert.deepEqual(tableKeys(view.root.findByType('ExportStage')), searchableRows.map((row) => row.key))
 })
