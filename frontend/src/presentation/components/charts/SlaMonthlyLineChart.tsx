@@ -58,6 +58,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 function SlaMonthlyLineChart({ title, subtitle, monthly, color, onMonthClick }: Props) {
   const exportMode = useDashboardExportMode()
+  const exportTable = exportMode ? JSON.stringify({ headers: ['월', '대상 건수', '준수 건수', '위반 건수', '준수율 (%)'], rows: monthly.map((row) => [row.month, row.total, row.met, Math.max(0, row.total - row.met), row.total > 0 ? row.rate : null]) }) : undefined
   const [detailsOpen, setDetailsOpen] = useState(false)
   const gradientId = `sla-grad-${useId().replace(/:/g, '')}`
   const interactive = !exportMode && Boolean(onMonthClick)
@@ -123,7 +124,7 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color, onMonthClick }: 
 
   if (!hasData) {
     return (
-      <div data-pdf-kind="chart" className="card flex flex-col gap-2">
+      <div data-pdf-kind="chart" data-export-table={exportTable} className="card flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
           <span className="text-ui-xs text-apple-light">{subtitle}</span>
@@ -137,7 +138,7 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color, onMonthClick }: 
   }
 
   return (
-    <div data-pdf-kind="chart" className="card">
+    <div data-pdf-kind="chart" data-export-table={exportTable} className="card">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
         <span className="text-ui-xs text-apple-light">{subtitle}</span>

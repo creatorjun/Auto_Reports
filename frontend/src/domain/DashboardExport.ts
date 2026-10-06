@@ -1,4 +1,11 @@
 // frontend/src/domain/DashboardExport.ts
+export type DashboardExportFormat = 'pdf' | 'xlsx'
+
+export interface DashboardExportTableData {
+  headers: string[]
+  rows: (string | number | null)[][]
+}
+
 export interface DashboardPdfCell {
   text: string
   fillColor?: string
@@ -14,6 +21,7 @@ export interface DashboardPdfTextBlock {
   kind: 'text'
   title?: string
   paragraphs: string[]
+  data?: DashboardExportTableData
 }
 
 export interface DashboardPdfChartBlock {
@@ -24,6 +32,7 @@ export interface DashboardPdfChartBlock {
   width: number
   height: number
   legend: { label: string; color: string }[]
+  data?: DashboardExportTableData
 }
 
 export interface DashboardPdfTableBlock {

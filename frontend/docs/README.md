@@ -17,6 +17,6 @@
 | [DEPENDENCIES.md](./DEPENDENCIES.md) | 외부 라이브러리 목록 |
 | [REFACTORING_NOTES.md](./REFACTORING_NOTES.md) | 전수 검토 위반사항과 완료 결과 |
 
-메인 대시보드 또는 연간 보고서에서 업무 유형·반기를 선택한 뒤 `PDF 내보내기`를 누르면 현재 필터와 표 전체 행을 포함한 PDF를 다운로드합니다. 연간 재배포 품질 지표는 연간 전체 기준을 유지합니다. 동작과 범위는 [PRESENTATION.md](./PRESENTATION.md#pdf-내보내기)에 정리했습니다.
+메인 대시보드·과거 보고서·연간 보고서에서 다운로드 형식을 PDF 또는 Excel (.xlsx)로 선택하고 내보내기 버튼을 누르면 현재 필터와 표 전체 행을 포함한 파일을 다운로드합니다. Excel은 적용 필터, 지표, 차트 수치와 이슈 목록을 시트별로 저장합니다. 연간 재배포 품질 지표는 연간 전체 기준을 유지합니다. 동작과 범위는 [components.md](./components.md#대시보드-다운로드)에 정리했습니다.
 
 `frontend` 디렉터리에서 `pnpm test:pdf`를 실행하면 PDF 생성, 한글 글꼴 포함, 표 전체 행과 반복 머리글을 검증합니다.

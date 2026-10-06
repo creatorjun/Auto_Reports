@@ -15,7 +15,7 @@ import { ModalFallback, ChartFallback } from '@/presentation/components/common/D
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/constants'
 import type { ReportDetail } from '@/domain/Report'
 import type { ChartIssue, ChartIssuesRequest } from '@/domain/ReportChartDetails'
-import type { DashboardPdfDocument } from '@/domain/DashboardExport'
+import type { DashboardExportFormat, DashboardPdfDocument } from '@/domain/DashboardExport'
 import type { ElapsedDaysComparison } from '@/domain/Issue'
 import type { IssueColumnFilters } from '@/domain/IssueColumnSearch'
 import { ISSUE_COLUMNS } from '@/presentation/config/issueColumns'
@@ -63,6 +63,7 @@ interface ExportSelection {
 }
 
 interface ExportSnapshot {
+  format: DashboardExportFormat
   report: ReportDetail
   selection: ExportSelection
   metadata: Omit<DashboardPdfDocument, 'sections'>
@@ -88,6 +89,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
   const [slaViolationEntry,  setSlaViolationEntry]  = useState<ViolationEntry | null>(null)
   const [slaDelayEntry,      setSlaDelayEntry]      = useState<{ status: string; issues: SlaDelayIssue[] } | null>(null)
   const [exportSnapshot, setExportSnapshot] = useState<ExportSnapshot | null>(null)
+  const [exportFormat, setExportFormat] = useState<DashboardExportFormat>('pdf')
   const [exportError, setExportError] = useState('')
   const [annualDetails, setAnnualDetails] = useState<{ title: string; total: number; issues: ChartIssue[] } | null>(null)
   const [remoteDetails, setRemoteDetails] = useState<{ title: string; total: number; request: ChartIssuesRequest } | null>(null)
@@ -198,6 +200,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
       if (query) filters.push(`최근 이슈 ${label}: ${query}`)
     }
     setExportSnapshot({
+      format: exportFormat,
       report,
       selection: {
         selectedIssueTypes: effectiveIssueTypes === null ? null : new Set(effectiveIssueTypes),
@@ -213,13 +216,23 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
         generatedAt: new Date().toLocaleString('ko-KR', { hour12: false }),
         filters,
       },
-      fileName: `${title.replace(/\s+/g, '_')}_${report.week_start}_${report.week_end}.pdf`,
+      fileName: `${title.replace(/\s+/g, '_')}_${report.week_start}_${report.week_end}.${exportFormat}`,
     })
   }
 
   const exportActions = !exportSelection && (
         <div className="flex flex-wrap items-center justify-end gap-3">
           <span className="text-[12px] text-apple-mid">{isAnnual ? '선택 연도 · 현재 필터' : '현재 필터 · 표 전체 포함'}</span>
+          <select
+            aria-label="다운로드 형식"
+            value={exportFormat}
+            onChange={(event) => setExportFormat(event.target.value as DashboardExportFormat)}
+            disabled={exportSnapshot !== null}
+            className="rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-[13px] font-medium text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-60"
+          >
+            <option value="pdf">PDF</option>
+            <option value="xlsx">Excel (.xlsx)</option>
+          </select>
           <button
             type="button"
             onClick={startExport}
@@ -228,7 +241,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
             className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60"
           >
             {exportSnapshot ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
-            <span aria-live="polite">{exportSnapshot ? 'PDF 생성 중...' : 'PDF 내보내기'}</span>
+            <span aria-live="polite">{exportSnapshot ? `${exportSnapshot.format === 'xlsx' ? 'Excel' : 'PDF'} 생성 중...` : `${exportFormat === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`}</span>
           </button>
           {exportError && <p role="alert" className="w-full text-right text-[13px] text-red-600">{exportError}</p>}
         </div>
@@ -506,6 +519,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
     </div>
     {exportSnapshot && !exportSelection && (
       <DashboardPdfExportStage
+        format={exportSnapshot.format}
         metadata={exportSnapshot.metadata}
         fileName={exportSnapshot.fileName}
         onComplete={finishExport}

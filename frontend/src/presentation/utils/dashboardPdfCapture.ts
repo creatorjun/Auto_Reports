@@ -1,5 +1,5 @@
 // frontend/src/presentation/utils/dashboardPdfCapture.ts
-import type { DashboardPdfBlock, DashboardPdfCell, DashboardPdfDocument } from '@/domain/DashboardExport'
+import type { DashboardExportTableData, DashboardPdfBlock, DashboardPdfCell, DashboardPdfDocument } from '@/domain/DashboardExport'
 
 const SVG_PROPERTIES = [
   'fill', 'stroke', 'stroke-width', 'fill-opacity', 'stroke-opacity', 'opacity',
@@ -72,6 +72,8 @@ function tableBlock(element: HTMLElement): DashboardPdfBlock {
 
 function block(element: HTMLElement): DashboardPdfBlock {
   const kind = element.getAttribute('data-pdf-kind')
+  const tableData = element.getAttribute('data-export-table')
+  const data = tableData ? JSON.parse(tableData) as DashboardExportTableData : undefined
   if (kind === 'metrics') {
     return {
       kind, items: Array.from(element.querySelectorAll('[data-pdf-metric]')).map((metric) => ({
@@ -92,13 +94,13 @@ function block(element: HTMLElement): DashboardPdfBlock {
       const subtitle = Array.from(element.querySelectorAll(':scope > div > div > p, :scope > div > p, :scope > div > span, :scope > p'))
         .filter((item) => !item.hasAttribute('data-pdf-ignore'))
         .map(text).filter(Boolean).join(' · ')
-      return { kind, title: title(element), subtitle, svg: chartSvg(svg), width: bounds.width, height: bounds.height, legend }
+      return { kind, title: title(element), subtitle, svg: chartSvg(svg), width: bounds.width, height: bounds.height, legend, ...(data ? { data } : {}) }
     }
   }
   const paragraphs = Array.from(element.querySelectorAll('p, li, [data-pdf-paragraph]'))
     .filter((item) => !item.closest('[data-pdf-ignore]'))
     .map((item) => `${item.getAttribute('data-pdf-prefix') || ''}${text(item)}`).filter(Boolean)
-  return { kind: 'text', title: title(element), paragraphs: paragraphs.length ? paragraphs : [text(element)] }
+  return { kind: 'text', title: title(element), paragraphs: paragraphs.length ? paragraphs : [text(element)], ...(data ? { data } : {}) }
 }
 
 export function captureDashboardPdf(root: HTMLElement, metadata: Omit<DashboardPdfDocument, 'sections'>): DashboardPdfDocument {

@@ -141,6 +141,7 @@ export interface SlaDashboardGateway {
 
 export interface DashboardExportGateway {
   renderPdf: (document: DashboardPdfDocument) => Promise<BinaryContent>
+  renderExcel: (document: DashboardPdfDocument) => Promise<BinaryContent>
 }
 
 export interface ApplicationServices {

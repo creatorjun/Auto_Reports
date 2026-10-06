@@ -13,6 +13,7 @@ import { siteApi } from '@/infrastructure/api/siteApi'
 import { slaDashboardApi } from '@/infrastructure/api/slaDashboardApi'
 import { issueManagementApi } from '@/infrastructure/api/issueManagementApi'
 import { dashboardPdfExporter } from '@/infrastructure/export/dashboardPdfExporter'
+import { dashboardExcelExporter } from '@/infrastructure/export/dashboardExcelExporter'
 import { storageApi } from '@/infrastructure/api/storageApi'
 import { configureHttpClient } from '@/infrastructure/api/client'
 import { ApplicationServicesProvider } from '@/presentation/context/ApplicationServicesContext'
@@ -34,7 +35,7 @@ configureHttpClient({
 })
 
 const services = {
-  dashboardExport: dashboardPdfExporter,
+  dashboardExport: { ...dashboardPdfExporter, ...dashboardExcelExporter },
   auth: authApi,
   reports: reportApi,
   sites: siteApi,

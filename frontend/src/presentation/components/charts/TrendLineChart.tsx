@@ -18,7 +18,7 @@ export default function TrendLineChart({ created, resolved, onBarClick, periodLa
   ]
 
   return (
-    <div data-pdf-kind="chart" className="card">
+    <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['기간', '생성 건수', '해결 건수'], rows: [[periodLabel, created, resolved]] }) : undefined} className="card">
       <h3 className="text-sm font-semibold text-gray-700 mb-4">⚖️ 생성 vs 해결</h3>
       <ResponsiveContainer width="100%" height={360}>
         <BarChart data={data}>

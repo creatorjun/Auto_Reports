@@ -22,7 +22,7 @@
 | `pdfjs-dist` | ^4.4.168 | PDF 렌더링 |
 | `pdfmake` | 0.3.11 | 대시보드·연간 보고서 PDF 생성, SVG 차트·표·한글 글꼴 포함 |
 | `mammoth` | ^1.8.0 | Word(.docx) → HTML 변환 |
-| `xlsx` | ^0.18.5 | Excel 파싱 |
+| `xlsx` | ^0.18.5 | Excel 파싱과 필터가 적용된 대시보드 Excel 생성 |
 | `marked` | ^13.0.0 | Markdown → HTML |
 | `react-markdown` | ^9.0.1 | Markdown 렌더 컴포넌트 |
 | `remark-gfm` | ^4.0.0 | GitHub Flavored Markdown |

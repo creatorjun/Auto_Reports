@@ -30,8 +30,9 @@ function TypeBarChart({ byType, title = '⏱️ 유형별 평균 처리일', sub
   const unitLabel = valueUnit === 'hours' ? '시간' : '일'
   const averageField = valueUnit === 'hours' ? 'avg_hours' : 'avg_days'
   const data = Object.entries(byType).map(([name, d]) => ({ name, avg_days: d.avg_days, avg_hours: d.avg_hours, count: d.count }))
+  const exportTable = exportMode ? JSON.stringify({ headers: ['분류', '처리 대상 건수', '평균 소요 일', '평균 소요 시간'], rows: data.map((row) => [row.name, row.count, row.avg_days, row.avg_hours]) }) : undefined
   if (!data.length) return emptyMessage ? (
-    <div data-pdf-kind="text" className="card">
+    <div data-pdf-kind="text" data-export-table={exportTable} className="card">
       <h3 className="text-sm font-semibold text-apple-dark mb-4">{title}</h3>
       {subtitle && <p className="text-ui-xs text-apple-light mb-4">{subtitle}</p>}
       <p className="py-8 text-center text-ui-sm text-apple-light">{emptyMessage}</p>
@@ -45,7 +46,7 @@ function TypeBarChart({ byType, title = '⏱️ 유형별 평균 처리일', sub
       : value
   }
   return (
-    <div data-pdf-kind="chart" className="card">
+    <div data-pdf-kind="chart" data-export-table={exportTable} className="card">
       <h3 className="text-sm font-semibold text-apple-dark mb-4">{title}</h3>
       {subtitle && <p className="text-ui-xs text-apple-light mb-4">{subtitle}</p>}
       <ResponsiveContainer width="100%" height={horizontal ? Math.max(CHART_HEIGHT, data.length * 36) : CHART_HEIGHT} onResize={exportMode ? (width) => setChartWidth(width) : undefined}>

@@ -109,7 +109,7 @@ function MonthlyRedeploymentChart({ data, onDetails }: { data: RedeploymentAnaly
         .reduce((sum, [, count]) => sum + count, 0)
     : 0
   return (
-    <div data-pdf-kind="chart" className="card">
+    <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['월', ...issueTypes, '합계'], rows: chartData.map((row) => [row.month, ...issueTypes.map((type) => (row as Record<string, string | number>)[type] ?? 0), row.total]) }) : undefined} className="card">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h3 className="text-ui-base font-semibold text-apple-dark">월별 재배포 추이</h3>
@@ -159,7 +159,7 @@ function CauseChart({ values, onDetails }: { values: Record<string, number>; onD
   const data = Object.entries(values).map(([name, value]) => ({ name, value }))
   const total = data.reduce((sum, entry) => sum + entry.value, 0)
   return (
-    <div data-pdf-kind="chart" className="card">
+    <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['재배포 원인', '건수', '비율 (%)'], rows: data.map((row) => [row.name, row.value, total > 0 ? row.value / total * 100 : 0]) }) : undefined} className="card">
       <h3 className="text-ui-base font-semibold text-apple-dark">재배포 원인</h3>
       <p className="mt-1 text-sm text-apple-mid">원인별 건수와 구성비</p>
       {data.length ? (
@@ -210,7 +210,7 @@ function AssigneeChart({ values, onDetails }: { values: Record<string, number>; 
       : value
   }
   return (
-    <div data-pdf-kind="chart" className="card">
+    <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['담당자', '건수'], rows: data.map((row) => [row.name, row.value]) }) : undefined} className="card">
       <h3 className="text-ui-base font-semibold text-apple-dark">담당자별 재배포</h3>
       <p className="mt-1 text-sm text-apple-mid">상위 10명 기준 · 건수</p>
       {data.length ? (

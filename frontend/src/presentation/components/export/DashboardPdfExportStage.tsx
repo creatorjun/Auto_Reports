@@ -1,11 +1,12 @@
 // frontend/src/presentation/components/export/DashboardPdfExportStage.tsx
 import { Component, useEffect, useRef, type ReactNode } from 'react'
-import type { DashboardPdfDocument } from '@/domain/DashboardExport'
+import type { DashboardExportFormat, DashboardPdfDocument } from '@/domain/DashboardExport'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import { DashboardExportProvider } from '@/presentation/context/DashboardExportContext'
 import { captureDashboardPdf, waitForDashboardPdf } from '@/presentation/utils/dashboardPdfCapture'
 
 interface Props {
+  format?: DashboardExportFormat
   metadata: Omit<DashboardPdfDocument, 'sections'>
   fileName: string
   children: ReactNode
@@ -29,7 +30,7 @@ class ExportBoundary extends Component<{ children: ReactNode; onError: Props['on
   }
 }
 
-function ExportStage({ metadata, fileName, children, onComplete, onError }: Props) {
+function ExportStage({ format = 'pdf', metadata, fileName, children, onComplete, onError }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const { dashboardExport } = useApplicationServices()
 
@@ -39,11 +40,11 @@ function ExportStage({ metadata, fileName, children, onComplete, onError }: Prop
     if (!element) return
     element.inert = true
 
-    const exportPdf = async () => {
+    const exportDocument = async () => {
       await waitForDashboardPdf(element, () => active)
       if (!active) return
       const document = captureDashboardPdf(element, metadata)
-      const content = await dashboardExport.renderPdf(document)
+      const content = await (format === 'xlsx' ? dashboardExport.renderExcel(document) : dashboardExport.renderPdf(document))
       if (!active) return
       const objectUrl = content.createObjectUrl()
       const link = window.document.createElement('a')
@@ -59,11 +60,11 @@ function ExportStage({ metadata, fileName, children, onComplete, onError }: Prop
       onComplete()
     }
 
-    void exportPdf().catch(() => {
-      if (active) onError('PDF를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    void exportDocument().catch(() => {
+      if (active) onError(`${format === 'xlsx' ? 'Excel' : 'PDF'} 파일을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.`)
     })
     return () => { active = false }
-  }, [dashboardExport, fileName, metadata, onComplete, onError])
+  }, [dashboardExport, format, fileName, metadata, onComplete, onError])
 
   return (
     <div ref={root} aria-hidden="true" className="dashboard-pdf-stage">

@@ -40,11 +40,12 @@ function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
   const exportMode = useDashboardExportMode()
   const gradientId = `mc-grad-${useId().replace(/:/g, '')}`
   const chartData  = monthly.map((e) => ({ month: e.month, count: e.count }))
+  const exportTable = exportMode ? JSON.stringify({ headers: ['월', '건수'], rows: chartData.map((row) => [row.month, row.count]) }) : undefined
   const hasData    = chartData.some((d) => d.count > 0)
 
   if (!hasData) {
     return (
-      <div data-pdf-kind="chart" className="card flex flex-col gap-2">
+      <div data-pdf-kind="chart" data-export-table={exportTable} className="card flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
           <span className="text-ui-xs text-apple-light">{subtitle}</span>
@@ -57,7 +58,7 @@ function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
   }
 
   return (
-    <div data-pdf-kind="chart" className="card">
+    <div data-pdf-kind="chart" data-export-table={exportTable} className="card">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
         <span className="text-ui-xs text-apple-light">{subtitle}</span>

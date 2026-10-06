@@ -61,7 +61,7 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle,
 
   return (
     <div className="card min-w-0">
-      <div data-pdf-kind="chart" data-pdf-title="월별 등록 · 해결 비교">
+      <div data-pdf-kind="chart" data-pdf-title="월별 등록 · 해결 비교" data-export-table={exportMode ? JSON.stringify({ headers: ['월', '등록 건수', '해결 건수'], rows: rows.map((row) => [row.month, row.created, row.resolved]) }) : undefined}>
         <div className="mb-5 flex flex-wrap items-start justify-between gap-2">
           <div>
             <h3 className="text-ui-base font-semibold text-apple-dark">월별 등록 · 해결 비교</h3>

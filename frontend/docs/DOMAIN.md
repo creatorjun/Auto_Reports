@@ -17,7 +17,7 @@
 | `SlaDashboard.ts` | 최근 이슈 활동, 댓글과 댓글 페이지 표시 계약 |
 | `Storage.ts` | `StorageItem`, `StorageFile`, `StorageQuota` |
 | `Dashboard.ts` | SLA·월별·상태별 widget 표시 모델 |
-| `DashboardExport.ts` | PDF 문서 메타데이터, 섹션, 지표·텍스트·SVG 차트·표 블록 |
+| `DashboardExport.ts` | PDF·Excel 형식, 문서 메타데이터, 섹션, 지표·텍스트·SVG 차트·표 블록과 차트 수치 데이터 |
 | `DashboardIssueTypePolicy.ts` | 대시보드·연간 보고서의 통계 제외 및 요청 유형 선택항목 정책 |
 | `DashboardStatusPolicy.ts` | 대시보드·연간 보고서·파트너사의 현재 상태 선택 및 표시 순서 정책 |
 | `WidgetId.ts` | 대시보드 최초 렌더 순서에 맞춘 widget ID 계약 |
@@ -28,7 +28,7 @@
 
 widget ID는 화면에서 데이터가 처음 렌더링되는 순서를 따릅니다.
 
-`DashboardPdfDocument`는 내보낼 보고서 제목·기간·내보낸 시각·선택 필터와 섹션 목록을 표현합니다. 섹션은 `DashboardPdfBlock`의 지표, 텍스트, SVG 차트, 표 모델로 구성합니다. DOM 탐색과 다운로드 수명 관리는 이 타입에 포함하지 않으며, Presentation이 문서를 구성하고 Application gateway를 통해 Infrastructure의 PDF 생성기로 전달합니다.
+`DashboardPdfDocument`는 PDF와 Excel이 공유하는 보고서 제목·기간·내보낸 시각·선택 필터와 섹션 목록을 표현합니다. 섹션은 `DashboardPdfBlock`의 지표, 텍스트, SVG 차트, 표 모델로 구성하고 차트의 원본 수치는 `DashboardExportTableData`로 보존합니다. `DashboardExportFormat`은 `pdf`와 `xlsx`를 구분합니다. DOM 탐색과 다운로드 수명 관리는 이 타입에 포함하지 않으며, Presentation이 문서를 구성하고 Application gateway를 통해 Infrastructure의 해당 생성기로 전달합니다.
 
 `SlaDashboardIssue`는 최신 보고서의 최근 이슈 티켓 번호, 최초 생성 시각, 댓글을 포함한 마지막 업데이트 시각, 진행 상태를 표현합니다. `SlaDashboardComment`는 댓글의 작성자, 본문, 작성·수정 시각을 표현합니다. `SlaDashboardCommentPage`는 요청한 `limit`(기본값 5) 이내의 최신순 댓글을 담은 `comments`와 다음 조회 위치인 `next_offset`을 표현하며, 마지막 댓글까지 조회한 응답의 `next_offset`은 `null`입니다. SLA 화면은 `offset=0`에서 조회 개수를 5개씩 늘리며, 가장 최근에 성공한 누적 응답을 표시합니다.
 

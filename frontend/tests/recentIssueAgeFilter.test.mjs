@@ -437,7 +437,7 @@ for (const { comparison, label, threshold, firstDay } of [
     assert.equal(details.at(-1).elapsed_days, 84)
   })
 
-  test(`dashboard export snapshots retain the applied ${comparison} threshold after the visible filter changes`, async (t) => {
+  for (const format of ['pdf', 'xlsx']) test(`${format} dashboard export snapshots retain the applied ${comparison} threshold after the visible filter changes`, async (t) => {
     const DashboardContent = loadDashboardContent()
     const details = Object.freeze(Array.from({ length: 85 }, (_, index) => Object.freeze(issue(index))))
     const report = {
@@ -455,9 +455,12 @@ for (const { comparison, label, threshold, firstDay } of [
     type(view, '10')
     const otherComparison = comparison === 'gte' ? 'lte' : 'gte'
     selectComparison(view, otherComparison)
-    await act(async () => button(view, 'PDF 내보내기').props.onClick())
+    act(() => view.root.findByProps({ 'aria-label': '다운로드 형식' }).props.onChange({ target: { value: format } }))
+    await act(async () => button(view, `${format === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`).props.onClick())
 
     const stage = view.root.findByType('ExportStage')
+    assert.equal(stage.props.format, format)
+    assert.ok(stage.props.fileName.endsWith(`.${format}`))
     const expectedKeys = Array.from({ length: 65 }, (_, index) => `TACEA-${String(index + firstDay).padStart(3, '0')}`)
     assert.ok(stage.props.metadata.filters.includes(`최근 이슈: 경과일 ${threshold}일 ${label}`))
     assert.deepEqual(keys(stage), expectedKeys)
@@ -474,7 +477,7 @@ for (const { comparison, label, threshold, firstDay } of [
 }
 
 for (const scope of ['standard', 'annual']) {
-  test(`${scope} dashboard keeps column search in its PDF snapshot after live filters change`, async (t) => {
+  for (const format of ['pdf', 'xlsx']) test(`${scope} dashboard keeps column search in its ${format} snapshot after live filters change`, async (t) => {
     const DashboardContent = loadDashboardContent()
     const details = Object.freeze(Array.from({ length: 130 }, (_, index) => Object.freeze(issue(index, {
       summary: index < 65 ? '[서울교통공사] 요청' : '[부산] 요청',
@@ -496,9 +499,15 @@ for (const scope of ['standard', 'annual']) {
     setColumn('제목', ' 서울 ')
     setColumn('TAC 담당자', '담당')
     assert.equal(keys(view).length, 50)
-    await act(async () => button(view, 'PDF 내보내기').props.onClick())
+    act(() => view.root.findByProps({ 'aria-label': '다운로드 형식' }).props.onChange({ target: { value: format } }))
+    const downloadButton = button(view, `${format === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`)
+    await act(async () => { downloadButton.props.onClick(); downloadButton.props.onClick() })
 
     const stage = view.root.findByType('ExportStage')
+    assert.equal(stage.props.format, format)
+    assert.ok(stage.props.fileName.endsWith(`.${format}`))
+    assert.equal(view.root.findAllByType('ExportStage').length, 1)
+    assert.equal(view.root.findByProps({ 'aria-label': '다운로드 형식' }).props.disabled, true)
     const expectedKeys = Array.from({ length: 65 }, (_, index) => `TACEA-${String(index).padStart(3, '0')}`)
     assert.deepEqual(keys(stage), expectedKeys)
     assert.equal(stage.findAllByType('input').length, 0)
@@ -512,6 +521,64 @@ for (const scope of ['standard', 'annual']) {
     assert.ok(stage.props.metadata.filters.includes('최근 이슈 제목: 서울'))
     assert.equal(details[0].summary, '[서울교통공사] 요청')
     assert.equal(details[65].summary, '[부산] 요청')
+    act(() => stage.props.onError('내보내기 실패'))
+    assert.equal(view.root.findAllByType('ExportStage').length, 0)
+    assert.equal(view.root.findByProps({ 'aria-label': '다운로드 형식' }).props.disabled, false)
+    assert.equal(button(view, `${format === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`).props.disabled, false)
+    await act(async () => button(view, `${format === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`).props.onClick())
+    assert.ok(view.root.findByType('ExportStage').props.metadata.filters.includes('최근 이슈 제목: 부산'))
+  })
+}
+
+for (const format of ['pdf', 'xlsx']) {
+  test(`${format} freezes intersecting type, status, semester, elapsed-day and column filters including zero matches`, async (t) => {
+    const DashboardContent = loadDashboardContent()
+    const details = [
+      issue(30, { key: 'MATCH', type: '인시던트', status: '처리 중', created: '2026-01-01', summary: '서울 요청' }),
+      issue(31, { key: 'OTHER-TYPE', type: '개선', status: '처리 중', created: '2026-01-01', summary: '서울 요청' }),
+      issue(32, { key: 'OTHER-STATUS', type: '인시던트', status: 'Closed', created: '2026-01-01', summary: '서울 요청' }),
+      issue(33, { key: 'OTHER-SEMESTER', type: '인시던트', status: '처리 중', created: '2026-09-01', summary: '서울 요청' }),
+      issue(1, { key: 'OTHER-AGE', type: '인시던트', status: '처리 중', created: '2026-01-01', summary: '서울 요청' }),
+      issue(34, { key: 'OTHER-TITLE', type: '인시던트', status: '처리 중', created: '2026-01-01', summary: '부산 요청' }),
+    ]
+    const monthly = Array.from({ length: 12 }, (_, index) => ({ month: `${index + 1}월`, year: 2026, month_num: index + 1,
+      count: 0, by_type: {}, by_status_type: {}, always_included: 0 }))
+    const report = { id: 1, scope: 'standard', report_year: null, week_start: '2026-01-01', week_end: '2026-09-30',
+      report_date: '2026-09-30', ai_analysis: null, widgets: {
+        w1: { total: 6, data: { issue_types: ['인시던트', '개선'], by_type: { '인시던트': 5, '개선': 1 }, always_included: 0, status_breakdown_available: true } },
+        w2: { total: 0, data: { by_type: {}, always_included: 0, status_breakdown_available: true } },
+        w7: { total: 6, data: { issue_details: details } }, w8: { data: { monthly } }, w9: { data: { monthly } },
+        w10: { data: { monthly: monthly.map((row) => ({ ...row, met: 0, total: 0, rate: 0 })) } },
+        w11: { data: { monthly: monthly.map((row) => ({ ...row, met: 0, total: 0, rate: 0 })) } },
+        w14: { data: { by_type: {}, by_status_type: {}, by_semester_status_type: {} } },
+      } }
+    let view
+    await act(async () => { view = TestRenderer.create(React.createElement(DashboardContent, { report })) })
+    t.after(() => act(() => view.unmount()))
+    const controls = () => view.root.find((node) => typeof node.props.onSemesterChange === 'function')
+    act(() => {
+      controls().props.onToggle('개선')
+      controls().props.onStatusToggle('Closed')
+      controls().props.onSemesterChange('h1')
+    })
+    type(view, '20')
+    submit(view)
+    const setTitle = (value) => act(() => view.root.findAllByType('input').find((node) => node.props['aria-label'] === '제목 컬럼 검색').props.onChange({ target: { value } }))
+    setTitle('서울')
+    assert.deepEqual(keys(view), ['MATCH'])
+    act(() => view.root.findByProps({ 'aria-label': '다운로드 형식' }).props.onChange({ target: { value: format } }))
+    await act(async () => button(view, `${format === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`).props.onClick())
+    const stage = view.root.findByType('ExportStage')
+    assert.deepEqual(keys(stage), ['MATCH'])
+    assert.deepEqual(stage.props.metadata.filters, ['상반기', '인시던트', '처리 중', '최근 이슈: 경과일 20일 이상', '최근 이슈 제목: 서울'])
+    act(() => controls().props.onReset())
+    setTitle('없는 제목')
+    assert.deepEqual(keys(stage), ['MATCH'])
+    act(() => stage.props.onComplete())
+    await act(async () => button(view, `${format === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`).props.onClick())
+    const emptyStage = view.root.findByType('ExportStage')
+    assert.deepEqual(keys(emptyStage), [])
+    assert.match(textOf(emptyStage), /검색 조건에 맞는 이슈가 없습니다/)
   })
 }
 

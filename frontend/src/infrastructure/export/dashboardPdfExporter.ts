@@ -2,7 +2,7 @@
 import type { DashboardExportGateway } from '@/application/ports/ApplicationServices'
 import { createBinaryContent } from '@/infrastructure/api/binaryContent'
 
-export const dashboardPdfExporter: DashboardExportGateway = {
+export const dashboardPdfExporter: Pick<DashboardExportGateway, 'renderPdf'> = {
   async renderPdf(document) {
     const [{ default: pdfMake }, { buildDashboardPdfDefinition }, regular, bold] = await Promise.all([
       import('pdfmake/build/pdfmake'),

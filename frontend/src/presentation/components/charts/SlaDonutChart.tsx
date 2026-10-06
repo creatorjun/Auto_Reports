@@ -39,10 +39,11 @@ interface Props {
 function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
   const exportMode = useDashboardExportMode()
   const data = distribution.map((d) => ({ name: d.stage, value: d.count }))
+  const exportTable = exportMode ? JSON.stringify({ headers: ['위반 구분', '건수', '비율 (%)'], rows: distribution.map((row) => [row.stage, row.count, row.rate]) }) : undefined
 
   if (total === 0 || data.length === 0) {
     return (
-      <div data-pdf-kind="chart" className="card flex flex-col items-center justify-center" style={{ minHeight: CHART_HEIGHT }}>
+      <div data-pdf-kind="chart" data-export-table={exportTable} className="card flex flex-col items-center justify-center" style={{ minHeight: CHART_HEIGHT }}>
         <h3 className="text-sm font-semibold text-gray-700 mb-2">🎯 SLA 위반 분포</h3>
         <p className="text-sm text-gray-400">위반 없음</p>
       </div>
@@ -56,7 +57,7 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
   }
 
   return (
-    <div data-pdf-kind="chart" className="card">
+    <div data-pdf-kind="chart" data-export-table={exportTable} className="card">
       <h3 className="text-sm font-semibold text-gray-700 mb-4">🎯 SLA 위반 분포</h3>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <PieChart>

@@ -33,8 +33,10 @@ TanStack Query 기반 hook은 `src/presentation/hooks`에 있으며 `useApplicat
 
 ## PDF 생성 adapter
 
-`DashboardExportGateway.renderPdf(document)`는 `DashboardPdfDocument`를 받아 `BinaryContent`를 반환하는 Application 계약입니다. `main.tsx`가 `dashboardPdfExporter`를 `ApplicationServices.dashboardExport`에 주입하며, Presentation은 pdfmake를 직접 import하지 않습니다.
+`DashboardExportGateway.renderPdf(document)`와 `renderExcel(document)`은 같은 `DashboardPdfDocument`를 받아 `BinaryContent`를 반환하는 Application 계약입니다. `main.tsx`가 `dashboardPdfExporter`와 `dashboardExcelExporter`를 조립하여 `ApplicationServices.dashboardExport`에 주입하며, Presentation은 pdfmake나 xlsx를 직접 import하지 않습니다.
 
 `dashboardPdfExporter.ts`는 내보내기 요청 시 pdfmake와 `dashboardPdfDefinition.ts`를 지연 로드합니다. 문서는 A4 가로 방향으로 구성하고, 차트는 SVG 벡터와 2열 배치를 사용합니다. 표는 페이지가 넘어가면 제목과 열 머리글을 반복합니다.
 
 NanumGothic Regular·Bold 글꼴은 `src/assets/fonts`에서 앱과 함께 배포하고 PDF에 포함합니다. PDF 생성은 브라우저에서 수행하며, 별도 백엔드 변환 API·CDN·외부 문서 앱을 호출하지 않습니다. 생성 결과는 기존 `BinaryContent` 경계를 통해 다운로드하고 object URL을 해제합니다.
+
+`dashboardExcelExporter.ts`는 기존 xlsx 의존성과 `dashboardExcelWorkbook.ts`를 지연 로드합니다. 적용 필터를 정보 시트에, 각 지표·차트 수치·표를 별도 시트에 저장합니다. 차트의 숫자와 빈 값, 이슈 문자열과 링크를 보존하고 시트 이름의 길이·금지 문자·중복을 처리합니다. Excel 생성과 다운로드도 브라우저 안에서 완료하며 PDF와 같은 바이너리 수명 계약을 사용합니다.
