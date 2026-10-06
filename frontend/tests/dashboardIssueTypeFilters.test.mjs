@@ -187,7 +187,7 @@ test('license filter displays 라이센스 while toggles retain the Jira issue t
     statusSupported: true,
     semesterSupported: true,
     onToggle: (type) => calls.push(type),
-    onStatusToggle() {}, onSemesterChange() {}, onReset() {},
+    onStatusToggle() {}, onSemesterChange() {}, onToggleAll() {},
   }
   let view
   act(() => { view = TestRenderer.create(createElement(IssueTypeFilter, props)) })
@@ -215,6 +215,38 @@ test('saved reports without license metadata do not fabricate a selectable licen
   assert.deepEqual(data.filter.issueTypes, ['서비스 요청', '개선'])
 })
 
+test('bulk filter action follows every available choice and ignores unsupported groups', () => {
+  const base = {
+    issueTypes: VISIBLE_TYPES, statuses: STATUSES, selectedTypes: null, selectedStatuses: null,
+    selectedSemester: 'h1', titleSearch: '검색어', supported: true, statusSupported: true, semesterSupported: true,
+    onToggle() {}, onStatusToggle() {}, onSemesterChange() {},
+  }
+  const cases = [
+    [{}, '전체 해제', false],
+    [{ selectedTypes: new Set(['서비스 요청']) }, '전체 선택', true],
+    [{ selectedStatuses: new Set(['할 일']) }, '전체 선택', true],
+    [{ selectedTypes: new Set(), selectedStatuses: new Set() }, '전체 선택', true],
+    [{ selectedTypes: new Set(VISIBLE_TYPES), selectedStatuses: new Set(STATUSES) }, '전체 해제', false],
+    [{ selectedTypes: new Set(['서비스 요청', '개선', '지난 보고서 유형']) }, '전체 선택', true],
+    [{ supported: false, selectedTypes: new Set() }, '전체 해제', false],
+    [{ statusSupported: false, selectedStatuses: new Set() }, '전체 해제', false],
+    [{ issueTypes: [], statuses: [] }, '전체 해제', null],
+  ]
+  for (const [changes, label, expected] of cases) {
+    const calls = []
+    let view
+    act(() => { view = TestRenderer.create(createElement(IssueTypeFilter, { ...base, ...changes, onToggleAll: (selected) => calls.push(selected) })) })
+    const action = view.root.findAllByType('button').find((button) => button.children.includes(label))
+    assert.ok(action, label)
+    assert.equal(action.props.disabled, expected === null)
+    if (expected !== null) {
+      act(() => action.props.onClick())
+      assert.deepEqual(calls, [expected])
+    }
+    act(() => view.unmount())
+  }
+})
+
 for (const scope of ['standard', 'annual']) {
   test(`${scope} filters omit the two choices while default statistics retain their issues`, () => {
     const report = fixtureReport(scope)
@@ -233,7 +265,7 @@ for (const scope of ['standard', 'annual']) {
       supported: data.filter.supportsIssueTypeFiltering,
       statusSupported: data.filter.supportsStatusFiltering,
       semesterSupported: data.filter.supportsSemesterFiltering,
-      onToggle() {}, onStatusToggle() {}, onSemesterChange() {}, onReset() {},
+      onToggle() {}, onStatusToggle() {}, onSemesterChange() {}, onToggleAll() {},
     }))
     assert.doesNotMatch(markup, /승인된 서비스 요청|케이스|라이선스/)
     assert.match(markup, /aria-expanded="false"/)

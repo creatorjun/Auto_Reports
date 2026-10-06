@@ -18,7 +18,7 @@ interface Props {
   onToggle: (issueType: string) => void
   onStatusToggle: (status: string) => void
   onSemesterChange: (semester: Semester | null) => void
-  onReset: () => void
+  onToggleAll: (selected: boolean) => void
 }
 
 export default function IssueTypeFilter({
@@ -35,12 +35,14 @@ export default function IssueTypeFilter({
   onToggle,
   onStatusToggle,
   onSemesterChange,
-  onReset,
+  onToggleAll,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
-  const selectedCount = selectedTypes?.size ?? issueTypes.length
-  const selectedStatusCount = selectedStatuses?.size ?? statuses.length
-  const hasFilters = selectedTypes !== null || selectedStatuses !== null || selectedSemester !== null || titleSearch !== ''
+  const selectedCount = issueTypes.filter((type) => selectedTypes === null || selectedTypes.has(type)).length
+  const selectedStatusCount = statuses.filter((status) => selectedStatuses === null || selectedStatuses.has(status)).length
+  const allSelected = (!supported || selectedCount === issueTypes.length)
+    && (!statusSupported || selectedStatusCount === statuses.length)
+  const hasOptions = (supported && issueTypes.length > 0) || (statusSupported && statuses.length > 0)
 
   return (
     <section className="card" aria-labelledby="issue-type-filter-title">
@@ -61,14 +63,14 @@ export default function IssueTypeFilter({
           )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1">
-          {(supported || statusSupported || semesterSupported) && (
+          {(supported || statusSupported) && (
             <button
               type="button"
-              onClick={onReset}
-              disabled={!hasFilters}
-              className="inline-flex min-h-9 items-center justify-center rounded-lg px-3 text-xs font-semibold text-apple-mid transition-colors hover:bg-apple-gray hover:text-brand-600 disabled:cursor-default disabled:opacity-40"
+              onClick={() => onToggleAll(!allSelected)}
+              disabled={!hasOptions}
+              className="inline-flex min-h-9 items-center justify-center rounded-lg px-3 text-xs font-semibold text-apple-mid transition-colors hover:bg-apple-gray hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-40"
             >
-              초기화
+              {allSelected ? '전체 해제' : '전체 선택'}
             </button>
           )}
           <button

@@ -52,6 +52,7 @@ function loadDashboardContent() {
     if (dependency === '@/presentation/hooks/useReport') return {}
     if (dependency === '@/presentation/state/reportStore') return { useReportStore: () => ({ setCurrentReport }) }
     if (dependency === '@/presentation/components/charts/RecentIssuesWidget') return { default: RecentIssuesWidget }
+    if (dependency === '@/presentation/components/common/IssueTypeFilter') return loadSource('presentation/components/common/IssueTypeFilter')
     if (dependency === '@/presentation/components/annual/AnnualReportHeader') return loadSource('presentation/components/annual/AnnualReportHeader')
     if (['SlaMonthlyLineChart', 'TypeBarChart'].some(name => dependency.endsWith(`/charts/${name}`))) return {
       default: (props) => React.createElement('DashboardChart', props),
@@ -571,7 +572,7 @@ for (const format of ['pdf', 'xlsx']) {
     const stage = view.root.findByType('ExportStage')
     assert.deepEqual(keys(stage), ['MATCH'])
     assert.deepEqual(stage.props.metadata.filters, ['상반기', '인시던트', '처리 중', '최근 이슈: 경과일 20일 이상', '최근 이슈 제목: 서울'])
-    act(() => controls().props.onReset())
+    act(() => controls().props.onToggleAll(true))
     setTitle('없는 제목')
     assert.deepEqual(keys(stage), ['MATCH'])
     act(() => stage.props.onComplete())
@@ -579,6 +580,58 @@ for (const format of ['pdf', 'xlsx']) {
     const emptyStage = view.root.findByType('ExportStage')
     assert.deepEqual(keys(emptyStage), [])
     assert.match(textOf(emptyStage), /검색 조건에 맞는 이슈가 없습니다/)
+  })
+}
+
+for (const scope of ['standard', 'annual']) {
+  test(`${scope} dashboard toggles all choices, restores partial selection and preserves independent search filters`, async (t) => {
+    const DashboardContent = loadDashboardContent()
+    const details = [
+      issue(30, { key: 'MATCH', type: '인시던트', status: '처리 중', created: '2026-01-01', summary: '서울 요청' }),
+      issue(31, { key: 'OTHER-TYPE', type: '개선', status: 'Closed', created: '2026-01-01', summary: '서울 요청' }),
+      issue(32, { key: 'OUTSIDE', type: '케이스', status: '처리 중', created: '2026-01-01', summary: '서울 요청' }),
+      issue(33, { key: 'OTHER-SEMESTER', type: '인시던트', status: '처리 중', created: '2026-09-01', summary: '서울 요청' }),
+    ]
+    const monthly = Array.from({ length: 12 }, (_, index) => ({ month: `${index + 1}월`, year: 2026, month_num: index + 1,
+      count: 0, by_type: {}, by_status_type: {}, always_included: 0 }))
+    const slaMonthly = monthly.map((row) => ({ ...row, met: 0, total: 0, rate: 0, always_included: { met: 0, total: 0 } }))
+    const report = { id: 1, scope, report_year: scope === 'annual' ? 2026 : null,
+      week_start: '2026-01-01', week_end: '2026-09-30', report_date: '2026-09-30', ai_analysis: null, widgets: {
+        w1: { total: 4, data: { issue_types: ['인시던트', '개선'], by_type: { '인시던트': 2, '개선': 1 }, always_included: 1, status_breakdown_available: true } },
+        w2: { total: 0, data: { by_type: {}, always_included: 0, status_breakdown_available: true } },
+        w7: { total: 4, data: { issue_details: details } }, w8: { data: { monthly } }, w9: { data: { monthly } },
+        w10: { data: { monthly: slaMonthly } }, w11: { data: { monthly: slaMonthly } },
+        w14: { data: { by_type: {}, by_status_type: {}, by_semester_status_type: {} } },
+      } }
+    let view
+    await act(async () => { view = TestRenderer.create(React.createElement(DashboardContent, { report })) })
+    t.after(() => act(() => view.unmount()))
+    const controls = () => view.root.find((node) => typeof node.props.onSemesterChange === 'function')
+    act(() => controls().props.onSemesterChange('h1'))
+    type(view, '20')
+    submit(view)
+    const column = () => view.root.findByProps({ 'aria-label': '제목 컬럼 검색' })
+    act(() => column().props.onChange({ target: { value: '서울' } }))
+    assert.deepEqual(keys(view), ['MATCH', 'OTHER-TYPE', 'OUTSIDE'])
+    click(button(view, '전체 해제'))
+    assert.deepEqual(keys(view), [])
+    assert.equal(controls().props.selectedTypes.size, 0)
+    assert.equal(controls().props.selectedStatuses.size, 0)
+    assert.ok(button(view, '전체 선택'))
+    act(() => { controls().props.onToggle('인시던트'); controls().props.onStatusToggle('처리 중') })
+    assert.deepEqual(keys(view), ['MATCH', 'OUTSIDE'])
+    click(button(view, '전체 선택'))
+    assert.equal(controls().props.selectedTypes, null)
+    assert.equal(controls().props.selectedStatuses, null)
+    assert.equal(controls().props.selectedSemester, 'h1')
+    assert.equal(input(view).props.value, '20')
+    assert.equal(column().props.value, '서울')
+    assert.deepEqual(keys(view), ['MATCH', 'OTHER-TYPE', 'OUTSIDE'])
+    assert.ok(button(view, '전체 해제'))
+    act(() => controls().props.onStatusToggle('Closed'))
+    assert.deepEqual(keys(view), ['MATCH', 'OUTSIDE'])
+    click(button(view, '전체 선택'))
+    assert.deepEqual(keys(view), ['MATCH', 'OTHER-TYPE', 'OUTSIDE'])
   })
 }
 

@@ -264,10 +264,9 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
         onToggle={handleIssueTypeToggle}
         onStatusToggle={handleStatusToggle}
         onSemesterChange={setSelectedSemester}
-        onReset={() => {
-          setSelectedIssueTypes(null)
-          setSelectedStatuses(null)
-          setSelectedSemester(null)
+        onToggleAll={(selected) => {
+          if (supportsIssueTypeFiltering) setSelectedIssueTypes(selected ? null : new Set())
+          if (supportsStatusFiltering) setSelectedStatuses(selected ? null : new Set())
         }}
       />}
       {!isAnnual && report.ai_analysis && effectiveIssueTypes === null && effectiveStatuses === null && effectiveSemester === null && <div data-pdf-section="AI 종합 분석"><AiSummaryCard ai={report.ai_analysis} /></div>}

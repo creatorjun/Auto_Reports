@@ -300,6 +300,27 @@ const searchableRows = [
   issue('OTHER-ROW', { summary: '부산 요청', status: 'Closed', reporter: '김지원', tac_team: '개발팀', tac_assignee: '이담당', created: '2025-01-01 09:00', elapsed_days: 300 }),
 ]
 
+test('issue-management bulk selection toggles all groups while retaining semester and title searches', (t) => {
+  const { view, column } = managementPage(t, searchableRows)
+  const controls = () => view.root.find((node) => typeof node.props.onSemesterChange === 'function')
+  const action = (label) => view.root.findAllByType('button').find((node) => textOf(node) === label)
+  act(() => { controls().props.onSemesterChange('h2'); controls().props.onTitleSearchChange('ABC') })
+  column('제목', '서울')
+  assert.deepEqual(tableKeys(view.root), ['TACEA-TARGET'])
+  click(action('전체 해제'))
+  assert.deepEqual(tableKeys(view.root), [])
+  assert.equal(controls().props.selectedTypes.size, 0)
+  assert.equal(controls().props.selectedStatuses.size, 0)
+  click(action('전체 선택'))
+  assert.deepEqual(tableKeys(view.root), ['TACEA-TARGET'])
+  assert.equal(controls().props.selectedSemester, 'h2')
+  assert.equal(controls().props.titleSearch, 'ABC')
+  assert.equal(view.root.findByProps({ 'aria-label': '제목 컬럼 검색' }).props.value, '서울')
+  act(() => controls().props.onStatusToggle('Closed'))
+  click(action('전체 선택'))
+  assert.equal(controls().props.selectedStatuses, null)
+})
+
 for (const format of ['pdf', 'xlsx']) {
   for (const [label, query] of [['이슈', 'tacea'], ['제목', '서울'], ['진행 상태', '처리'], ['보고자', '홍길'], ['담당자', '지원팀'], ['TAC 담당자', '박담당'], ['생성일 (경과)', '2026-09']]) {
     test(`${format} issue-management export includes the active ${label} column query`, (t) => {

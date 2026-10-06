@@ -102,10 +102,9 @@ export default function PartnerManagementPage() {
           onToggle={handleIssueTypeToggle}
           onStatusToggle={handleStatusToggle}
           onSemesterChange={setSelectedSemester}
-          onReset={() => {
-            setSelectedIssueTypes(null)
-            setSelectedStatuses(null)
-            setSelectedSemester(null)
+          onToggleAll={(selected) => {
+            if (supportsIssueTypeFiltering) setSelectedIssueTypes(selected ? null : new Set())
+            if (supportsStatusFiltering) setSelectedStatuses(selected ? null : new Set())
           }}
         />
       )}
