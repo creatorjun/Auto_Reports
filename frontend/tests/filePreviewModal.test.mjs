@@ -44,7 +44,7 @@ function eventTarget() {
   }
 }
 
-function loadApplication({ readPreview, convertPreview, imports = {}, canvasContext = true } = {}) {
+function loadApplication({ readPreview, convertPreview, imports = {}, canvasContext = true, parser } = {}) {
   const document = {
     ...eventTarget(),
     body: { style: { overflow: '' } },
@@ -77,7 +77,7 @@ function loadApplication({ readPreview, convertPreview, imports = {}, canvasCont
     convertPreview: convertPreview ?? (async () => binary('%PDF-1.7')),
   }
   const dependencies = new Map(Object.entries({
-    '@/presentation/context/ApplicationServicesContext': { useApplicationServices: () => ({ storage }) },
+    '@/presentation/context/ApplicationServicesContext': { useApplicationServices: () => ({ storage, previewParser }) },
     'react-markdown': { default: ({ children }) => React.createElement('article', null, children) },
     'remark-gfm': { default: () => {} },
     'rehype-highlight': { default: () => {} },
@@ -115,6 +115,7 @@ function loadApplication({ readPreview, convertPreview, imports = {}, canvasCont
     )
     return module.exports
   }
+  const previewParser = parser ?? loadSource('infrastructure/preview/filePreviewParser.ts').filePreviewParser
   const FilePreviewModal = loadSource('presentation/components/storage/FilePreviewModal.tsx').default
   const canvas = { style: {}, getContext: () => canvasContext ? { scale() {} } : null }
   return {
@@ -264,6 +265,42 @@ test('changing folders reloads a file with the same name', async (t) => {
   await act(async () => next.resolve(binary('second folder content')))
   assertReady(view.renderer, 'second folder content')
 })
+
+for (const [extension, method] of [['xlsx', 'parseWorkbook'], ['docx', 'parseDocument']]) {
+  test(`${extension} ignores a previous file's late result from the injected parser`, async (t) => {
+    const previous = deferred()
+    const calls = []
+    const content = (text) => extension === 'xlsx' ? [{ name: 'Injected sheet', html: `<p>${text}</p>` }] : `<p>${text}</p>`
+    const parser = {
+      [method](buffer) {
+        assert.strictEqual(this, parser)
+        calls.push(new TextDecoder().decode(buffer))
+        return calls.length === 1 ? previous.promise : Promise.resolve(content('current parser content'))
+      },
+    }
+    const app = loadApplication({ parser })
+    const view = await mount(t, app, { name: `first.${extension}` })
+    assertLoading(view.renderer)
+    await view.update({ name: `second.${extension}` })
+    assertReady(view.renderer, 'current parser content')
+    await act(async () => previous.resolve(content('stale parser content')))
+    assertReady(view.renderer, 'current parser content')
+    assert.ok(!visibleText(view.renderer).includes('stale parser content'))
+    assert.equal(calls.length, 2)
+  })
+
+  test(`${extension} ignores an injected parser result after closing`, async (t) => {
+    const pending = deferred()
+    const app = loadApplication({ parser: { [method]: () => pending.promise } })
+    const view = await mount(t, app, { name: `document.${extension}` })
+    assertLoading(view.renderer)
+    await view.close()
+    await act(async () => pending.reject(new Error('late parser failure')))
+    assert.equal(view.renderer.toJSON(), null)
+    assert.equal(app.document.listenerCount(), 0)
+    assert.equal(app.window.listenerCount(), 0)
+  })
+}
 
 test('an XLSX workbook without sheets shows an error instead of loading forever', async (t) => {
   const app = loadApplication({ imports: { xlsx: { read: () => ({ SheetNames: [], Sheets: {} }), utils: { sheet_to_html: () => '' } } } })

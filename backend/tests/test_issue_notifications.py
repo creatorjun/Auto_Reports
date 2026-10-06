@@ -12,6 +12,7 @@ from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import RecentIssueDetail, RecentIssueWidgetData
 from src.domain.value_objects.widget_id import WidgetId
+from src.presentation.email.issue_notification_renderer import IssueNotificationRenderer
 
 
 LICENSE_ALIASES = ("라이선스", "라이센스", "라이선스 요청", "라이센스 요청", " 라이센스 ")
@@ -33,9 +34,10 @@ def widgets_with(*issues: RecentIssueDetail) -> dict[WidgetId, WidgetResult]:
 class IssueNotificationTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.email = AsyncMock(spec=EmailPort)
-        self.todo = NotifyTodoIssuesUseCase(self.email, ["test@example.test"], "https://jira.example.test")
+        renderer = IssueNotificationRenderer()
+        self.todo = NotifyTodoIssuesUseCase(self.email, ["test@example.test"], "https://jira.example.test", renderer)
         self.tac = NotifyTacAssignedUseCase(
-            self.email, ["test@example.test"], "https://jira.example.test", keyword="담당자 A",
+            self.email, ["test@example.test"], "https://jira.example.test", renderer, keyword="담당자 A",
         )
 
     async def test_license_only_todo_issues_never_send_email(self):

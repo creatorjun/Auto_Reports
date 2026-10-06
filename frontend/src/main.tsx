@@ -15,6 +15,7 @@ import { issueManagementApi } from '@/infrastructure/api/issueManagementApi'
 import { dashboardPdfExporter } from '@/infrastructure/export/dashboardPdfExporter'
 import { dashboardExcelExporter } from '@/infrastructure/export/dashboardExcelExporter'
 import { storageApi } from '@/infrastructure/api/storageApi'
+import { filePreviewParser } from '@/infrastructure/preview/filePreviewParser'
 import { configureHttpClient } from '@/infrastructure/api/client'
 import { ApplicationServicesProvider } from '@/presentation/context/ApplicationServicesContext'
 import { useAuthStore } from '@/presentation/state/authStore'
@@ -35,6 +36,7 @@ configureHttpClient({
 })
 
 const services = {
+  previewParser: filePreviewParser,
   dashboardExport: { ...dashboardPdfExporter, ...dashboardExcelExporter },
   auth: authApi,
   reports: reportApi,

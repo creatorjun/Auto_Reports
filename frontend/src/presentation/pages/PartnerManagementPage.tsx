@@ -7,7 +7,7 @@ import PartnerMemberPanel from '@/presentation/components/partner/PartnerMemberP
 import PartnerIssuePanel from '@/presentation/components/partner/PartnerIssuePanel'
 import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
 import { useLatestReport } from '@/presentation/hooks/useReport'
-import { buildDashboardData } from '@/presentation/hooks/useDashboardData'
+import { buildDashboardData } from '@/application/services/dashboardData'
 import { sortDashboardStatuses } from '@/domain/DashboardStatusPolicy'
 import { isLicenseIssueType } from '@/domain/DashboardIssueTypePolicy'
 

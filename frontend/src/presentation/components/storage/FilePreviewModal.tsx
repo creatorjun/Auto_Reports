@@ -9,6 +9,7 @@ import type {
   BinaryObjectUrl,
   StorageGateway,
 } from '@/application/ports/ApplicationServices'
+import type { PreviewParserPort } from '@/application/ports/PreviewParserPort'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 
 type PreviewType =
@@ -21,6 +22,10 @@ interface ContentPreviewProps {
   name: string
   folder: string
   storage: StorageGateway
+}
+
+interface ParsedContentPreviewProps extends ContentPreviewProps {
+  parser: PreviewParserPort
 }
 
 function detectType(name: string): PreviewType {
@@ -74,34 +79,6 @@ function PreviewError({ message }: { message: string }) {
       <p className="text-[12px] text-white/70">{message}</p>
     </div>
   )
-}
-
-function decodePreviewText(buffer: ArrayBuffer): string {
-  const decode = (encoding: string) => new TextDecoder(encoding, { fatal: true }).decode(buffer)
-  try { return decode('utf-8') }
-  catch {
-    try { return decode('euc-kr') }
-    catch { return new TextDecoder('utf-8').decode(buffer) }
-  }
-}
-
-function parsePreviewCsv(buffer: ArrayBuffer): string[][] {
-  return decodePreviewText(buffer).trim().split('\n').map(line => line.split(','))
-}
-
-async function parsePreviewWorkbook(buffer: ArrayBuffer): Promise<{ name: string; html: string }[]> {
-  const XLSX = await import('xlsx')
-  const workbook = XLSX.read(buffer, { type: 'array', codepage: 949, cellStyles: true })
-  if (workbook.SheetNames.length === 0) throw new Error('표시할 시트가 없습니다.')
-  return workbook.SheetNames.map(name => ({
-    name,
-    html: XLSX.utils.sheet_to_html(workbook.Sheets[name], { header: '', footer: '' }),
-  }))
-}
-
-async function parsePreviewDocument(buffer: ArrayBuffer): Promise<string> {
-  const mammoth = await import('mammoth')
-  return (await mammoth.convertToHtml({ arrayBuffer: buffer })).value
 }
 
 function usePreviewContent<T>(
@@ -404,8 +381,9 @@ function PptxPreview({ name, folder, storage, onPageChange }: { name: string; fo
   return <PdfViewer url={pdfUrl!} onPageChange={onPageChange} />
 }
 
-function TextPreview({ name, folder, storage }: ContentPreviewProps) {
-  const { content, error } = usePreviewContent({ name, folder, storage }, decodePreviewText)
+function TextPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
+  const parse = useCallback((buffer: ArrayBuffer) => parser.decodeText(buffer), [parser])
+  const { content, error } = usePreviewContent({ name, folder, storage }, parse)
   if (error) return <PreviewError message={error} />
   if (content === null) return <LoadingSpinnerSmall />
   return (
@@ -415,8 +393,9 @@ function TextPreview({ name, folder, storage }: ContentPreviewProps) {
   )
 }
 
-function MarkdownPreview({ name, folder, storage }: ContentPreviewProps) {
-  const { content, error } = usePreviewContent({ name, folder, storage }, decodePreviewText)
+function MarkdownPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
+  const parse = useCallback((buffer: ArrayBuffer) => parser.decodeText(buffer), [parser])
+  const { content, error } = usePreviewContent({ name, folder, storage }, parse)
   if (error) return <PreviewError message={error} />
   if (content === null) return <LoadingSpinnerSmall />
   return (
@@ -433,8 +412,9 @@ function MarkdownPreview({ name, folder, storage }: ContentPreviewProps) {
   )
 }
 
-function CsvPreview({ name, folder, storage }: ContentPreviewProps) {
-  const { content: rows, error } = usePreviewContent({ name, folder, storage }, parsePreviewCsv)
+function CsvPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
+  const parse = useCallback((buffer: ArrayBuffer) => parser.parseCsv(buffer), [parser])
+  const { content: rows, error } = usePreviewContent({ name, folder, storage }, parse)
   if (error) return <PreviewError message={error} />
   if (rows === null) return <LoadingSpinnerSmall />
   return (
@@ -481,8 +461,9 @@ const XLSX_TABLE_STYLE = `
   }
 `
 
-function XlsxPreview({ name, folder, storage }: ContentPreviewProps) {
-  const { content: sheets, error } = usePreviewContent({ name, folder, storage }, parsePreviewWorkbook)
+function XlsxPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
+  const parse = useCallback((buffer: ArrayBuffer) => parser.parseWorkbook(buffer), [parser])
+  const { content: sheets, error } = usePreviewContent({ name, folder, storage }, parse)
   const [activeSheet, setActiveSheet] = useState(0)
   useEffect(() => { setActiveSheet(0) }, [folder, name, storage])
   if (error) return <PreviewError message={error} />
@@ -512,8 +493,9 @@ function XlsxPreview({ name, folder, storage }: ContentPreviewProps) {
   )
 }
 
-function DocxPreview({ name, folder, storage }: ContentPreviewProps) {
-  const { content: html, error } = usePreviewContent({ name, folder, storage }, parsePreviewDocument)
+function DocxPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
+  const parse = useCallback((buffer: ArrayBuffer) => parser.parseDocument(buffer), [parser])
+  const { content: html, error } = usePreviewContent({ name, folder, storage }, parse)
   if (error) return <PreviewError message={error} />
   if (html === null) return <LoadingSpinnerSmall />
   return (
@@ -547,7 +529,7 @@ interface Props {
 }
 
 export default function FilePreviewModal({ name, folder, fileList = [], onNavigate, onClose }: Props) {
-  const { storage } = useApplicationServices()
+  const { storage, previewParser } = useApplicationServices()
   const type = detectType(name)
   const url = storage.preview(name, folder)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -633,11 +615,11 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
         return <MediaPreview url={url} name={name} type={type} />
       case 'pdf': return <PdfViewer url={url} onPageChange={handlePdfPageChange} />
       case 'text':
-      case 'json': return <TextPreview name={name} folder={folder} storage={storage} />
-      case 'markdown': return <MarkdownPreview name={name} folder={folder} storage={storage} />
-      case 'csv': return <CsvPreview name={name} folder={folder} storage={storage} />
-      case 'xlsx': return <XlsxPreview name={name} folder={folder} storage={storage} />
-      case 'docx': return <DocxPreview name={name} folder={folder} storage={storage} />
+      case 'json': return <TextPreview name={name} folder={folder} storage={storage} parser={previewParser} />
+      case 'markdown': return <MarkdownPreview name={name} folder={folder} storage={storage} parser={previewParser} />
+      case 'csv': return <CsvPreview name={name} folder={folder} storage={storage} parser={previewParser} />
+      case 'xlsx': return <XlsxPreview name={name} folder={folder} storage={storage} parser={previewParser} />
+      case 'docx': return <DocxPreview name={name} folder={folder} storage={storage} parser={previewParser} />
       case 'pptx': return <PptxPreview name={name} folder={folder} storage={storage} onPageChange={handlePdfPageChange} />
       case 'archive': return <ArchivePreview name={name} folder={folder} storage={storage} />
       default:

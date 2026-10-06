@@ -162,6 +162,32 @@ test('domain and application import only internal modules', () => {
   assert.deepEqual(violations, [])
 })
 
+test('presentation delegates workbook and document decoding to parser ports', () => {
+  const violations = files(path.join(source, 'presentation')).flatMap((file) =>
+    imports(file)
+      .filter((dependency) => ['xlsx', 'mammoth'].includes(dependency.split('/')[0]))
+      .map((dependency) => `${path.relative(source, file)}:${dependency}`),
+  )
+  assert.deepEqual(violations, [])
+})
+
+test('dashboard aggregation is independent from React hooks', () => {
+  const calculations = new Set(['buildDashboardData', 'buildFilteredDashboardData', 'resolveDashboardFilterContract'])
+  const violations = []
+  for (const file of files(path.join(source, 'presentation'))) {
+    const visit = (node) => {
+      if (ts.isFunctionDeclaration(node) && node.name && calculations.has(node.name.text)) {
+        violations.push(`${path.relative(source, file)}:${node.name.text}`)
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(parsedSource(file))
+  }
+  assert.deepEqual(violations, [])
+  const hook = path.join(source, 'presentation/hooks/useDashboardData.ts')
+  assert.ok(imports(hook).includes('@/application/services/dashboardData'))
+})
+
 test('infrastructure owns job streaming and file preview transport', () => {
   const reportApi = fs.readFileSync(
     path.join(source, 'infrastructure/api/reportApi.ts'),
@@ -479,7 +505,7 @@ test('dashboard widget ids follow first render order', () => {
 
   for (const relative of [
     'presentation/pages/DashboardPage.tsx',
-    'presentation/hooks/useDashboardData.ts',
+    'application/services/dashboardData.ts',
   ]) {
     const content = fs.readFileSync(path.join(source, relative), 'utf8')
     assert.doesNotMatch(content, /\bw(?:\.w\d+|\[['"]w\d+['"]\])/)
@@ -601,7 +627,7 @@ test('dashboard request type current status and semester filters drive every wid
     'utf8',
   )
   const dashboardData = fs.readFileSync(
-    path.join(source, 'presentation/hooks/useDashboardData.ts'),
+    path.join(source, 'application/services/dashboardData.ts'),
     'utf8',
   )
   const issueTypePolicy = fs.readFileSync(

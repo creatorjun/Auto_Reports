@@ -19,6 +19,7 @@ import type {
   VisitHistoryPayload,
 } from '@/domain/Site'
 import type { StorageItem, StorageQuota } from '@/domain/Storage'
+import type { PreviewParserPort } from '@/application/ports/PreviewParserPort'
 
 export interface AuthGateway {
   login: (request: LoginRequest) => Promise<TokenResponse>
@@ -145,6 +146,7 @@ export interface DashboardExportGateway {
 }
 
 export interface ApplicationServices {
+  previewParser: PreviewParserPort
   dashboardExport: DashboardExportGateway
   auth: AuthGateway
   reports: ReportGateway

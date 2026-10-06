@@ -2,6 +2,7 @@
 import ast
 import io
 import pathlib
+import re
 import sys
 import tokenize
 import unittest
@@ -13,18 +14,43 @@ SOURCE = ROOT / "src"
 def imported_modules(path: pathlib.Path, node: ast.AST) -> list[str]:
     if isinstance(node, ast.Import):
         return [name.name for name in node.names]
-    if not isinstance(node, ast.ImportFrom) or not node.module:
+    if not isinstance(node, ast.ImportFrom):
         return []
     if node.level == 0:
-        return [node.module]
-    relative = path.relative_to(SOURCE).with_suffix("")
-    package = ("src", *relative.parts[:-1])
-    retained = len(package) - node.level + 1
-    prefix = package[:max(0, retained)]
-    return [".".join((*prefix, *node.module.split(".")))]
+        module = node.module or ""
+    else:
+        relative = path.relative_to(SOURCE).with_suffix("")
+        package = ("src", *relative.parts[:-1])
+        retained = len(package) - node.level + 1
+        prefix = package[:max(0, retained)]
+        module = ".".join((*prefix, *(node.module.split(".") if node.module else ())))
+    return [module, *(f"{module}.{name.name}" for name in node.names if name.name != "*")]
 
 
 class ArchitectureTest(unittest.TestCase):
+    def test_package_imports_are_included_in_dependency_checks(self) -> None:
+        path = SOURCE / "application" / "use_cases" / "candidate.py"
+        cases = (
+            ("from src import infrastructure", "src.infrastructure"),
+            ("from ... import presentation", "src.presentation"),
+            ("from ..ports import email_port", "src.application.ports.email_port"),
+            ("from src.infrastructure import persistence as storage", "src.infrastructure.persistence"),
+        )
+        for source, expected in cases:
+            with self.subTest(source=source):
+                self.assertIn(expected, imported_modules(path, ast.parse(source).body[0]))
+
+    def test_core_does_not_render_html_layouts(self) -> None:
+        violations: list[str] = []
+        for layer in ("domain", "application"):
+            for path in (SOURCE / layer).rglob("*.py"):
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                        if re.search(r"<(?:html|body|table|thead|tbody|tr|td|th)(?:\s|>)", node.value):
+                            violations.append(f"{path.relative_to(SOURCE)}:{node.lineno}:HTML layout")
+        self.assertEqual([], violations)
+
     def test_dependency_rule(self) -> None:
         forbidden = {
             "domain": ("application", "infrastructure", "presentation", "bootstrap"),

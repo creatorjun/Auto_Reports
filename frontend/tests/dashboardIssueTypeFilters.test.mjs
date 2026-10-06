@@ -33,7 +33,8 @@ function loadSource(relativePath) {
   return module.exports
 }
 
-const { buildDashboardData, useDashboardData } = loadSource('presentation/hooks/useDashboardData.ts')
+const { buildDashboardData } = loadSource('application/services/dashboardData.ts')
+const { useDashboardData } = loadSource('presentation/hooks/useDashboardData.ts')
 const { default: IssueTypeFilter } = loadSource('presentation/components/common/IssueTypeFilter.tsx')
 const { isLicenseIssueType, isDashboardIssueTypeFilterOption } = loadSource('domain/DashboardIssueTypePolicy.ts')
 const { getIssueTypeLabel } = loadSource('presentation/utils/issueTypeLabel.ts')

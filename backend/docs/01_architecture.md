@@ -28,10 +28,10 @@
 
 - `domain`은 표준 라이브러리 외 프레임워크를 import하지 않습니다.
 - `application`은 `domain`과 `application` 내부만 import합니다.
-- 저장소, 외부 API, 토큰, 캐시, 감사 로그, 파일 변환 계약은 Application 포트입니다.
+- 저장소, 외부 API, 토큰, 캐시, 감사 로그, 파일 변환과 알림 렌더링 계약은 Application 포트입니다.
 - 외부 API 포트는 공급자의 원시 JSON을 반환하지 않고 `JiraIssue`, `JiraComment`, `PartnerMember` 같은 내부 경계 타입을 반환합니다.
 - `infrastructure`는 포트를 구현하고 SQLAlchemy, httpx, APScheduler, 파일시스템을 소유합니다.
-- `presentation`은 HTTP와 Pydantic 변환만 담당하고 구체 인프라 구현을 알지 못합니다.
+- `presentation`은 HTTP·Pydantic 변환과 알림 레이아웃을 담당하고 구체 인프라 구현을 알지 못합니다.
 - `bootstrap`과 `main.py`만 양쪽의 구체 구현을 조립합니다.
 
 이 규칙은 `backend/tests/test_architecture.py`가 AST import graph로 검사합니다.
@@ -52,6 +52,8 @@ Jira 필드 선택은 `JiraIssueField`로 표현합니다. `issuetype`, `resolut
 
 사이트 하위 엔티티 갱신은 frozen dataclass를 직접 변경하지 않고 `dataclasses.replace`로 새 값을 만든 뒤 aggregate 전체를 저장합니다. 없는 aggregate나 하위 엔티티는 `EntityNotFoundError`로 표현하고 HTTP 404 매핑은 바깥 레이어에서 수행합니다.
 
+할일·TAC 담당자 알림 유스케이스는 대상 이슈 선택, 라이선스 제외, 중복 알림 관리와 발송 요청을 담당합니다. 메일 HTML은 `IssueNotificationRendererPort`에 위임하며, Application은 HTML 레이아웃과 구체 렌더러를 알지 못합니다.
+
 ### Infrastructure
 
 - `persistence`: `Database`가 async engine과 session transaction을 소유하고 repository adapter가 ORM 매핑을 수행합니다.
@@ -65,6 +67,8 @@ Jira 필드 선택은 `JiraIssueField`로 표현합니다. `issuetype`, `resolut
 ### Presentation
 
 `src/presentation/api`는 FastAPI 라우터와 명시적 `ApiServices` 의존성을 사용합니다. Pydantic 변환은 `presentation/mappers`, 요청·응답 모델은 `presentation/schemas`, HTTP 보조 로직은 `presentation/http`에 있습니다. Application은 이 타입을 import하지 않습니다.
+
+`presentation/email/issue_notification_renderer.py`는 알림 레이아웃을 렌더링합니다. `Container`가 이 구현을 알림 유스케이스에 주입하며, 기준 시각은 유스케이스가 전달합니다. SMTP 전송은 기존 Email 포트와 Infrastructure adapter를 그대로 사용합니다.
 
 Presentation dependency는 이미 조립된 유스케이스 또는 요청 단위 factory만 소비합니다. SLA 대시보드처럼 보고서 저장소와 Jira 포트가 함께 필요한 유스케이스도 라우터에서 생성하지 않고 `Container.get_sla_dashboard()`가 조립합니다.
 
@@ -87,6 +91,16 @@ Presentation dependency는 이미 조립된 유스케이스 또는 요청 단위
 SSE는 조회한 `JobStatus`를 `wait_for_update()`에 전달합니다. 실행기는 대기자를 등록하기 전후로 상태를 다시 확인해 lost notification을 막고, 대기자 set은 종료 시 제거합니다.
 
 ## 검증
+
+### 2026-10-06 클린 아키텍처 검토
+
+기존 백엔드 실행 코드 135개, 운영 스크립트 10개와 마이그레이션 15개의 import·호출 구조를 검토했습니다. Domain/Application의 외부 프레임워크 의존, 계층 역방향 import, 순환 참조와 전역 설정 우회는 발견되지 않았습니다. 요청 단위 DB 트랜잭션, Container의 AI·Jira·캐시·이슈 동기화 종료, JobRunner·SSE 수명도 확인했습니다. 운영 스크립트와 migration entrypoint의 외부 구현 조립은 독립 실행 진입점의 책임으로 유지합니다.
+
+확인된 책임 혼합은 알림 유스케이스의 HTML 레이아웃 생성이며, 렌더링 포트와 Presentation 구현으로 분리했습니다. 두 메일의 기존 HTML을 고정 시각에서 변경 전 코드와 바이트 단위로 비교해 일치를 확인했습니다. 알림 대상·제목·중복 방지 정책을 유지하며, 렌더링과 발송 실패 후 재시도도 테스트했습니다.
+
+AST 경계 검사는 `from src import infrastructure`나 `from ... import presentation`처럼 패키지에서 직접 가져오는 import도 검사하도록 보강했습니다. Core에 HTML 레이아웃이 재도입되는 것도 차단합니다. 알림이 켜진 설정에서도 Bootstrap이 두 알림 유스케이스에 렌더러를 주입하는지 검증합니다. Docker 런타임에서 백엔드 223개 테스트가 통과했으며 Python 구문 검사도 통과했습니다. 외부 Jira 조회나 실제 메일 발송을 수행한 검증은 아닙니다.
+
+새 백엔드 이미지의 lifespan 시작·종료와 인증된 이력·최신·연간 보고서 API 조회도 확인했습니다. 실제 실행 중인 백엔드는 기존 이슈 캐시를 유지하도록 재시작하지 않았으며, 운영 서버에 배포하지 않았습니다.
 
 ### 2026-10-06 성능 검토
 

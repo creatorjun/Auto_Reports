@@ -35,6 +35,7 @@ from src.infrastructure.security.credential_encryptor import CredentialEncryptor
 from src.infrastructure.security.jwt_service import JwtService
 from src.infrastructure.storage.document_converter import LibreOfficeDocumentConverter
 from src.infrastructure.storage.local_storage import LocalStorageAdapter
+from src.presentation.email.issue_notification_renderer import IssueNotificationRenderer
 
 
 class Container:
@@ -92,9 +93,11 @@ class Container:
             else None
         )
         smtp = self._build_smtp(settings)
+        notification_renderer = IssueNotificationRenderer()
         self._notify_todo = (
             NotifyTodoIssuesUseCase(
                 email=smtp,
+                renderer=notification_renderer,
                 notify_to=settings.notify_todo_to,
                 jira_base_url=settings.jira_base_url,
             )
@@ -104,6 +107,7 @@ class Container:
         self._notify_tac = (
             NotifyTacAssignedUseCase(
                 email=smtp,
+                renderer=notification_renderer,
                 notify_to=settings.notify_tac_to,
                 jira_base_url=settings.jira_base_url,
                 keyword=settings.notify_tac_keyword,
