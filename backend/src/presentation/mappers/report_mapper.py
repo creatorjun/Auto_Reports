@@ -1,7 +1,7 @@
 # backend/src/presentation/mappers/report_mapper.py
 import dataclasses
 
-from src.domain.entities.report import Report
+from src.domain.entities.report import Report, ReportSummary
 from src.domain.value_objects.widget_id import WidgetId
 from src.presentation.schemas.report_schema import (
     AiAnalysisSchema,
@@ -13,14 +13,17 @@ from src.presentation.schemas.report_schema import (
 
 class ReportMapper:
     @staticmethod
-    def to_summary(report: Report) -> ReportSummarySchema:
+    def to_summary(report: Report | ReportSummary) -> ReportSummarySchema:
         return ReportSummarySchema(
             id=report.id,
             week_start=report.week_start,
             week_end=report.week_end,
             report_date=report.report_date,
             created_at=report.created_at,
-            sentiment=report.ai_analysis.sentiment if report.ai_analysis else None,
+            sentiment=(
+                report.sentiment if isinstance(report, ReportSummary)
+                else report.ai_analysis.sentiment if report.ai_analysis else None
+            ),
             scope=report.scope.value,
             report_year=report.report_year,
         )

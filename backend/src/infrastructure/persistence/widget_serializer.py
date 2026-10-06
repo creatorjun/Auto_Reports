@@ -1,6 +1,7 @@
 # backend/src/infrastructure/persistence/widget_serializer.py
 import dataclasses
 import types
+from functools import lru_cache
 from typing import Any, get_args, get_origin
 
 from src.domain.entities.widget import WidgetResult
@@ -62,11 +63,25 @@ def deserialize_widget(widget_id: str, raw: dict[str, Any]) -> WidgetResult:
     )
 
 
+@lru_cache(maxsize=128)
+def _dataclass_fields(cls: type) -> tuple[dataclasses.Field, ...]:
+    return dataclasses.fields(cls)
+
+
+@lru_cache(maxsize=256)
+def _field_metadata(type_hint: Any) -> tuple[Any, tuple[Any, ...], bool]:
+    return (
+        get_origin(type_hint),
+        get_args(type_hint),
+        isinstance(type_hint, type) and dataclasses.is_dataclass(type_hint),
+    )
+
+
 def _dict_to_dataclass(cls: type, data: Any) -> Any:
     if not dataclasses.is_dataclass(cls) or not isinstance(data, dict):
         return data
     kwargs: dict[str, Any] = {}
-    for f in dataclasses.fields(cls):
+    for f in _dataclass_fields(cls):
         if f.name not in data:
             continue
         kwargs[f.name] = _coerce_field(f.type, data.get(f.name))
@@ -74,8 +89,7 @@ def _dict_to_dataclass(cls: type, data: Any) -> Any:
 
 
 def _coerce_field(type_hint: Any, value: Any) -> Any:
-    origin = get_origin(type_hint)
-    args = get_args(type_hint)
+    origin, args, is_dataclass = _field_metadata(type_hint)
 
     if origin is list and args:
         item_type = args[0]
@@ -95,7 +109,7 @@ def _coerce_field(type_hint: Any, value: Any) -> Any:
         candidate = next((arg for arg in args if arg is not type(None)), None)
         return _coerce_field(candidate, value)
 
-    if isinstance(type_hint, type) and dataclasses.is_dataclass(type_hint) and isinstance(value, dict):
+    if is_dataclass and isinstance(value, dict):
         return _dict_to_dataclass(type_hint, value)
 
     return value

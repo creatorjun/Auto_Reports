@@ -23,7 +23,7 @@ async def list_reports(
     offset: int = 0,
     use_case: GetReportUseCase = Depends(get_get_use_case),
 ):
-    reports = await use_case.get_all(limit=limit, offset=offset)
+    reports = await use_case.get_summaries(limit=limit, offset=offset)
     return [ReportMapper.to_summary(r) for r in reports]
 
 

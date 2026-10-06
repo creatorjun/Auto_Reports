@@ -33,7 +33,7 @@ function loadSource(relativePath) {
   return module.exports
 }
 
-const { buildDashboardData } = loadSource('presentation/hooks/useDashboardData.ts')
+const { buildDashboardData, useDashboardData } = loadSource('presentation/hooks/useDashboardData.ts')
 const { default: IssueTypeFilter } = loadSource('presentation/components/common/IssueTypeFilter.tsx')
 const { isLicenseIssueType, isDashboardIssueTypeFilterOption } = loadSource('domain/DashboardIssueTypePolicy.ts')
 const { getIssueTypeLabel } = loadSource('presentation/utils/issueTypeLabel.ts')
@@ -41,6 +41,39 @@ const VISIBLE_TYPES = ['서비스 요청', '개선', '라이선스']
 const HIDDEN_TYPES = ['승인된 서비스 요청', '케이스']
 const ALL_TYPES = [...VISIBLE_TYPES, ...HIDDEN_TYPES, '기타']
 const STATUSES = ['할 일', '닫힘']
+
+test('filter changes reuse report metadata and a new report updates options and counts', (t) => {
+  let data
+  const report = fixtureReport()
+  function Probe({ report, types = null, semester = null, statuses = null }) {
+    data = useDashboardData(report, types, semester, statuses)
+    return null
+  }
+  let view
+  act(() => { view = TestRenderer.create(createElement(Probe, { report })) })
+  t.after(() => act(() => view.unmount()))
+  const original = data
+  act(() => view.update(createElement(Probe, {
+    report, types: new Set(['개선']), semester: 'h1', statuses: new Set(['할 일']),
+  })))
+  assert.strictEqual(data.filter.issueTypes, original.filter.issueTypes)
+  assert.strictEqual(data.filter.statusTypes, original.filter.statusTypes)
+  assert.equal(data.filter.selectedSemester, 'h1')
+  assert.deepEqual([...data.filter.selectedStatuses], ['할 일'])
+  assert.ok(data.recentAndIncomplete.recentIssues.length < original.recentAndIncomplete.recentIssues.length)
+  assert.deepEqual(data, buildDashboardData(report, new Set(['개선']), 'h1', new Set(['할 일'])))
+  const updated = structuredClone(report)
+  updated.widgets.w1.data.issue_types.push('CVE')
+  updated.widgets.w7.data.issue_details.push({
+    ...updated.widgets.w7.data.issue_details[0], key: 'NEW-1', type: 'CVE', status: '추가 상태',
+  })
+  act(() => view.update(createElement(Probe, { report: updated })))
+  assert.ok(data.filter.issueTypes.includes('CVE'))
+  assert.ok(data.filter.statusTypes.includes('추가 상태'))
+  assert.notStrictEqual(data.filter.issueTypes, original.filter.issueTypes)
+  assert.equal(data.recentAndIncomplete.recentIssues.length, original.recentAndIncomplete.recentIssues.length + 1)
+  assert.deepEqual(data, buildDashboardData(updated))
+})
 
 test('stage duration averages use per-issue totals and follow semester type and current-status filters', () => {
   const report = fixtureReport()

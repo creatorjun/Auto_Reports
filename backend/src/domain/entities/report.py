@@ -29,3 +29,15 @@ class NewReport:
 class Report(NewReport):
     id: int = 0
     created_at: Optional[datetime] = None
+
+
+@dataclass(frozen=True)
+class ReportSummary:
+    id: int
+    week_start: date
+    week_end: date
+    report_date: str
+    created_at: Optional[datetime]
+    sentiment: Optional[str]
+    scope: ReportScope
+    report_year: Optional[int]

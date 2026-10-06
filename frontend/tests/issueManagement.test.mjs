@@ -47,6 +47,18 @@ const { normalizeSearchText } = loadSource('domain/Search')
 const { DashboardExportProvider } = loadSource('presentation/context/DashboardExportContext')
 const { default: IssueManagementPage } = loadSource('presentation/pages/IssueManagementPage')
 
+test('inactive filters preserve the source list and active filters keep empty-selection semantics', () => {
+  const rows = [issue('T-1'), issue('T-2')]
+  const original = structuredClone(rows)
+  assert.strictEqual(filterManagedIssues(rows, null, null, null, null), rows)
+  for (const filters of [{}, { key: '', summary: ' \t\n ' }, { status: '　' }]) {
+    assert.strictEqual(filterIssuesByColumns(rows, filters), rows)
+  }
+  assert.deepEqual(filterManagedIssues(rows, new Set(), null, null, null), [])
+  assert.deepEqual(filterIssuesByColumns(rows, { key: 'T-1' }).map((row) => row.key), ['T-1'])
+  assert.deepEqual(rows, original)
+})
+
 test('search normalization trims both operands without removing word spacing', () => {
   assert.equal(normalizeSearchText(' \tＳＥＯＵＬ 교통공사\n '), 'seoul 교통공사')
   assert.equal(normalizeSearchText(' \t\n '), '')

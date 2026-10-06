@@ -18,6 +18,7 @@ export function filterManagedIssues(
   semester: Semester | null,
   year: number | null,
 ): RecentIssue[] {
+  if (types === null && statuses === null && semester === null && year === null) return issues
   return issues.filter((issue) => (
     (types === null || types.has(issue.type))
     && (statuses === null || statuses.has(issue.status))

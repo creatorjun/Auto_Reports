@@ -150,6 +150,8 @@ test('annual details search tickets, summaries and partners without changing the
   assert.deepEqual(statusMessages(view), ['검색 조건에 맞는 이슈가 없습니다.'])
   search(view, '')
   assert.deepEqual(visibleKeys(view), ['TAC-101', 'TAC-202', 'OPS-303'])
+  search(view, ' \t\n ')
+  assert.deepEqual(visibleKeys(view), ['TAC-101', 'TAC-202', 'OPS-303'])
   assert.deepEqual(issues, original)
 })
 

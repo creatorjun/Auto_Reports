@@ -4,7 +4,7 @@ from typing import Optional
 
 from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.issue_age import with_current_issue_age
-from src.domain.entities.report import Report
+from src.domain.entities.report import Report, ReportSummary
 from src.application.ports.report_repository import ReportRepository
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,9 @@ class GetReportUseCase:
 
     async def get_all(self, limit: int = 20, offset: int = 0) -> list[Report]:
         return await self._repository.find_all(limit=limit, offset=offset)
+
+    async def get_summaries(self, limit: int = 20, offset: int = 0) -> list[ReportSummary]:
+        return await self._repository.find_summaries(limit=limit, offset=offset)
 
     async def list_all(self) -> list[Report]:
         return await self._repository.find_all()

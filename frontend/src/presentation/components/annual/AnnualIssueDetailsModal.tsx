@@ -25,6 +25,7 @@ export default function AnnualIssueDetailsModal({ title, total, issues, descript
   const [page, setPage] = useState(1)
   const filtered = useMemo(() => {
     const keyword = normalizeSearchText(search)
+    if (!keyword) return issues
     return issues.filter((issue) => [issue.key, issue.summary, issue.type, issue.status, issue.cause, issue.assignee, ...(issue.partners ?? [])]
       .some((value) => normalizeSearchText(value ?? '').includes(keyword)))
   }, [issues, search])

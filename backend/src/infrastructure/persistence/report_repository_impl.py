@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import delete, desc, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.entities.report import NewReport, Report, ReportScope
+from src.domain.entities.report import NewReport, Report, ReportScope, ReportSummary
 from src.application.ports.report_repository import ReportRepository
 from src.domain.value_objects.ai_analysis import AiAnalysis
 from src.infrastructure.persistence.models import ReportORM
@@ -82,6 +82,29 @@ class ReportRepositoryImpl(ReportRepository):
             select(ReportORM).order_by(desc(ReportORM.created_at)).limit(limit).offset(offset)
         )
         return [self._to_entity(orm) for orm in result.scalars().all()]
+
+    async def find_summaries(self, limit: int = 20, offset: int = 0) -> list[ReportSummary]:
+        result = await self._session.execute(
+            select(
+                ReportORM.id, ReportORM.week_start, ReportORM.week_end,
+                ReportORM.report_date, ReportORM.created_at, ReportORM.ai_analysis,
+                ReportORM.scope, ReportORM.report_year,
+            ).order_by(desc(ReportORM.created_at)).limit(limit).offset(offset)
+        )
+        summaries = []
+        for row in result.all():
+            ai = AiAnalysis(**row.ai_analysis) if row.ai_analysis else None
+            summaries.append(ReportSummary(
+                id=row.id,
+                week_start=row.week_start,
+                week_end=row.week_end,
+                report_date=row.report_date,
+                created_at=self._to_kst(row.created_at),
+                sentiment=ai.sentiment if ai else None,
+                scope=ReportScope(row.scope or ReportScope.STANDARD.value),
+                report_year=row.report_year,
+            ))
+        return summaries
 
     async def delete(self, report_id: int) -> bool:
         result = await self._session.execute(

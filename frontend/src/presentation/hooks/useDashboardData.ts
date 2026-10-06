@@ -349,8 +349,19 @@ export function buildDashboardData(
   requestedSemester: Semester | null = null,
   requestedStatuses: ReadonlySet<string> | null = null,
 ) {
+  return buildFilteredDashboardData(
+    report, requestedTypes, requestedSemester, requestedStatuses, resolveFilterContract(report),
+  )
+}
+
+function buildFilteredDashboardData(
+  report: ReportDetail,
+  requestedTypes: ReadonlySet<string> | null,
+  requestedSemester: Semester | null,
+  requestedStatuses: ReadonlySet<string> | null,
+  filterContract: ReturnType<typeof resolveFilterContract>,
+) {
   const w = report.widgets
-  const filterContract = resolveFilterContract(report)
   const selectedTypes = filterContract.supportsIssueTypeFiltering ? requestedTypes : null
   const selectedSemester = filterContract.supportsSemesterFiltering ? requestedSemester : null
   const selectedStatuses = filterContract.supportsStatusFiltering ? requestedStatuses : null
@@ -661,8 +672,9 @@ export function useDashboardData(
   selectedSemester: Semester | null = null,
   selectedStatuses: ReadonlySet<string> | null = null,
 ) {
+  const filterContract = useMemo(() => resolveFilterContract(report), [report])
   return useMemo(
-    () => buildDashboardData(report, selectedTypes, selectedSemester, selectedStatuses),
-    [report, selectedTypes, selectedSemester, selectedStatuses],
+    () => buildFilteredDashboardData(report, selectedTypes, selectedSemester, selectedStatuses, filterContract),
+    [report, selectedTypes, selectedSemester, selectedStatuses, filterContract],
   )
 }

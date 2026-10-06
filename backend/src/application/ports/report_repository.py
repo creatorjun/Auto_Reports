@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from datetime import date
 from typing import Optional
 
-from src.domain.entities.report import NewReport, Report
+from src.domain.entities.report import NewReport, Report, ReportSummary
 
 
 class ReportRepository(ABC):
@@ -21,6 +21,19 @@ class ReportRepository(ABC):
 
     @abstractmethod
     async def find_all(self, limit: int = 20, offset: int = 0) -> list[Report]: ...
+
+    async def find_summaries(self, limit: int = 20, offset: int = 0) -> list[ReportSummary]:
+        reports = await self.find_all(limit=limit, offset=offset)
+        return [ReportSummary(
+            id=report.id,
+            week_start=report.week_start,
+            week_end=report.week_end,
+            report_date=report.report_date,
+            created_at=report.created_at,
+            sentiment=report.ai_analysis.sentiment if report.ai_analysis else None,
+            scope=report.scope,
+            report_year=report.report_year,
+        ) for report in reports]
 
     @abstractmethod
     async def delete(self, report_id: int) -> bool: ...
