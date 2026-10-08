@@ -36,7 +36,11 @@ def stage_duration_hours(
         if changed_at > end:
             break
         if change.from_status != status or not change.to_status:
-            raise ValueError("Issue status history is incomplete")
+            raise ValueError(
+                f"Issue status history is incomplete at {change.changed_at}: "
+                f"expected from_status={status!r}, "
+                f"got from_status={change.from_status!r}, to_status={change.to_status!r}"
+            )
         elapsed = (changed_at - cursor).total_seconds() / 3600
         if elapsed > 0:
             hours[status] = hours.get(status, 0) + elapsed

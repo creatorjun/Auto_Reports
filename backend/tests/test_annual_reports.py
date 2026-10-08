@@ -9,10 +9,17 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.ports.report_cache_port import ReportCachePort
 from src.application.ports.report_repository import ReportRepository
+from src.application.ports.jira_port import JiraIssue, JiraStatusChange
+from src.application.services.query_builder import WidgetQueryBuilder
+from src.application.services.query_config import QueryConfig
+from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.refresh_report import RefreshReportUseCase
+from src.application.widgets.collector_factory import CollectorEntry
+from src.application.widgets.resolution_collector import ResolutionCollector
 from src.domain.constants import KST
 from src.domain.entities.report import NewReport, Report, ReportScope
+from src.domain.value_objects.widget_id import WidgetId
 
 
 class InMemoryReportRepository(ReportRepository):
@@ -114,6 +121,52 @@ class FixedDateTime(datetime.datetime):
 
 
 class AnnualReportTest(unittest.IsolatedAsyncioTestCase):
+    async def test_refresh_persists_and_caches_annual_report_with_incomplete_issue_history(self) -> None:
+        class Jira:
+            async def get_issues(self, jql, max_results, fields):
+                return [JiraIssue(
+                    key=key, issue_type="개선", status="Closed", created="2026-01-01", resolved="2026-01-04",
+                ) for key in ("INVALID", "VALID")]
+
+            async def get_issue_status_changes(self, issue_key):
+                return [
+                    JiraStatusChange("2026-01-02", "할 일", "구현 중"),
+                    JiraStatusChange("2026-01-03", "자료 요청 중" if issue_key == "INVALID" else "구현 중", "Closed"),
+                ]
+
+        annual = Report(
+            id=2,
+            week_start=datetime.date(2026, 1, 1),
+            week_end=datetime.date(2026, 8, 31),
+            report_date="2026-08-31",
+            scope=ReportScope.ANNUAL,
+            report_year=2026,
+        )
+        repository = InMemoryReportRepository(None, annual)
+        cache = InMemoryReportCache()
+        assembler = ReportAssembler(
+            query_builder=WidgetQueryBuilder(QueryConfig("T", ["개선"], [], ["Closed"], 30, 2026)),
+            base_collector_factory=lambda queries, now: [
+                CollectorEntry(WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(Jira(), queries, now)),
+            ],
+            monthly_collector_factory=lambda queries, now: [],
+        )
+        with patch("src.application.use_cases.refresh_report.datetime", FixedDateTime):
+            with self.assertLogs("src.application.widgets.resolution_collector", level="WARNING"):
+                await RefreshReportUseCase(assembler, repository, cache).execute()
+
+        self.assertEqual([2], [report.id for report in repository.updated])
+        updated = repository.updated[0]
+        self.assertEqual(ReportScope.ANNUAL, updated.scope)
+        self.assertEqual(2026, updated.report_year)
+        self.assertEqual(datetime.date(2026, 9, 1), updated.week_end)
+        self.assertIs(updated, cache.reports[2])
+        widget = updated.widgets[WidgetId.AVG_RESOLUTION_TYPE]
+        self.assertEqual(2, widget.total)
+        self.assertEqual(2, widget.data.by_type["개선"].count)
+        self.assertEqual(["VALID"], [issue.key for issue in widget.data.stage_issues])
+        self.assertEqual({"할 일": 24, "구현 중": 24, "Closed": 24}, widget.data.stage_issues[0].by_stage_hours)
+
     def test_completed_and_current_year_ranges_are_annual(self) -> None:
         now = datetime.datetime(2026, 9, 1, tzinfo=KST)
 

@@ -105,6 +105,84 @@ class StageHistoryAdapterTest(unittest.IsolatedAsyncioTestCase):
 
 
 class StageDurationCollectorTest(unittest.IsolatedAsyncioTestCase):
+    async def test_incomplete_history_is_excluded_without_losing_resolution_totals_or_later_batches(self):
+        requested = []
+
+        class Jira:
+            async def get_issues(self, jql, max_results, fields):
+                return [JiraIssue(
+                    key=key, issue_type="개선", status="Closed",
+                    created="2026-01-01", resolved="2026-01-04",
+                ) for key in ("INVALID", "T-1", "T-2", "T-3", "T-4", "T-5")]
+
+            async def get_issue_status_changes(self, issue_key):
+                requested.append(issue_key)
+                if issue_key == "INVALID":
+                    return [
+                        JiraStatusChange("2026-01-02", "할 일", "구현 중"),
+                        JiraStatusChange("2026-01-03", "자료 요청 중", "Closed"),
+                    ]
+                await asyncio.sleep(0)
+                return [JiraStatusChange("2026-01-02", "할 일", "Closed")]
+
+        queries = WidgetQueryBuilder(QueryConfig("T", ["개선"], [], [], 30, 2026)).build(
+            datetime.datetime(2026, 1, 4), week_start_override=datetime.datetime(2026, 1, 1),
+        )
+        with self.assertLogs("src.application.widgets.resolution_collector", level="WARNING") as logs:
+            result = await ResolutionCollector(Jira(), queries, queries.week_end).collect()
+        self.assertEqual(6, result.total)
+        self.assertEqual(6, result.data.by_type["개선"].count)
+        self.assertEqual(72, result.data.by_type["개선"].avg_hours)
+        self.assertEqual(6, result.data.by_semester["h1"]["개선"].count)
+        self.assertEqual(6, result.data.by_status_type["Closed"]["개선"].count)
+        self.assertEqual(6, result.data.by_semester_status_type["h1"]["Closed"]["개선"].count)
+        self.assertEqual(["T-1", "T-2", "T-3", "T-4", "T-5"], [issue.key for issue in result.data.stage_issues])
+        self.assertTrue(all(issue.by_stage_hours == {"할 일": 24, "Closed": 48} for issue in result.data.stage_issues))
+        self.assertEqual(["INVALID", "T-1", "T-2", "T-3", "T-4", "T-5"], requested)
+        warning = "\n".join(logs.output)
+        self.assertIn("INVALID", warning)
+        self.assertIn("Issue status history is incomplete", warning)
+        self.assertIn("구현 중", warning)
+        self.assertIn("자료 요청 중", warning)
+        restored = deserialize_widget(WidgetId.AVG_RESOLUTION_TYPE, serialize_widget(result))
+        self.assertEqual(result.data.stage_issues, restored.data.stage_issues)
+
+    async def test_invalid_stage_data_returns_empty_stages_without_fabricating_durations(self):
+        cases = (
+            ("2026-01-01", "2026-01-03", "Closed", [JiraStatusChange("invalid", "할 일", "Closed")], 1),
+            ("invalid", "2026-01-03", "Closed", [], 0),
+            ("2026-01-01", "2026-01-03", "", [], 1),
+            ("2026-01-03", "2026-01-01", "Closed", [], 0),
+        )
+        queries = WidgetQueryBuilder(QueryConfig("T", ["개선"], [], [], 30, 2026)).build(datetime.datetime(2026, 1, 3))
+        for created, resolved, status, changes, expected_total in cases:
+            with self.subTest(created=created, resolved=resolved, status=status, changes=changes):
+                class Jira:
+                    async def get_issues(self, jql, max_results, fields):
+                        return [JiraIssue(
+                            key="INVALID", issue_type="개선", status=status, created=created, resolved=resolved,
+                        )]
+
+                    async def get_issue_status_changes(self, issue_key):
+                        return changes
+
+                with self.assertLogs("src.application.widgets.resolution_collector", level="WARNING"):
+                    result = await ResolutionCollector(Jira(), queries, queries.week_end).collect()
+                self.assertEqual(expected_total, result.total)
+                self.assertEqual([], result.data.stage_issues)
+
+    async def test_history_provider_value_error_is_not_treated_as_invalid_stage_data(self):
+        class Jira:
+            async def get_issues(self, jql, max_results, fields):
+                return [JiraIssue(key="T-1", status="Closed", created="2026-01-01", resolved="2026-01-03")]
+
+            async def get_issue_status_changes(self, issue_key):
+                raise ValueError("invalid provider response")
+
+        queries = WidgetQueryBuilder(QueryConfig("T", [], [], [], 30, 2026)).build(datetime.datetime(2026, 1, 3))
+        with self.assertRaisesRegex(ValueError, "invalid provider response"):
+            await ResolutionCollector(Jira(), queries, queries.week_end).collect()
+
     async def test_failed_history_cancels_other_requests_in_the_batch(self):
         cancelled = []
 

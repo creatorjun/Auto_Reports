@@ -61,27 +61,35 @@ class ResolutionCollector(AbstractWidgetCollector):
         stage_issues: list[StageDurationIssue] = []
         eligible = [issue for issue in issues if issue.key and issue.created and issue.resolved]
 
-        async def collect_stages(issue: JiraIssue) -> StageDurationIssue:
+        async def collect_stages(issue: JiraIssue) -> StageDurationIssue | None:
             changes = await self._jira.get_issue_status_changes(issue.key)
+            try:
+                resolved = parse_timestamp(issue.resolved).isoformat()
+                by_stage_hours = stage_duration_hours(
+                    issue.created, issue.resolved, issue.status, changes,
+                )
+            except ValueError as exc:
+                logger.warning("[w14-단계별시간] %s 제외: %s", issue.key, exc)
+                return None
             return StageDurationIssue(
                 key=issue.key,
                 type=issue.issue_type or "기타",
                 status=issue.status or "기타",
-                resolved=parse_timestamp(issue.resolved).isoformat(),
-                by_stage_hours=stage_duration_hours(
-                    issue.created, issue.resolved, issue.status, changes,
-                ),
+                resolved=resolved,
+                by_stage_hours=by_stage_hours,
             )
 
         for offset in range(0, len(eligible), 5):
             tasks = [asyncio.create_task(collect_stages(issue)) for issue in eligible[offset:offset + 5]]
             try:
-                stage_issues.extend(await asyncio.gather(*tasks))
+                collected = await asyncio.gather(*tasks)
+                stage_issues.extend(issue for issue in collected if issue is not None)
             finally:
                 for task in tasks:
                     if not task.done():
                         task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info("[w14-단계별시간] %d/%d건 수집", len(stage_issues), len(eligible))
         logger.info(f"[w14-평균처리일] {total}건")
         return WidgetResult(
             name="유형별 평균 처리일",
