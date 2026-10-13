@@ -3,7 +3,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import AsyncContextManager
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from src.application.ports.audit_port import AuditPort
 from src.application.ports.job_runner_port import JobRunnerPort
@@ -17,6 +17,8 @@ from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.application.use_cases.c_level_workspace import CLevelWorkspaceUseCase
+from src.application.use_cases.audit_logs import AuditLogsUseCase
+from src.presentation.http.request_audit import RequestAudit
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,7 @@ class ApiServices:
     get_report_chart_issues: Callable[[], AsyncContextManager[GetReportChartIssuesUseCase]]
     issue_management: IssueManagementUseCase | None = None
     get_c_level_workspace: Callable[[], AsyncContextManager[CLevelWorkspaceUseCase]] | None = None
+    audit_logs: AuditLogsUseCase | None = None
 
 
 def get_api_services(request: Request) -> ApiServices:
@@ -45,11 +48,18 @@ def get_job_runner(request: Request) -> JobRunnerPort:
 
 
 def get_audit(request: Request) -> AuditPort:
-    return get_api_services(request).audit
+    return RequestAudit(get_api_services(request).audit, request)
 
 
 def get_auth(request: Request) -> AuthService:
     return get_api_services(request).auth
+
+
+def get_audit_logs(request: Request) -> AuditLogsUseCase:
+    use_case = get_api_services(request).audit_logs
+    if use_case is None:
+        raise HTTPException(status_code=503, detail="감사로그 조회가 준비되지 않았습니다.")
+    return use_case
 
 
 def get_partner_use_case(request: Request) -> PartnerUseCase:

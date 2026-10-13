@@ -6,6 +6,7 @@ import App from './app/App'
 import './presentation/styles/palette.css'
 import './presentation/styles/index.css'
 import { authApi } from '@/infrastructure/api/authApi'
+import { auditLogApi } from '@/infrastructure/api/auditLogApi'
 import { partnerApi } from '@/infrastructure/api/partnerApi'
 import { reportApi } from '@/infrastructure/api/reportApi'
 import { searchApi } from '@/infrastructure/api/searchApi'
@@ -30,7 +31,11 @@ configureHttpClient({
   getAccessToken: () => useAuthStore.getState().accessToken,
   getUsername: () => useAuthStore.getState().username,
   setAuth: (token, username) => useAuthStore.getState().setAuth(token, username),
-  clearAuth: () => useAuthStore.getState().clearAuth(),
+  clearAuth: () => {
+    useAuthStore.getState().clearAuth()
+    queryClient.removeQueries({ queryKey: ['me'] })
+    queryClient.removeQueries({ queryKey: ['audit-logs'] })
+  },
   redirectToLogin: () => {
     window.location.href = '/login'
   },
@@ -41,6 +46,7 @@ const services = {
   dashboardExport: { ...dashboardPdfExporter, ...dashboardExcelExporter },
   cLevelReport: cLevelReportApi,
   auth: authApi,
+  auditLogs: auditLogApi,
   reports: reportApi,
   sites: siteApi,
   storage: storageApi,

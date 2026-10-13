@@ -1,7 +1,9 @@
 // frontend/src/presentation/components/layout/MobileTabBar.tsx
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Plus, Presentation } from 'lucide-react'
+import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Plus, Presentation, ShieldCheck } from 'lucide-react'
+import { canViewAuditLogs } from '@/domain/Auth'
+import { useMe } from '@/presentation/hooks/useAuth'
 import { useTrigger } from '@/presentation/hooks/useTrigger'
 import { useUiStore } from '@/presentation/state/uiStore'
 import LazyGenerateReportModal from '@/presentation/components/common/LazyGenerateReportModal'
@@ -19,6 +21,9 @@ const tabs = [
 export default function MobileTabBar() {
   const { isTriggerLoading } = useUiStore()
   const [showModal, setShowModal] = useState(false)
+  const me = useMe()
+  const visibleTabs = !me.isError && canViewAuditLogs(me.data)
+    ? [...tabs, { to: '/audit-logs', label: '감사로그', icon: <ShieldCheck size={20} /> }] : tabs
 
   useTrigger()
 
@@ -27,15 +32,15 @@ export default function MobileTabBar() {
       <nav
         className="fixed bottom-0 left-0 right-0 z-20 xl:hidden
                    bg-apple-surface/90 backdrop-blur-xl border-t border-apple-divider/80
-                   flex items-center justify-around px-1 h-16 safe-area-inset-bottom"
+                   flex items-center justify-around overflow-x-auto px-1 h-16 safe-area-inset-bottom"
       >
-        {tabs.map(({ to, icon, label }) => (
+        {visibleTabs.map(({ to, icon, label }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/'}
             className={({ isActive }) =>
-              `flex min-w-0 flex-col items-center gap-1 px-1.5 py-1 rounded-xl transition-colors ${
+              `flex min-w-12 shrink-0 flex-col items-center gap-1 px-1.5 py-1 rounded-xl transition-colors ${
                 isActive ? 'text-brand-600' : 'text-apple-light'
               }`
             }

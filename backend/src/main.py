@@ -13,6 +13,8 @@ from src.application.errors import EntityNotFoundError, JobAlreadyRunningError
 from src.infrastructure.config.settings import Settings, get_settings
 from src.infrastructure.job_runner import JobRunner
 from src.infrastructure.logging.audit_logger import AuditLogger
+from src.infrastructure.logging.audit_log_reader import FileAuditLogReader
+from src.application.use_cases.audit_logs import AuditLogsUseCase
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.job_repository_impl import SqlJobRepository
 from src.infrastructure.scheduling.report_scheduler import create_scheduler
@@ -36,7 +38,7 @@ def create_app(settings: Settings) -> FastAPI:
                 stack.push_async_callback(database.aclose)
                 container = Container(settings, database)
                 stack.push_async_callback(container.aclose)
-                audit = AuditLogger()
+                audit = AuditLogger(settings.audit_log_dir)
                 stack.callback(audit.close)
                 job_repository = SqlJobRepository(database.session_factory)
                 job_runner = JobRunner(
@@ -58,6 +60,7 @@ def create_app(settings: Settings) -> FastAPI:
                     get_report_chart_issues=container.get_report_chart_issues,
                     issue_management=container.issue_management,
                     get_c_level_workspace=container.get_c_level_workspace,
+                    audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir)),
                 )
                 scheduler = create_scheduler(
                     schedule_cron=settings.schedule_cron,

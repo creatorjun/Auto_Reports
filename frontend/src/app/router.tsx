@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import Layout from '@/presentation/components/layout/Layout'
 import ProtectedRoute from '@/presentation/components/auth/ProtectedRoute'
+import SuperadminRoute from '@/presentation/components/auth/SuperadminRoute'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import LazyErrorBoundary from '@/presentation/components/common/LazyErrorBoundary'
 
@@ -11,6 +12,7 @@ const IssueManagementPage    = lazy(() => import('@/presentation/pages/IssueMana
 const SlaDashboardPage       = lazy(() => import('@/presentation/pages/SlaDashboardPage'))
 const CLevelReportPage       = lazy(() => import('@/presentation/pages/CLevelReportPage'))
 const HistoryPage            = lazy(() => import('@/presentation/pages/HistoryPage'))
+const AuditLogPage           = lazy(() => import('@/presentation/pages/AuditLogPage'))
 const StoragePage            = lazy(() => import('@/presentation/pages/StoragePage'))
 const StoragePreviewPage     = lazy(() => import('@/presentation/pages/StoragePreviewPage'))
 const LoginPage              = lazy(() => import('@/presentation/pages/LoginPage'))
@@ -44,6 +46,7 @@ export const router = createBrowserRouter([
       { path: 'c-level-report', element: <Wrap><CLevelReportPage /></Wrap> },
       { path: 'c-level-report/history/:id', element: <Wrap><CLevelReportPage /></Wrap> },
       { path: 'history',        element: <Wrap><HistoryPage /></Wrap> },
+      { path: 'audit-logs', element: <SuperadminRoute><Wrap><AuditLogPage /></Wrap></SuperadminRoute> },
       { path: 'reports/annual/:year', element: <Wrap><DashboardPage /></Wrap> },
       { path: 'reports/:id',    element: <Wrap><DashboardPage /></Wrap> },
       { path: 'partners',       element: <Wrap><PartnerManagementPage /></Wrap> },

@@ -29,9 +29,11 @@ services:
     env_file: .env
     environment:
       TZ: Asia/Seoul
+      AUDIT_LOG_DIR: /app/logs
     volumes:
       - reports_data:/app/reports
       - storage_data:/app/storage
+      - audit_logs:/app/logs
       - /etc/localtime:/etc/localtime:ro
     depends_on:
       db:
@@ -74,3 +76,4 @@ volumes:
   db_data:
   reports_data:
   storage_data:
+  audit_logs:

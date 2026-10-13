@@ -1,9 +1,11 @@
 # backend/src/presentation/api/v1/auth.py
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from src.application.services.auth_service import AuthService
-from src.presentation.api.deps import get_auth
+from src.application.ports.audit_port import AuditPort
+from src.presentation.api.deps import get_audit, get_auth
+from src.presentation.http.client_ip import get_client_ip
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -23,6 +25,7 @@ class TokenResponse(BaseModel):
 class MeResponse(BaseModel):
     username: str
     login_required: bool
+    is_superadmin: bool = False
 
 
 def _set_refresh_cookie(response: Response, token: str, expire_days: int, secure: bool) -> None:
@@ -41,12 +44,15 @@ def _set_refresh_cookie(response: Response, token: str, expire_days: int, secure
 async def login(
     body: LoginRequest,
     response: Response,
+    request: Request,
     auth: AuthService = Depends(get_auth),
+    audit: AuditPort = Depends(get_audit),
 ):
     if not auth.enabled:
         raise HTTPException(status_code=404, detail="Auth not enabled")
 
     if not auth.is_valid_credentials(body.username, body.password):
+        audit.record("LOGIN_FAILED", ip=get_client_ip(request), username=body.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     generation = (
@@ -60,6 +66,7 @@ async def login(
         auth.refresh_expire_days,
         auth.cookie_secure,
     )
+    audit.record("LOGIN_SUCCESS", ip=get_client_ip(request), username=body.username)
     return TokenResponse(
         access_token=auth.create_access_token(body.username, generation)
     )
@@ -96,7 +103,21 @@ async def refresh(
 
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(
+    response: Response,
+    request: Request,
+    refresh_token: str = Cookie(default=None, alias=REFRESH_COOKIE),
+    auth: AuthService = Depends(get_auth),
+    audit: AuditPort = Depends(get_audit),
+):
+    username = None
+    if auth.enabled and refresh_token:
+        try:
+            username = auth.decode_refresh_token(refresh_token)
+        except ValueError:
+            pass
+    if username is not None:
+        audit.record("LOGOUT", ip=get_client_ip(request), username=username)
     response.delete_cookie(key=REFRESH_COOKIE, path="/api/v1/auth")
     return {"detail": "Logged out"}
 
@@ -116,4 +137,4 @@ async def me(
     except ValueError:
         raise HTTPException(status_code=401, detail="Token expired or invalid")
 
-    return MeResponse(username=username, login_required=True)
+    return MeResponse(username=username, login_required=True, is_superadmin=auth.is_superadmin_user(username))

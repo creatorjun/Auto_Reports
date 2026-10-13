@@ -12,3 +12,4 @@
 | [04_environment_and_config.md](./04_environment_and_config.md) | 환경변수 전체 목록, `.env` 예시, Docker Compose 구성 |
 | [05_issue_catalog.md](./05_issue_catalog.md) | 전수 검토에서 발견한 위반과 리팩터링 결과 |
 | [06_c_level_report.md](./06_c_level_report.md) | C-Level 화면, Jira 집계 기준, 확인 불가 처리, API·저장·검증 |
+| [07_audit_logs.md](./07_audit_logs.md) | 일반·관리자 계정 구분, 관리자 감사로그 화면과 조회 권한·보존 |

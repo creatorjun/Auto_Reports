@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends
 from src.presentation.api.v1 import (
     auth,
+    audit_logs,
     c_level_report,
     issue_management,
     config,
@@ -22,6 +23,7 @@ router.include_router(storage.preview_router)
 
 _protected = APIRouter(dependencies=[Depends(require_auth)])
 _protected.include_router(reports.router)
+_protected.include_router(audit_logs.router)
 _protected.include_router(c_level_report.router)
 _protected.include_router(issue_management.router)
 _protected.include_router(trigger.router)

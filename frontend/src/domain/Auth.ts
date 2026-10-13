@@ -12,4 +12,9 @@ export interface TokenResponse {
 export interface MeResponse {
   username: string
   login_required: boolean
+  is_superadmin: boolean
+}
+
+export function canViewAuditLogs(me: MeResponse | undefined): boolean {
+  return me?.login_required === true && me.is_superadmin === true
 }

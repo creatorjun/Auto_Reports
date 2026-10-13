@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     jwt_refresh_expire_days: int = 7
     cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE", validation_alias="COOKIE_SECURE")
     storage_dir: str = "/app/storage"
+    audit_log_dir: str = "logs"
     credential_encryption_key: str = Field(default="", alias="CREDENTIAL_ENCRYPTION_KEY", validation_alias="CREDENTIAL_ENCRYPTION_KEY")
 
     smtp_host: str = Field(default="", alias="SMTP_HOST", validation_alias="SMTP_HOST")

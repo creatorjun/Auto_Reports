@@ -20,14 +20,36 @@ async def require_auth(
     auth: AuthService = Depends(get_auth),
 ) -> str:
     if not auth.enabled:
+        request.state.authenticated_username = "guest"
         return "guest"
     token = credentials.credentials if credentials else request.query_params.get("token")
     if token is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        return auth.decode_access_token(token)
+        username = auth.decode_access_token(token)
+        request.state.authenticated_username = username
+        return username
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+async def require_superadmin(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
+    auth: AuthService = Depends(get_auth),
+) -> str:
+    if not auth.enabled:
+        raise HTTPException(status_code=403, detail="감사로그는 관리자 로그인 후 조회할 수 있습니다.")
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        username = auth.decode_access_token(credentials.credentials)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    if not auth.is_superadmin_user(username):
+        raise HTTPException(status_code=403, detail="관리자 계정만 감사로그를 조회할 수 있습니다.")
+    request.state.authenticated_username = username
+    return username
 
 
 async def get_get_use_case(

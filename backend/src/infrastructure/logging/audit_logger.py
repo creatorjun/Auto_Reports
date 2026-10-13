@@ -1,10 +1,14 @@
 # backend/src/infrastructure/logging/audit_logger.py
 import logging
+import json
 import os
 import sys
+from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 
 from src.application.ports.audit_port import AuditPort
+from src.domain.constants import KST
+from src.infrastructure.logging.audit_format import safe_fields, safe_text
 
 AUDIT_LEVEL = 25
 logging.addLevelName(AUDIT_LEVEL, "AUDIT")
@@ -42,8 +46,11 @@ class AuditLogger(AuditPort):
             self._logger.warning("감사 로그 파일을 열 수 없습니다: %s", error)
 
     def record(self, event: str, **fields: object) -> None:
-        details = " | ".join(f"{key}={value}" for key, value in fields.items())
-        message = f"{event} | {details}" if details else event
+        message = json.dumps({
+            "timestamp": datetime.now(KST).isoformat(),
+            "event": safe_text(event, 100),
+            "fields": safe_fields(fields),
+        }, ensure_ascii=False)
         self._logger.log(AUDIT_LEVEL, message)
 
     def close(self) -> None:

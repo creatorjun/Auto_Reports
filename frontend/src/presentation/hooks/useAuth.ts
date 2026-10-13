@@ -8,21 +8,15 @@ import { useAuthStore } from '@/presentation/state/authStore'
 export const useMe = () => {
   const { auth } = useApplicationServices()
   const { accessToken } = useAuthStore()
-  const queryClient = useQueryClient()
   return useQuery({
-    queryKey: ['me'],
+    queryKey: ['me', accessToken],
     queryFn: auth.me,
     enabled: !!accessToken,
     retry: false,
-    staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
+    staleTime: 60 * 1000,
+    gcTime: 0,
     refetchOnWindowFocus: false,
     throwOnError: false,
-    meta: {
-      onError: () => {
-        queryClient.removeQueries({ queryKey: ['me'] })
-      },
-    },
   })
 }
 
@@ -33,6 +27,8 @@ export const useLogin = () => {
   return useMutation({
     mutationFn: (request: LoginRequest) => auth.login(request),
     onSuccess: (data, variables) => {
+      queryClient.removeQueries({ queryKey: ['me'] })
+      queryClient.removeQueries({ queryKey: ['audit-logs'] })
       setAuth(data.access_token, variables.username)
       setLoginRequired(true)
       queryClient.invalidateQueries({ queryKey: ['me'] })

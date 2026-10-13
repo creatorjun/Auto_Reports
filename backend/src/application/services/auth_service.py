@@ -37,13 +37,22 @@ class AuthService:
 
     def is_superadmin(self, username: str, password: str) -> bool:
         return bool(
-            self.superadmin_username
+            self.is_superadmin_user(username)
             and self._matches(
                 username,
                 password,
                 self.superadmin_username,
                 self._superadmin_password,
             )
+        )
+
+    def is_superadmin_user(self, username: str) -> bool:
+        return bool(
+            self.enabled
+            and self.superadmin_username
+            and self._superadmin_password
+            and self.superadmin_username != self.admin_username
+            and hmac.compare_digest(username.encode("utf-8"), self.superadmin_username.encode("utf-8"))
         )
 
     def create_access_token(self, username: str, generation: int | None = None) -> str:
@@ -71,7 +80,7 @@ class AuthService:
         expected_username: str,
         expected_password: str,
     ) -> bool:
-        return hmac.compare_digest(username, expected_username) and hmac.compare_digest(
-            password,
-            expected_password,
+        return hmac.compare_digest(username.encode("utf-8"), expected_username.encode("utf-8")) and hmac.compare_digest(
+            password.encode("utf-8"),
+            expected_password.encode("utf-8"),
         )

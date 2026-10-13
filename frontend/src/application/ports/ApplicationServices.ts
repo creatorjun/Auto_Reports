@@ -1,5 +1,6 @@
 // frontend/src/application/ports/ApplicationServices.ts
 import type { LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
+import type { AuditLogPage, AuditLogQuery } from '@/domain/AuditLog'
 import type { CLevelComment, CLevelCommentInput, CLevelPeriod, CLevelReport, CLevelSnapshotSummary } from '@/domain/CLevelReport'
 import type { AppConfig } from '@/domain/Config'
 import type { IssueManagementSnapshot } from '@/domain/IssueManagement'
@@ -27,6 +28,10 @@ export interface AuthGateway {
   refresh: () => Promise<TokenResponse>
   logout: () => Promise<void>
   me: () => Promise<MeResponse>
+}
+
+export interface AuditLogGateway {
+  getLogs: (query: AuditLogQuery, signal?: CancellationSignal) => Promise<AuditLogPage>
 }
 
 export interface JobStreamCallbacks {
@@ -159,6 +164,7 @@ export interface ApplicationServices {
   dashboardExport: DashboardExportGateway
   cLevelReport: CLevelReportGateway
   auth: AuthGateway
+  auditLogs: AuditLogGateway
   reports: ReportGateway
   sites: SiteGateway
   storage: StorageGateway

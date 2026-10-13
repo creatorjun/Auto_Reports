@@ -64,7 +64,17 @@ class JwtService(TokenServicePort):
             if payload.get("type") != expected_type:
                 raise ValueError("Token type mismatch")
             subject: str = payload["sub"]
+            if not isinstance(subject, str) or not subject:
+                raise ValueError("Invalid subject")
             gen = payload.get("gen")
+            superadmin_enabled = bool(
+                self._settings.login
+                and self._settings.superadmin_username
+                and self._settings.superadmin_password
+                and self._settings.superadmin_username != self._settings.admin_username
+            )
+            if superadmin_enabled and subject == self._settings.superadmin_username and type(gen) is not int:
+                raise ValueError("Superadmin session required")
             if gen is not None and gen != self._superadmin_generation:
                 raise ValueError("Superadmin session invalidated")
             return subject

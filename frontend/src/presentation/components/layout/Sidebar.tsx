@@ -1,11 +1,12 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { useId, useState } from 'react'
 import { NavLink, useMatch } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, Presentation } from 'lucide-react'
+import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, Presentation, ShieldCheck } from 'lucide-react'
 import { cLevelNewBadgeVisible } from '@/application/services/cLevelReport'
 import TriggerButton from '../common/TriggerButton'
 import { useAuthStore } from '@/presentation/state/authStore'
-import { useLogout } from '@/presentation/hooks/useAuth'
+import { useLogout, useMe } from '@/presentation/hooks/useAuth'
+import { canViewAuditLogs } from '@/domain/Auth'
 import ThemeToggle from './ThemeToggle'
 import { ANNUAL_REPORT_YEARS } from '@/presentation/config/annualReports'
 
@@ -39,6 +40,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
   const showAnnualReports = annualReportsExpanded && !collapsed
   const { loginRequired, username } = useAuthStore()
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
+  const me = useMe()
 
   return (
     <aside
@@ -139,6 +141,13 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
             </NavLink>
           )
         })}
+        {!me.isError && canViewAuditLogs(me.data) && (
+          <NavLink to="/audit-logs" title={collapsed ? '감사로그' : undefined}
+            className={({ isActive }) => ['nav-link 3xl:text-sm 3xl:py-2.5', collapsed ? 'justify-center px-0' : '', isActive ? 'nav-link-active' : ''].join(' ')}>
+            <ShieldCheck size={16} className="flex-shrink-0" />
+            {!collapsed && <span>감사로그</span>}
+          </NavLink>
+        )}
       </div>
 
       <div className={['mt-auto pt-4 border-t border-apple-divider/60 flex flex-col', collapsed ? 'items-center' : ''].join(' ')}>

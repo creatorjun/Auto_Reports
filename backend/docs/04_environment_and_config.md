@@ -44,10 +44,10 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 | Variable | Default | 운영 조건 |
 |----------|---------|-----------|
 | `LOGIN` | `false` | 인증 사용 시 true |
-| `ADMIN` | `admin` | 관리자 이름 |
+| `ADMIN` | `admin` | 일반 사용자 계정 이름 |
 | `ADMIN_PASSWORD` | 빈 값 | 빈 값이면 로그인 불가 |
-| `SUPERADMIN` | 빈 값 | 선택 계정 |
-| `SUPERADMIN_PASSWORD` | 빈 값 | 선택 계정 암호 |
+| `SUPERADMIN` | 빈 값 | 감사로그 조회 권한을 가진 관리자 계정 이름 |
+| `SUPERADMIN_PASSWORD` | 빈 값 | 관리자 계정 암호. 미설정 시 관리자 권한 비활성 |
 | `JWT_SECRET` | 개발용 placeholder | 강한 임의 값으로 변경 |
 | `JWT_ACCESS_EXPIRE_MINUTES` | `30` | access token 수명 |
 | `JWT_REFRESH_EXPIRE_DAYS` | `7` | refresh token 수명 |
@@ -55,7 +55,7 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 | `CREDENTIAL_ENCRYPTION_KEY` | 빈 값 | 운영에서는 유효한 Fernet key 필수 |
 | `CORS_ORIGINS` | `["*"]` | 운영 frontend origin으로 제한 |
 
-일반·슈퍼 관리자 credential 비교는 constant-time compare를 사용합니다. access credential 암호화 key를 바꾸면 기존 ciphertext를 복호화할 수 없으므로 별도 key rotation 절차가 필요합니다.
+일반 사용자와 관리자 credential 비교는 constant-time compare를 사용합니다. `ADMIN`과 `SUPERADMIN`은 서로 다른 이름으로 지정합니다. 같은 이름이면 관리자 권한을 부여하지 않습니다. `/auth/me`가 반환하는 `is_superadmin`과 API의 서버 권한 검사로 감사로그 접근을 제어하며, `LOGIN=false`에서도 감사로그는 공개하지 않습니다. 관리자 재로그인은 이전 관리자 세션을 무효화합니다. access credential 암호화 key를 바꾸면 기존 ciphertext를 복호화할 수 없으므로 별도 key rotation 절차가 필요합니다.
 
 ## AI, storage, schedule
 
@@ -64,6 +64,7 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 | `GEMINI_API_KEY` | 빈 값 | Gemini API key |
 | `AI_ENABLED` | `true` | false면 AI 분석 생략 |
 | `STORAGE_DIR` | `/app/storage` | 파일 root |
+| `AUDIT_LOG_DIR` | `logs` | 감사로그 저장·조회 경로. Compose에서는 `/app/logs`로 고정하고 named volume에 보관 |
 | `SCHEDULE_CRON` | `0 23 * * 5` | 금요일 23시 |
 | `TZ` | `Asia/Seoul` | scheduler timezone |
 | `REFRESH_REPORT_ENABLED` | `true` | 최신 보고서 주기 갱신 |
@@ -101,6 +102,8 @@ DB_NAME=auto_reports
 LOGIN=true
 ADMIN=admin
 ADMIN_PASSWORD=replace-me
+SUPERADMIN=root
+SUPERADMIN_PASSWORD=replace-with-admin-password
 JWT_SECRET=replace-with-random-secret
 COOKIE_SECURE=true
 CREDENTIAL_ENCRYPTION_KEY=replace-with-fernet-key
@@ -109,4 +112,4 @@ CORS_ORIGINS=["https://workspace.company.example"]
 
 ## Docker Compose
 
-`docker-compose.yml`은 PostgreSQL 16, FastAPI backend, nginx React frontend를 정의합니다. DB healthcheck 뒤 backend가 시작되고 backend healthcheck 뒤 frontend가 시작됩니다. `db_data`, `reports_data`, `storage_data` named volume을 사용합니다.
+`docker-compose.yml`은 PostgreSQL 16, FastAPI backend, nginx React frontend를 정의합니다. DB healthcheck 뒤 backend가 시작되고 backend healthcheck 뒤 frontend가 시작됩니다. `db_data`, `reports_data`, `storage_data`, `audit_logs` named volume을 사용합니다. 기존 컨테이너 내부 로그의 첫 이전 방법은 [감사로그 문서](07_audit_logs.md)를 참고하세요.
