@@ -8,6 +8,7 @@ export interface DashboardExportTableData {
 
 export interface DashboardPdfCell {
   text: string
+  value?: string | number | null
   fillColor?: string
   link?: string
 }
@@ -31,6 +32,7 @@ export interface DashboardPdfChartBlock {
   svg: string
   width: number
   height: number
+  fullWidth?: boolean
   legend: { label: string; color: string }[]
   data?: DashboardExportTableData
 }
@@ -52,6 +54,7 @@ export type DashboardPdfBlock =
 export interface DashboardPdfSection {
   title: string
   blocks: DashboardPdfBlock[]
+  pageBreakBefore?: boolean
 }
 
 export interface DashboardPdfDocument {

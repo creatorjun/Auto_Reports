@@ -4,6 +4,7 @@ import { useAllReports, useDeleteReport } from '@/presentation/hooks/useReport'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import HistoryDeleteConfirmModal from '@/presentation/components/history/HistoryDeleteConfirmModal'
 import { HistoryReportTable } from '@/presentation/components/tables/HistoryReportTable'
+import CLevelHistory from '@/presentation/components/clevel/CLevelHistory'
 
 const PAGE_SIZE = 20
 
@@ -43,6 +44,8 @@ export default function HistoryPage() {
         {isFetching && <LoadingSpinner />}
       </div>
 
+      <CLevelHistory />
+      <h2 className="text-base font-semibold text-apple-dark">일반 · 연간 보고서</h2>
       <div className="bg-apple-surface border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
         <HistoryReportTable
           data={data ?? []}

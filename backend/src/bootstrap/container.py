@@ -21,6 +21,11 @@ from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
+from src.application.use_cases.c_level_report import CLevelReportUseCase
+from src.application.use_cases.c_level_workspace import CLevelWorkspaceUseCase
+from src.infrastructure.external.c_level_jira_source import CLevelJiraSource
+from src.infrastructure.cache.c_level_preview_cache import CLevelPreviewCache
+from src.infrastructure.persistence.c_level_repository_impl import CLevelRepositoryImpl
 from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.smtp_email_client import SmtpEmailClient
@@ -43,6 +48,17 @@ class Container:
         self._settings = settings
         self._database = database
         self._jira = JiraFactory.create(settings)
+        self._c_level_source = CLevelJiraSource(
+            base_url=settings.jira_base_url, email=settings.jira_email,
+            api_token=settings.jira_api_token, project_key=settings.project_key,
+            sla_initial_response_field_id=settings.sla_initial_response_field_id,
+            sla_resolution_field_id=settings.sla_resolution_field_id,
+        )
+        self._c_level_previews = CLevelPreviewCache()
+        self._c_level_workspace = CLevelWorkspaceUseCase(
+            CLevelReportUseCase(self._c_level_source),
+            CLevelRepositoryImpl(database.session), self._c_level_previews,
+        )
         self._ai = AiFactory.create(settings)
         collectors = WidgetCollectorFactory(self._jira)
         query_builder = WidgetQueryBuilder(
@@ -129,6 +145,10 @@ class Container:
             )
 
     @asynccontextmanager
+    async def get_c_level_workspace(self) -> AsyncIterator[CLevelWorkspaceUseCase]:
+        yield self._c_level_workspace
+
+    @asynccontextmanager
     async def get_report_chart_issues(self) -> AsyncIterator[GetReportChartIssuesUseCase]:
         async with self.get_report() as reports:
             yield GetReportChartIssuesUseCase(reports, self._jira, self._query_builder)
@@ -186,6 +206,8 @@ class Container:
     async def aclose(self) -> None:
         async with AsyncExitStack() as stack:
             stack.push_async_callback(self._jira.aclose)
+            stack.push_async_callback(self._c_level_source.aclose)
+            stack.push_async_callback(self._c_level_previews.aclose)
             if self._ai is not None:
                 stack.push_async_callback(self._ai.aclose)
             stack.push_async_callback(self._cache.aclose)

@@ -1,7 +1,8 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { useId, useState } from 'react'
 import { NavLink, useMatch } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange } from 'lucide-react'
+import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, Presentation } from 'lucide-react'
+import { cLevelNewBadgeVisible } from '@/application/services/cLevelReport'
 import TriggerButton from '../common/TriggerButton'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout } from '@/presentation/hooks/useAuth'
@@ -19,6 +20,7 @@ const reportLinks = [
   { to: '/issues',   label: '이슈 관리',      icon: <ListChecks size={16} /> },
   { label: '연간 보고서', icon: <CalendarRange size={16} />, children: annualReportLinks },
   { to: '/sla-dashboard', label: 'SLA 대시보드', icon: <Gauge size={16} /> },
+  { to: '/c-level-report', label: 'C-Level 보고', icon: <Presentation size={16} /> },
   { to: '/history',  label: '보고서 히스토리', icon: <History         size={16} /> },
   { to: '/partners', label: '파트너 관리',    icon: <Users           size={16} /> },
   { to: '/sites',    label: '사이트 관리',    icon: <Building2       size={16} /> },
@@ -133,6 +135,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
             >
               <span className="flex-shrink-0">{icon}</span>
               {!collapsed && <span>{label}</span>}
+               {!collapsed && to === '/c-level-report' && cLevelNewBadgeVisible(import.meta.env.VITE_CLEVEL_RELEASED_AT) && <span className="ml-auto rounded bg-amber-200 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">NEW</span>}
             </NavLink>
           )
         })}

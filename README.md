@@ -44,6 +44,12 @@ Auto_Reports/
 
 인증이 적용된 `GET /api/v1/issue-management/issues`는 `issues`, `initialized`, `refreshing`, `synced_at`, `error`를 반환합니다. 최초 수집 중인 빈 목록과 실제 조회 결과가 없는 상태는 `initialized`로 구분합니다.
 
+## C-Level 집중 관리 보고
+
+**C-Level 보고** 메뉴(`/c-level-report`)에서 주간·월간 처리 현황, 8개 기간 추이, 장기 미해결 고객사, SLA 위반 티켓과 처리 과정을 조회합니다. Jira 상태 변경 이력으로 과거 기준시점의 잔량을 계산하며, 데이터가 없거나 복원할 수 없는 항목은 **확인 불가**로 표시합니다.
+
+티켓별 보고용 코멘트와 보고서 포함 여부를 저장하고, 수치·코멘트·저장자·저장 시각을 고정한 보고서를 기존 히스토리에서 다시 열 수 있습니다. A4 가로 PDF와 Excel 다운로드를 제공합니다. 기존 기능은 유지하며 추가 DB 테이블은 Alembic `0015`로 생성합니다. 집계 정의, Jira 필드 매핑, API와 실행·검증 방법은 [C-Level 기술 문서](backend/docs/06_c_level_report.md)를 참고하세요.
+
 ## 실행
 
 루트에 `.env`를 준비한 뒤 전체 스택을 실행합니다.

@@ -9,6 +9,7 @@ import LazyErrorBoundary from '@/presentation/components/common/LazyErrorBoundar
 const DashboardPage          = lazy(() => import('@/presentation/pages/DashboardPage'))
 const IssueManagementPage    = lazy(() => import('@/presentation/pages/IssueManagementPage'))
 const SlaDashboardPage       = lazy(() => import('@/presentation/pages/SlaDashboardPage'))
+const CLevelReportPage       = lazy(() => import('@/presentation/pages/CLevelReportPage'))
 const HistoryPage            = lazy(() => import('@/presentation/pages/HistoryPage'))
 const StoragePage            = lazy(() => import('@/presentation/pages/StoragePage'))
 const StoragePreviewPage     = lazy(() => import('@/presentation/pages/StoragePreviewPage'))
@@ -40,6 +41,8 @@ export const router = createBrowserRouter([
       { index: true,            element: <Wrap><DashboardPage /></Wrap> },
       { path: 'issues',         element: <Wrap><IssueManagementPage /></Wrap> },
       { path: 'sla-dashboard',  element: <Wrap><SlaDashboardPage /></Wrap> },
+      { path: 'c-level-report', element: <Wrap><CLevelReportPage /></Wrap> },
+      { path: 'c-level-report/history/:id', element: <Wrap><CLevelReportPage /></Wrap> },
       { path: 'history',        element: <Wrap><HistoryPage /></Wrap> },
       { path: 'reports/annual/:year', element: <Wrap><DashboardPage /></Wrap> },
       { path: 'reports/:id',    element: <Wrap><DashboardPage /></Wrap> },

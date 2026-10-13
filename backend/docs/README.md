@@ -11,3 +11,4 @@
 | [03_data_model.md](./03_data_model.md) | DB 테이블 정의, 도메인 엔티티, JSONB 위젯 구조 |
 | [04_environment_and_config.md](./04_environment_and_config.md) | 환경변수 전체 목록, `.env` 예시, Docker Compose 구성 |
 | [05_issue_catalog.md](./05_issue_catalog.md) | 전수 검토에서 발견한 위반과 리팩터링 결과 |
+| [06_c_level_report.md](./06_c_level_report.md) | C-Level 화면, Jira 집계 기준, 확인 불가 처리, API·저장·검증 |

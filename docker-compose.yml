@@ -49,7 +49,10 @@ services:
         max-file: "10"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_CLEVEL_RELEASED_AT: ${VITE_CLEVEL_RELEASED_AT:-}
     container_name: tac_frontend
     restart: unless-stopped
     environment:
