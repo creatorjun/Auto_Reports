@@ -4,6 +4,7 @@ import type { IssueColumn } from '@/domain/IssueColumnSearch'
 export const ISSUE_COLUMNS: readonly { key: IssueColumn; label: string }[] = [
   { key: 'key', label: '이슈' },
   { key: 'summary', label: '제목' },
+  { key: 'type', label: '티켓 타입' },
   { key: 'status', label: '진행 상태' },
   { key: 'reporter', label: '보고자' },
   { key: 'tac', label: '담당자' },

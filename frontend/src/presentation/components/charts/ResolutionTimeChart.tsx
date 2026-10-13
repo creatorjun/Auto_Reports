@@ -5,6 +5,7 @@ import { useDashboardExportMode } from '@/presentation/context/DashboardExportCo
 import { STATUS_STYLE } from '@/presentation/config/ui'
 import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC } from '@/presentation/config/constants'
 import type { RecentIssue } from '@/domain/Issue'
+import { issueTypeLabel } from '@/domain/Issue'
 import type { IssueColumn, IssueColumnFilters } from '@/domain/IssueColumnSearch'
 import ColumnSearchInput from '@/presentation/components/common/ColumnSearchInput'
 import { ISSUE_COLUMNS } from '@/presentation/config/issueColumns'
@@ -15,10 +16,11 @@ type SortDir = 'asc' | 'desc'
 
 const DEFAULT_FRACS: Record<ColKey, number> = {
   key:      0.10,
-  summary:  0.28,
-  status:   0.12,
-  reporter: 0.12,
-  tac:      0.11,
+  summary:  0.22,
+  type:     0.10,
+  status:   0.11,
+  reporter: 0.10,
+  tac:      0.10,
   tac_assignee: 0.13,
   elapsed:  0.14,
 }
@@ -81,6 +83,7 @@ function sortIssues(items: RecentIssue[], key: ColKey, dir: SortDir): RecentIssu
     switch (key) {
       case 'key':      av = a.key;          bv = b.key;          break
       case 'summary':  av = a.summary;      bv = b.summary;      break
+      case 'type':     av = issueTypeLabel(a.type); bv = issueTypeLabel(b.type); break
       case 'status':   av = a.stage_index;  bv = b.stage_index;  break
       case 'reporter': av = a.reporter;     bv = b.reporter;     break
       case 'tac':      av = a.tac_team;     bv = b.tac_team;     break
@@ -107,6 +110,7 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${style.bg} ${style.text}`}>{issue.status}</span>
       </div>
       <p className="w-full text-[13px] text-apple-dark leading-snug line-clamp-2">{issue.summary}</p>
+      <span className="rounded-md bg-apple-gray px-2 py-1 text-[11px] font-medium text-apple-mid">티켓 타입 · {issueTypeLabel(issue.type)}</span>
       <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-apple-light">
         <span>{issue.reporter}</span>
         <span className="text-apple-divider">·</span>
@@ -203,7 +207,7 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', de
       </div>
 
       <div data-pdf-desktop="" className="hidden md:block overflow-x-auto">
-        <table data-pdf-table-layout="recent" ref={tableRef} className="w-full min-w-[1040px] text-ui-base border-collapse" style={{ tableLayout: 'fixed' }}>
+        <table data-pdf-table-layout="recent" ref={tableRef} className="w-full min-w-[1160px] text-ui-base border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>{COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * 100).toFixed(2)}%` }} />)}</colgroup>
           <thead className="bg-apple-gray/60">
             <tr className="border-b-2 border-apple-divider text-ui-sm text-apple-mid">
@@ -230,6 +234,7 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', de
                   className="cursor-pointer transition-colors hover:bg-gray-50">
                   <td className="overflow-hidden px-3 py-2 text-center" data-pdf-link={jiraUrl}><span className="block truncate font-mono text-ui-sm text-blue-500">{issue.key}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-apple-primary" title={issue.summary}>{issue.summary}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-mid" title={issueTypeLabel(issue.type)}>{issueTypeLabel(issue.type)}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-ui-sm font-medium ${style.bg} ${style.text} whitespace-nowrap`}>{issue.status}</span>
                   </td>

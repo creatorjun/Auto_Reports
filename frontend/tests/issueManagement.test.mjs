@@ -123,10 +123,13 @@ test('thousands of cached issues use bounded pagination and can reach the final 
 test('column searches match full text, combine with AND and ignore case and outer spaces', () => {
   const rows = [issue('T-1', { summary: '[서울교통공사] ABC 확인', reporter: '홍길동', tac_team: '지원팀', tac_assignee: '담당자', elapsed_days: 30 }), issue('T-2', { summary: '[서울시청] 문의', status: '처리 중' }), issue('T-3', { summary: '[부산교통공사] 문의' })]
   assert.deepEqual(filterIssuesByColumns(rows, { summary: '서울' }).map((row) => row.key), ['T-1', 'T-2'])
-  assert.deepEqual(filterIssuesByColumns(rows, { summary: ' abc ', reporter: '홍', tac: '지원', tac_assignee: '담당', elapsed: '30일', status: 'closed', key: 't-1' }).map((row) => row.key), ['T-1'])
+  assert.deepEqual(filterIssuesByColumns(rows, { summary: ' abc ', type: '인시던트', reporter: '홍', tac: '지원', tac_assignee: '담당', elapsed: '30일', status: 'closed', key: 't-1' }).map((row) => row.key), ['T-1'])
   assert.deepEqual(filterIssuesByColumns(rows, { summary: '서울', status: '처리' }).map((row) => row.key), ['T-2'])
   assert.deepEqual(filterIssuesByColumns(rows, { elapsed: '2026-01' }), rows)
   assert.deepEqual(filterIssuesByColumns(rows, { summary: '   ' }), rows)
+  const typedRows = [issue('S-1', { type: '서비스 요청' }), issue('S-2', { type: '개선' }), issue('S-3', { type: null })]
+  for (const type of ['서비스요청', ' 서비스 요청 ']) assert.deepEqual(filterIssuesByColumns(typedRows, { type }).map((row) => row.key), ['S-1'])
+  assert.deepEqual(filterIssuesByColumns(typedRows, { type: '확인 불가' }).map((row) => row.key), ['S-3'])
 })
 
 test('typing filters every cached page immediately, keeps inputs for zero results and survives updates', (t) => {
@@ -137,7 +140,7 @@ test('typing filters every cached page immediately, keeps inputs for zero result
   t.after(() => act(() => view.unmount()))
   const input = (label) => view.root.findByProps({ 'aria-label': `${label} 컬럼 검색` })
   const type = (label, value) => act(() => input(label).props.onChange({ target: { value } }))
-  assert.equal(view.root.findByType('thead').findAllByType('input').length, 7)
+  assert.equal(view.root.findByType('thead').findAllByType('input').length, 8)
   let stopped = false
   act(() => input('제목').props.onClick({ stopPropagation() { stopped = true } }))
   assert.ok(stopped)
@@ -163,13 +166,13 @@ test('typing filters every cached page immediately, keeps inputs for zero result
 
 for (const title of ['최근 이슈 현황', '전체 이슈 현황']) {
   test(`${title} exposes all column searches by default on desktop and mobile`, (t) => {
-    const rows = [issue('T-1', { summary: '[서울교통공사] 문의' }), issue('T-2', { summary: '[부산] 문의' })]
+    const rows = [issue('T-1', { summary: '[서울교통공사] 문의', type: '서비스 요청' }), issue('T-2', { summary: '[부산] 문의', type: '개선' })]
     let view
     act(() => { view = TestRenderer.create(React.createElement(RecentIssuesWidget, {
       title, details: rows, elapsedDaysThreshold: null, elapsedDaysComparison: 'gte',
     })) })
     t.after(() => act(() => view.unmount()))
-    const labels = ['이슈', '제목', '진행 상태', '보고자', '담당자', 'TAC 담당자', '생성일 (경과)']
+    const labels = ['이슈', '제목', '티켓 타입', '진행 상태', '보고자', '담당자', 'TAC 담당자', '생성일 (경과)']
     const input = (label, mobile = false) => view.root.findByProps({ 'aria-label': `${label} 컬럼 검색${mobile ? ' 모바일' : ''}` })
     for (const label of labels) {
       assert.equal(input(label).props.type, 'text')
@@ -187,6 +190,14 @@ for (const title of ['최근 이슈 현황', '전체 이슈 현황']) {
     act(() => input('제목').props.onChange({ target: { value: '' } }))
     assert.equal(input('제목', true).props.value, '')
     assert.deepEqual(tableKeys(view.root), ['T-1', 'T-2'])
+    assert.deepEqual(view.root.findByType('tbody').findAllByType('tr').map((row) => textOf(row.findAllByType('td')[2])), ['서비스요청', '개선'])
+    assert.ok(textOf(view.root.findByProps({ 'data-pdf-mobile': '' })).includes('티켓 타입 · 서비스요청'))
+    click(view.root.findByProps({ 'data-pdf-header': '티켓 타입' }))
+    assert.deepEqual(tableKeys(view.root), ['T-2', 'T-1'])
+    act(() => input('티켓 타입', true).props.onChange({ target: { value: '서비스 요청' } }))
+    assert.deepEqual(tableKeys(view.root), ['T-1'])
+    assert.equal(input('티켓 타입').props.value, '서비스 요청')
+    assert.equal(rows[0].type, '서비스 요청')
   })
 }
 

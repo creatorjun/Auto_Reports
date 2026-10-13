@@ -15,6 +15,11 @@ export interface RecentIssue extends BaseIssue {
   tac_assignee?: string | null
 }
 
+export function issueTypeLabel(type: string | null | undefined): string {
+  const value = type?.trim()
+  return value === '서비스 요청' ? '서비스요청' : value || '확인 불가'
+}
+
 export type ElapsedDaysComparison = 'gte' | 'lte'
 
 export function filterRecentIssuesByElapsedDays(

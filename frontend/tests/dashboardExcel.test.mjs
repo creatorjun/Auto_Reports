@@ -49,9 +49,14 @@ function fixture() {
       { title: 'AI 종합 분석', blocks: [{ kind: 'text', title: '분석', paragraphs: ['한글과 줄바꿈\n전체 보존'] }] },
       { title: '월별 이슈', blocks: [{ kind: 'chart', title: '월별 등록', subtitle: '하반기', svg: '<svg/>', legend: [], width: 1, height: 1,
         data: { headers: ['월', '건수'], rows: [['7월', 12], ['8월', 0], ['9월', null]] } }] },
-      { title: '최근 이슈 현황', blocks: [{ kind: 'table', headers: ['티켓', '제목', '생성일'], rows: Array.from({ length: 73 }, (_, index) => [
+      { title: '최근 이슈 현황', blocks: [{ kind: 'table', headers: ['티켓', '제목', '티켓 타입', '진행 상태', '보고자', '담당자', 'TAC 담당자', '생성일'], rows: Array.from({ length: 73 }, (_, index) => [
         { text: `TAC-${index + 1}`, link: `https://jira.example.test/browse/TAC-${index + 1}` },
         { text: index === 0 ? '=HYPERLINK("https://example.test")' : `[서울] 전체 제목 ${index + 1}\n두 번째 줄` },
+        { text: ['서비스요청', '인시던트', '개선'][index % 3] },
+        { text: '이슈 리뷰 중' },
+        { text: '홍길동' },
+        { text: '기술 지원팀' },
+        { text: '김기술 선임' },
         { text: '2026-10-06' },
       ]) }] },
     ],
@@ -86,7 +91,12 @@ test('real xlsx preserves Korean filters, all 73 rows, hyperlinks and numeric ch
   assert.equal(issues.B2.t, 's')
   assert.equal(issues.B2.f, undefined)
   assert.equal(issues.C2.t, 's')
-  assert.equal(issues['!autofilter'].ref, 'A1:C74')
+  assert.equal(issues.C1.v, '티켓 타입')
+  assert.equal(issues.C2.v, '서비스요청')
+  assert.equal(issues.C3.v, '인시던트')
+  assert.equal(issues.C4.v, '개선')
+  assert.equal(issues.H2.v, '2026-10-06')
+  assert.equal(issues['!autofilter'].ref, 'A1:H74')
   assert.equal(workbook.Sheets['주요 지표'].B2.v, 1234)
   assert.equal(workbook.Sheets['주요 지표'].B3.v, '98.5%')
   assert.equal(workbook.Sheets['월별 등록'].B2.t, 'n')

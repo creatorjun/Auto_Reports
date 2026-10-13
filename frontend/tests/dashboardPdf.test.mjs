@@ -46,11 +46,12 @@ function fixtureDocument() {
         title: '최근 이슈 현황',
         blocks: [{
           kind: 'table',
-          headers: ['티켓', '제목', '진행 상태', '보고자', '담당자', 'TAC 담당자', '생성일'],
-          widths: [10, 28, 12, 11, 11, 13, 15],
+          headers: ['티켓', '제목', '티켓 타입', '진행 상태', '보고자', '담당자', 'TAC 담당자', '생성일'],
+          widths: [10, 22, 10, 11, 10, 10, 13, 14],
           rows: Array.from({ length: 73 }, (_, index) => [
             { text: `TAC-${String(index + 1).padStart(4, '0')}`, link: `https://example.invalid/browse/TAC-${index + 1}` },
             { text: `긴 한글 제목 보존 확인 ${index + 1} — ${'서비스 요청 상세 내용 '.repeat(4)}` },
+            { text: ['서비스요청', '인시던트', '개선'][index % 3] },
             { text: '이슈 리뷰 중' },
             { text: '홍길동' },
             { text: '기술 지원팀' },
@@ -123,6 +124,7 @@ test('PDF definition preserves chart aspect ratios, legends and every supplied r
   assert.equal(tables[0].table.body.length - tables[0].table.headerRows, 73)
   assert.equal(tables[1].table.body.length - tables[1].table.headerRows, 7)
   assert.ok(tables[0].table.widths[1] > tables[0].table.widths[0])
+  assert.equal(tables[0].table.widths.length, 8)
   assert.ok(allNodes.some((node) => node.text === '■ ' && node.color === '#12A677'))
   assert.deepEqual(document, before)
 })
@@ -139,6 +141,8 @@ test('real PDF embeds Korean fonts and keeps all issue pages, repeated headers, 
   assert.match(compact(result.text), /한글분석문장이검색가능한텍스트로보존됩니다/)
   assert.match(compact(result.text), /벡터차트검증/)
   assert.match(compact(result.text), /TAC담당자/)
+  assert.equal([...compact(result.text).matchAll(/인시던트/g)].length, 24)
+  assert.equal([...compact(result.text).matchAll(/개선/g)].length, 24)
   assert.equal([...compact(result.text).matchAll(/김기술선임/g)].length, 73)
   assert.equal([...compact(result.text).matchAll(/AI종합분석/g)].length, 1)
   const chartHeadingPage = result.pages.find((page) => compact(page.text).includes('월별이슈현황'))
@@ -152,6 +156,7 @@ test('real PDF embeds Korean fonts and keeps all issue pages, repeated headers, 
   for (const page of issuePages) {
     assert.match(compact(page.text), /최근이슈현황/)
     assert.match(compact(page.text), /제목/)
+    assert.match(compact(page.text), /티켓타입/)
     assert.ok(page.view[2] > page.view[3], 'page must be landscape')
   }
   assert.ok(result.pages.some((page) => page.annotations.some((entry) => entry.url === 'https://example.invalid/browse/TAC-73')))
