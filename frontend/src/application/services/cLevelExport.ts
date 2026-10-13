@@ -1,7 +1,7 @@
 // frontend/src/application/services/cLevelExport.ts
 import type { CLevelReport } from '@/domain/CLevelReport'
 import type { DashboardPdfBlock, DashboardPdfDocument, DashboardPdfSection } from '@/domain/DashboardExport'
-import { CLEVEL_AGE_BUCKETS, cLevelDate, cLevelIssueTitle, cLevelMetricLabel, cLevelNumber, cLevelText, cLevelTrendData, filterCLevelCustomers, filterCLevelViolations } from './cLevelReport'
+import { CLEVEL_AGE_BUCKETS, CLEVEL_AGE_LABELS, cLevelDate, cLevelIssueTitle, cLevelMetricLabel, cLevelNumber, cLevelCustomerPartners, cLevelText, cLevelTrendData, filterCLevelCustomers, filterCLevelViolations } from './cLevelReport'
 
 export interface CLevelExportSelection {
   minimumMonths: number
@@ -47,7 +47,7 @@ export function buildCLevelExport(report: CLevelReport, selection: CLevelExportS
     blocks: [
       table('이전 기간 대비 장기 이슈', ['지표', '이전 기간', '증감'], [['장기 이슈 전체', report.long_term.previous_total ?? null, report.long_term.delta_total ?? null], ['12개월 이상', report.long_term.previous_over_12_months ?? null, report.long_term.delta_over_12_months ?? null]]),
       table('경과 구간별 현황', ['구간', '미해결', '고객사', '단순문의', '인시던트', '개선'], report.long_term.buckets.map((bucket) => [bucket.label, bucket.count, bucket.customer_count, bucket.by_type.service, bucket.by_type.incident, bucket.by_type.improvement])),
-      table(`${selection.minimumMonths}개월 이상 고객사별 장기 미해결`, ['고객사', '파트너', '단순문의', '인시던트', '개선', '합계', '경과 분포 (1~3 / 3~6 / 6~12 / 12+)', '최장 경과', '주요 체류 상태', 'TAC 담당'], customers.map((customer) => [customer.customer_name, customer.partners.join(', ') || '확인 불가', customer.by_type.service, customer.by_type.incident, customer.by_type.improvement, customer.total, CLEVEL_AGE_BUCKETS.map((key) => customer.buckets[key]).join(' / '), `${customer.oldest_days}일`, customer.dominant_status, customer.tac_assignees.join(', ') || '확인 불가'])),
+      table(`${selection.minimumMonths}개월 이상 고객사별 장기 미해결`, ['고객사', '파트너', '단순문의', '인시던트', '개선', '합계', '경과 분포', '최장 경과', '주요 체류 상태', 'TAC 담당'], customers.map((customer) => [customer.customer_name, cLevelCustomerPartners(customer, report.issues), customer.by_type.service, customer.by_type.incident, customer.by_type.improvement, customer.total, CLEVEL_AGE_BUCKETS.map((key) => `${CLEVEL_AGE_LABELS[key]} ${cLevelNumber(customer.buckets[key], '건')}`).join(' / '), `${customer.oldest_days}일`, customer.dominant_status, customer.tac_assignees.join(', ') || '확인 불가'])),
     ],
   }
   const sections: DashboardPdfSection[] = customersOnly ? [customerSection] : [

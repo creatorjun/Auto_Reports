@@ -81,6 +81,8 @@
 .cl-table strong { font-weight: 700; }
 .cl-text-button { display: inline-flex; gap: 4px; align-items: center; color: rgb(var(--color-apple-dark)); font-weight: 650; text-align: left; min-width: 90px; }.cl-text-button:hover { color: var(--cl-accent); }
 .cl-age-bar { display: flex; width: 115px; height: 7px; border-radius: 6px; overflow: hidden; background: rgb(var(--color-apple-gray)); }.cl-age-bar i { height: 100%; }
+.cl-age-distribution { min-width: 280px; }.cl-age-distribution .cl-age-bar { width: 100%; }
+.cl-age-legend { display: grid; grid-template-columns: repeat(2, max-content); gap: 4px 12px; margin-top: 8px; @apply text-ui-xs; color: rgb(var(--color-apple-mid)); }.cl-age-legend li { display: flex; align-items: center; gap: 6px; white-space: nowrap; }.cl-age-legend i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
 .cl-status { display: inline-flex; border-radius: 6px; padding: 3px 7px; @apply text-ui-xs; font-weight: 600; color: rgb(var(--color-apple-mid)); background: rgb(var(--color-apple-gray)); white-space: nowrap; }
 .cl-empty { padding: 34px 12px; text-align: center; @apply text-ui-sm; color: rgb(var(--color-apple-light)); }
 .cl-customer-issues { padding: 17px; background: rgb(var(--color-apple-gray)); border-radius: 9px; margin-top: 12px; }.cl-customer-issues h4 { @apply text-ui-sm; font-weight: 650; margin-bottom: 12px; }

@@ -1,5 +1,5 @@
 // frontend/src/application/services/cLevelReport.ts
-import type { CLevelAgeBucketId, CLevelCustomer, CLevelReport, CLevelType, CLevelViolation } from '@/domain/CLevelReport'
+import type { CLevelAgeBucketId, CLevelCustomer, CLevelIssue, CLevelReport, CLevelType, CLevelViolation } from '@/domain/CLevelReport'
 
 export const CLEVEL_TYPES: Array<{ type: CLevelType; label: string; color: string }> = [
   { type: 'service', label: '단순문의', color: '#65b7cf' },
@@ -7,6 +7,7 @@ export const CLEVEL_TYPES: Array<{ type: CLevelType; label: string; color: strin
   { type: 'improvement', label: '개선', color: '#aac861' },
 ]
 export const CLEVEL_AGE_BUCKETS: CLevelAgeBucketId[] = ['1-3', '3-6', '6-12', '12+']
+export const CLEVEL_AGE_LABELS: Record<CLevelAgeBucketId, string> = { '1-3': '1~3개월', '3-6': '3~6개월', '6-12': '6~12개월', '12+': '12개월 이상' }
 export const CLEVEL_OWNER_COLORS: Record<string, string> = { TAC: '#65b7cf', '고객·파트너': '#e4bc56', '연구소': '#b48ed0', '기타': '#8b93a2' }
 export const CLEVEL_AGE_COLORS = ['#e8d99e', '#e3b94f', '#df9758', '#d96c6c']
 
@@ -24,6 +25,14 @@ export function cLevelNumber(value: number | null | undefined, suffix = '', digi
 export function cLevelText(value: string | null | undefined): string {
   const normalized = value?.trim()
   return !normalized || ['미지정', '확인 필요', '알 수 없음'].includes(normalized) ? '확인 불가' : normalized
+}
+
+export function cLevelCustomerPartners(customer: CLevelCustomer, issues: CLevelIssue[]): string {
+  const names = customer.partners.map((name) => name.trim()).filter(Boolean).join(', ')
+  if (names) return names
+  const selected = new Set(customer.issue_keys)
+  const unavailable = issues.some((issue) => selected.has(issue.key) && (!issue.history_complete || issue.warnings.some((warning) => warning.startsWith('partner_names:'))))
+  return unavailable ? '확인 불가' : '제조사'
 }
 
 export function cLevelIssueTitle(customer: string | null | undefined, summary: string): string {
