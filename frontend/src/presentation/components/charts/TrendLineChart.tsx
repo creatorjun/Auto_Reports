@@ -62,9 +62,6 @@ export default function TrendLineChart({ created, resolved, onBarClick, periodLa
           />
         </BarChart>
       </ResponsiveContainer>
-      {!exportMode && onBarClick && (
-        <p className="text-center text-caption text-apple-light mt-1">막대를 클릭하면 이슈 목록을 확인할 수 있습니다</p>
-      )}
     </div>
   )
 }

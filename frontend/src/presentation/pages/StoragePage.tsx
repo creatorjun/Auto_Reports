@@ -363,7 +363,6 @@ export default function StoragePage() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-page-title font-semibold text-apple-dark tracking-tight">파일 보관함</h1>
-          <p className="text-label text-apple-light mt-1">파일을 업로드하고 선택하여 다운로드 또는 삭제</p>
         </div>
         {isFetching && !isLoading && <span className="text-caption text-apple-light">업데이트 중...</span>}
       </div>
@@ -392,10 +391,7 @@ export default function StoragePage() {
         onMoveToFolder={handleMoveToFolder}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-caption text-apple-light">
-          파일 또는 폴더를 다른 폴더나 상단 경로로 드래그해 이동할 수 있습니다.
-        </p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
           {isMoving && <span className="text-caption font-medium text-brand-600">이동 중...</span>}
           <button
@@ -481,9 +477,7 @@ export default function StoragePage() {
           )}
           <div className="text-center">
             <p className="text-label font-medium text-apple-dark">{uploadLabel}</p>
-            <p className="text-caption text-apple-light mt-0.5">
-              {quota ? `남은 용량 ${formatBytes(quota.available)}` : 'zip, tar, gz 등 모든 형식 업로드 가능'}
-            </p>
+            {quota && <p className="text-caption text-apple-light mt-0.5">남은 용량 {formatBytes(quota.available)}</p>}
           </div>
         </div>
       </div>

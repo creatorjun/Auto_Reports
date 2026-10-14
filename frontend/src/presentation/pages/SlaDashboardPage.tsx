@@ -14,7 +14,7 @@ export default function SlaDashboardPage() {
       <div>
         <h1 className="text-page-title font-semibold text-apple-dark">장기 이슈</h1>
         <p className="mt-1 text-label text-apple-light">
-          최근 이슈 현황 기반 · 최신 {issues.length}건
+          {issues.length}건
         </p>
       </div>
 

@@ -104,9 +104,6 @@ function ReasonPieChart({ byStatus, byStatusDetails, onSliceClick }: Props) {
           />
         </PieChart>
       </ResponsiveContainer>
-      {!exportMode && onSliceClick && (
-        <p className="text-center text-caption text-apple-light mt-1">영역을 클릭하면 해당 상태의 이슈를 확인할 수 있습니다</p>
-      )}
     </div>
   )
 }

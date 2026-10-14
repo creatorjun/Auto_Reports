@@ -127,7 +127,7 @@ test('period form works without an existing report and prevents invalid future d
   const submit = () => view.root.findAllByType('button').find((item) => item.props.type === 'submit')
   act(() => view.root.findAllByType('button').find((item) => textOf(item) === '월간').props.onClick())
   act(() => date().props.onChange({ target: { value: '2024-02-29' } }))
-  assert.match(textOf(view.toJSON()), /2024-02-01 – 2024-02-29/)
+  assert.equal(date().props.value, '2024-02-29')
   assert.equal(submit().props.disabled, false)
   act(() => view.root.findByType('form').props.onSubmit({ preventDefault() {} }))
   assert.deepEqual(requests, [{ period: 'month', date: '2024-02-29' }])

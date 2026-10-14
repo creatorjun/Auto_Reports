@@ -65,7 +65,6 @@ export default function SlaRateCard({ label, rate, met, total, slaFields = [] }:
             <span className="text-apple-light">위반</span>
             <span className="font-semibold text-apple-dark">{total - met}건</span>
           </div>
-          <p className="text-caption text-apple-light/70 mt-0.5">최근 30일 · Jira SLA 기준</p>
         </div>
       </div>
 

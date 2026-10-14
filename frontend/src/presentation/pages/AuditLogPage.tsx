@@ -74,7 +74,6 @@ export default function AuditLogPage() {
         <div>
           <div className="mb-2 flex items-center gap-2 text-caption font-medium text-brand-600"><ShieldCheck size={16} />관리자 전용</div>
           <h1 className="text-page-title font-semibold tracking-tight text-apple-dark">감사로그</h1>
-          <p className="mt-2 text-label text-apple-mid">로그인과 주요 작업의 기록을 최신순으로 확인합니다. 시간 기준: 한국 표준시 (KST)</p>
         </div>
         <button type="button" className={buttonClass} onClick={() => void logs.refetch()} disabled={logs.isFetching || !logs.allowed}>
           <RefreshCw size={16} className={logs.isFetching ? 'animate-spin' : ''} />새로고침
@@ -112,7 +111,6 @@ export default function AuditLogPage() {
         <section aria-label="감사로그 조회 결과" aria-busy={logs.isFetching} className="overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-apple-divider px-5 py-4">
             <h2 className="text-section-title font-semibold text-apple-dark">조회 결과 <span className="ml-2 tabular-nums text-brand-600">{data ? `${data.total.toLocaleString('ko-KR')}건` : '조회 중'}</span></h2>
-            <span className="text-caption text-apple-light">최신순 · 페이지당 {request.limit}건</span>
           </div>
           {logs.isPending ? <div className="py-16"><LoadingSpinner text="감사로그 조회 중..." /></div> : !data?.items.length ? <p role="status" className="px-6 py-16 text-center text-label text-apple-mid">조회 조건에 해당하는 감사로그가 없습니다.</p> : (
             <div className="overflow-x-auto">

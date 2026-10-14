@@ -33,15 +33,14 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
     }
   })
   const largest = Math.max(1, ...columns.flatMap((column) => [column.created ?? 0, column.resolved ?? 0]))
+  const failedColumns = columns.filter(({ query, year }) => query.isError && year !== report.report_year)
 
   return (
     <section aria-labelledby="annual-comparison-title" className="overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface">
       <div className="flex flex-wrap items-end justify-between gap-2 px-4 pb-4 pt-5 md:px-6">
         <div>
           <h2 id="annual-comparison-title" className="text-section-title font-semibold text-apple-dark">3개년 실적 비교</h2>
-          <p className="mt-1 text-label text-apple-mid">전체 요청 유형 · 각 보고서의 연간 누적 기준</p>
         </div>
-        <span className="text-caption text-apple-mid">연도는 보고서로 이동 · 건수는 개별 이슈 조회</span>
       </div>
       <table className="w-full table-fixed border-collapse text-body text-apple-dark">
         <caption className="sr-only">2024년부터 2026년까지 연간 생성 및 해결 건수. 2026년은 집계 기간까지의 누적 실적입니다.</caption>
@@ -85,16 +84,15 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
           ))}
         </tbody>
       </table>
-      <div className="space-y-2 border-t border-apple-divider px-4 py-3 text-caption leading-5 text-apple-mid md:px-6">
-        <p>2026년은 표시된 기간까지의 누적 실적입니다. 과년도 전체 실적과 집계 기간이 다르며, 아래 상세 필터는 이 비교표에 적용되지 않습니다.</p>
-        {columns.filter(({ query, year }) => query.isError && year !== report.report_year).map(({ year, query, data }) => (
+      {failedColumns.length > 0 && <div className="space-y-2 border-t border-apple-divider px-4 py-3 text-caption leading-5 text-apple-mid md:px-6">
+        {failedColumns.map(({ year, query, data }) => (
           <p key={year} className="flex flex-wrap items-center gap-2">
             {year}년 {data ? '갱신에 실패하여 이전 조회 값을 표시합니다.' : '보고서를 불러오지 못했습니다.'}
             <button type="button" disabled={query.isFetching} onClick={() => void query.refetch()} className="rounded px-1 font-semibold text-brand-600 underline underline-offset-2 disabled:opacity-50">다시 조회</button>
           </p>
         ))}
-      </div>
-      {details && <AnnualIssueDetailsModal {...details} description="선택한 연도의 전체 요청 유형 기준입니다." onClose={() => setDetails(null)} />}
+      </div>}
+      {details && <AnnualIssueDetailsModal {...details} onClose={() => setDetails(null)} />}
     </section>
   )
 }

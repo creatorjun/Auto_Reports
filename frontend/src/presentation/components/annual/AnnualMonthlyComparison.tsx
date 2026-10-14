@@ -66,7 +66,6 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle,
         <div className="mb-5 flex flex-wrap items-start justify-between gap-2">
           <div>
             <h3 className="text-section-title font-semibold text-apple-dark">월별 등록 · 해결 비교</h3>
-            <p className="mt-1 text-label text-apple-dark">같은 월의 등록과 해결 건수를 나란히 비교합니다.</p>
           </div>
           <span className="rounded-lg bg-apple-gray px-3 py-1.5 text-caption font-medium text-apple-dark">{subtitle}</span>
         </div>
@@ -98,7 +97,6 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle,
           <p className="flex min-h-44 items-center justify-center text-label text-apple-dark">해당 기간의 월별 데이터가 없습니다.</p>
         )}
         {allZero && <p className="mt-2 text-label text-apple-dark">해당 기간의 등록·해결 건수가 모두 0건입니다.</p>}
-        {onSelectMonth && !exportMode && <p className="mt-2 text-label text-apple-mid">막대 또는 아래 월별 건수를 선택하면 개별 이슈를 확인할 수 있습니다.</p>}
       </div>
       {rows.length > 0 && (
         <details open={exportMode || tableOpen} onToggle={(event) => { if (!exportMode) setTableOpen(event.currentTarget.open) }} className="group mt-5 border-t border-apple-divider pt-4">

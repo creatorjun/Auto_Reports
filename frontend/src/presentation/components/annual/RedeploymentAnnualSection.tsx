@@ -114,7 +114,6 @@ function MonthlyRedeploymentChart({ data, onDetails }: { data: RedeploymentAnaly
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h3 className="text-section-title font-semibold text-apple-dark">월별 재배포 추이</h3>
-          <p className="mt-1 text-label text-apple-mid">요청 유형별 월간 재배포 건수</p>
         </div>
         <span className="rounded-lg bg-apple-gray px-3 py-1.5 text-label font-semibold tabular-nums text-apple-dark">통계 대상 {data.analytics_total.toLocaleString('ko-KR')}건</span>
       </div>
@@ -162,7 +161,6 @@ function CauseChart({ values, onDetails }: { values: Record<string, number>; onD
   return (
     <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['재배포 원인', '건수', '비율 (%)'], rows: data.map((row) => [row.name, row.value, total > 0 ? row.value / total * 100 : 0]) }) : undefined} className="card">
       <h3 className="text-section-title font-semibold text-apple-dark">재배포 원인</h3>
-      <p className="mt-1 text-label text-apple-mid">원인별 건수와 구성비</p>
       {data.length ? (
         <div>
           <ResponsiveContainer width="100%" height={exportMode ? CHART_HEIGHT + 24 : CHART_HEIGHT - 72}>
@@ -213,7 +211,6 @@ function AssigneeChart({ values, onDetails }: { values: Record<string, number>; 
   return (
     <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['담당자', '건수'], rows: data.map((row) => [row.name, row.value]) }) : undefined} className="card">
       <h3 className="text-section-title font-semibold text-apple-dark">담당자별 재배포</h3>
-      <p className="mt-1 text-label text-apple-mid">상위 10명 기준 · 건수</p>
       {data.length ? (
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <BarChart data={data} layout="vertical" margin={{ top: 12, right: 44, left: 0, bottom: 0 }}>
@@ -269,7 +266,6 @@ function PartnerMatrix({ matrix, onDetails }: { matrix: Record<string, Record<st
     <div data-pdf-kind="table" data-pdf-title="파트너사별 재배포 히트맵" className="card overflow-hidden">
       <div className="mb-4">
         <h3 className="text-section-title font-semibold text-apple-dark">파트너사별 재배포 히트맵</h3>
-        <p className="mt-1 text-label text-apple-mid">파트너사별 요청 유형과 합계 · 단위: 건</p>
       </div>
       {partners.length ? (
         <div className="overflow-x-auto rounded-xl border border-apple-divider/70">
@@ -319,7 +315,7 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
     <div data-pdf-kind="table" data-pdf-title="최근 완료 재배포 이슈" className="card overflow-hidden">
       <div className="mb-4">
         <h3 className="text-section-title font-semibold text-apple-dark">최근 완료 재배포 이슈</h3>
-        <p className="mt-1 text-label text-apple-mid">완료 월 기준 · 총 {issues.length.toLocaleString('ko-KR')}건</p>
+        <p className="mt-1 text-label text-apple-mid">{issues.length.toLocaleString('ko-KR')}건</p>
       </div>
       {issues.length ? (
         <>
@@ -424,10 +420,8 @@ export default function RedeploymentAnnualSection({ data, year, reportId }: Prop
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--color-chart-created)/0.12)] text-blue-600"><BarChart3 size={20} /></span>
           <div>
             <h2 className="text-section-title font-semibold text-apple-dark">{year}년 재배포 품질 지표</h2>
-            <p className="mt-1 text-label text-apple-mid">재배포 규모와 원인, 담당자 및 파트너사별 현황</p>
           </div>
         </div>
-        <span className="rounded-lg bg-apple-gray px-3 py-1.5 text-label font-medium text-apple-dark">연간 전체 기준</span>
       </div>
       <div data-pdf-kind="metrics" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <KpiCard label="전체 해결 이슈" value={data.resolved_total} unit="건" icon={<CheckCircle2 size={21} />} tone="bg-[rgb(var(--color-chart-resolved)/0.16)] text-green-600" />

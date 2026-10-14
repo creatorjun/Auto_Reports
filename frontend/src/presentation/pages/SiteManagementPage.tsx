@@ -87,7 +87,6 @@ export default function SiteManagementPage() {
       <div className="mb-5 flex items-start justify-between gap-4 sm:mb-6 3xl:mb-8">
         <div className="min-w-0">
           <h1 className="text-page-title font-semibold text-apple-dark">사이트 관리</h1>
-          <p className="mt-1 text-label text-apple-light">사이트를 검색하거나 최근 업데이트된 사이트로 바로 이동할 수 있습니다.</p>
         </div>
         <button
           type="button"

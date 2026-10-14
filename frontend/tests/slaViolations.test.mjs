@@ -483,7 +483,7 @@ test('page restores saved controls, separates changed conditions, and submits th
   assert.equal(view.root.findByType('input').props.disabled, true)
   generated.resolve({ ...report, id: 11, period: 'year', start_date: '2026-01-01', end_date: '2026-12-31' })
   await until(() => textOf(view.toJSON()).includes('히스토리에 저장했습니다'))
-  assert.match(textOf(view.toJSON()), /2026-01-01/)
+  assert.equal(view.root.findAllByType('button').find((button) => textOf(button) === '연간').props['aria-pressed'], true)
   assert.doesNotMatch(textOf(view.toJSON()), /아래에는 기존 보고서가 표시됩니다/)
   act(() => view.root.findAllByType('button').find((button) => textOf(button) === '월간').props.onClick())
   assert.match(textOf(view.toJSON()), /아래에는 기존 보고서가 표시됩니다/)

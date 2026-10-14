@@ -103,7 +103,6 @@ export default function IssueManagementPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-page-title font-semibold text-apple-dark">전체 이슈</h1>
-          <p className="mt-1 text-label text-apple-mid">TACEA 전체 요청 · 완료 항목 포함 · 30초마다 변경분 동기화</p>
           <p className="mt-1 text-caption text-apple-light" aria-live="polite">{query.data?.synced_at ? `마지막 동기화 ${new Date(query.data.synced_at).toLocaleString('ko-KR')}` : '전체 이슈를 수집하고 있습니다.'}{query.data?.refreshing ? ' · 동기화 중' : ''}</p>
         </div>
         <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-control font-semibold text-white disabled:opacity-50">

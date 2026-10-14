@@ -1,11 +1,9 @@
 // frontend/src/presentation/components/annual/AnnualReportHeader.tsx
 import type { ReactNode } from 'react'
-import { Archive, CalendarRange, RefreshCw } from 'lucide-react'
+import { CalendarRange } from 'lucide-react'
 import type { ReportDetail } from '@/domain/Report'
-import { isRefreshableAnnualReport } from '@/presentation/config/annualReports'
 
 export default function AnnualReportHeader({ report, actions }: { report: ReportDetail; actions?: ReactNode }) {
-  const refreshable = isRefreshableAnnualReport(report.report_year ?? 0)
   return (
     <header className="flex flex-col gap-4 rounded-2xl border border-apple-divider bg-apple-surface p-5 md:p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -17,13 +15,6 @@ export default function AnnualReportHeader({ report, actions }: { report: Report
           </div>
         </div>
         {actions}
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-apple-divider pt-3 text-label text-apple-mid">
-        <span className="inline-flex items-center gap-1.5 font-medium text-apple-dark">
-          {refreshable ? <RefreshCw size={14} /> : <Archive size={14} />}
-          {refreshable ? '집계 중 · 5분마다 자동 갱신' : '확정 보고서 · 자동 갱신 없음'}
-        </span>
-        <span>보고서 기준일 {report.report_date}</span>
       </div>
     </header>
   )

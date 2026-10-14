@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/common/DashboardGenerateForm.tsx
 import { useState, type FormEvent } from 'react'
-import { CalendarDays, Loader2, RefreshCw } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
 import type { ReportPeriod } from '@/domain/ReportPeriod'
 import type { ReportDetail } from '@/domain/Report'
 import { REPORT_PERIOD_LABELS, reportDateRange, reportToday } from '@/application/services/reportPeriod'
@@ -36,11 +36,6 @@ export default function DashboardGenerateForm({ report, loading = false }: { rep
         <button type="submit" disabled={!valid || generation.pending || loading} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-control font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40 sm:ml-auto">
           {generation.pending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{generation.pending ? '집계 및 저장 중' : '보고서 생성'}
         </button>
-      </div>
-      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-apple-divider/70 pt-3 text-control-label text-apple-mid">
-        <span className="flex items-center gap-1.5"><CalendarDays size={14} />집계 기간: {range ? `${range.start} – ${range.end}` : '기준 날짜를 선택해 주세요'}</span>
-        <span>주간: 월요일–일요일 · 한국 표준시 (KST)</span>
-        <span>생성 완료 시 히스토리에 자동 저장</span>
       </div>
       {!valid && <p role="alert" className="mt-3 text-caption text-red-600">오늘 또는 이전의 유효한 날짜를 선택해 주세요.</p>}
       {changed && <p className="mt-3 text-caption font-medium text-brand-600">선택한 기간과 현재 보고서의 기간이 다릅니다. 새 조건으로 집계하려면 보고서를 생성하세요.</p>}

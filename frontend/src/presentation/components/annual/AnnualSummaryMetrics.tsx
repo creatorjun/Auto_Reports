@@ -25,7 +25,7 @@ export default function AnnualSummaryMetrics({ period, created, resolved, create
     <section data-pdf-section="주요 지표" data-pdf-kind="metrics" className="space-y-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-section-title font-semibold text-apple-dark">선택 기간 실적</h2>
-        <p className="text-label text-apple-mid">{period} · 선택한 요청 유형 기준</p>
+        <p className="text-label text-apple-mid">{period}</p>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {[

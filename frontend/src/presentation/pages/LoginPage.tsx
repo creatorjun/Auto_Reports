@@ -23,7 +23,6 @@ export default function LoginPage() {
       <div className="bg-apple-surface rounded-2xl shadow-sm border border-apple-divider/60 p-8 w-full max-w-sm">
         <div className="flex flex-col items-center gap-2 mb-8">
           <h1><BrandLogo className="w-64 max-w-full" /></h1>
-          <p className="text-label text-apple-light">로그인이 필요합니다</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">

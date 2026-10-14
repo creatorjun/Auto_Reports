@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/SlaViolationPage.tsx
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { CalendarDays, AlarmClock, History, Loader2, RefreshCw } from 'lucide-react'
+import { AlarmClock, History, Loader2, RefreshCw } from 'lucide-react'
 import type { SlaViolationPeriod } from '@/domain/SlaViolationReport'
 import { SLA_PERIOD_LABELS, slaDateRange, slaToday } from '@/application/services/slaViolationReport'
 import { RequestError } from '@/application/errors/RequestError'
@@ -57,9 +57,7 @@ export default function SlaViolationPage() {
     <div className="mx-auto flex w-full max-w-content flex-col gap-5 3xl:max-w-none">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-caption font-medium text-brand-600"><AlarmClock size={16} />SLA 보고서</div>
           <h1 className="text-page-title font-semibold tracking-tight text-apple-dark">SLA 현황</h1>
-          <p className="mt-2 text-label text-apple-mid">선택한 기간에 생성된 티켓의 최초응답 위반과 해결 위반을 각각 확인합니다.</p>
         </div>
         <Link to="/history#sla-violations" className="flex items-center gap-2 rounded-xl border border-apple-divider bg-apple-surface px-4 py-2.5 text-control text-apple-mid hover:bg-apple-gray"><History size={16} />보고서 히스토리</Link>
       </header>
@@ -78,9 +76,6 @@ export default function SlaViolationPage() {
           <button type="submit" disabled={!dateValid || generation.isPending || query.isFetching} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-control font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40 sm:ml-auto">
             {generation.isPending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{generation.isPending ? '집계 및 저장 중' : '보고서 생성'}
           </button>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-apple-divider/70 pt-3 text-caption text-apple-mid">
-          <span className="flex items-center gap-1.5"><CalendarDays size={14} />집계 기간: {range ? `${range.start} – ${range.end}` : '기준 날짜를 선택해 주세요'}</span><span>주간: 월요일–일요일 · 한국 표준시 (KST)</span><span>생성 완료 시 히스토리에 자동 저장</span>
         </div>
         {!dateValid && <p role="alert" className="mt-3 text-caption text-red-600">오늘 또는 이전의 유효한 날짜를 선택해 주세요.</p>}
         {changed && <p className="mt-3 text-caption font-medium text-brand-600">생성 조건을 변경했습니다. 아래에는 기존 보고서가 표시됩니다. 새 조건으로 집계하려면 보고서를 생성하세요.</p>}

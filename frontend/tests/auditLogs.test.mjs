@@ -208,7 +208,7 @@ test('audit page renders missing actors, warnings and safe details and blocks in
   const rendered = JSON.stringify(view.toJSON())
   assert.match(rendered, /확인 불가/)
   assert.match(rendered, /report_id/)
-  assert.match(rendered, /한국 표준시/)
+  assert.match(rendered, /발생 시각 \(KST\)/)
   const dates = view.root.findAllByProps({ type: 'date' })
   act(() => dates[0].props.onChange({ target: { value: '2026-11-01' } }))
   act(() => dates[1].props.onChange({ target: { value: '2026-10-01' } }))
