@@ -35,8 +35,8 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
           <span className="col-span-2 row-start-1 flex min-w-0 items-center gap-1.5 font-semibold text-brand-600 lg:col-span-1 lg:row-auto"><span className="min-w-0 break-all">{ticket.key}</span><ExternalLink size={12} className="shrink-0" aria-hidden="true" /></span>
           <span className="col-span-2 row-start-2 break-words font-medium text-apple-dark lg:col-span-1 lg:row-auto">{ticket.summary}</span>
           <span className="col-span-2 row-start-3 min-w-0 break-words text-label text-apple-mid lg:col-span-1 lg:row-auto"><span className="mr-1.5 lg:hidden">유형</span><IssueTypeBadge type={getIssueTypeLabel(slaIssueType(ticket))} className="max-w-full whitespace-normal break-words" /></span>
-          <span className="row-start-4 text-label tabular-nums text-apple-mid lg:row-auto"><span className="mr-1.5 lg:hidden">생성일</span>{slaCreatedDate(ticket.created_at)}</span>
-          <span className="row-start-4 text-right text-label tabular-nums text-apple-mid lg:row-auto"><span className="mr-1.5 lg:hidden">경과일</span>{ticket.elapsed_days.toLocaleString('ko-KR')}일</span>
+          <span className="row-start-4 text-label tabular-nums text-apple-mid lg:row-auto"><span className="mb-0.5 block lg:hidden">생성일</span>{slaCreatedDate(ticket.created_at)}</span>
+          <span className="row-start-4 text-right text-label tabular-nums text-apple-mid lg:row-auto"><span className="mb-0.5 block lg:hidden">경과일</span>{ticket.elapsed_days.toLocaleString('ko-KR')}일</span>
         </a>
         <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-controls={detailsId}
           aria-label={`${ticket.key} 상세 ${expanded ? '접기' : '펼치기'}`}

@@ -117,7 +117,7 @@ export default function AuditLogPage() {
           {logs.isPending ? <div className="py-16"><LoadingSpinner text="감사로그 조회 중..." /></div> : !data?.items.length ? <p role="status" className="px-6 py-16 text-center text-label text-apple-mid">조회 조건에 해당하는 감사로그가 없습니다.</p> : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px] border-collapse text-left text-body">
-                <thead className="bg-apple-gray text-caption text-apple-mid"><tr>
+                <thead className="bg-apple-gray text-label text-apple-mid"><tr>
                   {['발생 시각 (KST)', '이벤트', '사용자', 'IP 주소', '작업 상세'].map((label) => <th key={label} scope="col" className="px-5 py-3 font-medium">{label}</th>)}
                 </tr></thead>
                 <tbody className="divide-y divide-apple-divider/60">

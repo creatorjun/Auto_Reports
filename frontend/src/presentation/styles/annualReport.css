@@ -1,5 +1,7 @@
 /* frontend/src/presentation/styles/annualReport.css */
 .annual-report-view {
+  width: 100%;
+  min-width: 0;
   max-width: var(--layout-annualContent);
   margin-inline: auto;
 }

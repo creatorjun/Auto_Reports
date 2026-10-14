@@ -495,7 +495,7 @@ export default function StoragePage() {
           <table className="w-full">
             <thead className="border-b border-apple-divider/60">
               <tr>
-                <th className="px-6 py-3.5 text-left text-caption font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4">
+                <th className="px-6 py-3.5 text-left text-label font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4">
                   <div className="flex items-center gap-2">
                     <SelectionCheckbox
                       checked={allSelected}
@@ -507,9 +507,9 @@ export default function StoragePage() {
                     이름
                   </div>
                 </th>
-                <th className="px-6 py-3.5 text-left text-caption font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4">크기</th>
-                <th className="px-6 py-3.5 text-left text-caption font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4">수정일시</th>
-                <th className="px-6 py-3.5 text-left text-caption font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4" />
+                <th className="px-6 py-3.5 text-left text-label font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4">크기</th>
+                <th className="px-6 py-3.5 text-left text-label font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4">수정일시</th>
+                <th className="px-6 py-3.5 text-left text-label font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4" />
               </tr>
             </thead>
             <tbody className="divide-y divide-apple-divider/40">
