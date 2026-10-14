@@ -39,7 +39,7 @@ export default function SlaViolationOverview({ report, tickets, scopedTickets, s
               className={`card min-w-0 text-left transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${scope === key ? 'ring-2 ring-brand-400' : ''}`}>
               <div className="flex items-center gap-2">
                 <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${tone}`}><Icon size={18} aria-hidden="true" /></span>
-                <span className="text-label font-semibold text-apple-dark">{label}</span>
+                <span className="break-keep text-label font-semibold text-apple-dark">{label}</span>
               </div>
               <p className="mt-3 text-metric-compact font-semibold tabular-nums text-apple-dark">{counts[key].toLocaleString('ko-KR')}<span className="ml-2 text-label font-medium text-apple-mid">건</span></p>
             </button>
