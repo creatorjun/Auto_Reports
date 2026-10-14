@@ -38,7 +38,6 @@ const EVENT_LABELS: Record<string, string> = {
   FILE_UPLOAD: '파일 업로드', FILE_DELETE: '파일 삭제', FILE_MOVE: '파일 이동',
   FILE_DOWNLOAD: '파일 다운로드', FOLDER_CREATE: '폴더 생성', FOLDER_DELETE: '폴더 삭제',
   CHUNKED_INIT: '분할 업로드 시작', CHUNKED_COMPLETE: '분할 업로드 완료', CHUNKED_ABORT: '분할 업로드 취소',
-  C_LEVEL_COMMENT_SAVE: 'C-Level 코멘트 저장', C_LEVEL_SNAPSHOT_SAVE: 'C-Level 보고서 저장',
   AUDIT_LOG_VIEW: '감사로그 조회',
 }
 

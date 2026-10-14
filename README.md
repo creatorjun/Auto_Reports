@@ -44,12 +44,6 @@ Auto_Reports/
 
 인증이 적용된 `GET /api/v1/issue-management/issues`는 `issues`, `initialized`, `refreshing`, `synced_at`, `error`를 반환합니다. 최초 수집 중인 빈 목록과 실제 조회 결과가 없는 상태는 `initialized`로 구분합니다.
 
-## C-Level 집중 관리 보고
-
-**C-Level 보고** 메뉴(`/c-level-report`)에서 주간·월간 처리 현황, 8개 기간 추이, 장기 미해결 고객사, SLA 위반 티켓과 처리 과정을 조회합니다. Jira 상태 변경 이력으로 과거 기준시점의 잔량을 계산하며, 데이터가 없거나 복원할 수 없는 항목은 **확인 불가**로 표시합니다.
-
-티켓별 보고용 코멘트와 보고서 포함 여부를 저장하고, 수치·코멘트·저장자·저장 시각을 고정한 보고서를 기존 히스토리에서 다시 열 수 있습니다. A4 가로 PDF와 Excel 다운로드를 제공합니다. 기존 기능은 유지하며 추가 DB 테이블은 Alembic `0015`로 생성합니다. 집계 정의, Jira 필드 매핑, API와 실행·검증 방법은 [C-Level 기술 문서](backend/docs/06_c_level_report.md)를 참고하세요.
-
 ## 관리자 감사로그
 
 `ADMIN`은 일반 사용자이고 `SUPERADMIN`은 관리자입니다. 관리자 로그인 시 표시되는 **감사로그** 메뉴(`/audit-logs`)에서 기존 작업 기록과 로그인·로그아웃 기록을 기간·사용자·IP·이벤트로 조회합니다. 일반 사용자는 메뉴와 API 모두 접근할 수 없습니다. Docker Compose의 `audit_logs` 볼륨에 로그를 보관하며, 최초 배포 전 기존 컨테이너 로그의 이전 방법은 [감사로그 문서](backend/docs/07_audit_logs.md)를 참고하세요.
@@ -68,6 +62,8 @@ git pull && docker compose down && docker compose build --no-cache && docker com
 ```
 
 기본 접속 주소는 `http://localhost`이고 백엔드 상태 확인은 `GET /api/health`입니다. 환경 변수는 [backend/docs/04_environment_and_config.md](backend/docs/04_environment_and_config.md)를 참고하세요.
+
+백엔드 시작 시 `alembic upgrade head`를 자동 실행합니다. C-Level 기능 제거에 따른 `0016` 마이그레이션은 해당 기능의 저장된 보고서와 코멘트 테이블을 삭제합니다. 기존 데이터가 필요하면 배포 전에 DB를 백업해야 하며, downgrade는 빈 테이블 구조만 복원합니다. [마이그레이션 안내](backend/docs/03_data_model.md#migration)를 참고하세요.
 
 ## 로컬 검증
 

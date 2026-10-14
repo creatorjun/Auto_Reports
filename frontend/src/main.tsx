@@ -13,7 +13,6 @@ import { searchApi } from '@/infrastructure/api/searchApi'
 import { siteApi } from '@/infrastructure/api/siteApi'
 import { slaDashboardApi } from '@/infrastructure/api/slaDashboardApi'
 import { issueManagementApi } from '@/infrastructure/api/issueManagementApi'
-import { cLevelReportApi } from '@/infrastructure/api/cLevelReportApi'
 import { dashboardPdfExporter } from '@/infrastructure/export/dashboardPdfExporter'
 import { dashboardExcelExporter } from '@/infrastructure/export/dashboardExcelExporter'
 import { storageApi } from '@/infrastructure/api/storageApi'
@@ -44,7 +43,6 @@ configureHttpClient({
 const services = {
   previewParser: filePreviewParser,
   dashboardExport: { ...dashboardPdfExporter, ...dashboardExcelExporter },
-  cLevelReport: cLevelReportApi,
   auth: authApi,
   auditLogs: auditLogApi,
   reports: reportApi,

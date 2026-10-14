@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/MobileTabBar.tsx
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Plus, Presentation, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Plus, ShieldCheck } from 'lucide-react'
 import { canViewAuditLogs } from '@/domain/Auth'
 import { useMe } from '@/presentation/hooks/useAuth'
 import { useTrigger } from '@/presentation/hooks/useTrigger'
@@ -12,7 +12,6 @@ const tabs = [
   { to: '/',        label: '대시보드', icon: <LayoutDashboard size={20} /> },
   { to: '/issues',  label: '이슈 관리', icon: <ListChecks size={20} /> },
   { to: '/sla-dashboard', label: '장기 이슈', icon: <Gauge size={20} /> },
-  { to: '/c-level-report', label: 'C-Level', icon: <Presentation size={20} /> },
   { to: '/history', label: '히스토리',   icon: <History        size={20} /> },
   { to: '/sites',   label: '사이트',     icon: <Building2      size={20} /> },
   { to: '/storage', label: '보관함',     icon: <HardDrive      size={20} /> },

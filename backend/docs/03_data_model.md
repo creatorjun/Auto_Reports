@@ -61,6 +61,8 @@ widget ID는 영속성 계약으로 유지합니다. `0013_reorder_dashboard_wid
 
 마이그레이션은 `backend/alembic/versions`에 있습니다.
 
+`0016_remove_c_level_reports.py`는 제거된 C-Level 기능의 `c_level_comments`, `c_level_snapshots` 테이블과 저장된 데이터를 삭제합니다. 기존 DB의 revision을 인식할 수 있도록 `0015` 생성 이력은 유지합니다. `0016`을 downgrade하면 빈 테이블 구조만 복원되며 삭제된 데이터는 복구되지 않습니다. 기존 보고서·사이트·파일 데이터와 감사로그는 유지합니다.
+
 ```bash
 cd backend
 alembic upgrade head

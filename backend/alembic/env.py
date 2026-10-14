@@ -9,7 +9,6 @@ from sqlalchemy import engine_from_config, pool
 
 from src.infrastructure.persistence.models import Base
 import src.infrastructure.persistence.site_models
-import src.infrastructure.persistence.c_level_models
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / ".env")
 

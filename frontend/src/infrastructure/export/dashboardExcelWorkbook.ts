@@ -69,7 +69,7 @@ export function buildDashboardExcelWorkbook(document: DashboardPdfDocument): Wor
         const rows = emptyMessage ? [] : block.rows
         const sheet = append(block.title || section.title, section.title, {
           headers: block.headers,
-          rows: rows.map((row) => row.map((cell) => cell.value !== undefined ? cell.value : cell.text)),
+          rows: rows.map((row) => row.map((cell) => cell.text)),
         })
         rows.forEach((row, rowIndex) => row.forEach((cell, columnIndex) => {
           if (!cell.link || !/^https?:\/\//i.test(cell.link)) return

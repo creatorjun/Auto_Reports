@@ -1,7 +1,6 @@
 // frontend/src/application/ports/ApplicationServices.ts
 import type { LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
 import type { AuditLogPage, AuditLogQuery } from '@/domain/AuditLog'
-import type { CLevelComment, CLevelCommentInput, CLevelPeriod, CLevelReport, CLevelSnapshotSummary } from '@/domain/CLevelReport'
 import type { AppConfig } from '@/domain/Config'
 import type { IssueManagementSnapshot } from '@/domain/IssueManagement'
 import type { DashboardPdfDocument } from '@/domain/DashboardExport'
@@ -151,18 +150,9 @@ export interface DashboardExportGateway {
   renderExcel: (document: DashboardPdfDocument) => Promise<BinaryContent>
 }
 
-export interface CLevelReportGateway {
-  getReport: (period: CLevelPeriod, date: string, refresh?: boolean, signal?: CancellationSignal) => Promise<CLevelReport>
-  saveComment: (key: string, reportToken: string, comment: CLevelCommentInput) => Promise<CLevelComment>
-  saveSnapshot: (reportToken: string, title?: string) => Promise<CLevelSnapshotSummary>
-  getSnapshots: (limit?: number, offset?: number) => Promise<CLevelSnapshotSummary[]>
-  getSnapshot: (id: number, signal?: CancellationSignal) => Promise<CLevelReport>
-}
-
 export interface ApplicationServices {
   previewParser: PreviewParserPort
   dashboardExport: DashboardExportGateway
-  cLevelReport: CLevelReportGateway
   auth: AuthGateway
   auditLogs: AuditLogGateway
   reports: ReportGateway

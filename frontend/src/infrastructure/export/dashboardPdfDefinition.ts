@@ -77,8 +77,8 @@ function textBlock(block: DashboardPdfTextBlock): Content[] {
   return content
 }
 
-function chartCard(block: DashboardPdfChartBlock, cardWidth = CHART_WIDTH): ContentTable {
-  const availableWidth = cardWidth - 26
+function chartCard(block: DashboardPdfChartBlock): ContentTable {
+  const availableWidth = CHART_WIDTH - 26
   const sourceWidth = Number.isFinite(block.width) && block.width > 0 ? block.width : availableWidth
   const sourceHeight = Number.isFinite(block.height) && block.height > 0 ? block.height : 228
   const scale = Math.min(availableWidth / sourceWidth, 228 / sourceHeight)
@@ -111,27 +111,14 @@ function chartCard(block: DashboardPdfChartBlock, cardWidth = CHART_WIDTH): Cont
 
 function chartRows(charts: DashboardPdfChartBlock[]): Content[] {
   const rows: Content[] = []
-  let pending: DashboardPdfChartBlock[] = []
-  const flush = () => {
-    if (!pending.length) return
-    const columns: ContentColumns['columns'] = pending.map((chart) => ({
+  for (let offset = 0; offset < charts.length; offset += 2) {
+    const columns: ContentColumns['columns'] = charts.slice(offset, offset + 2).map((chart) => ({
       ...chartCard(chart),
       width: CHART_WIDTH,
     }))
     if (columns.length === 1) columns.push({ text: '', width: CHART_WIDTH })
     rows.push({ columns, columnGap: COLUMN_GAP, margin: [0, 0, 0, 12] })
-    pending = []
   }
-  for (const chart of charts) {
-    if (chart.fullWidth) {
-      flush()
-      rows.push({ ...chartCard(chart, CONTENT_WIDTH), margin: [0, 0, 0, 12] })
-    } else {
-      pending.push(chart)
-      if (pending.length === 2) flush()
-    }
-  }
-  flush()
   return rows
 }
 
@@ -262,7 +249,6 @@ function sectionContent(section: DashboardPdfSection): Content[] {
     const firstRow = content.splice(0, 2)
     content.unshift({ stack: firstRow, unbreakable: true })
   }
-  if (section.pageBreakBefore && content.length) content[0] = { stack: [content[0]], pageBreak: 'before' }
   return content
 }
 
