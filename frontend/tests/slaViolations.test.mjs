@@ -67,6 +67,32 @@ function textOf(node) {
   return node?.children ? textOf(node.children) : ''
 }
 
+test('duration bars use visible elapsed hours, omit closed time, and retain tiny percentages', () => {
+  const Durations = load('presentation/components/sla-violations/SlaStatusDurations').default
+  const values = [{ status: '할 일', hours: 25 }, { status: '구현 중', hours: 74.99 }, { status: '연구소 검토 중', hours: 0.01 }, { status: '닫힘', hours: 900 }]
+  const original = structuredClone(values)
+  const view = TestRenderer.create(React.createElement(Durations, { durations: values }))
+  const chart = view.root.findByProps({ role: 'img' })
+  assert.deepEqual(chart.children.map((child) => child.props.style.width), ['25%', '74.99%', '0.01%'])
+  assert.match(chart.props['aria-label'], /연구소 검토 중 <0.1%/)
+  assert.match(textOf(view.toJSON()), /25\s*시간/)
+  assert.doesNotMatch(textOf(view.toJSON()), /900|각 상태별 체류 기간|보고서 생성 시점까지/)
+  assert.deepEqual(values, original)
+  view.unmount()
+})
+
+test('duration bars do not fabricate proportions for zero, empty, or incomplete histories', () => {
+  const Durations = load('presentation/components/sla-violations/SlaStatusDurations').default
+  for (const durations of [null, [], [{ status: 'Closed', hours: 10 }], [{ status: '할 일', hours: 0 }]]) {
+    const view = TestRenderer.create(React.createElement(Durations, { durations }))
+    assert.equal(view.root.findAllByProps({ role: 'img' }).length, 0)
+    assert.doesNotMatch(textOf(view.toJSON()), /NaN|Infinity/)
+    if (durations === null) assert.match(textOf(view.toJSON()), /이력이 불완전/)
+    if (durations?.[0]?.hours === 0) assert.match(textOf(view.toJSON()), /0%/)
+    view.unmount()
+  }
+})
+
 function hookSetup(t, gateway) {
   const instance = sourceLoader()
   const { ApplicationServicesProvider } = instance('presentation/context/ApplicationServicesContext')

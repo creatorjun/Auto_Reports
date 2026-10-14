@@ -5,13 +5,14 @@ import { ChevronDown, ExternalLink } from 'lucide-react'
 import type { SlaViolationMetric, SlaViolationTicket } from '@/domain/SlaViolationReport'
 import { slaIssueType } from '@/domain/SlaViolationFilters'
 import { sortSlaViolationTickets } from '@/domain/SlaViolationSort'
-import { SLA_METRIC_LABELS, slaPartnersLabel, slaTicketsForMetric, slaVisibleStatusDurations } from '@/application/services/slaViolationReport'
+import { SLA_METRIC_LABELS, slaPartnersLabel, slaTicketsForMetric } from '@/application/services/slaViolationReport'
 import { useJira } from '@/presentation/context/JiraContext'
 import { slaCreatedDate, slaTimestamp } from '@/presentation/utils/slaViolationFormatters'
 import { getIssueTypeLabel } from '@/presentation/utils/issueTypeLabel'
 import { useTablePreferences } from '@/presentation/hooks/useTablePreferences'
 import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
+import SlaStatusDurations from './SlaStatusDurations'
 import SlaViolationTableHeader, { DEFAULT_SLA_COLUMN_WIDTHS, MIN_SLA_COLUMN_WIDTHS, SLA_TICKET_COLUMNS, resizeSlaColumnWidths } from './SlaViolationTableHeader'
 
 const TICKET_COLUMNS = 'lg:grid-cols-[var(--sla-ticket-columns)]'
@@ -20,7 +21,6 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
   const [expanded, setExpanded] = useState(false)
   const detailsId = useId()
   const { jiraBrowse } = useJira()
-  const statusDurations = slaVisibleStatusDurations(ticket.status_durations)
   const facts: [string, ReactNode][] = [
     ['고객사명', ticket.customer], ['담당 파트너사', slaPartnersLabel(ticket.partners)],
     ['보고자', ticket.reporter], ['담당자', ticket.assignee], ['TAC 담당자', ticket.tac_assignee],
@@ -63,14 +63,7 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
             ))}
           </dl>
           <div className="mt-5 border-t border-apple-divider pt-4">
-            <h3 className="text-xs font-semibold text-apple-mid">각 상태별 체류 기간 <span className="font-normal">· 보고서 생성 시점까지의 실제 경과시간 · 닫힘 제외</span></h3>
-            {statusDurations === null ? <p className="mt-2 text-xs text-apple-mid">상태 변경 이력이 불완전하여 체류 기간을 확인할 수 없습니다.</p> : statusDurations.length > 0 ? (
-              <dl className="mt-3 flex flex-wrap gap-2">
-                {statusDurations.map(({ status, hours }) => (
-                  <div key={status} className="flex items-center gap-2 rounded-lg bg-apple-surface px-3 py-2 text-xs"><dt><StatusBadge status={status || '확인 불가'} /></dt><dd className="font-semibold tabular-nums text-apple-dark">{hours.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}시간</dd></div>
-                ))}
-              </dl>
-            ) : <p className="mt-2 text-xs text-apple-mid">표시할 체류 기간이 없습니다.</p>}
+            <SlaStatusDurations durations={ticket.status_durations} />
           </div>
           {ticket.warnings.length > 0 && <div className="mt-4 text-xs text-amber-700"><p className="font-medium">일부 상세 정보 확인 필요</p><ul className="mt-1 space-y-1">{ticket.warnings.map((warning, index) => <li key={index} className="break-words">{warning}</li>)}</ul></div>}
         </div>
