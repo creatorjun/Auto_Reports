@@ -28,7 +28,7 @@ export default function ThemeToggle({ collapsed = false }: Props) {
     >
       <span className="flex min-w-0 items-center gap-2">
         {isDark ? <Moon size={15} /> : <Sun size={15} />}
-        {!collapsed && <span className="truncate text-[12px] font-medium">{isDark ? '다크 모드' : '라이트 모드'}</span>}
+        {!collapsed && <span className="truncate text-control-label font-medium">{isDark ? '다크 모드' : '라이트 모드'}</span>}
       </span>
       {!collapsed && (
         <span

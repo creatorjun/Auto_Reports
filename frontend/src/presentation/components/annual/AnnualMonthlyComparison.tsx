@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/annual/AnnualMonthlyComparison.tsx
+import designTokens from '@/presentation/config/designTokens.json'
 import { memo, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import {
@@ -36,7 +37,7 @@ function ComparisonTooltip({ active, payload }: {
   const row = payload?.[0]?.payload
   if (!active || !row) return null
   return (
-    <div className="min-w-36 rounded-xl border border-apple-divider bg-apple-surface px-4 py-3 text-ui-sm text-apple-dark shadow-apple-sm">
+    <div className="min-w-36 rounded-xl border border-apple-divider bg-apple-surface px-4 py-3 text-label text-apple-dark shadow-apple-sm">
       <p className="mb-2 font-semibold">{row.month}</p>
       {SERIES.map((series) => (
         <div key={series.key} className="mt-1 flex items-center justify-between gap-6">
@@ -64,10 +65,10 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle,
       <div data-pdf-kind="chart" data-pdf-title="월별 등록 · 해결 비교" data-export-table={exportMode ? JSON.stringify({ headers: ['월', '등록 건수', '해결 건수'], rows: rows.map((row) => [row.month, row.created, row.resolved]) }) : undefined}>
         <div className="mb-5 flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h3 className="text-ui-base font-semibold text-apple-dark">월별 등록 · 해결 비교</h3>
-            <p className="mt-1 text-ui-sm text-apple-dark">같은 월의 등록과 해결 건수를 나란히 비교합니다.</p>
+            <h3 className="text-section-title font-semibold text-apple-dark">월별 등록 · 해결 비교</h3>
+            <p className="mt-1 text-label text-apple-dark">같은 월의 등록과 해결 건수를 나란히 비교합니다.</p>
           </div>
-          <span className="rounded-lg bg-apple-gray px-3 py-1.5 text-ui-xs font-medium text-apple-dark">{subtitle}</span>
+          <span className="rounded-lg bg-apple-gray px-3 py-1.5 text-caption font-medium text-apple-dark">{subtitle}</span>
         </div>
         {hasData ? (
           <div className="overflow-x-auto pb-1">
@@ -75,10 +76,10 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle,
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart accessibilityLayer data={rows} margin={{ top: 12, right: 12, left: 0, bottom: 4 }} barGap={4}>
                   <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" interval={0} tick={{ fontSize: 12, fill: 'rgb(var(--color-apple-dark))' }} tickMargin={10} axisLine={false} tickLine={false} height={38} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'rgb(var(--color-apple-dark))' }} tickFormatter={(value: number) => value.toLocaleString('ko-KR')} width={56} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="month" interval={0} tick={{ fontSize: designTokens.typography.chart.tick, fill: 'rgb(var(--color-apple-dark))' }} tickMargin={10} axisLine={false} tickLine={false} height={38} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: designTokens.typography.chart.tick, fill: 'rgb(var(--color-apple-dark))' }} tickFormatter={(value: number) => value.toLocaleString('ko-KR')} width={56} axisLine={false} tickLine={false} />
                   <Tooltip filterNull={false} cursor={{ fill: 'rgb(var(--color-apple-gray))' }} content={<ComparisonTooltip />} />
-                  <Legend iconType="square" iconSize={10} wrapperStyle={{ paddingTop: 12 }} formatter={(value: string) => <span className="ml-1 text-ui-sm font-medium text-apple-dark">{value}</span>} />
+                  <Legend iconType="square" iconSize={designTokens.chart.legendIconSize} wrapperStyle={{ paddingTop: 12 }} formatter={(value: string) => <span className="ml-1 font-medium text-apple-dark" style={{ fontSize: designTokens.typography.chart.legend }}>{value}</span>} />
                   {SERIES.map((series) => (
                     <Bar key={series.key} dataKey={series.key} name={series.name} fill={series.color} radius={[4, 4, 0, 0]} maxBarSize={32} isAnimationActive={!exportMode}
                       cursor={onSelectMonth && !exportMode ? 'pointer' : undefined}
@@ -94,19 +95,19 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle,
             </div>
           </div>
         ) : (
-          <p className="flex min-h-44 items-center justify-center text-ui-sm text-apple-dark">해당 기간의 월별 데이터가 없습니다.</p>
+          <p className="flex min-h-44 items-center justify-center text-label text-apple-dark">해당 기간의 월별 데이터가 없습니다.</p>
         )}
-        {allZero && <p className="mt-2 text-ui-sm text-apple-dark">해당 기간의 등록·해결 건수가 모두 0건입니다.</p>}
-        {onSelectMonth && !exportMode && <p className="mt-2 text-sm text-apple-mid">막대 또는 아래 월별 건수를 선택하면 개별 이슈를 확인할 수 있습니다.</p>}
+        {allZero && <p className="mt-2 text-label text-apple-dark">해당 기간의 등록·해결 건수가 모두 0건입니다.</p>}
+        {onSelectMonth && !exportMode && <p className="mt-2 text-label text-apple-mid">막대 또는 아래 월별 건수를 선택하면 개별 이슈를 확인할 수 있습니다.</p>}
       </div>
       {rows.length > 0 && (
         <details open={exportMode || tableOpen} onToggle={(event) => { if (!exportMode) setTableOpen(event.currentTarget.open) }} className="group mt-5 border-t border-apple-divider pt-4">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-ui-sm font-semibold text-apple-dark outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-label font-semibold text-apple-dark outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
             월별 상세 수치
-            <span className="flex items-center gap-2 text-ui-xs font-medium">단위: 건<ChevronDown size={16} className="transition-transform group-open:rotate-180" /></span>
+            <span className="flex items-center gap-2 text-caption font-medium">단위: 건<ChevronDown size={16} className="transition-transform group-open:rotate-180" /></span>
           </summary>
           <div data-pdf-kind="table" data-pdf-title={`${year}년 월별 등록 · 해결 건수`} className="mt-3 overflow-hidden rounded-xl border border-apple-divider">
-            <table className="w-full table-fixed text-ui-sm text-apple-dark">
+            <table className="w-full table-fixed text-body text-apple-dark">
               <caption className="sr-only">{subtitle} 월별 등록 및 해결 건수</caption>
               <thead className="bg-apple-gray">
                 <tr>
@@ -131,7 +132,7 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle,
               </tbody>
             </table>
           </div>
-          {hasMissing && <p className="mt-2 text-ui-xs text-apple-dark">—는 월별 데이터가 없는 항목입니다.</p>}
+          {hasMissing && <p className="mt-2 text-caption text-apple-dark">—는 월별 데이터가 없는 항목입니다.</p>}
         </details>
       )}
     </div>

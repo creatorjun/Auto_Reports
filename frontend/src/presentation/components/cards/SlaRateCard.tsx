@@ -30,8 +30,8 @@ export default function SlaRateCard({ label, rate, met, total, slaFields = [] }:
   return (
     <div className="card flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-ui-sm font-semibold text-apple-dark">{label}</p>
-        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${c.badge}`}>
+        <p className="text-label font-semibold text-apple-dark">{label}</p>
+        <span className={`text-caption font-medium px-2 py-0.5 rounded-full ${c.badge}`}>
           {met}/{total}건
         </span>
       </div>
@@ -49,23 +49,23 @@ export default function SlaRateCard({ label, rate, met, total, slaFields = [] }:
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`text-[15px] font-bold leading-none ${c.text}`}>{rate}%</span>
+            <span className={`text-label font-bold leading-none ${c.text}`}>{rate}%</span>
           </div>
         </div>
 
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="flex justify-between text-ui-sm">
+          <div className="flex justify-between text-label">
             <span className="text-apple-light">준수</span>
             <span className={`font-semibold ${c.text}`}>{met}건</span>
           </div>
           <div className="w-full h-1.5 rounded-full" style={{ background: c.track }}>
             <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${rate}%`, background: c.ring }} />
           </div>
-          <div className="flex justify-between text-ui-sm">
+          <div className="flex justify-between text-label">
             <span className="text-apple-light">위반</span>
             <span className="font-semibold text-apple-dark">{total - met}건</span>
           </div>
-          <p className="text-ui-xs text-apple-light/70 mt-0.5">최근 30일 · Jira SLA 기준</p>
+          <p className="text-caption text-apple-light/70 mt-0.5">최근 30일 · Jira SLA 기준</p>
         </div>
       </div>
 
@@ -75,11 +75,11 @@ export default function SlaRateCard({ label, rate, met, total, slaFields = [] }:
             const fc = SLA_COLOR_MAP[getColorKey(f.rate)]
             return (
               <div key={f.name} className="flex items-center gap-2">
-                <span className="text-ui-xs text-apple-light flex-1 truncate" title={f.name}>{f.name}</span>
+                <span className="text-caption text-apple-light flex-1 truncate" title={f.name}>{f.name}</span>
                 <div className="w-16 h-1 rounded-full" style={{ background: fc.track }}>
                   <div className="h-1 rounded-full" style={{ width: `${f.rate}%`, background: fc.ring }} />
                 </div>
-                <span className={`text-ui-xs font-medium tabular-nums ${fc.text}`}>{f.rate}%</span>
+                <span className={`text-caption font-medium tabular-nums ${fc.text}`}>{f.rate}%</span>
               </div>
             )
           })}

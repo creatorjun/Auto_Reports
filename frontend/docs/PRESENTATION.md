@@ -47,7 +47,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 
 SLA 위반 화면도 `IssueTypeFilter`를 사용합니다. 요청 유형·현재 상태·반기를 함께 적용한 저장 티켓 목록을 최초응답·해결 위반 목록에 전달하며, 각 목록은 필터 결과로 건수를 계산합니다. 기본값은 모든 티켓이고 필터 선택은 서버 저장 값과 히스토리 건수를 바꾸지 않습니다. 유형 누락은 `확인 불가`로 선택할 수 있으며 반기는 KST 생성월을 기준으로 합니다. 자세한 기존 보고서 호환 방식은 [SLA 위반 문서](../../backend/docs/08_sla_violation_report.md)를 참고하세요.
 
-`SlaViolationList`는 목록별 정렬·컬럼 너비를 관리합니다. `SlaViolationSort`의 순수 정렬 함수로 필터 결과를 정렬하며 원본 스냅샷은 유지합니다. 데스크톱 컬럼명 클릭은 오름·내림차순을 전환하고 경계 드래그는 인접 열 너비를 조정합니다. 모바일 카드에서도 정렬 조건을 선택할 수 있습니다. 행 링크와 상세 펼치기는 정렬·너비 조절과 독립적으로 동작합니다. 티켓 유형과 상태는 대시보드 최신 이슈·상세 표와 같은 `IssueTypeBadge`·`StatusBadge`를 사용합니다. `issueBadgeColors.ts`에서 업무 유형별·상태별 고유 색상을 지정하고, `palette.css`의 전용 토큰으로 화면 범위 재정의와 무관하게 라이트·다크 색상을 통일합니다. 띄어쓰기·라이선스 표기·닫힘 별칭은 같은 색상이며, 미등록 값은 중립색입니다. 유형 배지는 좁은 컬럼에서 줄바꿈하여 인접 컬럼을 가리지 않습니다.
+`SlaViolationList`는 목록별 정렬·컬럼 너비를 관리합니다. `SlaViolationSort`의 순수 정렬 함수로 필터 결과를 정렬하며 원본 스냅샷은 유지합니다. 데스크톱 컬럼명 클릭은 오름·내림차순을 전환하고 경계 드래그는 인접 열 너비를 조정합니다. 모바일 카드에서도 정렬 조건을 선택할 수 있습니다. 행 링크와 상세 펼치기는 정렬·너비 조절과 독립적으로 동작합니다. 티켓 유형과 상태는 대시보드 최신 이슈·상세 표와 같은 `IssueTypeBadge`·`StatusBadge`를 사용합니다. `issueBadgeColors.ts`에서 업무 유형별·상태별 고유 색상을 지정하고, `designTokens.json`의 전용 토큰으로 화면 범위 재정의와 무관하게 라이트·다크 색상을 통일합니다. 띄어쓰기·라이선스 표기·닫힘 별칭은 같은 색상이며, 미등록 값은 중립색입니다. 유형 배지는 좁은 컬럼에서 줄바꿈하여 인접 컬럼을 가리지 않습니다.
 
 SLA의 상태별 체류 기간은 `slaVisibleStatusDurations`에서 닫힘(`닫힘`, `닫혀`, `Closed`) 항목만 표시 대상에서 제외합니다. 현재 상태와 위반 당시 상태는 그대로 표시하며, 보고서 원본·SLA 판정·경과일은 바꾸지 않습니다. 나머지 체류 기간이 없으면 빈 목록 안내를, 원본 이력이 불완전하면 기존 경고를 표시합니다.
 
@@ -73,4 +73,4 @@ SLA 티켓 행은 처음에 펼쳐져 있으며 최신 댓글 5개를 표시합�
 
 ## Styles
 
-라이트·다크 실제 색상 값은 `presentation/styles/palette.css`에서 단일 관리합니다. Tailwind semantic token과 Recharts 표시 상수는 이 CSS 변수를 참조하며, 공통 CSS는 `presentation/styles`, 날짜·숫자 formatter는 `presentation/utils`에 있습니다.
+라이트·다크 실제 색상 값은 `presentation/config/designTokens.json`에서 단일 관리합니다. Tailwind semantic token과 Recharts 표시 상수는 이 CSS 변수를 참조하며, 공통 CSS는 `presentation/styles`, 날짜·숫자 formatter는 `presentation/utils`에 있습니다.

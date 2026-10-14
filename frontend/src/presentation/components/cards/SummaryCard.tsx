@@ -52,12 +52,12 @@ export default function SummaryCard({ label, value, sub, color = 'blue', icon: I
             <Icon size={13} className={c.icon} />
           </span>
         )}
-        <p className="text-ui-xs 3xl:text-ui-sm font-semibold text-apple-light uppercase tracking-wider leading-none">
+        <p className="text-caption 3xl:text-label font-semibold text-apple-light uppercase tracking-wider leading-none">
           {label}
         </p>
       </div>
-      <p className={`text-ui-xl 3xl:text-ui-2xl font-semibold leading-none tracking-tight ${c.val}`}>{value}</p>
-      {sub && <p className="text-ui-xs 3xl:text-ui-sm text-apple-light">{sub}</p>}
+      <p className={`text-metric 3xl:text-metric-hero font-semibold leading-none tracking-tight ${c.val}`}>{value}</p>
+      {sub && <p className="text-caption 3xl:text-label text-apple-light">{sub}</p>}
     </div>
   )
 }

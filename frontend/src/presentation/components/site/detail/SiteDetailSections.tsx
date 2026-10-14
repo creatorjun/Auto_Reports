@@ -29,13 +29,13 @@ export function SiteContactInfo({ site }: { site: SiteDetail }) {
   return (
     <Section title="담당자 정보" defaultOpen={false}>
       {!site.customer_info && !site.maintenance_info && (
-        <p className="text-sm text-apple-light">등록된 담당자 정보가 없습니다</p>
+        <p className="text-label text-apple-light">등록된 담당자 정보가 없습니다</p>
       )}
       {(site.customer_info || site.maintenance_info) && (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 3xl:gap-5">
           {site.customer_info && (
             <div className="min-w-0 rounded-xl bg-apple-gray/50 px-4 py-3">
-              <p className="mb-1.5 text-xs font-semibold text-apple-light">고객사</p>
+              <p className="mb-1.5 text-section-label font-semibold text-apple-light">고객사</p>
               <Row label="이름"   value={site.customer_info.name} />
               <Row label="연락처" value={site.customer_info.phone} />
               <Row label="이메일" value={site.customer_info.email} />
@@ -43,7 +43,7 @@ export function SiteContactInfo({ site }: { site: SiteDetail }) {
           )}
           {site.maintenance_info && (
             <div className="min-w-0 rounded-xl bg-apple-gray/50 px-4 py-3">
-              <p className="mb-1.5 text-xs font-semibold text-apple-light">유지보수</p>
+              <p className="mb-1.5 text-section-label font-semibold text-apple-light">유지보수</p>
               <Row label="이름" value={site.maintenance_info.name} />
               <Row label="소속" value={site.maintenance_info.company} />
               <Row label="연락처" value={site.maintenance_info.phone} />
@@ -90,7 +90,7 @@ export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
         />
       )}
       {!site.nodes || site.nodes.length === 0 ? (
-        <p className="text-sm text-apple-light">등록된 하드웨어가 없습니다</p>
+        <p className="text-label text-apple-light">등록된 하드웨어가 없습니다</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 3xl:grid-cols-3 3xl:gap-5">
           {site.nodes.map((node, i) => (
@@ -112,11 +112,11 @@ export function SiteHardwareInfo({ site }: { site: SiteDetail }) {
                 <div className="rounded-xl border border-apple-divider/70 bg-apple-surface px-4 py-3 shadow-sm">
                   <div className="mb-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold text-apple-dark">
+                      <span className="text-section-label font-semibold text-apple-dark">
                         {node.hostname ?? '—'}
                       </span>
                       {node.role && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">
+                        <span className="text-caption px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">
                           {node.role}
                         </span>
                       )}
@@ -155,7 +155,7 @@ export function SiteAccessInfo({ site }: { site: SiteDetail }) {
   return (
     <Section title="접속 정보" defaultOpen={false}>
       {!creds ? (
-        <p className="text-sm text-apple-light">등록된 접속 정보가 없습니다</p>
+        <p className="text-label text-apple-light">등록된 접속 정보가 없습니다</p>
       ) : (
         <div className="grid grid-cols-1 gap-x-6 xl:grid-cols-2 3xl:grid-cols-4 3xl:gap-x-8">
           <CredRow label="CLI" cred={creds.cli} />
@@ -163,12 +163,12 @@ export function SiteAccessInfo({ site }: { site: SiteDetail }) {
           <CredRow label="DB"  cred={creds.db} />
           <CredRow label="VPN" cred={creds.vpn} />
           {creds.note && (
-            <div className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-apple-gray/60 px-4 py-3 text-sm text-apple-dark xl:col-span-2 3xl:col-span-4">
+            <div className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-apple-gray/60 px-4 py-3 text-label text-apple-dark xl:col-span-2 3xl:col-span-4">
               {creds.note}
             </div>
           )}
           {!creds.cli && !creds.web && !creds.db && !creds.vpn && !creds.note && (
-            <p className="text-sm text-apple-light">입력된 접속 정보가 없습니다</p>
+            <p className="text-label text-apple-light">입력된 접속 정보가 없습니다</p>
           )}
         </div>
       )}
@@ -210,7 +210,7 @@ export function SitePatchHistory({ site }: { site: SiteDetail }) {
         />
       )}
       {site.patch_histories.length === 0 ? (
-        <p className="text-sm text-apple-light">패치 이력이 없습니다</p>
+        <p className="text-label text-apple-light">패치 이력이 없습니다</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 3xl:grid-cols-3 3xl:gap-5">
           {[...site.patch_histories].reverse().map((p, i) => (
@@ -232,11 +232,11 @@ export function SitePatchHistory({ site }: { site: SiteDetail }) {
                 <div className="rounded-xl border border-apple-divider/70 bg-apple-surface px-4 py-3 shadow-sm">
                   <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold text-apple-dark">
+                      <span className="text-section-label font-semibold text-apple-dark">
                         {p.patch_date ?? '—'}
                       </span>
                       {p.result_status && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">
+                        <span className="text-caption px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">
                           {p.result_status}
                         </span>
                       )}
@@ -297,7 +297,7 @@ export function SiteVisitHistory({ site }: { site: SiteDetail }) {
         />
       )}
       {site.visit_histories.length === 0 ? (
-        <p className="text-sm text-apple-light">방문 이력이 없습니다</p>
+        <p className="text-label text-apple-light">방문 이력이 없습니다</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 3xl:grid-cols-3 3xl:gap-5">
           {[...site.visit_histories].reverse().map((v, i) => (
@@ -319,7 +319,7 @@ export function SiteVisitHistory({ site }: { site: SiteDetail }) {
                 <div className="rounded-xl border border-apple-divider/70 bg-apple-surface px-4 py-3 shadow-sm">
                   <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold text-apple-dark">
+                      <span className="text-section-label font-semibold text-apple-dark">
                         {v.visit_datetime
                           ? v.visit_datetime.replace('T', ' ').slice(0, 16)
                           : '—'}

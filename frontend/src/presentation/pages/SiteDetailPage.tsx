@@ -27,7 +27,7 @@ export default function SiteDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="text-sm text-apple-light">불러오는 중...</span>
+        <span className="text-label text-apple-light">불러오는 중...</span>
       </div>
     )
   }
@@ -35,10 +35,10 @@ export default function SiteDetailPage() {
   if (isError || !site) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-sm text-apple-light">사이트 정보를 불러오지 못했습니다</p>
+        <p className="text-label text-apple-light">사이트 정보를 불러오지 못했습니다</p>
         <button
           onClick={() => navigate('/sites')}
-          className="text-xs text-blue-600 hover:underline"
+          className="text-control text-blue-600 hover:underline"
         >
           목록으로 돌아가기
         </button>
@@ -67,12 +67,12 @@ export default function SiteDetailPage() {
             </svg>
           </button>
           <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-            <h1 className="min-w-0 break-words text-xl font-semibold text-apple-dark sm:text-2xl 3xl:text-3xl">
+            <h1 className="min-w-0 break-words text-page-title font-semibold text-apple-dark">
               {site.site_name}
             </h1>
             {site.status && (
               <span
-                className={`flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                className={`flex-shrink-0 rounded-full px-2.5 py-1 text-caption font-medium ${
                   STATUS_COLOR[site.status] ?? 'bg-gray-100 text-gray-500'
                 }`}
               >
@@ -84,7 +84,7 @@ export default function SiteDetailPage() {
         <button
           type="button"
           onClick={() => navigate(`/sites/${id}/edit`)}
-          className="flex w-full flex-shrink-0 items-center justify-center gap-1.5 rounded-xl border border-apple-divider px-4 py-2.5 text-sm font-medium text-apple-dark transition-colors hover:border-blue-300 hover:bg-apple-gray hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:w-auto sm:py-2 sm:text-xs"
+          className="flex w-full flex-shrink-0 items-center justify-center gap-1.5 rounded-xl border border-apple-divider px-4 py-2.5 text-control font-medium text-apple-dark transition-colors hover:border-blue-300 hover:bg-apple-gray hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:w-auto sm:py-2"
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
             <path

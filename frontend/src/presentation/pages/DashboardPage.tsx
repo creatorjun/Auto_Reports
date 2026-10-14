@@ -225,13 +225,13 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
 
   const exportActions = !exportSelection && (
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <span className="text-[12px] text-apple-mid">{isAnnual ? '선택 연도 · 현재 필터' : '현재 필터 · 표 전체 포함'}</span>
+          <span className="text-caption text-apple-mid">{isAnnual ? '선택 연도 · 현재 필터' : '현재 필터 · 표 전체 포함'}</span>
           <select
             aria-label="다운로드 형식"
             value={exportFormat}
             onChange={(event) => setExportFormat(event.target.value as DashboardExportFormat)}
             disabled={exportSnapshot !== null}
-            className="rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-[13px] font-medium text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-60"
+            className="rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-control font-medium text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-60"
           >
             <option value="pdf">PDF</option>
             <option value="xlsx">Excel (.xlsx)</option>
@@ -241,12 +241,12 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
             onClick={startExport}
             disabled={exportSnapshot !== null}
             aria-busy={exportSnapshot !== null}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-control font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60"
           >
             {exportSnapshot ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
             <span aria-live="polite">{exportSnapshot ? `${exportSnapshot.format === 'xlsx' ? 'Excel' : 'PDF'} 생성 중...` : `${exportFormat === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`}</span>
           </button>
-          {exportError && <p role="alert" className="w-full text-right text-[13px] text-red-600">{exportError}</p>}
+          {exportError && <p role="alert" className="w-full text-right text-label text-red-600">{exportError}</p>}
         </div>
       )
 
@@ -374,7 +374,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
       )}
 
       <div data-pdf-section="업무 유형별 열린 요청" data-pdf-kind="metrics" className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4 3xl:gap-5">
-        {isAnnual && <h2 className="col-span-full text-lg font-semibold text-apple-dark">업무 유형별 열린 요청</h2>}
+        {isAnnual && <h2 className="col-span-full text-section-title font-semibold text-apple-dark">업무 유형별 열린 요청</h2>}
         {workTypeOpenWidgets.map((widget, index) => (
           <WorkTypeSummaryCard
             key={widget.key}
@@ -550,20 +550,20 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto flex w-full max-w-content flex-col gap-5 3xl:max-w-none">
       <div className="flex justify-end">
-        <Link to="/history" className="flex items-center gap-2 rounded-xl border border-apple-divider bg-apple-surface px-4 py-2.5 text-sm text-apple-mid hover:bg-apple-gray"><History size={16} />보고서 히스토리</Link>
+        <Link to="/history" className="flex items-center gap-2 rounded-xl border border-apple-divider bg-apple-surface px-4 py-2.5 text-control text-apple-mid hover:bg-apple-gray"><History size={16} />보고서 히스토리</Link>
       </div>
       {year ? <AnnualReportGenerate year={annualYear} loading={isLoading} /> : !data && <DashboardGenerateForm loading={isLoading} />}
       {isLoading && <LoadingSpinner text="보고서 로딩 중..." />}
       {error && year && !data ? (
         <div className="card text-center py-16">
           <CalendarRange className="mx-auto mb-3 text-apple-light" size={28} />
-          <p className="text-ui-base font-medium text-apple-dark">{annualYear} 연간 보고서를 불러올 수 없습니다.</p>
-          <p className="mt-2 text-[12px] text-apple-light">아직 생성하지 않았다면 위의 연간 보고서 생성 버튼을 누르세요.</p>
+          <p className="text-body font-medium text-apple-dark">{annualYear} 연간 보고서를 불러올 수 없습니다.</p>
+          <p className="mt-2 text-caption text-apple-light">아직 생성하지 않았다면 위의 연간 보고서 생성 버튼을 누르세요.</p>
         </div>
-      ) : error ? <div role="alert" className="card text-ui-base text-red-500">데이터를 불러올 수 없습니다.</div> : null}
+      ) : error ? <div role="alert" className="card text-body text-red-500">데이터를 불러올 수 없습니다.</div> : null}
       {data && <DashboardContent report={data} generationForm={!year && <DashboardGenerateForm report={data} loading={isLoading} />} />}
       {!data && !isLoading && !error && (
-        <div className="card text-ui-base text-apple-light text-center py-16">
+        <div className="card text-body text-apple-light text-center py-16">
           생성된 보고서가 없습니다. 기간과 기준 날짜를 선택하고 <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 누르세요.
         </div>
       )}

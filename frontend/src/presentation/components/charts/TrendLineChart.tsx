@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/charts/TrendLineChart.tsx
+import designTokens from '@/presentation/config/designTokens.json'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { CHART_COLORS } from '@/presentation/config/ui'
 import { CHART_LEGEND_COLOR, MONTHLY_COUNT_COLORS } from '@/presentation/config/constants'
@@ -19,12 +20,12 @@ export default function TrendLineChart({ created, resolved, onBarClick, periodLa
 
   return (
     <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['기간', '생성 건수', '해결 건수'], rows: [[periodLabel, created, resolved]] }) : undefined} className="card">
-      <h3 className="text-sm font-semibold text-gray-700 mb-4">⚖️ 생성 vs 해결</h3>
+      <h3 className="text-section-title font-semibold text-gray-700 mb-4">⚖️ 생성 vs 해결</h3>
       <ResponsiveContainer width="100%" height={360}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
-          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 11 }} />
+          <XAxis dataKey="name" tick={{ fontSize: designTokens.typography.chart.tick }} />
+          <YAxis tick={{ fontSize: designTokens.typography.chart.tick }} />
           <Tooltip />
           <Legend
             layout="horizontal"
@@ -34,7 +35,7 @@ export default function TrendLineChart({ created, resolved, onBarClick, periodLa
             iconSize={7}
             formatter={(value: string) => (
               <span
-                style={{ fontSize: 11, color: CHART_LEGEND_COLOR, cursor: onBarClick ? 'pointer' : 'default' }}
+                style={{ fontSize: designTokens.typography.chart.legend, color: CHART_LEGEND_COLOR, cursor: onBarClick ? 'pointer' : 'default' }}
                 onClick={() => {
                   if (value === '생성' || value === '해결') onBarClick?.(value)
                 }}
@@ -62,7 +63,7 @@ export default function TrendLineChart({ created, resolved, onBarClick, periodLa
         </BarChart>
       </ResponsiveContainer>
       {!exportMode && onBarClick && (
-        <p className="text-center text-[11px] text-apple-light mt-1">막대를 클릭하면 이슈 목록을 확인할 수 있습니다</p>
+        <p className="text-center text-caption text-apple-light mt-1">막대를 클릭하면 이슈 목록을 확인할 수 있습니다</p>
       )}
     </div>
   )

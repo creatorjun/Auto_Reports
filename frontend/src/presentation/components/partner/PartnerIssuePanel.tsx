@@ -99,7 +99,7 @@ export default function PartnerIssuePanel({
           />
         </div>
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-sm text-apple-light">← 조직을 선택하세요</p>
+          <p className="text-label text-apple-light">← 조직을 선택하세요</p>
         </div>
       </div>
     )
@@ -121,7 +121,7 @@ export default function PartnerIssuePanel({
           <PartnerIssueRow key={issue.key} issue={issue} jiraBrowse={jiraBrowse} />
         ))}
         {!isLoading && visibleIssues.length === 0 && (
-          <p className="px-4 py-8 text-sm text-apple-light text-center">
+          <p className="px-4 py-8 text-label text-apple-light text-center">
             {normalizedQuery ? '검색 결과 없음' : '이슈 없음'}
           </p>
         )}

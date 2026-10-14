@@ -1,26 +1,29 @@
 // frontend/src/presentation/config/constants.ts
+import designTokens from './designTokens.json'
 
 export const SLA_TARGET_RATE = 80
 
 export const MONTHS_BACK = 6
 
-export const CHART_HEIGHT = 360
+export const CHART_HEIGHT = designTokens.chart.height
 
-export const CHART_TICK_FONT_SIZE = 11
+export const CHART_TICK_FONT_SIZE = designTokens.typography.chart.tick
 
-export const CHART_LEGEND_ICON_SIZE = 7
+export const CHART_LEGEND_FONT_SIZE = designTokens.typography.chart.legend
+
+export const CHART_LEGEND_ICON_SIZE = designTokens.chart.legendIconSize
 
 export const CHART_LEGEND_COLOR = 'rgb(var(--color-chart-axis))'
 
-export const CHART_STROKE_WIDTH = 2.5
+export const CHART_STROKE_WIDTH = designTokens.chart.strokeWidth
 
-export const CHART_DOT_RADIUS = 4
+export const CHART_DOT_RADIUS = designTokens.chart.dotRadius
 
-export const CHART_ACTIVE_DOT_RADIUS = 6
+export const CHART_ACTIVE_DOT_RADIUS = designTokens.chart.activeDotRadius
 
-export const CHART_GRADIENT_STOP_START = 0.25
+export const CHART_GRADIENT_STOP_START = designTokens.chart.gradientStart
 
-export const CHART_GRADIENT_STOP_END = 0.03
+export const CHART_GRADIENT_STOP_END = designTokens.chart.gradientEnd
 
 export const PIE_COLORS = [
   'rgb(var(--color-chart-danger))',

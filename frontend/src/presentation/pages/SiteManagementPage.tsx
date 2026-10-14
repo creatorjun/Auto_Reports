@@ -86,14 +86,14 @@ export default function SiteManagementPage() {
     <div className="relative mx-auto flex min-h-full w-full max-w-content flex-col 3xl:max-w-none">
       <div className="mb-5 flex items-start justify-between gap-4 sm:mb-6 3xl:mb-8">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-apple-dark sm:text-2xl 3xl:text-3xl">사이트 관리</h1>
-          <p className="mt-1 text-sm text-apple-light 3xl:text-base">사이트를 검색하거나 최근 업데이트된 사이트로 바로 이동할 수 있습니다.</p>
+          <h1 className="text-page-title font-semibold text-apple-dark">사이트 관리</h1>
+          <p className="mt-1 text-label text-apple-light">사이트를 검색하거나 최근 업데이트된 사이트로 바로 이동할 수 있습니다.</p>
         </div>
         <button
           type="button"
           onClick={() => navigate('/sites/new')}
           aria-label="새 사이트 등록"
-          className="inline-flex h-10 flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:px-4 xl:hidden"
+          className="inline-flex h-10 flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-control font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:px-4 xl:hidden"
         >
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -119,7 +119,7 @@ export default function SiteManagementPage() {
               onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
               placeholder="사이트명으로 검색..."
               aria-label="사이트명 검색"
-              className="min-w-0 flex-1 bg-transparent text-sm text-apple-dark outline-none placeholder:text-apple-light sm:text-base 3xl:text-lg"
+              className="min-w-0 flex-1 bg-transparent text-control text-apple-dark outline-none placeholder:text-apple-light"
               aria-autocomplete="list"
               aria-expanded={dropdownOpen}
               aria-activedescendant={activeIndex >= 0 ? `site-option-${activeIndex}` : undefined}
@@ -145,9 +145,9 @@ export default function SiteManagementPage() {
               className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[60vh] overflow-y-auto rounded-2xl border border-apple-divider bg-apple-surface shadow-apple-lg"
             >
               {isSearching ? (
-                <div className="px-4 py-4 text-sm text-apple-light sm:px-5">검색 중...</div>
+                <div className="px-4 py-4 text-label text-apple-light sm:px-5">검색 중...</div>
               ) : searchResults.length === 0 ? (
-                <div className="px-4 py-4 text-sm text-apple-light sm:px-5">검색 결과가 없습니다</div>
+                <div className="px-4 py-4 text-label text-apple-light sm:px-5">검색 결과가 없습니다</div>
               ) : (
                 searchResults.map((site, idx) => (
                   <div
@@ -162,14 +162,14 @@ export default function SiteManagementPage() {
                     ].join(' ')}
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-apple-dark sm:text-base">{site.site_name}</p>
+                      <p className="truncate text-body font-medium text-apple-dark">{site.site_name}</p>
                       {site.customer_name && (
-                        <p className="mt-0.5 truncate text-xs text-apple-light sm:text-sm">{site.customer_name}</p>
+                        <p className="mt-0.5 truncate text-label text-apple-light">{site.customer_name}</p>
                       )}
                     </div>
                     <span
                       className={[
-                        'flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium',
+                        'flex-shrink-0 rounded-full px-2.5 py-1 text-caption font-medium',
                         STATUS_COLOR[site.status ?? ''] ?? 'bg-gray-100 text-gray-500',
                       ].join(' ')}
                     >
@@ -192,8 +192,8 @@ export default function SiteManagementPage() {
         {recentSites.length > 0 && (
           <>
             <div className="mb-3 flex items-center justify-between sm:mb-4">
-              <h2 className="text-sm font-semibold text-apple-dark sm:text-base 3xl:text-lg">최근 사이트</h2>
-              <span className="text-xs text-apple-light">{recentSites.length}개</span>
+              <h2 className="text-section-title font-semibold text-apple-dark">최근 사이트</h2>
+              <span className="text-caption text-apple-light">{recentSites.length}개</span>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 3xl:gap-5">
               {recentSites.map((site) => (
@@ -205,16 +205,16 @@ export default function SiteManagementPage() {
                   className="group flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-apple-divider bg-apple-surface px-4 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-apple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:px-5 3xl:min-h-24 3xl:rounded-3xl 3xl:px-6"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-apple-dark transition-colors group-hover:text-blue-700 sm:text-base">
+                    <p className="truncate text-body font-semibold text-apple-dark transition-colors group-hover:text-blue-700">
                       {site.site_name}
                     </p>
                     {site.customer_name && (
-                      <p className="mt-1 truncate text-xs text-apple-light sm:text-sm">{site.customer_name}</p>
+                      <p className="mt-1 truncate text-label text-apple-light">{site.customer_name}</p>
                     )}
                   </div>
                   <span
                     className={[
-                      'flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium',
+                      'flex-shrink-0 rounded-full px-2.5 py-1 text-caption font-medium',
                       STATUS_COLOR[site.status ?? ''] ?? 'bg-gray-100 text-gray-500',
                     ].join(' ')}
                   >

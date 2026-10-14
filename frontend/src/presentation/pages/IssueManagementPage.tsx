@@ -102,29 +102,29 @@ export default function IssueManagementPage() {
     <div className="dashboard-view space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-apple-dark">이슈 관리</h1>
-          <p className="mt-1 text-ui-sm text-apple-mid">TACEA 전체 요청 · 완료 항목 포함 · 30초마다 변경분 동기화</p>
-          <p className="mt-1 text-xs text-apple-light" aria-live="polite">{query.data?.synced_at ? `마지막 동기화 ${new Date(query.data.synced_at).toLocaleString('ko-KR')}` : '전체 이슈를 수집하고 있습니다.'}{query.data?.refreshing ? ' · 동기화 중' : ''}</p>
+          <h1 className="text-page-title font-semibold text-apple-dark">이슈 관리</h1>
+          <p className="mt-1 text-label text-apple-mid">TACEA 전체 요청 · 완료 항목 포함 · 30초마다 변경분 동기화</p>
+          <p className="mt-1 text-caption text-apple-light" aria-live="polite">{query.data?.synced_at ? `마지막 동기화 ${new Date(query.data.synced_at).toLocaleString('ko-KR')}` : '전체 이슈를 수집하고 있습니다.'}{query.data?.refreshing ? ' · 동기화 중' : ''}</p>
         </div>
-        <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-ui-sm font-semibold text-white disabled:opacity-50">
+        <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-control font-semibold text-white disabled:opacity-50">
           <RefreshCw size={16} className={query.isFetching || query.data?.refreshing ? 'animate-spin' : ''} />새로고침
         </button>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <span className="text-[12px] text-apple-mid">현재 필터 · 컬럼 검색 · 표 전체 포함</span>
+        <span className="text-caption text-apple-mid">현재 필터 · 컬럼 검색 · 표 전체 포함</span>
         <select aria-label="다운로드 형식" value={exportFormat} onChange={(event) => setExportFormat(event.target.value as DashboardExportFormat)} disabled={exportSnapshot !== null}
-          className="rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-[13px] font-medium text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-60">
+          className="rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-control font-medium text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-60">
           <option value="pdf">PDF</option>
           <option value="xlsx">Excel (.xlsx)</option>
         </select>
         <button type="button" onClick={startExport} disabled={exportSnapshot !== null || !query.data?.initialized} aria-busy={exportSnapshot !== null}
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60">
+          className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-control font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60">
           {exportSnapshot ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
           <span aria-live="polite">{exportSnapshot ? `${exportSnapshot.format === 'xlsx' ? 'Excel' : 'PDF'} 생성 중...` : `${exportFormat === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`}</span>
         </button>
-        {exportError && <p role="alert" className="w-full text-right text-[13px] text-red-600">{exportError}</p>}
+        {exportError && <p role="alert" className="w-full text-right text-label text-red-600">{exportError}</p>}
       </div>
-      {(query.isError || query.data?.error) && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{query.data?.error ?? '이슈 조회에 실패했습니다. 기존 목록을 유지하며 자동 재시도합니다.'}</p>}
+      {(query.isError || query.data?.error) && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-label text-amber-800">{query.data?.error ?? '이슈 조회에 실패했습니다. 기존 목록을 유지하며 자동 재시도합니다.'}</p>}
       <IssueTypeFilter issueTypes={options.types} statuses={options.statuses} selectedTypes={types} selectedStatuses={statuses} selectedSemester={semester} supported statusSupported semesterSupported
         titleSearch={titleSearch} onTitleSearchChange={setTitleSearch}
         onToggle={(value) => setTypes((current) => toggle(current, options.types, value))}

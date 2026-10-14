@@ -59,7 +59,7 @@ export function formatPhone(value: string): string {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
 }
 
-export const inputCls = 'w-full border border-apple-divider rounded-xl px-3 py-2 text-sm text-apple-dark bg-apple-surface outline-none focus:ring-2 focus:ring-blue-500/30 transition'
+export const inputCls = 'w-full border border-apple-divider rounded-xl px-3 py-2 text-control text-apple-dark bg-apple-surface outline-none focus:ring-2 focus:ring-blue-500/30 transition'
 export const selectCls = inputCls + ' cursor-pointer'
 
 export function EyeIcon({ open }: { open: boolean }) {
@@ -84,16 +84,16 @@ export function Field({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-apple-light">{label}</label>
+      <label className="text-control-label font-medium text-apple-light">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-caption text-red-500">{error}</p>}
     </div>
   )
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-sm font-semibold text-apple-dark border-b border-apple-divider pb-1.5 mb-4">
+    <h2 className="text-section-title font-semibold text-apple-dark border-b border-apple-divider pb-1.5 mb-4">
       {children}
     </h2>
   )
@@ -135,7 +135,7 @@ export function CredentialRow({
   const [showPw, setShowPw] = useState(false)
   return (
     <div className="rounded-xl border border-apple-divider/60 px-4 py-3 flex flex-col gap-3">
-      <p className="text-xs font-semibold text-blue-600">{label}</p>
+      <p className="text-section-label font-semibold text-blue-600">{label}</p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="ID" error={(errors[usernameKey] as { message?: string })?.message}>
           <input {...register(usernameKey)} className={inputCls} placeholder="username" autoComplete="off" />

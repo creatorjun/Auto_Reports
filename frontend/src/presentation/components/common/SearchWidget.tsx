@@ -31,7 +31,7 @@ function TypeBadge({ type, isDirect }: { type: string; isDirect?: boolean }) {
   const cls   = isDirect ? DIRECT_COLOR : type === 'jira' ? JIRA_COLOR : CONFLUENCE_COLOR
   const label = isDirect ? '직접링크' : type === 'jira' ? 'JIRA' : 'Confluence'
   return (
-    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${cls}`}>
+    <span className={`text-caption font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${cls}`}>
       {label}
     </span>
   )
@@ -57,14 +57,14 @@ function DropdownItem({
       onMouseDown={(e) => { e.preventDefault(); onClick() }}
     >
       <TypeBadge type={item.type} isDirect={isDirect} />
-      <span className={`text-[12px] font-medium truncate flex-1 ${
+      <span className={`text-caption font-medium truncate flex-1 ${
         isDirect ? 'text-brand-700' : 'text-gray-800'
       }`}>
         {item.key && !isDirect && <span className="text-gray-400 mr-1">[{item.key}]</span>}
         {item.title}
       </span>
       {!isDirect && item.status && (
-        <span className="text-[10px] text-gray-400 flex-shrink-0">{item.status}</span>
+        <span className="text-caption text-gray-400 flex-shrink-0">{item.status}</span>
       )}
       {isDirect && (
         <svg className="w-3 h-3 text-brand-400 flex-shrink-0" fill="none" viewBox="0 0 16 16">
@@ -96,7 +96,7 @@ function SearchModal({
       onClose={onClose}
     >
       {results.length === 0 ? (
-        <div className="px-5 py-10 text-center text-gray-400 text-[13px]">검색 결과가 없습니다.</div>
+        <div className="px-5 py-10 text-center text-gray-400 text-label">검색 결과가 없습니다.</div>
       ) : (
         <ul className="divide-y">
           {orderedResults.map((item, idx) => {
@@ -113,7 +113,7 @@ function SearchModal({
                 >
                   <TypeBadge type={item.type} isDirect={isDirect} />
                   <div className="flex-1 min-w-0">
-                    <p className={`text-[13px] font-medium truncate ${
+                    <p className={`text-label font-medium truncate ${
                       isDirect ? 'text-brand-700' : 'text-gray-800'
                     }`}>
                       {!isDirect && item.key && (
@@ -122,7 +122,7 @@ function SearchModal({
                       {item.title}
                     </p>
                     {!isDirect && (
-                      <p className="text-[11px] text-gray-400 mt-0.5">
+                      <p className="text-caption text-gray-400 mt-0.5">
                         {item.issue_type}{item.status ? ` · ${item.status}` : ''}
                       </p>
                     )}
@@ -147,7 +147,7 @@ function SearchModal({
           href={`${jiraBaseUrl}/issues/?jql=${encodeURIComponent(`text ~ "${query}"`)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[12px] text-brand-600 hover:underline"
+          className="text-caption text-brand-600 hover:underline"
         >
           JIRA에서 더 검색하기 →
         </a>
@@ -276,7 +276,7 @@ export default function SearchWidget() {
             onFocus={() => suggestions.length > 0 && setIsDropdownOpen(true)}
             onBlur={() => setTimeout(() => setIsDropdownOpen(false), 150)}
             placeholder="JIRA / Confluence 검색"
-            className="w-full pl-9 pr-9 py-[0.5625rem] text-[14px] bg-gray-100 rounded-lg border border-transparent focus:border-brand-400 focus:bg-apple-surface focus:outline-none transition-all placeholder-gray-400"
+            className="w-full pl-9 pr-9 py-[0.5625rem] text-control bg-gray-100 rounded-lg border border-transparent focus:border-brand-400 focus:bg-apple-surface focus:outline-none transition-all placeholder-gray-400"
           />
           {isLoading ? (
             <svg className="absolute right-3 w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -314,7 +314,7 @@ export default function SearchWidget() {
               className="px-3 py-1.5 text-center border-t"
               onMouseDown={(e) => { e.preventDefault(); openModal(query.trim()) }}
             >
-              <span className="text-[11px] text-brand-600 cursor-pointer hover:underline">전체 결과 보기</span>
+              <span className="text-caption text-brand-600 cursor-pointer hover:underline">전체 결과 보기</span>
             </li>
           </ul>
         )}

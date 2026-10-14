@@ -30,9 +30,9 @@ export default function AnnualRemoteIssueDetailsModal({ reportId, request, title
       : '개별 이슈를 조회하지 못했습니다. 잠시 후 다시 시도해 주세요.'
     return (
       <IssueModalShell title={title} subtitle={`차트 집계 ${total.toLocaleString('ko-KR')}건`} size="lg" onClose={onClose}>
-        {query.isPending ? <p role="status" className="py-10 text-center text-base text-apple-mid">개별 이슈를 조회하고 있습니다…</p> : (
+        {query.isPending ? <p role="status" className="py-10 text-center text-body text-apple-mid">개별 이슈를 조회하고 있습니다…</p> : (
           <div className="space-y-4 py-6 text-center">
-            <p role="alert" className="text-base text-apple-dark">{message}</p>
+            <p role="alert" className="text-body text-apple-dark">{message}</p>
             <button type="button" onClick={() => void query.refetch()} className="rounded-lg bg-brand-600 px-4 py-2 text-white">다시 조회</button>
           </div>
         )}

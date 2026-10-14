@@ -1,5 +1,20 @@
 // frontend/tailwind.config.js
+import designTokens from './src/presentation/config/designTokens.json'
+
+const { typography, themes, shape, layout } = designTokens
 const paletteColor = (name) => `rgb(var(--color-${name}) / <alpha-value>)`
+const typographyVariables = {
+  '--font-sans': typography.family.join(', '),
+  '--font-mono': typography.monoFamily.join(', '),
+  '--font-export': typography.exportFamily.join(', '),
+  ...Object.fromEntries(Object.entries(typography.size).map(([name, value]) => [`--font-size-${name}`, `${value}px`])),
+  ...Object.fromEntries(Object.entries(typography.lineHeight).map(([name, value]) => [`--line-height-${name}`, String(value)])),
+  ...Object.fromEntries(Object.entries(typography.weight).map(([name, value]) => [`--font-weight-${name}`, String(value)])),
+  ...Object.fromEntries(Object.entries(typography.chart).map(([name, value]) => [`--font-size-chart-${name}`, `${value}px`])),
+  '--font-size-document': `${typography.document.body}px`,
+  '--line-height-document': String(typography.document.lineHeight),
+  ...Object.fromEntries(Object.entries(layout).map(([name, value]) => [`--layout-${name}`, value])),
+}
 
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -15,17 +30,17 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'sans-serif']
+        sans: ['var(--font-sans)'],
+        mono: ['var(--font-mono)'],
       },
-      fontSize: {
-        'ui-xs':   ['16px', { lineHeight: '1.4' }],
-        'ui-sm':   ['18px', { lineHeight: '1.5' }],
-        'ui-base': ['20px', { lineHeight: '1.6' }],
-        'ui-md':   ['21px', { lineHeight: '1.6' }],
-        'ui-lg':   ['24px', { lineHeight: '1.5' }],
-        'ui-xl':   ['48px', { lineHeight: '1' }],
-        'ui-2xl':  ['57px', { lineHeight: '1' }],
-      },
+      fontSize: Object.fromEntries(Object.keys(typography.size).map((name) => [name, [
+        `var(--font-size-${name})`,
+        {
+          lineHeight: `var(--line-height-${name})`,
+          ...(typography.headingRoles.includes(name) ? { fontWeight: 'var(--font-weight-semibold)' } : {}),
+        },
+      ]])),
+      fontWeight: Object.fromEntries(Object.keys(typography.weight).map((name) => [name, `var(--font-weight-${name})`])),
       colors: {
         brand: {
           50:  paletteColor('brand-50'),
@@ -103,22 +118,26 @@ export default {
           pending: paletteColor('status-pending'),
         }
       },
-      borderRadius: {
-        '2xl': '18px',
-        '3xl': '24px'
-      },
+      borderRadius: shape.radius,
       boxShadow: {
         'apple-sm': 'var(--shadow-apple-sm)',
         'apple':    'var(--shadow-apple)',
         'apple-lg': 'var(--shadow-apple-lg)'
       },
       maxWidth: {
-        content: '1600px'
+        content: layout.content
       },
       spacing: {
         '18': '4.5rem'
       }
     }
   },
-  plugins: []
+  plugins: [({ addBase }) => addBase({
+    ':root': typographyVariables,
+    ":root, :root[data-theme='light'], .dashboard-pdf-stage, .dashboard-report-export-view": {
+      colorScheme: 'light',
+      ...themes.light,
+    },
+    ":root[data-theme='dark']": { colorScheme: 'dark', ...themes.dark },
+  })]
 }

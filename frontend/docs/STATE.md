@@ -17,4 +17,4 @@
 
 Query key는 `presentation/config/queryKeys.ts`에서 중앙 관리합니다. UI 상태는 API 응답 모델과 섞지 않습니다.
 
-테마는 `auto-reports-theme` 키에 저장되고 `ThemeController`가 문서 루트의 `data-theme` 속성과 동기화합니다. 실제 팔레트는 `presentation/styles/palette.css`만 소유합니다.
+테마는 `auto-reports-theme` 키에 저장되고 `ThemeController`가 문서 루트의 `data-theme` 속성과 동기화합니다. 실제 팔레트는 `presentation/config/designTokens.json`만 소유합니다.

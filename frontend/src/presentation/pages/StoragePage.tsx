@@ -362,10 +362,10 @@ export default function StoragePage() {
 
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-[18px] md:text-[22px] 3xl:text-[26px] font-semibold text-apple-dark tracking-tight">파일 보관함</h1>
-          <p className="text-[12px] md:text-[13px] 3xl:text-[14px] text-apple-light mt-1">파일을 업로드하고 선택하여 다운로드 또는 삭제</p>
+          <h1 className="text-page-title font-semibold text-apple-dark tracking-tight">파일 보관함</h1>
+          <p className="text-label text-apple-light mt-1">파일을 업로드하고 선택하여 다운로드 또는 삭제</p>
         </div>
-        {isFetching && !isLoading && <span className="text-[11px] text-apple-light">업데이트 중...</span>}
+        {isFetching && !isLoading && <span className="text-caption text-apple-light">업데이트 중...</span>}
       </div>
 
       {quota && (
@@ -393,16 +393,16 @@ export default function StoragePage() {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[11px] text-apple-light">
+        <p className="text-caption text-apple-light">
           파일 또는 폴더를 다른 폴더나 상단 경로로 드래그해 이동할 수 있습니다.
         </p>
         <div className="flex items-center gap-2">
-          {isMoving && <span className="text-[11px] font-medium text-brand-600">이동 중...</span>}
+          {isMoving && <span className="text-caption font-medium text-brand-600">이동 중...</span>}
           <button
             type="button"
             onClick={handleToggleAll}
             disabled={!storageItems.length || isSelectionBusy}
-            className="text-[11px] font-medium text-brand-600 transition-colors hover:text-brand-700 disabled:cursor-not-allowed disabled:text-apple-light"
+            className="text-control font-medium text-brand-600 transition-colors hover:text-brand-700 disabled:cursor-not-allowed disabled:text-apple-light"
           >
             {allSelected ? '전체 선택 해제' : '전체 선택'}
           </button>
@@ -411,12 +411,12 @@ export default function StoragePage() {
 
       {selectedCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-200 bg-brand-50/70 px-3.5 py-2.5">
-          <span className="mr-auto text-[12px] font-semibold text-brand-700">{selectedCount}개 선택</span>
+          <span className="mr-auto text-caption font-semibold text-brand-700">{selectedCount}개 선택</span>
           <button
             type="button"
             onClick={handleDownloadSelection}
             disabled={isSelectionBusy}
-            className="flex items-center gap-1.5 rounded-lg bg-apple-surface px-3 py-1.5 text-[11px] font-medium text-brand-700 shadow-sm transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-apple-surface px-3 py-1.5 text-control font-medium text-brand-700 shadow-sm transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download size={13} strokeWidth={1.8} />
             {isDownloadingSelection ? '압축 중...' : 'ZIP 다운로드'}
@@ -425,7 +425,7 @@ export default function StoragePage() {
             type="button"
             onClick={() => setShowSelectionDelete(true)}
             disabled={isSelectionBusy}
-            className="flex items-center gap-1.5 rounded-lg bg-apple-surface px-3 py-1.5 text-[11px] font-medium text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-apple-surface px-3 py-1.5 text-control font-medium text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 size={13} strokeWidth={1.8} />
             삭제
@@ -447,7 +447,7 @@ export default function StoragePage() {
         <div
           role={storageFeedback.type === 'error' ? 'alert' : 'status'}
           aria-live="polite"
-          className={`rounded-xl border px-3.5 py-2.5 text-[12px] font-medium ${
+          className={`rounded-xl border px-3.5 py-2.5 text-caption font-medium ${
             storageFeedback.type === 'success'
               ? 'border-green-200 bg-green-50 text-green-700'
               : 'border-red-200 bg-red-50 text-red-600'
@@ -480,8 +480,8 @@ export default function StoragePage() {
             </svg>
           )}
           <div className="text-center">
-            <p className="text-[13px] font-medium text-apple-dark">{uploadLabel}</p>
-            <p className="text-[11px] text-apple-light mt-0.5">
+            <p className="text-label font-medium text-apple-dark">{uploadLabel}</p>
+            <p className="text-caption text-apple-light mt-0.5">
               {quota ? `남은 용량 ${formatBytes(quota.available)}` : 'zip, tar, gz 등 모든 형식 업로드 가능'}
             </p>
           </div>
@@ -495,7 +495,7 @@ export default function StoragePage() {
           <table className="w-full">
             <thead className="border-b border-apple-divider/60">
               <tr>
-                <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4 3xl:text-[12px]">
+                <th className="px-6 py-3.5 text-left text-caption font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4">
                   <div className="flex items-center gap-2">
                     <SelectionCheckbox
                       checked={allSelected}
@@ -507,9 +507,9 @@ export default function StoragePage() {
                     이름
                   </div>
                 </th>
-                <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4 3xl:text-[12px]">크기</th>
-                <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4 3xl:text-[12px]">수정일시</th>
-                <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4 3xl:text-[12px]" />
+                <th className="px-6 py-3.5 text-left text-caption font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4">크기</th>
+                <th className="px-6 py-3.5 text-left text-caption font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4">수정일시</th>
+                <th className="px-6 py-3.5 text-left text-caption font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4" />
               </tr>
             </thead>
             <tbody className="divide-y divide-apple-divider/40">
@@ -555,7 +555,7 @@ export default function StoragePage() {
           ))}
         </div>
         {!data?.length && !showNewFolder && (
-          <p className="text-center text-[13px] text-apple-light py-16">이 폴더는 비어 있습니다.</p>
+          <p className="text-center text-label text-apple-light py-16">이 폴더는 비어 있습니다.</p>
         )}
       </div>
     </div>

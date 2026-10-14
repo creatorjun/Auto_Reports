@@ -53,7 +53,7 @@ export default function PartnerMemberPanel({
           />
         </div>
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-sm text-apple-light">← 조직을 선택하세요</p>
+          <p className="text-label text-apple-light">← 조직을 선택하세요</p>
         </div>
       </div>
     )
@@ -75,7 +75,7 @@ export default function PartnerMemberPanel({
           <button
             onClick={() => onSelect(null)}
             className={[
-              'w-full text-left px-4 py-2.5 text-sm transition-colors border-b border-apple-divider/50',
+              'w-full text-left px-4 py-2.5 text-body transition-colors border-b border-apple-divider/50',
               selectedAccountId === null
                 ? 'bg-blue-50 text-blue-700 font-medium'
                 : 'text-apple-dark hover:bg-apple-gray',
@@ -96,18 +96,18 @@ export default function PartnerMemberPanel({
             ].join(' ')}
           >
             <p className={[
-              'text-sm truncate',
+              'text-body truncate',
               selectedAccountId === m.account_id ? 'text-blue-700 font-medium' : 'text-apple-dark',
             ].join(' ')}>
               {m.display_name}
             </p>
             {m.email && (
-              <p className="text-xs text-apple-light truncate mt-0.5">{m.email}</p>
+              <p className="text-label text-apple-light truncate mt-0.5">{m.email}</p>
             )}
           </button>
         ))}
         {!isLoading && visibleMembers.length === 0 && (
-          <p className="px-4 py-6 text-sm text-apple-light text-center">
+          <p className="px-4 py-6 text-label text-apple-light text-center">
             {normalizedQuery ? '검색 결과 없음' : '멤버 없음'}
           </p>
         )}

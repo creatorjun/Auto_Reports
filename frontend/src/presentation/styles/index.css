@@ -5,13 +5,17 @@
 
 @layer base {
   body {
-    @apply bg-apple-bg text-apple-dark font-sans antialiased transition-colors duration-200;
+    @apply bg-apple-bg text-apple-dark text-body font-sans font-normal antialiased transition-colors duration-200;
     font-feature-settings: 'kern' 1, 'liga' 1;
   }
   input,
   textarea,
   select {
     @apply bg-apple-surface text-apple-dark;
+  }
+  strong,
+  b {
+    @apply font-semibold;
   }
   * {
     -webkit-font-smoothing: antialiased;
@@ -27,27 +31,27 @@
     @apply bg-apple-gray rounded-2xl p-4 md:p-6;
   }
   .badge-good {
-    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full
+    @apply inline-flex items-center px-2.5 py-0.5 text-caption font-medium rounded-full
            bg-green-50 text-green-700 border border-green-200/60;
   }
   .badge-warning {
-    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full
+    @apply inline-flex items-center px-2.5 py-0.5 text-caption font-medium rounded-full
            bg-amber-50 text-amber-700 border border-amber-200/60;
   }
   .badge-critical {
-    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full
+    @apply inline-flex items-center px-2.5 py-0.5 text-caption font-medium rounded-full
            bg-red-50 text-red-700 border border-red-200/60;
   }
   .badge-neutral {
-    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full
+    @apply inline-flex items-center px-2.5 py-0.5 text-caption font-medium rounded-full
            bg-gray-50 text-gray-700 border border-gray-200/60;
   }
   .badge-type {
-    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full whitespace-nowrap
+    @apply inline-flex items-center px-2.5 py-0.5 text-caption font-medium rounded-full whitespace-nowrap
            border;
   }
   .nav-link {
-    @apply flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-xl text-control font-medium
            transition-all duration-200 text-apple-mid hover:bg-apple-gray hover:text-apple-dark;
   }
   .nav-link-active {
@@ -69,16 +73,16 @@
 
 @layer utilities {
   .max-w-content {
-    max-width: 1600px;
+    max-width: var(--layout-content);
   }
   @media (min-width: 2560px) {
     .max-w-content {
-      max-width: 2200px;
+      max-width: var(--layout-wideContent);
     }
   }
   @media (min-width: 3840px) {
     .max-w-content {
-      max-width: 3200px;
+      max-width: var(--layout-ultraContent);
     }
   }
 }

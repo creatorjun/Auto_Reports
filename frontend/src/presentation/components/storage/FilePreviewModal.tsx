@@ -75,8 +75,8 @@ function previewErrorMessage(error: unknown): string {
 function PreviewError({ message }: { message: string }) {
   return (
     <div role="alert" className="flex flex-col items-center justify-center gap-2 h-full bg-black/60 px-6 text-center">
-      <p className="text-[14px] font-medium text-white">미리보기를 불러올 수 없습니다.</p>
-      <p className="text-[12px] text-white/70">{message}</p>
+      <p className="text-label font-medium text-white">미리보기를 불러올 수 없습니다.</p>
+      <p className="text-caption text-white/70">{message}</p>
     </div>
   )
 }
@@ -307,12 +307,12 @@ function PdfViewer({ url, onPageChange }: PdfViewerProps) {
       {!loading && totalPages > 1 && (
         <div className="flex items-center justify-center gap-4 py-2 border-t border-apple-divider/60 bg-apple-surface flex-shrink-0">
           <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1}
-            className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors">
+            className="px-3 py-1 rounded-lg text-control font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors">
             ← 이전
           </button>
-          <span className="text-[12px] text-apple-light tabular-nums">{currentPage} / {totalPages}</span>
+          <span className="text-caption text-apple-light tabular-nums">{currentPage} / {totalPages}</span>
           <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}
-            className="px-3 py-1 rounded-lg text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors">
+            className="px-3 py-1 rounded-lg text-control font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark disabled:opacity-40 transition-colors">
             다음 →
           </button>
         </div>
@@ -358,7 +358,7 @@ function PptxPreview({ name, folder, storage, onPageChange }: { name: string; fo
         <svg className="animate-spin w-8 h-8 text-white" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" />
         </svg>
-        <p className="text-[13px] text-white/70">PPTX → PDF 변환 중...</p>
+        <p className="text-label text-white/70">PPTX → PDF 변환 중...</p>
       </div>
     )
   }
@@ -367,11 +367,11 @@ function PptxPreview({ name, folder, storage, onPageChange }: { name: string; fo
     return (
       <div className="flex flex-col items-center justify-center gap-4 h-full bg-black/60 px-6">
         <div className="text-center">
-          <p className="text-[14px] font-medium text-white">변환 실패</p>
-          <p className="text-[12px] text-white/60 mt-1">{errMsg || '서버에서 PDF 변환에 실패했습니다.'}</p>
+          <p className="text-label font-medium text-white">변환 실패</p>
+          <p className="text-caption text-white/60 mt-1">{errMsg || '서버에서 PDF 변환에 실패했습니다.'}</p>
         </div>
         <a href={storage.download(name, folder)} download={name}
-          className="px-4 py-2 rounded-xl text-[13px] font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
+          className="px-4 py-2 rounded-xl text-control font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
           다운로드
         </a>
       </div>
@@ -388,7 +388,7 @@ function TextPreview({ name, folder, storage, parser }: ParsedContentPreviewProp
   if (content === null) return <LoadingSpinnerSmall />
   return (
     <div className="w-full h-full overflow-auto bg-black/60">
-      <pre className="text-[12px] leading-relaxed text-white/90 whitespace-pre-wrap break-all font-mono p-8 min-h-full">{content}</pre>
+      <pre className="text-control-label leading-relaxed text-white/90 whitespace-pre-wrap break-all font-mono p-8 min-h-full">{content}</pre>
     </div>
   )
 }
@@ -420,7 +420,7 @@ function CsvPreview({ name, folder, storage, parser }: ParsedContentPreviewProps
   return (
     <div className="flex justify-center w-full h-full overflow-auto bg-black/60">
       <div className="p-6 w-full max-w-6xl">
-        <table className="text-[12px] border-collapse w-full bg-apple-surface rounded-xl overflow-hidden shadow-2xl">
+        <table className="text-control-label border-collapse w-full bg-apple-surface rounded-xl overflow-hidden shadow-2xl">
           <thead><tr>{rows[0]?.map((h,i)=><th key={i} className="border border-apple-divider px-3 py-1.5 bg-apple-gray text-apple-dark font-semibold text-left whitespace-nowrap">{h}</th>)}</tr></thead>
           <tbody>{rows.slice(1).map((row,i)=><tr key={i} className="even:bg-apple-gray/40">{row.map((cell,j)=><td key={j} className="border border-apple-divider/60 px-3 py-1 text-apple-dark whitespace-nowrap">{cell}</td>)}</tr>)}</tbody>
         </table>
@@ -476,7 +476,7 @@ function XlsxPreview({ name, folder, storage, parser }: ParsedContentPreviewProp
         <div className="flex gap-1 px-4 pt-3 pb-0 flex-shrink-0 overflow-x-auto">
           {sheets.map((s, i) => (
             <button key={i} onClick={() => setActiveSheet(i)}
-              className={`px-3 py-1.5 rounded-t-lg text-[12px] font-medium transition-colors whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-t-lg text-control font-medium transition-colors whitespace-nowrap ${
                 i === activeSheet
                   ? 'bg-white text-apple-dark shadow'
                   : 'bg-white/20 text-white/70 hover:bg-white/30'
@@ -509,11 +509,11 @@ function ArchivePreview({ name, folder, storage }: { name: string; folder: strin
   return (
     <div className="flex flex-col items-center justify-center gap-4 h-full bg-black/60 px-6">
       <div className="text-center">
-        <p className="text-[15px] font-semibold text-white">{name}</p>
-        <p className="text-[12px] text-white/60 mt-1 leading-relaxed">압축 파일은 브라우저에서 직접 열 수 없습니다.<br />다운로드 후 압축을 해제하세요.</p>
+        <p className="text-body font-semibold text-white">{name}</p>
+        <p className="text-caption text-white/60 mt-1 leading-relaxed">압축 파일은 브라우저에서 직접 열 수 없습니다.<br />다운로드 후 압축을 해제하세요.</p>
       </div>
       <a href={storage.download(name, folder)} download={name}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
+        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-control font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
         다운로드
       </a>
     </div>
@@ -625,9 +625,9 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
       default:
         return (
           <div className="flex flex-col items-center justify-center gap-3 h-full bg-black/60">
-            <p className="text-[13px] text-white/60">미리보기를 지원하지 않는 형식입니다.</p>
+            <p className="text-label text-white/60">미리보기를 지원하지 않는 형식입니다.</p>
             <a href={storage.download(name, folder)} download={name}
-              className="px-4 py-2 rounded-xl text-[13px] font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
+              className="px-4 py-2 rounded-xl text-control font-medium bg-white/20 hover:bg-white/30 text-white transition-colors">
               다운로드
             </a>
           </div>
@@ -650,7 +650,7 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
                   <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
-              <span className="text-[11px] text-apple-light tabular-nums">{currentIndex + 1} / {fileList.length}</span>
+              <span className="text-caption text-apple-light tabular-nums">{currentIndex + 1} / {fileList.length}</span>
               <button
                 onClick={handleNext}
                 disabled={!hasNext}
@@ -663,8 +663,8 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
             </div>
           )}
           <div className="flex flex-col min-w-0">
-            <p className="text-[14px] font-semibold text-apple-dark truncate">{name}</p>
-            <p className="text-[11px] text-apple-light capitalize">
+            <p className="text-section-title font-semibold text-apple-dark truncate">{name}</p>
+            <p className="text-caption text-apple-light capitalize">
               {type === 'unsupported' ? '미지원 형식'
                 : type === 'archive' ? '압축 파일'
                 : type === 'pptx' ? 'PPTX (PDF 변환 미리보기)'
@@ -688,7 +688,7 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
             )}
           </button>
           <a href={storage.download(name, folder)} download={name}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-control font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <path d="M7 2v7M4 6.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M2 10.5v1a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />

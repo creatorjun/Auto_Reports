@@ -50,10 +50,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
     >
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center w-8 h-8 3xl:w-10 3xl:h-10
-                   rounded-xl text-apple-light
-                   hover:bg-apple-gray hover:text-apple-dark
-                   transition-all duration-200 mb-2 self-end"
+        className="flex items-center justify-center w-8 h-8 3xl:w-10 3xl:h-10 rounded-xl text-apple-light hover:bg-apple-gray hover:text-apple-dark transition-all duration-200 mb-2 self-end"
         title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
       >
         {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -79,7 +76,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                     }
                   }}
                   className={[
-                    'nav-link w-full text-left 3xl:text-sm 3xl:py-2.5',
+                    'nav-link w-full text-left text-control 3xl:py-2.5',
                     collapsed ? 'justify-center px-0' : '',
                     annualReportMatch ? 'nav-link-active' : '',
                   ].join(' ')}
@@ -104,7 +101,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                         to={to}
                         aria-label={ariaLabel}
                         className={({ isActive }) =>
-                          ['nav-link 3xl:text-sm 3xl:py-2.5', isActive ? 'nav-link-active' : ''].join(' ')
+                          ['nav-link 3xl:text-control 3xl:py-2.5', isActive ? 'nav-link-active' : ''].join(' ')
                         }
                       >
                         {label}
@@ -128,7 +125,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                 ['nav-link',
                  collapsed ? 'justify-center px-0' : '',
                  isActive ? 'nav-link-active' : '',
-                 '3xl:text-sm 3xl:py-2.5',
+                 '3xl:text-control 3xl:py-2.5',
                 ].join(' ')
               }
             >
@@ -139,7 +136,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
         })}
         {!me.isError && canViewAuditLogs(me.data) && (
           <NavLink to="/audit-logs" title={collapsed ? '감사로그' : undefined}
-            className={({ isActive }) => ['nav-link 3xl:text-sm 3xl:py-2.5', collapsed ? 'justify-center px-0' : '', isActive ? 'nav-link-active' : ''].join(' ')}>
+            className={({ isActive }) => ['nav-link 3xl:text-control 3xl:py-2.5', collapsed ? 'justify-center px-0' : '', isActive ? 'nav-link-active' : ''].join(' ')}>
             <ShieldCheck size={16} className="flex-shrink-0" />
             {!collapsed && <span>감사로그</span>}
           </NavLink>
@@ -158,9 +155,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                 onClick={() => logout()}
                 disabled={isLoggingOut}
                 title={username ? `${username} · LOGOUT` : 'LOGOUT'}
-                className="flex items-center justify-center w-8 h-8 rounded-xl
-                           text-apple-light hover:text-red-500 hover:bg-red-50
-                           transition-colors disabled:opacity-40"
+                className="flex items-center justify-center w-8 h-8 rounded-xl text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
               >
                 <LogOut size={14} />
               </button>
@@ -168,10 +163,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
               <button
                 onClick={() => logout()}
                 disabled={isLoggingOut}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-xl
-                           text-[12px] font-medium tracking-wide
-                           text-apple-light hover:text-red-500 hover:bg-red-50
-                           transition-colors disabled:opacity-40"
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-control font-medium tracking-wide text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
               >
                 <span className="flex-shrink-0"><LogOut size={14} /></span>
                 <span className="truncate">LOGOUT</span>

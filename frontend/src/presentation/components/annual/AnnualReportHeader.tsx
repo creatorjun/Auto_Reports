@@ -12,13 +12,13 @@ export default function AnnualReportHeader({ report, actions }: { report: Report
         <div className="flex items-start gap-3">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><CalendarRange size={24} /></span>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-apple-dark md:text-3xl">{report.report_year} 연간 보고서</h1>
-            <p className="mt-2 text-sm tabular-nums text-apple-dark">{report.week_start} – {report.week_end}</p>
+            <h1 className="text-page-title font-semibold tracking-tight text-apple-dark">{report.report_year} 연간 보고서</h1>
+            <p className="mt-2 text-label tabular-nums text-apple-dark">{report.week_start} – {report.week_end}</p>
           </div>
         </div>
         {actions}
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-apple-divider pt-3 text-[13px] text-apple-mid">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-apple-divider pt-3 text-label text-apple-mid">
         <span className="inline-flex items-center gap-1.5 font-medium text-apple-dark">
           {refreshable ? <RefreshCw size={14} /> : <Archive size={14} />}
           {refreshable ? '집계 중 · 5분마다 자동 갱신' : '확정 보고서 · 자동 갱신 없음'}

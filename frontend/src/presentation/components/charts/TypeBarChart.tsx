@@ -2,7 +2,7 @@
 import { memo, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
-import { PIE_COLORS, CHART_HEIGHT, CHART_TICK_FONT_SIZE, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
+import { PIE_COLORS, CHART_HEIGHT, CHART_TICK_FONT_SIZE, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_FONT_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
 import { CHART_COLORS } from '@/presentation/config/ui'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 
@@ -33,9 +33,9 @@ function TypeBarChart({ byType, title = '⏱️ 유형별 평균 처리일', sub
   const exportTable = exportMode ? JSON.stringify({ headers: ['분류', '처리 대상 건수', '평균 소요 일', '평균 소요 시간'], rows: data.map((row) => [row.name, row.count, row.avg_days, row.avg_hours]) }) : undefined
   if (!data.length) return emptyMessage ? (
     <div data-pdf-kind="text" data-export-table={exportTable} className="card">
-      <h3 className="text-sm font-semibold text-apple-dark mb-4">{title}</h3>
-      {subtitle && <p className="text-ui-xs text-apple-light mb-4">{subtitle}</p>}
-      <p className="py-8 text-center text-ui-sm text-apple-light">{emptyMessage}</p>
+      <h3 className="text-section-title font-semibold text-apple-dark mb-4">{title}</h3>
+      {subtitle && <p className="text-caption text-apple-light mb-4">{subtitle}</p>}
+      <p className="py-8 text-center text-label text-apple-light">{emptyMessage}</p>
     </div>
   ) : null
   const exportTickLimit = Math.max(2, Math.floor(((chartWidth - 80) / data.length - 12) / 14))
@@ -47,8 +47,8 @@ function TypeBarChart({ byType, title = '⏱️ 유형별 평균 처리일', sub
   }
   return (
     <div data-pdf-kind="chart" data-export-table={exportTable} className="card">
-      <h3 className="text-sm font-semibold text-apple-dark mb-4">{title}</h3>
-      {subtitle && <p className="text-ui-xs text-apple-light mb-4">{subtitle}</p>}
+      <h3 className="text-section-title font-semibold text-apple-dark mb-4">{title}</h3>
+      {subtitle && <p className="text-caption text-apple-light mb-4">{subtitle}</p>}
       <ResponsiveContainer width="100%" height={horizontal ? Math.max(CHART_HEIGHT, data.length * 36) : CHART_HEIGHT} onResize={exportMode ? (width) => setChartWidth(width) : undefined}>
         <BarChart data={data} layout={horizontal ? 'vertical' : 'horizontal'} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
@@ -66,7 +66,7 @@ function TypeBarChart({ byType, title = '⏱️ 유형별 평균 처리일', sub
             iconSize={CHART_LEGEND_ICON_SIZE}
             payload={data.map((d, i) => ({ value: d.name, type: 'circle', color: PIE_COLORS[i % PIE_COLORS.length] }))}
             formatter={(value: string) => (
-              <span style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR }}>
+              <span style={{ fontSize: CHART_LEGEND_FONT_SIZE, color: CHART_LEGEND_COLOR }}>
                 {!exportMode && value.length > 10 ? value.slice(0, 10) + '…' : value}
               </span>
             )}
@@ -84,11 +84,11 @@ function TypeBarChart({ byType, title = '⏱️ 유형별 평균 처리일', sub
       </ResponsiveContainer>
       {interactive && (
         <details open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)} className="group mt-4 border-t border-apple-divider pt-3">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg py-2 text-base font-semibold text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg py-2 text-body font-semibold text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
             건수 상세 보기<ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" />
           </summary>
           <div data-pdf-kind="table" className="mt-2 overflow-x-auto rounded-xl border border-apple-divider">
-            <table className="w-full min-w-[520px] text-sm text-apple-dark">
+            <table className="w-full min-w-[520px] text-body text-apple-dark">
               <caption className="sr-only">요청 유형별 처리 대상 건수와 평균 처리 기간</caption>
               <thead className="bg-apple-gray">
                 <tr>

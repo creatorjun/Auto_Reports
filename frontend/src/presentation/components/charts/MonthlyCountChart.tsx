@@ -8,7 +8,7 @@ import { CHART_COLORS } from '@/presentation/config/ui'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 import {
   CHART_HEIGHT, CHART_TICK_FONT_SIZE,
-  CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR,
+  CHART_LEGEND_ICON_SIZE, CHART_LEGEND_FONT_SIZE, CHART_LEGEND_COLOR,
   CHART_STROKE_WIDTH, CHART_DOT_RADIUS, CHART_ACTIVE_DOT_RADIUS,
   CHART_GRADIENT_STOP_START, CHART_GRADIENT_STOP_END,
 } from '@/presentation/config/constants'
@@ -25,7 +25,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   const p = payload[0]
   return (
-    <div className="bg-apple-surface border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-ui-xs">
+    <div className="bg-apple-surface border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-caption">
       <p className="font-semibold text-apple-dark mb-1">{label}</p>
       <div className="flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
@@ -47,11 +47,11 @@ function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
     return (
       <div data-pdf-kind="chart" data-export-table={exportTable} className="card flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
-          <span className="text-ui-xs text-apple-light">{subtitle}</span>
+          <h3 className="text-section-title font-semibold text-apple-dark">{title}</h3>
+          <span className="text-caption text-apple-light">{subtitle}</span>
         </div>
         <div className="flex items-center justify-center" style={{ height: CHART_HEIGHT }}>
-          <p className="text-ui-sm text-apple-light">데이터가 없습니다</p>
+          <p className="text-label text-apple-light">데이터가 없습니다</p>
         </div>
       </div>
     )
@@ -60,8 +60,8 @@ function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
   return (
     <div data-pdf-kind="chart" data-export-table={exportTable} className="card">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
-        <span className="text-ui-xs text-apple-light">{subtitle}</span>
+        <h3 className="text-section-title font-semibold text-apple-dark">{title}</h3>
+        <span className="text-caption text-apple-light">{subtitle}</span>
       </div>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -79,7 +79,7 @@ function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
             layout="horizontal" verticalAlign="bottom" align="center"
             iconType="circle" iconSize={CHART_LEGEND_ICON_SIZE}
             formatter={(value: string) => (
-              <span style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR }}>{value}</span>
+              <span style={{ fontSize: CHART_LEGEND_FONT_SIZE, color: CHART_LEGEND_COLOR }}>{value}</span>
             )}
           />
           <Area

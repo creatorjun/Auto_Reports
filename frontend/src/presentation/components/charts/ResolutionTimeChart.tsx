@@ -38,8 +38,8 @@ interface Props {
 }
 
 function SortIcon({ dir }: { dir: SortDir | null }) {
-  if (!dir) return <span className="ml-1 opacity-30 text-[10px]">⇅</span>
-  return <span className="ml-1 text-brand-500 text-[10px]">{dir === 'asc' ? '↑' : '↓'}</span>
+  if (!dir) return <span className="ml-1 opacity-30 text-caption">⇅</span>
+  return <span className="ml-1 text-brand-500 text-caption">{dir === 'asc' ? '↑' : '↓'}</span>
 }
 
 function ResizeHandle({ onDrag, tableWidth }: { onDrag: (frac: number) => void; tableWidth: React.RefObject<number> }) {
@@ -104,21 +104,21 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
       className="flex flex-col items-center gap-2 px-4 py-3 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
     >
       <div className="flex items-center justify-center gap-2">
-        <span className="font-mono text-[11px] text-blue-500 flex-shrink-0">{issue.key}</span>
+        <span className="font-mono text-caption text-blue-500 flex-shrink-0">{issue.key}</span>
         <StatusBadge status={issue.status} size="xs" />
       </div>
-      <p className="w-full text-[13px] text-apple-dark leading-snug line-clamp-2">{issue.summary}</p>
-      <span className="text-[11px] text-apple-mid">티켓 타입 · <IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></span>
-      <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-apple-light">
+      <p className="w-full text-body text-apple-dark leading-snug line-clamp-2">{issue.summary}</p>
+      <span className="text-caption text-apple-mid">티켓 타입 · <IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></span>
+      <div className="flex flex-wrap items-center justify-center gap-2 text-caption text-apple-light">
         <span>{issue.reporter}</span>
         <span className="text-apple-divider">·</span>
         <span>{issue.tac_team}</span>
       </div>
-      <div className="flex max-w-full items-start justify-center gap-1 text-[11px] text-apple-light">
+      <div className="flex max-w-full items-start justify-center gap-1 text-caption text-apple-light">
         <span className="shrink-0">TAC 담당자</span>
         <span className="min-w-0 break-words font-medium text-apple-dark">{issue.tac_assignee ?? '-'}</span>
       </div>
-      <div className="flex items-center justify-center gap-1 text-[11px] text-apple-light">
+      <div className="flex items-center justify-center gap-1 text-caption text-apple-light">
         <span className="tabular-nums">{createdDate}</span>
         <span className="text-apple-divider">·</span>
         <span className="tabular-nums font-medium text-amber-600">{issue.elapsed_days}일 경과</span>
@@ -172,7 +172,7 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
 
   if (details.length === 0 && (exportMode || !onColumnFilterChange)) {
     return (
-      <div data-pdf-kind="table" data-pdf-title={title} className="card flex items-center justify-center h-48 text-apple-light text-ui-base">
+      <div data-pdf-kind="table" data-pdf-title={title} className="card flex items-center justify-center h-48 text-apple-light text-body">
         {noResultsMessage}
       </div>
     )
@@ -194,18 +194,18 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
   return (
     <div data-pdf-kind="table" data-pdf-title={title} className="card p-0 overflow-hidden">
       <div data-pdf-mobile="" className="md:hidden">
-        {!exportMode && onColumnFilterChange && <div className="grid grid-cols-2 gap-3 border-b border-apple-divider p-4">{headers.map(({ key, label }) => <label key={key} className="text-ui-sm font-semibold text-apple-mid">{label}{searchInput(key, label, true)}</label>)}</div>}
-        {pageItems.length === 0 && <p className="p-6 text-center text-ui-sm text-apple-light">{noResultsMessage}</p>}
+        {!exportMode && onColumnFilterChange && <div className="grid grid-cols-2 gap-3 border-b border-apple-divider p-4">{headers.map(({ key, label }) => <label key={key} className="text-control-label font-semibold text-apple-mid">{label}{searchInput(key, label, true)}</label>)}</div>}
+        {pageItems.length === 0 && <p className="p-6 text-center text-label text-apple-light">{noResultsMessage}</p>}
         {pageItems.map((issue) => (
           <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase} />
         ))}
       </div>
 
       <div data-pdf-desktop="" className="hidden md:block overflow-x-auto">
-        <table data-pdf-table-layout="recent" ref={tableRef} className="w-full min-w-[1160px] text-ui-base border-collapse" style={{ tableLayout: 'fixed' }}>
+        <table data-pdf-table-layout="recent" ref={tableRef} className="w-full min-w-[1160px] text-body border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>{COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * 100).toFixed(2)}%` }} />)}</colgroup>
           <thead className="bg-apple-gray/60">
-            <tr className="border-b-2 border-apple-divider text-ui-sm text-apple-mid">
+            <tr className="border-b-2 border-apple-divider text-label text-apple-mid">
               {headers.map(({ key, label, rightCol }) => (
                 <th key={key} data-pdf-header={label} onClick={() => handleSort(key)}
                   className={['relative cursor-pointer select-none whitespace-nowrap border-r border-apple-divider/90 px-3 pb-2.5 pt-3 text-center font-semibold transition-colors last:border-r-0 hover:bg-apple-gray hover:text-apple-primary', sortKey === key ? 'text-apple-primary' : ''].join(' ')}>
@@ -226,18 +226,18 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
               return (
                 <tr key={issue.key} onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
                   className="cursor-pointer transition-colors hover:bg-gray-50">
-                  <td className="overflow-hidden px-3 py-2 text-center" data-pdf-link={jiraUrl}><span className="block truncate font-mono text-ui-sm text-blue-500">{issue.key}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center" data-pdf-link={jiraUrl}><span className="block truncate font-mono text-label text-blue-500">{issue.key}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-apple-primary" title={issue.summary}>{issue.summary}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center"><IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></td>
                   <td className="overflow-hidden px-3 py-2 text-center">
                     <StatusBadge status={issue.status} size="md" />
                   </td>
-                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light">{issue.reporter}</span></td>
-                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light">{issue.tac_team}</span></td>
-                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light" title={issue.tac_assignee ?? undefined}>{issue.tac_assignee ?? '-'}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-label text-apple-light">{issue.reporter}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-label text-apple-light">{issue.tac_team}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-label text-apple-light" title={issue.tac_assignee ?? undefined}>{issue.tac_assignee ?? '-'}</span></td>
                   <td className="whitespace-nowrap px-3 py-2 text-center text-apple-light" data-pdf-value={`${createdDate}\n(${issue.elapsed_days}일 경과)`}>
                     <span className="tabular-nums">{createdDate}</span>
-                    <span className="text-ui-xs text-apple-divider mx-1">·</span>
+                    <span className="text-caption text-apple-divider mx-1">·</span>
                     <span className="tabular-nums">{issue.elapsed_days}일</span>
                   </td>
                 </tr>
@@ -249,17 +249,17 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
 
       {!exportMode && totalPages > 1 && (
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-5 py-3 mt-0 border-t border-apple-divider">
-          <span className="text-ui-sm text-apple-light">{(page - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(page * TABLE_PAGE_SIZE, sortedDetails.length)} / {sortedDetails.length}건</span>
+          <span className="text-label text-apple-light">{(page - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(page * TABLE_PAGE_SIZE, sortedDetails.length)} / {sortedDetails.length}건</span>
           <div className="flex flex-wrap items-center gap-1">
-            {paginationResetKey !== undefined && <button type="button" aria-label="이전 페이지" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded bg-gray-100 px-3 py-1 text-ui-sm text-apple-mid disabled:opacity-40">이전</button>}
+            {paginationResetKey !== undefined && <button type="button" aria-label="이전 페이지" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded bg-gray-100 px-3 py-1 text-control text-apple-mid disabled:opacity-40">이전</button>}
             {pageNumbers.map((value, index) => (
               <span key={value} className="inline-flex items-center gap-1">
                 {index > 0 && value - pageNumbers[index - 1] > 1 && <span className="px-1 text-apple-light">…</span>}
                 <button type="button" aria-current={page === value ? 'page' : undefined} onClick={(event) => { event.stopPropagation(); setPage(value) }}
-                  className={`px-3 py-1 rounded text-ui-sm font-medium transition-colors ${page === value ? 'bg-brand-500 text-white' : 'bg-gray-100 text-apple-mid hover:bg-gray-200'}`}>{value}</button>
+                  className={`px-3 py-1 rounded text-control font-medium transition-colors ${page === value ? 'bg-brand-500 text-white' : 'bg-gray-100 text-apple-mid hover:bg-gray-200'}`}>{value}</button>
               </span>
             ))}
-            {paginationResetKey !== undefined && <button type="button" aria-label="다음 페이지" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded bg-gray-100 px-3 py-1 text-ui-sm text-apple-mid disabled:opacity-40">다음</button>}
+            {paginationResetKey !== undefined && <button type="button" aria-label="다음 페이지" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded bg-gray-100 px-3 py-1 text-control text-apple-mid disabled:opacity-40">다음</button>}
           </div>
         </div>
       )}

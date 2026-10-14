@@ -51,7 +51,7 @@ export default function PartnerOrgPanel({
             key={org.id}
             onClick={() => onSelect(org)}
             className={[
-              'w-full text-left px-4 py-2.5 text-sm transition-colors border-b border-apple-divider/50',
+              'w-full text-left px-4 py-2.5 text-body transition-colors border-b border-apple-divider/50',
               selectedOrgId === org.id
                 ? 'bg-blue-50 text-blue-700 font-medium'
                 : 'text-apple-dark hover:bg-apple-gray',
@@ -59,7 +59,7 @@ export default function PartnerOrgPanel({
           >
             <div className="flex items-center">
               <span className="min-w-0 truncate">{org.name}</span>
-              <span className="ml-1 flex-shrink-0 tabular-nums text-apple-light">({org.issue_count.toLocaleString('ko-KR')})</span>
+              <span className="ml-1 flex-shrink-0 tabular-nums text-label text-apple-light">({org.issue_count.toLocaleString('ko-KR')})</span>
               {selectedOrgId === org.id && (
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="ml-auto flex-shrink-0 pl-2 box-content">
                   <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -69,7 +69,7 @@ export default function PartnerOrgPanel({
           </button>
         ))}
         {!isLoading && visibleOrgs.length === 0 && (
-          <p className="px-4 py-6 text-sm text-apple-light text-center">
+          <p className="px-4 py-6 text-label text-apple-light text-center">
             {normalizedQuery ? '검색 결과 없음' : '조직 정보 없음'}
           </p>
         )}

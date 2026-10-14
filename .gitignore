@@ -6,6 +6,7 @@ __pycache__/
 reports/
 backend/logs/
 *.json
+!frontend/src/presentation/config/designTokens.json
 .DS_Store
 node_modules/
 .pnpm-store/

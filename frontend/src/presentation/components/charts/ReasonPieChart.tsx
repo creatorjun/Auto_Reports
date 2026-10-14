@@ -1,9 +1,10 @@
 // frontend/src/presentation/components/charts/ReasonPieChart.tsx
+import designTokens from '@/presentation/config/designTokens.json'
 import { memo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { TooltipProps } from 'recharts'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
-import { CATEGORICAL_CHART_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
+import { CATEGORICAL_CHART_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_FONT_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
 import type { SlaDelayIssue } from '@/domain/Dashboard'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 
@@ -22,7 +23,7 @@ function CustomLabel({
   const x = cx + radius * Math.cos(-midAngle * RADIAN)
   const y = cy + radius * Math.sin(-midAngle * RADIAN)
   return (
-    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={designTokens.typography.chart.label} fontWeight={designTokens.typography.weight.semibold}>
       {`${Math.round(percent * 100)}%`}
     </text>
   )
@@ -33,7 +34,7 @@ function CustomTooltip({ active, payload }: TooltipProps<ValueType, NameType>) {
   const name  = payload[0].name  as string
   const value = payload[0].value as number
   return (
-    <div className="bg-apple-surface border border-apple-divider/60 rounded-xl shadow-apple px-3 py-2 text-[12px]">
+    <div className="bg-apple-surface border border-apple-divider/60 rounded-xl shadow-apple px-3 py-2 text-caption">
       <p className="font-medium text-apple-dark">{name}</p>
       <p className="text-apple-light">{value}건</p>
     </div>
@@ -62,7 +63,7 @@ function ReasonPieChart({ byStatus, byStatusDetails, onSliceClick }: Props) {
 
   return (
     <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['지연 사유', '건수'], rows: data.map((row) => [row.name, row.value]) }) : undefined} className="card flex flex-col">
-      <h3 className="text-sm font-semibold text-apple-dark mb-3">🥧 SLA 지연 사유</h3>
+      <h3 className="text-section-title font-semibold text-apple-dark mb-3">🥧 SLA 지연 사유</h3>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <PieChart>
           <Pie
@@ -91,7 +92,7 @@ function ReasonPieChart({ byStatus, byStatusDetails, onSliceClick }: Props) {
             formatter={(value: string) => (
               <span
                 style={{
-                  fontSize: CHART_LEGEND_ICON_SIZE + 4,
+                  fontSize: CHART_LEGEND_FONT_SIZE,
                   color: CHART_LEGEND_COLOR,
                   cursor: onSliceClick ? 'pointer' : 'default',
                 }}
@@ -104,7 +105,7 @@ function ReasonPieChart({ byStatus, byStatusDetails, onSliceClick }: Props) {
         </PieChart>
       </ResponsiveContainer>
       {!exportMode && onSliceClick && (
-        <p className="text-center text-[11px] text-apple-light mt-1">영역을 클릭하면 해당 상태의 이슈를 확인할 수 있습니다</p>
+        <p className="text-center text-caption text-apple-light mt-1">영역을 클릭하면 해당 상태의 이슈를 확인할 수 있습니다</p>
       )}
     </div>
   )

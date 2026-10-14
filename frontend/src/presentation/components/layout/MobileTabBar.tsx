@@ -21,9 +21,7 @@ export default function MobileTabBar() {
   return (
     <>
       <nav
-        className="fixed bottom-0 left-0 right-0 z-20 xl:hidden
-                   bg-apple-surface/90 backdrop-blur-xl border-t border-apple-divider/80
-                   flex items-center justify-around overflow-x-auto px-1 h-16 safe-area-inset-bottom"
+        className="fixed bottom-0 left-0 right-0 z-20 xl:hidden bg-apple-surface/90 backdrop-blur-xl border-t border-apple-divider/80 flex items-center justify-around overflow-x-auto px-1 h-16 safe-area-inset-bottom"
       >
         {visibleTabs.map(({ to, icon, label }) => (
           <NavLink
@@ -37,7 +35,7 @@ export default function MobileTabBar() {
             }
           >
             {icon}
-            <span className="max-w-full truncate text-[10px] font-medium">{label}</span>
+            <span className="max-w-full truncate text-control-label font-medium">{label}</span>
           </NavLink>
         ))}
 

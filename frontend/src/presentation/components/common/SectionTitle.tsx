@@ -11,8 +11,8 @@ export default function SectionTitle({ icon: Icon, title, subtitle }: SectionTit
   return (
     <div className="flex items-center gap-2 px-1 mb-1">
       <Icon size={15} className="text-brand-500 flex-shrink-0" />
-      <span className="text-ui-sm font-semibold text-apple-primary">{title}</span>
-      {subtitle && <span className="text-ui-xs text-apple-light">{subtitle}</span>}
+      <span className="text-section-label text-apple-dark">{title}</span>
+      {subtitle && <span className="text-caption text-apple-light">{subtitle}</span>}
     </div>
   )
 }

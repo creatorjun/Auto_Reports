@@ -24,7 +24,7 @@ export default function PartnerSearchInput({
         placeholder={placeholder}
         aria-label={ariaLabel}
         disabled={disabled}
-        className="min-w-0 flex-1 appearance-none bg-transparent text-xs text-apple-dark outline-none placeholder:text-apple-light disabled:cursor-not-allowed disabled:opacity-60 [&::-webkit-search-cancel-button]:appearance-none"
+        className="min-w-0 flex-1 appearance-none bg-transparent text-control text-apple-dark outline-none placeholder:text-apple-light disabled:cursor-not-allowed disabled:opacity-60 [&::-webkit-search-cancel-button]:appearance-none"
       />
       {value && !disabled && (
         <button

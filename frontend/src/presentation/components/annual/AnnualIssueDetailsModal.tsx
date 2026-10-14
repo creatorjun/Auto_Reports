@@ -34,20 +34,20 @@ export default function AnnualIssueDetailsModal({ title, total, issues, descript
   const rows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   const hasResolved = dateField ? dateField === 'resolved' : issues.some((issue) => Boolean(issue.resolved))
   const columns: ColumnDef<AnnualDetailIssue>[] = [
-    { header: '티켓', renderCell: (issue) => <span className="font-mono text-sm font-semibold text-brand-600">{issue.key}</span>, mobile: { slot: 'primary' } },
-    { header: '제목', width: 'wide', renderCell: (issue) => <div className="py-3 text-left text-base whitespace-normal break-words" title={issue.summary}>{issue.summary}{(issue.cause || issue.assignee || issue.partners?.length) && <p className="mt-1 text-sm text-apple-mid">{[issue.cause, issue.assignee, issue.partners?.join(', ')].filter(Boolean).join(' · ')}</p>}</div>, mobile: { slot: 'summary' } },
+    { header: '티켓', renderCell: (issue) => <span className="font-mono text-label font-semibold text-brand-600">{issue.key}</span>, mobile: { slot: 'primary' } },
+    { header: '제목', width: 'wide', renderCell: (issue) => <div className="py-3 text-left text-body whitespace-normal break-words" title={issue.summary}>{issue.summary}{(issue.cause || issue.assignee || issue.partners?.length) && <p className="mt-1 text-label text-apple-mid">{[issue.cause, issue.assignee, issue.partners?.join(', ')].filter(Boolean).join(' · ')}</p>}</div>, mobile: { slot: 'summary' } },
     { header: '유형', renderCell: (issue) => <IssueTypeBadge type={issue.type} />, mobile: { slot: 'detail' } },
   ]
   if (issues.some((issue) => Boolean(issue.status))) {
     columns.push({ header: '상태', renderCell: (issue) => issue.status ? <StatusBadge status={issue.status} /> : '—', mobile: { slot: 'detail' } })
   }
   if (issues.some((issue) => typeof issue.sla_met === 'boolean')) {
-    columns.push({ header: 'SLA', renderCell: (issue) => <span className="text-sm font-semibold">{issue.sla_met === true ? '준수' : issue.sla_met === false ? '위반' : '미확인'}</span>, mobile: { slot: 'detail' } })
+    columns.push({ header: 'SLA', renderCell: (issue) => <span className="text-label font-semibold">{issue.sla_met === true ? '준수' : issue.sla_met === false ? '위반' : '미확인'}</span>, mobile: { slot: 'detail' } })
   }
   if (issues.some((issue) => issue.elapsed_hours != null)) {
-    columns.push({ header: '처리시간', renderCell: (issue) => <span className="text-sm tabular-nums">{issue.elapsed_hours == null ? '—' : `${issue.elapsed_hours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}시간`}</span>, mobile: { slot: 'detail' } })
+    columns.push({ header: '처리시간', renderCell: (issue) => <span className="text-label tabular-nums">{issue.elapsed_hours == null ? '—' : `${issue.elapsed_hours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}시간`}</span>, mobile: { slot: 'detail' } })
   }
-  columns.push({ header: hasResolved ? '해결일시' : '생성일시', width: 'date', renderCell: (issue) => <span className="text-sm tabular-nums">{(hasResolved ? issue.resolved : issue.created)?.replace('T', ' ').slice(0, 16) || '—'}</span>, mobile: { slot: 'secondary' } })
+  columns.push({ header: hasResolved ? '해결일시' : '생성일시', width: 'date', renderCell: (issue) => <span className="text-label tabular-nums">{(hasResolved ? issue.resolved : issue.created)?.replace('T', ' ').slice(0, 16) || '—'}</span>, mobile: { slot: 'secondary' } })
 
   return (
     <div className="annual-issue-details">
@@ -59,13 +59,13 @@ export default function AnnualIssueDetailsModal({ title, total, issues, descript
       columns={columns}
       onClose={onClose}
       headerSlot={
-        <div className="space-y-3 text-sm text-apple-dark">
+        <div className="space-y-3 text-label text-apple-dark">
           {description && <p>{description}</p>}
           {total !== issues.length && <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800">차트 집계와 조회 가능한 상세 건수가 다릅니다. 목록은 확인된 이슈만 표시합니다.</p>}
           {headerSlot}
           <label className="block">
             <span className="mb-1 block font-medium">상세 이슈 검색</span>
-            <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="티켓, 제목, 유형, 상태" className="w-full rounded-lg border border-apple-divider bg-apple-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+            <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="티켓, 제목, 유형, 상태" className="w-full rounded-lg border border-apple-divider bg-apple-surface px-3 py-2.5 text-control outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
           </label>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span aria-live="polite">검색 결과 {filtered.length.toLocaleString('ko-KR')}건 · {currentPage} / {pages}페이지</span>

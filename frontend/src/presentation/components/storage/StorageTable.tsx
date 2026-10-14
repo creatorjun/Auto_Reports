@@ -130,9 +130,9 @@ export function CreateFolderRow({ onConfirm, onCancel }: { onConfirm: (name: str
           <input ref={inputRef} value={value} onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onCancel() }}
             placeholder="폴더 이름"
-            className="flex-1 text-[13px] bg-transparent border-b border-brand-400 focus:outline-none text-apple-dark placeholder:text-apple-light/60 pb-0.5" />
-          <button onClick={handleSubmit} className="text-[12px] font-medium text-brand-600 hover:text-brand-700 transition-colors px-2 py-1">만들기</button>
-          <button onClick={onCancel} className="text-[12px] text-apple-light hover:text-apple-dark transition-colors px-2 py-1">취소</button>
+            className="flex-1 text-control bg-transparent border-b border-brand-400 focus:outline-none text-apple-dark placeholder:text-apple-light/60 pb-0.5" />
+          <button onClick={handleSubmit} className="text-control font-medium text-brand-600 hover:text-brand-700 transition-colors px-2 py-1">만들기</button>
+          <button onClick={onCancel} className="text-control text-apple-light hover:text-apple-dark transition-colors px-2 py-1">취소</button>
         </div>
       </td>
     </tr>
@@ -150,9 +150,9 @@ export function CreateFolderRowMobile({ onConfirm, onCancel }: { onConfirm: (nam
       <input ref={inputRef} value={value} onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onCancel() }}
         placeholder="폴더 이름"
-        className="flex-1 text-[13px] bg-transparent border-b border-brand-400 focus:outline-none text-apple-dark placeholder:text-apple-light/60 pb-0.5" />
-      <button onClick={handleSubmit} className="text-[12px] font-medium text-brand-600 px-2 py-1">만들기</button>
-      <button onClick={onCancel} className="text-[12px] text-apple-light px-2 py-1">취소</button>
+        className="flex-1 text-control bg-transparent border-b border-brand-400 focus:outline-none text-apple-dark placeholder:text-apple-light/60 pb-0.5" />
+      <button onClick={handleSubmit} className="text-control font-medium text-brand-600 px-2 py-1">만들기</button>
+      <button onClick={onCancel} className="text-control text-apple-light px-2 py-1">취소</button>
     </div>
   )
 }
@@ -208,16 +208,16 @@ export function ItemRow(props: ItemRowProps) {
             {item.is_dir ? <FolderIcon /> : <FileIcon />}
           </span>
           {item.is_dir ? (
-            <button onClick={() => onEnterDir(item.name)} className="text-[13px] 3xl:text-[14px] font-medium text-brand-600 hover:text-brand-700 hover:underline transition-colors text-left break-all">{item.name}</button>
+            <button onClick={() => onEnterDir(item.name)} className="text-body font-medium text-brand-600 hover:text-brand-700 hover:underline transition-colors text-left break-all">{item.name}</button>
           ) : canPreview ? (
-            <button onClick={() => onPreview(item.name)} className="text-[13px] 3xl:text-[14px] text-apple-dark hover:text-brand-600 hover:underline transition-colors text-left break-all">{item.name}</button>
+            <button onClick={() => onPreview(item.name)} className="text-body text-apple-dark hover:text-brand-600 hover:underline transition-colors text-left break-all">{item.name}</button>
           ) : (
-            <span className="text-[13px] 3xl:text-[14px] text-apple-dark break-all">{item.name}</span>
+            <span className="text-body text-apple-dark break-all">{item.name}</span>
           )}
         </div>
       </td>
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums whitespace-nowrap">{item.is_dir ? '—' : formatBytes(item.size)}</td>
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums whitespace-nowrap">{formattedDate}</td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-label text-apple-light tabular-nums whitespace-nowrap">{item.is_dir ? '—' : formatBytes(item.size)}</td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-label text-apple-light tabular-nums whitespace-nowrap">{formattedDate}</td>
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
         <div className="flex items-center justify-end gap-1.5">
           {canPreview && <button onClick={() => onPreview(item.name)} className="w-7 h-7 rounded-lg flex items-center justify-center text-apple-light hover:text-brand-600 hover:bg-brand-50 transition-colors" title="미리보기"><EyeIcon /></button>}
@@ -279,13 +279,13 @@ export function ItemRowMobile(props: ItemRowProps) {
         <span className={`flex-shrink-0 ${item.is_dir ? 'text-brand-500' : 'text-apple-light'}`}>{item.is_dir ? <FolderIcon /> : <FileIcon />}</span>
         {item.is_dir ? (
           <button onClick={() => onEnterDir(item.name)} className="flex flex-col gap-0.5 min-w-0 text-left">
-            <span className="text-[13px] font-medium text-brand-600 truncate">{item.name}</span>
-            <span className="text-[11px] text-apple-light">{formattedDate}</span>
+            <span className="text-body font-medium text-brand-600 truncate">{item.name}</span>
+            <span className="text-label text-apple-light">{formattedDate}</span>
           </button>
         ) : (
           <button onClick={() => canPreview ? onPreview(item.name) : undefined} className={`flex flex-col gap-0.5 min-w-0 text-left ${canPreview ? 'cursor-pointer' : 'cursor-default'}`}>
-            <span className={`text-[13px] font-medium truncate ${canPreview ? 'text-apple-dark hover:text-brand-600' : 'text-apple-dark'}`}>{item.name}</span>
-            <span className="text-[11px] text-apple-light">{formatBytes(item.size)} · {formattedDate}</span>
+            <span className={`text-body font-medium truncate ${canPreview ? 'text-apple-dark hover:text-brand-600' : 'text-apple-dark'}`}>{item.name}</span>
+            <span className="text-label text-apple-light">{formatBytes(item.size)} · {formattedDate}</span>
           </button>
         )}
       </div>

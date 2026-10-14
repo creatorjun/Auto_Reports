@@ -32,19 +32,19 @@ export default function HistoryPage() {
   return (
     <div className="flex flex-col gap-6 px-6 py-6 max-w-5xl mx-auto w-full">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-apple-dark">보고서 히스토리</h1>
+        <h1 className="text-page-title font-semibold text-apple-dark">보고서 히스토리</h1>
         {isFetching && <LoadingSpinner />}
       </div>
 
       <div className="bg-apple-surface border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
-        <h2 className="px-5 pt-4 pb-2 text-base font-semibold text-apple-dark">대시보드 보고서</h2>
+        <h2 className="px-5 pt-4 pb-2 text-section-title font-semibold text-apple-dark">대시보드 보고서</h2>
         {isLoading && <div className="py-8"><LoadingSpinner /></div>}
         <HistoryReportTable
           data={data ?? []}
           onDelete={setConfirmId}
         />
         {!isLoading && !data?.length && (
-          <p className="text-center text-[13px] text-apple-light py-16">보고서가 없습니다.</p>
+          <p className="text-center text-label text-apple-light py-16">보고서가 없습니다.</p>
         )}
       </div>
 
@@ -53,15 +53,15 @@ export default function HistoryPage() {
           <button
             onClick={() => setPage(p => p - 1)}
             disabled={!hasPrev || isFetching}
-            className="px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-xl text-control font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             ← 이전
           </button>
-          <span className="text-[12px] text-apple-light">{page + 1} 페이지</span>
+          <span className="text-caption text-apple-light">{page + 1} 페이지</span>
           <button
             onClick={() => setPage(p => p + 1)}
             disabled={!hasNext || isFetching}
-            className="px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-xl text-control font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             다음 →
           </button>

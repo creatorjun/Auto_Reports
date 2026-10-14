@@ -99,21 +99,21 @@ export default function SlaViolationTableHeader({ label, sort, widths, onSort, o
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 border-t border-apple-divider/70 bg-apple-gray/70 px-4 py-3 lg:hidden">
-        <label className="flex items-center gap-2 text-xs font-medium text-apple-mid">정렬
+        <label className="flex items-center gap-2 text-control-label font-medium text-apple-mid">정렬
           <select value={sort?.key ?? ''} aria-label={`${label} 정렬 기준`}
             onChange={(event) => onSort(event.target.value ? { key: event.target.value as SlaViolationSortKey, direction: 'asc' } : null)}
-            className="min-h-9 rounded-lg border border-apple-divider bg-apple-surface px-2 text-sm text-apple-dark focus-visible:outline-brand-400">
+            className="min-h-9 rounded-lg border border-apple-divider bg-apple-surface px-2 text-control text-apple-dark focus-visible:outline-brand-400">
             <option value="">기본 순서</option>
             {SLA_TICKET_COLUMNS.map((column) => <option key={column.key} value={column.key}>{column.label}</option>)}
           </select>
         </label>
         <button type="button" disabled={!sort} onClick={() => { if (sort) toggleSort(sort.key) }}
           aria-label={`${label} ${sort?.direction === 'desc' ? '내림차순 정렬 중, 오름차순' : '오름차순 정렬 중, 내림차순'} 정렬`}
-          className="min-h-9 rounded-lg border border-apple-divider bg-apple-surface px-3 text-xs font-medium text-apple-mid hover:bg-apple-gray focus-visible:outline-brand-400 disabled:opacity-40">
+          className="min-h-9 rounded-lg border border-apple-divider bg-apple-surface px-3 text-control font-medium text-apple-mid hover:bg-apple-gray focus-visible:outline-brand-400 disabled:opacity-40">
           {sort?.direction === 'desc' ? '내림차순 ↓' : '오름차순 ↑'}
         </button>
       </div>
-      <div className="hidden items-center gap-1 bg-apple-gray/70 px-5 py-2 text-xs font-medium text-apple-mid lg:flex">
+      <div className="hidden items-center gap-1 bg-apple-gray/70 px-5 py-2 text-label font-medium text-apple-mid lg:flex">
         <div ref={gridRef} className="grid min-w-0 flex-1 grid-cols-[var(--sla-ticket-columns)] gap-x-4 px-1">
           {SLA_TICKET_COLUMNS.map((column, index) => {
             const active = sort?.key === column.key

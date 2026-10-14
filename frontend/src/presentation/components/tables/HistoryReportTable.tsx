@@ -20,20 +20,20 @@ function ReportRow({ r, onDelete }: { r: ReportSummary; onDelete: (id: number) =
   )
   return (
     <tr className="hover:bg-apple-gray/60 transition-colors duration-150">
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[12px] 3xl:text-[13px] font-mono text-apple-light">#{r.id}</td>
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-dark">{r.week_start} – {r.week_end}</td>
-      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-[13px] 3xl:text-[14px] text-apple-light tabular-nums">{formattedDate}</td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-label font-mono text-apple-light">#{r.id}</td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-body text-apple-dark">{r.week_start} – {r.week_end}</td>
+      <td className="px-6 py-3.5 3xl:px-8 3xl:py-4 text-label text-apple-light tabular-nums">{formattedDate}</td>
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
         {r.sentiment
           ? <span className={sentimentLabel[r.sentiment]}>{sentimentText[r.sentiment]}</span>
-          : <span className="text-apple-divider text-[12px]">—</span>
+          : <span className="text-apple-divider text-caption">—</span>
         }
       </td>
       <td className="px-6 py-3.5 3xl:px-8 3xl:py-4">
         <div className="flex items-center justify-end gap-3">
           <Link
             to={`/reports/${r.id}`}
-            className="text-[12px] 3xl:text-[13px] text-brand-600 hover:text-brand-700 font-medium transition-colors"
+            className="text-control text-brand-600 hover:text-brand-700 font-medium transition-colors"
           >
             상세 보기
           </Link>
@@ -58,8 +58,8 @@ function MobileReportRow({ r, onDelete }: { r: ReportSummary; onDelete: (id: num
   return (
     <div className="flex items-center justify-between px-4 py-4 hover:bg-apple-gray/60 transition-colors">
       <Link to={`/reports/${r.id}`} className="flex flex-col gap-1 flex-1 min-w-0">
-        <span className="text-[13px] font-medium text-apple-dark">{r.week_start} – {r.week_end}</span>
-        <span className="text-[11px] text-apple-light tabular-nums">#{r.id} · {formattedDate}</span>
+        <span className="text-body font-medium text-apple-dark">{r.week_start} – {r.week_end}</span>
+        <span className="text-caption text-apple-light tabular-nums">#{r.id} · {formattedDate}</span>
       </Link>
       <div className="flex items-center gap-2 flex-shrink-0">
         {r.sentiment && <span className={sentimentLabel[r.sentiment]}>{sentimentText[r.sentiment]}</span>}
@@ -93,7 +93,7 @@ export function HistoryReportTable({
           <thead className="border-b border-apple-divider/60">
             <tr>
               {['ID', '데이터 범위', '생성 시각', 'AI 상태', ''].map((h, i) => (
-                <th key={i} className="text-left px-6 py-3.5 3xl:px-8 3xl:py-4 text-[11px] 3xl:text-[12px] font-semibold text-apple-light uppercase tracking-wider">{h}</th>
+                <th key={i} className="text-left px-6 py-3.5 3xl:px-8 3xl:py-4 text-label font-semibold text-apple-light uppercase tracking-wider">{h}</th>
               ))}
             </tr>
           </thead>

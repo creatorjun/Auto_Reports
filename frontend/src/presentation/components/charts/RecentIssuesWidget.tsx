@@ -74,7 +74,7 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', tab
           : `${elapsedDaysThreshold}일 ${comparisonLabel} · ${filteredIssues.length}건`} />
         {!exportMode && onElapsedDaysFilterChange && (
           <form onSubmit={search} noValidate className="flex max-w-full flex-wrap items-center gap-2" aria-label="최근 이슈 경과일 검색">
-            <label htmlFor={inputId} className="text-ui-sm font-medium text-apple-mid">경과일</label>
+            <label htmlFor={inputId} className="text-control-label font-medium text-apple-mid">경과일</label>
             <input
               ref={inputRef}
               id={inputId}
@@ -92,26 +92,26 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', tab
               aria-label="최근 이슈 경과일"
               aria-invalid={Boolean(error)}
               aria-describedby={error ? `${inputId}-error` : undefined}
-              className="h-10 w-24 rounded-lg border border-apple-divider bg-apple-surface px-3 text-ui-sm tabular-nums text-apple-dark focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="h-10 w-24 rounded-lg border border-apple-divider bg-apple-surface px-3 text-control tabular-nums text-apple-dark focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             />
-            <span className="text-ui-sm text-apple-mid">일</span>
+            <span className="text-label text-apple-mid">일</span>
             <select
               value={draftComparison}
               onChange={(event) => setDraftComparison(event.target.value === 'lte' ? 'lte' : 'gte')}
               aria-label="최근 이슈 경과일 조건"
-              className="h-10 cursor-pointer rounded-lg border border-apple-divider bg-apple-surface px-3 text-ui-sm text-apple-dark focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="h-10 cursor-pointer rounded-lg border border-apple-divider bg-apple-surface px-3 text-control text-apple-dark focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             >
               <option value="gte">이상</option>
               <option value="lte">이하</option>
             </select>
-            <button type="submit" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-ui-sm font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
+            <button type="submit" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-control font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
               <Search size={14} aria-hidden="true" />
               검색
             </button>
-            <button type="button" onClick={reset} disabled={elapsedDaysThreshold === null && draft === '' && elapsedDaysComparison === 'gte' && draftComparison === 'gte' && !badInput} className="min-h-10 rounded-lg px-3 text-ui-sm font-medium text-apple-mid transition-colors hover:bg-apple-gray disabled:cursor-default disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
+            <button type="button" onClick={reset} disabled={elapsedDaysThreshold === null && draft === '' && elapsedDaysComparison === 'gte' && draftComparison === 'gte' && !badInput} className="min-h-10 rounded-lg px-3 text-control font-medium text-apple-mid transition-colors hover:bg-apple-gray disabled:cursor-default disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
               초기화
             </button>
-            {error && <p id={`${inputId}-error`} role="alert" className="w-full text-ui-sm text-red-600">{error}</p>}
+            {error && <p id={`${inputId}-error`} role="alert" className="w-full text-label text-red-600">{error}</p>}
           </form>
         )}
       </div>

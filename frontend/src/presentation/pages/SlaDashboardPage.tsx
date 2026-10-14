@@ -12,19 +12,19 @@ export default function SlaDashboardPage() {
   return (
     <div className="mx-auto w-full max-w-content space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-apple-dark">장기 이슈</h1>
-        <p className="mt-1 text-[13px] text-apple-light">
+        <h1 className="text-page-title font-semibold text-apple-dark">장기 이슈</h1>
+        <p className="mt-1 text-label text-apple-light">
           최근 이슈 현황 기반 · 최신 {issues.length}건
         </p>
       </div>
 
       {isError && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200/70 bg-red-50 px-5 py-4">
-          <span className="text-[13px] text-red-600">최근 이슈 현황을 불러오지 못했습니다.</span>
+          <span className="text-label text-red-600">최근 이슈 현황을 불러오지 못했습니다.</span>
           <button
             type="button"
             onClick={() => void refetch()}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-red-600 hover:bg-red-100"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-control font-medium text-red-600 hover:bg-red-100"
           >
             <RefreshCw size={14} />
             다시 시도
@@ -33,7 +33,7 @@ export default function SlaDashboardPage() {
       )}
 
       {!isError && issues.length === 0 && (
-        <div className="card py-16 text-center text-[13px] text-apple-light">
+        <div className="card py-16 text-center text-label text-apple-light">
           최근 이슈 현황 데이터가 없습니다.
         </div>
       )}

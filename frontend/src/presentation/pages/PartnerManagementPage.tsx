@@ -83,12 +83,12 @@ export default function PartnerManagementPage() {
     <div className="flex flex-col w-full h-full px-6 py-6 gap-4">
       <div className="flex-shrink-0">
         <div>
-          <h1 className="text-xl font-semibold text-apple-dark">파트너 관리</h1>
-          <p className="mt-1 text-xs text-apple-light">요청 유형·현재 상태·조회 기간은 이슈에 공통 적용되며, 조직·멤버·이슈 검색은 각 영역에서 개별로 동작합니다.</p>
+          <h1 className="text-page-title font-semibold text-apple-dark">파트너 관리</h1>
+          <p className="mt-1 text-label text-apple-light">요청 유형·현재 상태·조회 기간은 이슈에 공통 적용되며, 조직·멤버·이슈 검색은 각 영역에서 개별로 동작합니다.</p>
         </div>
       </div>
       {latestReport.isLoading ? (
-        <div className="card flex min-h-24 items-center justify-center text-sm text-apple-light animate-pulse">필터 불러오는 중...</div>
+        <div className="card flex min-h-24 items-center justify-center text-label text-apple-light animate-pulse">필터 불러오는 중...</div>
       ) : (
         <IssueTypeFilter
           issueTypes={issueTypes}

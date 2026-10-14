@@ -360,10 +360,10 @@ test('w3 and w4 cards omit only the recent prefix', () => {
 })
 
 test('theme palette and persisted mode stay centralized in presentation', () => {
-  const palette = fs.readFileSync(
-    path.join(source, 'presentation/styles/palette.css'),
+  const tokens = JSON.parse(fs.readFileSync(
+    path.join(source, 'presentation/config/designTokens.json'),
     'utf8',
-  )
+  ))
   const tailwind = fs.readFileSync(path.join(root, 'tailwind.config.js'), 'utf8')
   const store = fs.readFileSync(
     path.join(source, 'presentation/state/themeStore.ts'),
@@ -383,9 +383,16 @@ test('theme palette and persisted mode stay centralized in presentation', () => 
   )
   const main = fs.readFileSync(path.join(source, 'main.tsx'), 'utf8')
 
-  assert.match(palette, /:root\[data-theme='dark'\]/)
-  assert.match(palette, /--color-apple-surface:/)
-  assert.match(palette, /--color-chart-grid:/)
+  assert.deepEqual(Object.keys(tokens.themes.light).sort(), Object.keys(tokens.themes.dark).sort())
+  for (const theme of Object.values(tokens.themes)) {
+    assert.equal(typeof theme['--color-apple-surface'], 'string')
+    assert.equal(typeof theme['--color-chart-grid'], 'string')
+  }
+  assert.match(tailwind, /import designTokens from ['"].*designTokens\.json['"]/)
+  assert.match(tailwind, /:root\[data-theme='dark'\]/)
+  assert.match(tailwind, /\.dashboard-pdf-stage/)
+  assert.match(tailwind, /\.\.\.themes\.light/)
+  assert.match(tailwind, /\.\.\.themes\.dark/)
   assert.match(tailwind, /paletteColor\('apple-surface'\)/)
   assert.match(tailwind, /var\(--shadow-apple\)/)
   assert.match(store, /theme: 'light'/)
@@ -395,7 +402,7 @@ test('theme palette and persisted mode stay centralized in presentation', () => 
   assert.match(toggle, /aria-checked=\{isDark\}/)
   assert.match(sidebar, /<ThemeToggle collapsed=\{collapsed\} \/>/)
   assert.match(header, /<ThemeToggle collapsed \/>/)
-  assert.match(main, /import '.\/presentation\/styles\/palette\.css'/)
+  assert.match(main, /import '.\/presentation\/styles\/index\.css'/)
   assert.match(main, /applyTheme\(useThemeStore\.getState\(\)\.theme\)/)
 })
 

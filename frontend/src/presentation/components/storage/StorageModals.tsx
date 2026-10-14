@@ -10,8 +10,8 @@ export function QuotaBar({ used, limit, available, percent }: { used: number; li
   return (
     <div className="rounded-xl border border-apple-divider/60 bg-apple-surface px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[12px] font-medium text-apple-dark">저장소 사용량</span>
-        <span className={`text-[12px] font-medium ${textColor}`}>
+        <span className="text-caption font-medium text-apple-dark">저장소 사용량</span>
+        <span className={`text-caption font-medium ${textColor}`}>
           {formatBytes(used)} / {formatBytes(limit)} ({percent.toFixed(1)}%)
         </span>
       </div>
@@ -21,7 +21,7 @@ export function QuotaBar({ used, limit, available, percent }: { used: number; li
           style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>
-      <p className="text-[11px] text-apple-light mt-1">남은 용량 {formatBytes(available)}</p>
+      <p className="text-caption text-apple-light mt-1">남은 용량 {formatBytes(available)}</p>
     </div>
   )
 }
@@ -41,11 +41,11 @@ export function DeleteConfirmModal({ target, isDir, onConfirm, onCancel, isPendi
             </svg>
           </div>
           <div>
-            <p className="text-[14px] font-semibold text-apple-dark">{isDir ? '폴더 삭제' : '파일 삭제'}</p>
-            <p className="text-[12px] text-apple-light mt-0.5 break-all max-w-[260px]">{target}</p>
+            <p className="text-section-title font-semibold text-apple-dark">{isDir ? '폴더 삭제' : '파일 삭제'}</p>
+            <p className="text-caption text-apple-light mt-0.5 break-all max-w-[260px]">{target}</p>
           </div>
         </div>
-        <p className="text-[13px] text-apple-dark/80 mb-5 leading-relaxed">
+        <p className="text-label text-apple-dark/80 mb-5 leading-relaxed">
           {isDir
             ? <>폴더 내의 모든 파일이 함께 삭제됩니다.<br />정말 삭제하시겠습니까?</>
             : <>이 파일을 삭제하면 복구할 수 없습니다.<br />정말 삭제하시겠습니까?</>
@@ -53,9 +53,9 @@ export function DeleteConfirmModal({ target, isDir, onConfirm, onCancel, isPendi
         </p>
         <div className="flex gap-2">
           <button onClick={onCancel} disabled={isPending}
-            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50">취소하기</button>
+            className="flex-1 px-4 py-2 rounded-xl text-control font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors disabled:opacity-50">취소하기</button>
           <button onClick={onConfirm} disabled={isPending}
-            className="flex-1 px-4 py-2 rounded-xl text-[13px] font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
+            className="flex-1 px-4 py-2 rounded-xl text-control font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
             {isPending && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" /></svg>}
             삭제
           </button>
@@ -87,11 +87,11 @@ export function SelectionDeleteConfirmModal({
             </svg>
           </div>
           <div>
-            <p className="text-[14px] font-semibold text-apple-dark">선택 항목 삭제</p>
-            <p className="mt-0.5 text-[11px] text-apple-light">{count}개 항목이 선택됨</p>
+            <p className="text-section-title font-semibold text-apple-dark">선택 항목 삭제</p>
+            <p className="mt-0.5 text-caption text-apple-light">{count}개 항목이 선택됨</p>
           </div>
         </div>
-        <p className="mb-5 text-[12px] leading-relaxed text-apple-light">
+        <p className="mb-5 text-caption leading-relaxed text-apple-light">
           선택한 파일과 폴더를 모두 삭제합니다. 폴더 안의 항목도 함께 삭제되며 복구할 수 없습니다.
         </p>
         <div className="flex gap-2">
@@ -99,7 +99,7 @@ export function SelectionDeleteConfirmModal({
             type="button"
             onClick={onCancel}
             disabled={isPending}
-            className="flex-1 rounded-xl bg-apple-gray px-3 py-2 text-[12px] font-medium text-apple-dark transition-colors hover:bg-apple-divider/50 disabled:opacity-40"
+            className="flex-1 rounded-xl bg-apple-gray px-3 py-2 text-control font-medium text-apple-dark transition-colors hover:bg-apple-divider/50 disabled:opacity-40"
           >
             취소
           </button>
@@ -107,7 +107,7 @@ export function SelectionDeleteConfirmModal({
             type="button"
             onClick={onConfirm}
             disabled={isPending}
-            className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-[12px] font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-40"
+            className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-control font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-40"
           >
             {isPending ? '삭제 중...' : `${count}개 삭제`}
           </button>
@@ -132,29 +132,29 @@ export function QuotaExceededModal({ available, needed, onClose }: {
             </svg>
           </div>
           <div>
-            <p className="text-[14px] font-semibold text-apple-dark">저장 용량 부족</p>
-            <p className="text-[12px] text-apple-light mt-0.5">업로드를 진행할 수 없습니다</p>
+            <p className="text-section-title font-semibold text-apple-dark">저장 용량 부족</p>
+            <p className="text-caption text-apple-light mt-0.5">업로드를 진행할 수 없습니다</p>
           </div>
         </div>
         <div className="rounded-xl bg-red-50 p-3 mb-5 space-y-1">
-          <div className="flex justify-between text-[12px]">
+          <div className="flex justify-between text-caption">
             <span className="text-apple-light">필요 용량</span>
             <span className="font-medium text-red-600">{formatBytes(needed)}</span>
           </div>
-          <div className="flex justify-between text-[12px]">
+          <div className="flex justify-between text-caption">
             <span className="text-apple-light">남은 용량</span>
             <span className="font-medium text-apple-dark">{formatBytes(available)}</span>
           </div>
-          <div className="flex justify-between text-[12px]">
+          <div className="flex justify-between text-caption">
             <span className="text-apple-light">부족 용량</span>
             <span className="font-medium text-red-600">{formatBytes(needed - available)}</span>
           </div>
         </div>
-        <p className="text-[12px] text-apple-light mb-5 leading-relaxed">
+        <p className="text-caption text-apple-light mb-5 leading-relaxed">
           저장소 용량이 부족합니다. 불필요한 파일을 삭제하여 공간을 확보한 후 다시 시도하세요.
         </p>
         <button onClick={onClose}
-          className="w-full px-4 py-2.5 rounded-xl text-[13px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
+          className="w-full px-4 py-2.5 rounded-xl text-control font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">
           확인
         </button>
       </div>
@@ -181,40 +181,40 @@ export function OverwriteConfirmModal({ duplicates, onConfirm, onCancel }: {
             </svg>
           </div>
           <div>
-            <p className="text-[14px] font-semibold text-apple-dark">중복 파일 감지</p>
-            <p className="text-[12px] text-apple-light mt-0.5">{dupNames.length}개 파일이 이미 존재합니다</p>
+            <p className="text-section-title font-semibold text-apple-dark">중복 파일 감지</p>
+            <p className="text-caption text-apple-light mt-0.5">{dupNames.length}개 파일이 이미 존재합니다</p>
           </div>
         </div>
         <div className="mb-4 max-h-32 overflow-y-auto">
           {dupNames.map(name => (
             <div key={name} className="flex items-center gap-2 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-              <span className="text-[12px] text-apple-dark truncate">{name}</span>
-              <span className="text-[11px] text-amber-500 flex-shrink-0">덮어쓰기</span>
+              <span className="text-caption text-apple-dark truncate">{name}</span>
+              <span className="text-caption text-amber-500 flex-shrink-0">덮어쓰기</span>
             </div>
           ))}
           {newFiles.map(name => (
             <div key={name} className="flex items-center gap-2 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
-              <span className="text-[12px] text-apple-dark truncate">{name}</span>
-              <span className="text-[11px] text-green-500 flex-shrink-0">신규</span>
+              <span className="text-caption text-apple-dark truncate">{name}</span>
+              <span className="text-caption text-green-500 flex-shrink-0">신규</span>
             </div>
           ))}
         </div>
-        <p className="text-[12px] text-apple-light mb-5">
+        <p className="text-caption text-apple-light mb-5">
           기존 파일을 덮어쓰고 모두 업로드하거나, 신규 파일만 업로드할 수 있습니다.
         </p>
         <div className="flex gap-2">
           <button onClick={onCancel}
-            className="flex-1 px-3 py-2 rounded-xl text-[12px] font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">취소</button>
+            className="flex-1 px-3 py-2 rounded-xl text-control font-medium bg-apple-gray hover:bg-apple-divider/40 text-apple-dark transition-colors">취소</button>
           {newFiles.length > 0 && (
             <button onClick={() => onConfirm(false)}
-              className="flex-1 px-3 py-2 rounded-xl text-[12px] font-medium bg-brand-50 hover:bg-brand-100 text-brand-700 transition-colors">
+              className="flex-1 px-3 py-2 rounded-xl text-control font-medium bg-brand-50 hover:bg-brand-100 text-brand-700 transition-colors">
               신규만 업로드
             </button>
           )}
           <button onClick={() => onConfirm(true)}
-            className="flex-1 px-3 py-2 rounded-xl text-[12px] font-medium bg-amber-500 hover:bg-amber-600 text-white transition-colors">
+            className="flex-1 px-3 py-2 rounded-xl text-control font-medium bg-amber-500 hover:bg-amber-600 text-white transition-colors">
             모두 덮어쓰기
           </button>
         </div>
@@ -228,10 +228,10 @@ export function UploadProgressBar({ progressList, totalPercent }: { progressList
   return (
     <div className="rounded-xl border border-apple-divider/60 bg-apple-surface p-3 space-y-2 shadow-sm">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[12px] font-medium text-apple-dark">
+        <span className="text-caption font-medium text-apple-dark">
           {progressList.every(p => p.done) ? '업로드 완료 ✓' : `업로드 중... ${totalPercent}%`}
         </span>
-        <span className="text-[11px] text-apple-light">{progressList.filter(p => p.done).length} / {progressList.length}개</span>
+        <span className="text-caption text-apple-light">{progressList.filter(p => p.done).length} / {progressList.length}개</span>
       </div>
       <div className="w-full h-1.5 bg-apple-gray rounded-full overflow-hidden">
         <div
@@ -244,8 +244,8 @@ export function UploadProgressBar({ progressList, totalPercent }: { progressList
           {progressList.map((p) => (
             <div key={p.name}>
               <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[11px] text-apple-light truncate max-w-[75%]">{p.name}</span>
-                <span className="text-[11px] text-apple-light flex-shrink-0">
+                <span className="text-caption text-apple-light truncate max-w-[75%]">{p.name}</span>
+                <span className="text-caption text-apple-light flex-shrink-0">
                   {p.done ? <span className="text-green-500">완료</span> : `${p.percent}%`}
                 </span>
               </div>

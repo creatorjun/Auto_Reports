@@ -43,10 +43,10 @@ export default function SlaViolationModal({ stage, issues, total, onClose }: Pro
       columns={COLUMNS}
       headerSlot={
         <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[12px] font-medium border ${badgeCls}`}>
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-caption font-medium border ${badgeCls}`}>
             {stage}
           </span>
-          <span className="text-[12px] text-apple-light">위반 이슈 목록</span>
+          <span className="text-caption text-apple-light">위반 이슈 목록</span>
         </div>
       }
       onClose={onClose}

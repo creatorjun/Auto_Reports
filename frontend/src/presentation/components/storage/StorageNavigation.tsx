@@ -111,7 +111,7 @@ export default function StorageNavigation({
           onDragLeave={rootDropTarget.onDragLeave}
           onDrop={rootDropTarget.onDrop}
           title={rootDropTarget.canDrop ? '여기에 놓아 보관함으로 이동' : undefined}
-          className={`shrink-0 rounded-md px-1.5 py-1 text-[13px] font-medium transition-all disabled:cursor-default ${
+          className={`shrink-0 rounded-md px-1.5 py-1 text-control font-medium transition-all disabled:cursor-default ${
             rootDropTarget.isDropTarget
               ? 'bg-brand-100 text-brand-700 ring-2 ring-brand-300'
               : 'text-brand-600 hover:text-brand-700 disabled:text-apple-dark'
@@ -139,7 +139,7 @@ export default function StorageNavigation({
                 type="button"
                 onClick={() => onNavigateTo(index)}
                 disabled={isCurrent}
-                className="text-[13px] font-medium text-brand-600 transition-colors hover:text-brand-700 disabled:cursor-default disabled:text-apple-dark"
+                className="text-control font-medium text-brand-600 transition-colors hover:text-brand-700 disabled:cursor-default disabled:text-apple-dark"
               >
                 {segment}
               </button>
@@ -152,7 +152,7 @@ export default function StorageNavigation({
         type="button"
         onClick={onCreateFolder}
         disabled={isCreateDisabled}
-        className="col-start-2 row-start-1 flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-apple-gray px-3 py-1.5 text-[12px] font-medium text-apple-dark transition-colors hover:bg-apple-divider/40 disabled:cursor-not-allowed disabled:opacity-40 md:col-start-3"
+        className="col-start-2 row-start-1 flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-apple-gray px-3 py-1.5 text-control font-medium text-apple-dark transition-colors hover:bg-apple-divider/40 disabled:cursor-not-allowed disabled:opacity-40 md:col-start-3"
       >
         <FolderPlus size={13} strokeWidth={1.7} />
         새 폴더

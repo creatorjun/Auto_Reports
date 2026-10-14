@@ -18,7 +18,7 @@ export const STATUS_COLOR: Record<string, string> = {
 }
 
 export const inputCls =
-  'w-full min-w-0 border border-apple-divider rounded-xl px-3 py-2 text-sm text-apple-dark bg-apple-surface outline-none focus:ring-2 focus:ring-blue-500/30 transition'
+  'w-full min-w-0 border border-apple-divider rounded-xl px-3 py-2 text-control text-apple-dark bg-apple-surface outline-none focus:ring-2 focus:ring-blue-500/30 transition'
 
 export function ChevronIcon({ open }: { open: boolean }) {
   return (
@@ -60,9 +60,9 @@ export function Section({
         className="flex w-full items-center justify-between bg-apple-surface px-4 py-3.5 transition-colors hover:bg-apple-gray focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/30 sm:px-5 3xl:px-6 3xl:py-4"
       >
         <span className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-apple-dark">{title}</span>
+          <span className="text-section-title font-semibold text-apple-dark">{title}</span>
           {badge !== undefined && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
+            <span className="text-caption px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
               {badge}
             </span>
           )}
@@ -86,8 +86,8 @@ export function Row({ label, value }: { label: string; value?: string | number |
   if (value === undefined || value === null || value === '') return null
   return (
     <div className="flex min-w-0 flex-col gap-1 border-b border-apple-divider/50 py-2 last:border-0 sm:flex-row sm:gap-3 sm:py-1.5">
-      <span className="w-full flex-shrink-0 text-xs text-apple-light sm:w-36">{label}</span>
-      <span className="min-w-0 break-words text-sm text-apple-dark">{String(value)}</span>
+      <span className="w-full flex-shrink-0 text-label text-apple-light sm:w-36">{label}</span>
+      <span className="min-w-0 break-words text-body text-apple-dark">{String(value)}</span>
     </div>
   )
 }
@@ -130,12 +130,12 @@ export function CredRow({
   if (!cred) return null
   return (
     <div className="flex min-w-0 flex-col items-start gap-1 border-b border-apple-divider/50 py-2 last:border-0 sm:flex-row sm:gap-3 sm:py-1.5">
-      <span className="w-full flex-shrink-0 pt-0.5 text-xs text-apple-light sm:w-36">{label}</span>
-      <div className="flex min-w-0 flex-col gap-0.5 text-sm text-apple-dark">
+      <span className="w-full flex-shrink-0 pt-0.5 text-label text-apple-light sm:w-36">{label}</span>
+      <div className="flex min-w-0 flex-col gap-0.5 text-body text-apple-dark">
         {cred.username && <span className="break-all">{cred.username}</span>}
         {cred.password && (
           <span className="flex min-w-0 items-center gap-1.5">
-            <span className="break-all font-mono text-xs">
+            <span className="break-all font-mono text-label">
               {show ? cred.password : '•'.repeat(Math.min(cred.password.length, 10))}
             </span>
             <button
@@ -148,7 +148,7 @@ export function CredRow({
           </span>
         )}
         {(cred.ip || cred.port) && (
-          <span className="break-all text-xs text-apple-light">
+          <span className="break-all text-label text-apple-light">
             {cred.ip ? `IP(URL): ${cred.ip}${cred.port ? `:${cred.port}` : ''}` : `Port: ${cred.port}`}
           </span>
         )}
@@ -171,7 +171,7 @@ export function AddBtn({ onClick, label }: { onClick: () => void; label: string 
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:w-auto sm:py-1.5"
+      className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-control font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:w-auto sm:py-1.5"
     >
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
         <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -193,14 +193,14 @@ export function CardActions({
       <button
         type="button"
         onClick={onEdit}
-        className="text-xs px-2.5 py-1 rounded-lg border border-apple-divider text-apple-light hover:text-blue-600 hover:border-blue-300 transition-colors"
+        className="text-control px-2.5 py-1 rounded-lg border border-apple-divider text-apple-light hover:text-blue-600 hover:border-blue-300 transition-colors"
       >
         수정
       </button>
       <button
         type="button"
         onClick={onDelete}
-        className="text-xs px-2.5 py-1 rounded-lg border border-apple-divider text-apple-light hover:text-red-500 hover:border-red-300 transition-colors"
+        className="text-control px-2.5 py-1 rounded-lg border border-apple-divider text-apple-light hover:text-red-500 hover:border-red-300 transition-colors"
       >
         삭제
       </button>

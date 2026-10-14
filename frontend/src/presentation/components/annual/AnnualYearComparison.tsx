@@ -38,23 +38,23 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
     <section aria-labelledby="annual-comparison-title" className="overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface">
       <div className="flex flex-wrap items-end justify-between gap-2 px-4 pb-4 pt-5 md:px-6">
         <div>
-          <h2 id="annual-comparison-title" className="text-lg font-semibold text-apple-dark">3개년 실적 비교</h2>
-          <p className="mt-1 text-[13px] text-apple-mid">전체 요청 유형 · 각 보고서의 연간 누적 기준</p>
+          <h2 id="annual-comparison-title" className="text-section-title font-semibold text-apple-dark">3개년 실적 비교</h2>
+          <p className="mt-1 text-label text-apple-mid">전체 요청 유형 · 각 보고서의 연간 누적 기준</p>
         </div>
-        <span className="text-[12px] text-apple-mid">연도는 보고서로 이동 · 건수는 개별 이슈 조회</span>
+        <span className="text-caption text-apple-mid">연도는 보고서로 이동 · 건수는 개별 이슈 조회</span>
       </div>
-      <table className="w-full table-fixed border-collapse text-sm text-apple-dark">
+      <table className="w-full table-fixed border-collapse text-body text-apple-dark">
         <caption className="sr-only">2024년부터 2026년까지 연간 생성 및 해결 건수. 2026년은 집계 기간까지의 누적 실적입니다.</caption>
-        <thead>
+        <thead className="text-label">
           <tr className="border-y border-apple-divider bg-apple-gray/60">
             <th scope="col" className="w-[25%] px-3 py-3 text-left font-medium md:px-6">구분</th>
             {columns.map(({ year, data }) => (
               <th key={year} scope="col" className={`px-2 py-3 text-center ${year === report.report_year ? 'bg-brand-50' : ''}`}>
-                <Link to={`/reports/annual/${year}`} aria-current={year === report.report_year ? 'page' : undefined} className="inline-flex items-center gap-1 rounded-md text-base font-semibold text-apple-dark hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 md:text-xl">
+                <Link to={`/reports/annual/${year}`} aria-current={year === report.report_year ? 'page' : undefined} className="inline-flex items-center gap-1 rounded-md text-section-title text-apple-dark hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                   {year}<ArrowUpRight size={14} className="hidden sm:block" />
                 </Link>
-                <span className="mt-1 block text-[11px] font-medium text-apple-mid sm:text-[12px]">{isRefreshableAnnualReport(year) ? '집계 중' : '연간 확정'}</span>
-                <span className="mt-1 block text-[11px] font-normal tabular-nums text-apple-mid sm:text-[12px]">{data ? `${data.week_start.slice(5).replace('-', '.')}–${data.week_end.slice(5).replace('-', '.')}` : '기간 미확인'}</span>
+                <span className="mt-1 block text-caption font-medium text-apple-mid">{isRefreshableAnnualReport(year) ? '집계 중' : '연간 확정'}</span>
+                <span className="mt-1 block text-caption font-normal tabular-nums text-apple-mid">{data ? `${data.week_start.slice(5).replace('-', '.')}–${data.week_end.slice(5).replace('-', '.')}` : '기간 미확인'}</span>
               </th>
             ))}
           </tr>
@@ -62,19 +62,19 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
         <tbody>
           {([{ key: 'created', label: '생성', color: MONTHLY_COUNT_COLORS.created }, { key: 'resolved', label: '해결', color: MONTHLY_COUNT_COLORS.resolved }] as const).map((metric) => (
             <tr key={metric.key} className="border-b border-apple-divider last:border-0">
-              <th scope="row" className="px-3 py-4 text-left font-semibold md:px-6">{metric.label}<span className="ml-1 text-[12px] font-normal text-apple-mid">(건)</span></th>
+              <th scope="row" className="px-3 py-4 text-left font-semibold md:px-6">{metric.label}<span className="ml-1 text-caption font-normal text-apple-mid">(건)</span></th>
               {columns.map((column) => {
                 const value = column[metric.key]
                 return (
                   <td key={column.year} className={`px-2 py-4 text-center md:px-6 ${column.year === report.report_year ? 'bg-brand-50/50' : ''}`}>
-                    <span className="block text-lg font-semibold tabular-nums tracking-tight sm:text-2xl">{value === null || !column.data ? '—' : (
+                    <span className="block text-body font-semibold tabular-nums tracking-tight">{value === null || !column.data ? '—' : (
                       <button type="button" aria-label={`${column.year}년 ${metric.label} ${value.toLocaleString('ko-KR')}건 상세 보기`} className="rounded px-1 underline decoration-apple-divider underline-offset-4 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" onClick={() => {
                         const weekly = buildDashboardData(column.data!).weekly
                         setDetails({ title: `${column.year}년 ${metric.label} 이슈`, total: value, issues: metric.key === 'created' ? weekly.weeklyCreated : weekly.weeklyResolved })
                       }}>{value.toLocaleString('ko-KR')}</button>
                     )}</span>
                     {value === null ? (
-                      <span className="mt-1 block text-[11px] text-apple-mid">{column.data ? '집계 없음' : column.state}</span>
+                      <span className="mt-1 block text-caption text-apple-mid">{column.data ? '집계 없음' : column.state}</span>
                     ) : (
                       <div aria-hidden="true" className="mx-auto mt-2 h-1.5 max-w-48 overflow-hidden rounded-full bg-apple-divider/60"><div className="h-full rounded-full" style={{ width: `${value / largest * 100}%`, backgroundColor: metric.color }} /></div>
                     )}
@@ -85,7 +85,7 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
           ))}
         </tbody>
       </table>
-      <div className="space-y-2 border-t border-apple-divider px-4 py-3 text-[12px] leading-5 text-apple-mid md:px-6">
+      <div className="space-y-2 border-t border-apple-divider px-4 py-3 text-caption leading-5 text-apple-mid md:px-6">
         <p>2026년은 표시된 기간까지의 누적 실적입니다. 과년도 전체 실적과 집계 기간이 다르며, 아래 상세 필터는 이 비교표에 적용되지 않습니다.</p>
         {columns.filter(({ query, year }) => query.isError && year !== report.report_year).map(({ year, query, data }) => (
           <p key={year} className="flex flex-wrap items-center gap-2">

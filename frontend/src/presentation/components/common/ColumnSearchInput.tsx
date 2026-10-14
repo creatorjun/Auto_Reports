@@ -16,7 +16,7 @@ export default function ColumnSearchInput({ label, value, mobile = false, onChan
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
       onChange={(event) => onChange(event.target.value)}
-      className="mt-2 block h-9 w-full min-w-0 rounded-lg border border-apple-divider bg-apple-surface px-2 text-ui-sm font-normal text-apple-dark placeholder:text-apple-light focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+      className="mt-2 block h-9 w-full min-w-0 rounded-lg border border-apple-divider bg-apple-surface px-2 text-control font-normal text-apple-dark placeholder:text-apple-light focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
     />
   )
 }

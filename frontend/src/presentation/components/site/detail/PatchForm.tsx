@@ -73,16 +73,16 @@ export default function PatchForm({
       onSubmit={handleSubmit((v) => mutateAsync(v))}
       className="mb-4 flex flex-col gap-3 rounded-2xl border border-blue-200 bg-blue-50/40 px-4 py-4 sm:px-5 3xl:p-6"
     >
-      <p className="text-xs font-semibold text-blue-700">
+      <p className="text-section-label font-semibold text-blue-700">
         {initial ? '패치 수정' : '새 패치 기록'}
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 3xl:gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">패치일</label>
+          <label className="text-control-label font-medium text-apple-light">패치일</label>
           <input type="date" {...register('patch_date')} className={inputCls} />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">패치 유형</label>
+          <label className="text-control-label font-medium text-apple-light">패치 유형</label>
           <select {...register('patch_type')} className={inputCls + ' cursor-pointer'}>
             <option value="">— 선택 —</option>
             <option value="정기패치">정기패치</option>
@@ -91,11 +91,11 @@ export default function PatchForm({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">적용자</label>
+          <label className="text-control-label font-medium text-apple-light">적용자</label>
           <input {...register('applied_by')} className={inputCls} placeholder="담당자명" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">결과</label>
+          <label className="text-control-label font-medium text-apple-light">결과</label>
           <select {...register('result_status')} className={inputCls + ' cursor-pointer'}>
             <option value="">— 선택 —</option>
             <option value="성공">성공</option>
@@ -104,35 +104,35 @@ export default function PatchForm({
           </select>
         </div>
         <div className="flex flex-col gap-1 sm:col-span-2 xl:col-span-4">
-          <label className="text-xs font-medium text-apple-light">이슈 링크</label>
+          <label className="text-control-label font-medium text-apple-light">이슈 링크</label>
           <input {...register('issue_link')} className={inputCls} placeholder="https://..." />
         </div>
         <div className="flex flex-col gap-1 sm:col-span-2 xl:col-span-4">
-          <label className="text-xs font-medium text-apple-light">패치파일 링크</label>
+          <label className="text-control-label font-medium text-apple-light">패치파일 링크</label>
           <input {...register('patch_file_link')} className={inputCls} placeholder="https://..." />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">롤백일</label>
+          <label className="text-control-label font-medium text-apple-light">롤백일</label>
           <input type="date" {...register('rollback_date')} className={inputCls} />
         </div>
         <div className="flex flex-col gap-1 sm:col-span-2 xl:col-span-4">
-          <label className="text-xs font-medium text-apple-light">비고</label>
+          <label className="text-control-label font-medium text-apple-light">비고</label>
           <textarea {...register('note')} className={inputCls + ' resize-none'} rows={2} />
         </div>
       </div>
-      {isError && <p className="text-xs text-red-500">저장 중 오류가 발생했습니다</p>}
+      {isError && <p className="text-caption text-red-500">저장 중 오류가 발생했습니다</p>}
       <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
         <button
           type="button"
           onClick={onCancel}
-          className="w-full rounded-xl border border-apple-divider px-4 py-2 text-xs text-apple-light transition-colors hover:bg-apple-gray sm:w-auto sm:py-1.5"
+          className="w-full rounded-xl border border-apple-divider px-4 py-2 text-control text-apple-light transition-colors hover:bg-apple-gray sm:w-auto sm:py-1.5"
         >
           취소
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-auto sm:py-1.5"
+          className="w-full rounded-xl bg-blue-600 px-4 py-2 text-control font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-auto sm:py-1.5"
         >
           {isSubmitting ? '저장 중...' : '저장'}
         </button>

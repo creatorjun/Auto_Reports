@@ -128,23 +128,23 @@ export default function IssueTableModal<T extends { key: string }>({
           >
             <div className="flex items-center justify-center gap-3">
               {primaryColumns.map(column => (
-                <div key={column.header} className="text-ui-sm font-mono font-medium text-brand-600 whitespace-nowrap">
+                <div key={column.header} className="text-label font-mono font-medium text-brand-600 whitespace-nowrap">
                   {renderMobileColumn(column, row)}
                 </div>
               ))}
               {secondaryColumns.map(column => (
-                <div key={column.header} className="text-ui-xs text-apple-light tabular-nums whitespace-nowrap">
+                <div key={column.header} className="text-caption text-apple-light tabular-nums whitespace-nowrap">
                   {renderMobileColumn(column, row)}
                 </div>
               ))}
             </div>
             {summaryColumns.map(column => (
-              <div key={column.header} className="min-w-0 truncate text-ui-sm text-apple-dark/80">
+              <div key={column.header} className="min-w-0 truncate text-label text-apple-dark/80">
                 {renderMobileColumn(column, row)}
               </div>
             ))}
             {detailColumns.length > 0 && (
-              <div className="flex flex-wrap items-center justify-center gap-2 text-ui-xs text-apple-light">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-caption text-apple-light">
                 {detailColumns.map((column, index) => (
                   <Fragment key={column.header}>
                     {index > 0 && <span aria-hidden="true">·</span>}
@@ -159,7 +159,7 @@ export default function IssueTableModal<T extends { key: string }>({
 
       {paginate && totalPages > 1 && (
         <div className="flex items-center justify-between pt-3 border-t border-apple-divider">
-          <span className="text-ui-sm text-apple-light">
+          <span className="text-label text-apple-light">
             {(page - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(page * TABLE_PAGE_SIZE, data.length)} / {data.length}건
           </span>
           <div className="flex gap-1">
@@ -167,7 +167,7 @@ export default function IssueTableModal<T extends { key: string }>({
               <button
                 key={i}
                 onClick={() => setPage(i + 1)}
-                className={`px-3 py-1 rounded text-ui-sm font-medium transition-colors ${
+                className={`px-3 py-1 rounded text-control font-medium transition-colors ${
                   page === i + 1 ? 'bg-brand-500 text-white' : 'bg-gray-100 text-apple-mid hover:bg-gray-200'
                 }`}
               >

@@ -1,7 +1,8 @@
 // frontend/src/presentation/components/charts/SlaDonutChart.tsx
+import designTokens from '@/presentation/config/designTokens.json'
 import { memo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
+import { PIE_COLORS, CHART_HEIGHT, CHART_LEGEND_ICON_SIZE, CHART_LEGEND_FONT_SIZE, CHART_LEGEND_COLOR } from '@/presentation/config/constants'
 import type { ViolationEntry } from '@/domain/Dashboard'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 
@@ -24,7 +25,7 @@ function CustomLabel({
   const x = cx + radius * Math.cos(-midAngle * RADIAN)
   const y = cy + radius * Math.sin(-midAngle * RADIAN)
   return (
-    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={designTokens.typography.chart.label} fontWeight={designTokens.typography.weight.semibold}>
       {`${Math.round(percent * 100)}%`}
     </text>
   )
@@ -44,8 +45,8 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
   if (total === 0 || data.length === 0) {
     return (
       <div data-pdf-kind="chart" data-export-table={exportTable} className="card flex flex-col items-center justify-center" style={{ minHeight: CHART_HEIGHT }}>
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">🎯 SLA 위반 분포</h3>
-        <p className="text-sm text-gray-400">위반 없음</p>
+        <h3 className="text-section-title font-semibold text-gray-700 mb-2">🎯 SLA 위반 분포</h3>
+        <p className="text-label text-gray-400">위반 없음</p>
       </div>
     )
   }
@@ -58,7 +59,7 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
 
   return (
     <div data-pdf-kind="chart" data-export-table={exportTable} className="card">
-      <h3 className="text-sm font-semibold text-gray-700 mb-4">🎯 SLA 위반 분포</h3>
+      <h3 className="text-section-title font-semibold text-gray-700 mb-4">🎯 SLA 위반 분포</h3>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <PieChart>
           <Pie
@@ -94,7 +95,7 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
             iconSize={CHART_LEGEND_ICON_SIZE}
             formatter={(value: string) => (
               <span
-                style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR, cursor: onSliceClick ? 'pointer' : 'default' }}
+                style={{ fontSize: CHART_LEGEND_FONT_SIZE, color: CHART_LEGEND_COLOR, cursor: onSliceClick ? 'pointer' : 'default' }}
                 onClick={() => {
                   if (!onSliceClick) return
                   const found = distribution.find((d) => d.stage === value)
@@ -108,7 +109,7 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
         </PieChart>
       </ResponsiveContainer>
       {!exportMode && onSliceClick && (
-        <p className="text-center text-[11px] text-apple-light mt-1">영역을 클릭하면 상세 이슈를 확인할 수 있습니다</p>
+        <p className="text-center text-caption text-apple-light mt-1">영역을 클릭하면 상세 이슈를 확인할 수 있습니다</p>
       )}
     </div>
   )

@@ -121,7 +121,7 @@ export default function SiteCreatePage() {
   if (isEdit && isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="text-sm text-apple-light">불러오는 중...</span>
+        <span className="text-label text-apple-light">불러오는 중...</span>
       </div>
     )
   }
@@ -138,7 +138,7 @@ export default function SiteCreatePage() {
             <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="text-xl font-semibold text-apple-dark">
+        <h1 className="text-page-title font-semibold text-apple-dark">
           {isEdit ? '사이트 수정' : '새 사이트 등록'}
         </h1>
       </div>
@@ -228,7 +228,7 @@ export default function SiteCreatePage() {
         </section>
 
         {isError && (
-          <p className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-3">
+          <p className="text-label text-red-500 bg-red-50 rounded-xl px-4 py-3">
             {extractErrorMessage(error)}
           </p>
         )}
@@ -237,14 +237,14 @@ export default function SiteCreatePage() {
           <button
             type="button"
             onClick={() => navigate(isEdit ? `/sites/${id}` : '/sites')}
-            className="px-5 py-2 text-sm rounded-xl border border-apple-divider text-apple-dark hover:bg-apple-bg transition-colors"
+            className="px-5 py-2 text-control rounded-xl border border-apple-divider text-apple-dark hover:bg-apple-bg transition-colors"
           >
             취소
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-5 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
+            className="px-5 py-2 text-control rounded-xl bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
           >
             {isSubmitting ? '저장 중...' : isEdit ? '수정 완료' : '등록'}
           </button>

@@ -82,16 +82,16 @@ export default function NodeForm({
       onSubmit={handleSubmit((v) => mutateAsync(v))}
       className="mb-4 flex flex-col gap-3 rounded-2xl border border-blue-200 bg-blue-50/40 px-4 py-4 sm:px-5 3xl:p-6"
     >
-      <p className="text-xs font-semibold text-blue-700">
+      <p className="text-section-label font-semibold text-blue-700">
         {initial ? '하드웨어 수정' : '새 하드웨어 추가'}
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 3xl:gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">호스트명</label>
+          <label className="text-control-label font-medium text-apple-light">호스트명</label>
           <input {...register('hostname')} className={inputCls} placeholder="server-01" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">역할</label>
+          <label className="text-control-label font-medium text-apple-light">역할</label>
           <select {...register('role')} className={inputCls + ' cursor-pointer'}>
             <option value="">— 선택 —</option>
             <option value="AllInOne">AllInOne</option>
@@ -101,27 +101,27 @@ export default function NodeForm({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">IP 주소</label>
+          <label className="text-control-label font-medium text-apple-light">IP 주소</label>
           <input {...register('ip_address')} className={inputCls} placeholder="192.168.0.1" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">OS 유형</label>
+          <label className="text-control-label font-medium text-apple-light">OS 유형</label>
           <input {...register('os_type')} className={inputCls} placeholder="Oracle Linux" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">OS 버전</label>
+          <label className="text-control-label font-medium text-apple-light">OS 버전</label>
           <input {...register('os_version')} className={inputCls} placeholder="22.04" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">CPU 코어</label>
+          <label className="text-control-label font-medium text-apple-light">CPU 코어</label>
           <input type="number" min={1} {...register('cpu_cores')} className={inputCls} placeholder="8" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">CPU 스레드</label>
+          <label className="text-control-label font-medium text-apple-light">CPU 스레드</label>
           <input type="number" min={1} {...register('cpu_threads')} className={inputCls} placeholder="16" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">RAM (GB)</label>
+          <label className="text-control-label font-medium text-apple-light">RAM (GB)</label>
           <input
             type="number"
             min={1}
@@ -131,7 +131,7 @@ export default function NodeForm({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">디스크 전체 (GB)</label>
+          <label className="text-control-label font-medium text-apple-light">디스크 전체 (GB)</label>
           <input
             type="number"
             min={1}
@@ -141,7 +141,7 @@ export default function NodeForm({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-apple-light">디스크 여유 (GB)</label>
+          <label className="text-control-label font-medium text-apple-light">디스크 여유 (GB)</label>
           <input
             type="number"
             min={0}
@@ -151,23 +151,23 @@ export default function NodeForm({
           />
         </div>
         <div className="flex flex-col gap-1 sm:col-span-2 xl:col-span-3 3xl:col-span-4">
-          <label className="text-xs font-medium text-apple-light">패키지</label>
+          <label className="text-control-label font-medium text-apple-light">패키지</label>
           <input {...register('pkg_version')} className={inputCls} placeholder="v1.0.0" />
         </div>
       </div>
-      {isError && <p className="text-xs text-red-500">저장 중 오류가 발생했습니다</p>}
+      {isError && <p className="text-caption text-red-500">저장 중 오류가 발생했습니다</p>}
       <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
         <button
           type="button"
           onClick={onCancel}
-          className="w-full rounded-xl border border-apple-divider px-4 py-2 text-xs text-apple-light transition-colors hover:bg-apple-gray sm:w-auto sm:py-1.5"
+          className="w-full rounded-xl border border-apple-divider px-4 py-2 text-control text-apple-light transition-colors hover:bg-apple-gray sm:w-auto sm:py-1.5"
         >
           취소
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-auto sm:py-1.5"
+          className="w-full rounded-xl bg-blue-600 px-4 py-2 text-control font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-auto sm:py-1.5"
         >
           {isSubmitting ? '저장 중...' : '저장'}
         </button>

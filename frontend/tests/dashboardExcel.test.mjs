@@ -22,6 +22,11 @@ function loader(overrides = {}) {
     if (modules.has(filename)) return modules.get(filename).exports
     const module = { exports: {} }
     modules.set(filename, module)
+    if (filename.endsWith('.json')) {
+      const data = JSON.parse(fs.readFileSync(filename, 'utf8'))
+      module.exports = { ...data, default: data }
+      return module.exports
+    }
     const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
       fileName: filename,

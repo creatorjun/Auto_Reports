@@ -78,8 +78,7 @@ test('equivalent Jira spelling, spacing, case, and full-width aliases retain the
 })
 
 test('badge colors reference existing theme variables and unknown values use a stable neutral fallback', () => {
-  const palette = fs.readFileSync(path.join(sourceRoot, 'presentation/styles/palette.css'), 'utf8')
-  const defined = new Set([...palette.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((match) => match[1]))
+  const { themes } = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'presentation/config/designTokens.json'), 'utf8'))
   for (const [names, getStyle] of [[ISSUE_TYPES, getIssueTypeBadgeStyle], [STATUSES, getStatusBadgeStyle]]) {
     for (const name of [...names, '', '확인 불가', '새 업무 값']) {
       const style = getStyle(name)
@@ -87,7 +86,9 @@ test('badge colors reference existing theme variables and unknown values use a s
         assert.equal(typeof style[property], 'string', `${name}: ${property}`)
         const references = [...style[property].matchAll(/var\((--[a-z0-9-]+)/g)].map((match) => match[1])
         assert.ok(references.length > 0, `${name}: ${property} uses the shared theme palette`)
-        for (const variable of references) assert.ok(defined.has(variable), `${name}: ${variable} exists in palette.css`)
+        for (const variable of references) {
+          for (const [theme, palette] of Object.entries(themes)) assert.ok(Object.hasOwn(palette, variable), `${name}: ${variable} exists in the ${theme} theme`)
+        }
       }
     }
     assert.deepEqual(getStyle('새 업무 값'), getStyle('다른 새 값'))

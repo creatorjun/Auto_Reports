@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/charts/SlaMonthlyLineChart.tsx
+import designTokens from '@/presentation/config/designTokens.json'
 import { memo, useId, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import {
@@ -9,7 +10,7 @@ import { CHART_COLORS } from '@/presentation/config/ui'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 import {
   SLA_TARGET_RATE, CHART_HEIGHT, CHART_TICK_FONT_SIZE,
-  CHART_LEGEND_ICON_SIZE, CHART_LEGEND_COLOR,
+  CHART_LEGEND_ICON_SIZE, CHART_LEGEND_FONT_SIZE, CHART_LEGEND_COLOR,
   CHART_STROKE_WIDTH, CHART_DOT_RADIUS, CHART_ACTIVE_DOT_RADIUS,
   CHART_GRADIENT_STOP_START, CHART_GRADIENT_STOP_END,
 } from '@/presentation/config/constants'
@@ -41,7 +42,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const p    = payload[0]
   const meta: MonthlyEntry | undefined = p?.payload?.meta
   return (
-    <div className="bg-apple-surface border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-ui-xs">
+    <div className="bg-apple-surface border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-caption">
       <p className="font-semibold text-apple-dark mb-1">{label}</p>
       <div className="flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
@@ -87,11 +88,11 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color, monthOnly = fals
   }
   const detailTable = interactive && monthly.length > 0 && (
     <details open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)} className="group mt-4 border-t border-apple-divider pt-3">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg py-2 text-base font-semibold text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg py-2 text-body font-semibold text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
         건수 상세 보기<ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" />
       </summary>
       <div data-pdf-kind="table" className="mt-2 overflow-x-auto rounded-xl border border-apple-divider">
-        <table className="w-full min-w-[320px] text-sm text-apple-dark">
+        <table className="w-full min-w-[320px] text-body text-apple-dark">
           <caption className="sr-only">{title} 월별 대상, 준수 및 위반 건수</caption>
           <thead className="bg-apple-gray">
             <tr>
@@ -128,11 +129,11 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color, monthOnly = fals
     return (
       <div data-pdf-kind="chart" data-export-table={exportTable} className="card flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
-          <span className="text-ui-xs text-apple-light">{subtitle}</span>
+          <h3 className="text-section-title font-semibold text-apple-dark">{title}</h3>
+          <span className="text-caption text-apple-light">{subtitle}</span>
         </div>
         <div className="flex items-center justify-center" style={{ height: CHART_HEIGHT }}>
-          <p className="text-ui-sm text-apple-light">SLA 데이터가 없습니다</p>
+          <p className="text-label text-apple-light">SLA 데이터가 없습니다</p>
         </div>
         {detailTable}
       </div>
@@ -142,8 +143,8 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color, monthOnly = fals
   return (
     <div data-pdf-kind="chart" data-export-table={exportTable} className="card">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-ui-base font-semibold text-apple-dark">{title}</h3>
-        <span className="text-ui-xs text-apple-light">{subtitle}</span>
+        <h3 className="text-section-title font-semibold text-apple-dark">{title}</h3>
+        <span className="text-caption text-apple-light">{subtitle}</span>
       </div>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
@@ -167,13 +168,13 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color, monthOnly = fals
             y={SLA_TARGET_RATE}
             stroke={CHART_COLORS.slaTarget}
             strokeDasharray="4 4"
-            label={{ value: `목표 ${SLA_TARGET_RATE}%`, position: 'insideTopRight', fontSize: 10, fill: CHART_COLORS.axisText }}
+            label={{ value: `목표 ${SLA_TARGET_RATE}%`, position: 'insideTopRight', fontSize: designTokens.typography.chart.annotation, fill: CHART_COLORS.axisText }}
           />
           <Legend
             layout="horizontal" verticalAlign="bottom" align="center"
             iconType="circle" iconSize={CHART_LEGEND_ICON_SIZE}
             formatter={(value: string) => (
-              <span style={{ fontSize: CHART_LEGEND_ICON_SIZE + 4, color: CHART_LEGEND_COLOR }}>{value}</span>
+              <span style={{ fontSize: CHART_LEGEND_FONT_SIZE, color: CHART_LEGEND_COLOR }}>{value}</span>
             )}
           />
           <Area
