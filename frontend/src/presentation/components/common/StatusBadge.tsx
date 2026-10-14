@@ -1,4 +1,6 @@
 // frontend/src/presentation/components/common/StatusBadge.tsx
+import { STATUS_STYLE } from '@/presentation/config/ui'
+
 const CLOSED = new Set([
   'Closed', '중복 이슈', '반려됨', '취소됨', '닫혀', '닫힘',
 ])
@@ -10,7 +12,11 @@ const ACTIVE = new Set([
   '처리 중', '보류 중', '영업본부 검토중',
 ])
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({ status, variant = 'summary' }: { status: string; variant?: 'summary' | 'stage' }) {
+  if (variant === 'stage') {
+    const style = STATUS_STYLE[status] ?? { bg: 'bg-status-todo', text: 'text-white' }
+    return <span className={`inline-block max-w-full break-words rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.text}`}>{status}</span>
+  }
   if (CLOSED.has(status)) return <span className="badge-good">{status}</span>
   if (ACTIVE.has(status)) return <span className="badge-warning">{status}</span>
   return <span className="badge-neutral">{status}</span>

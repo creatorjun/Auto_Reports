@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/sla-violations/SlaViolationList.tsx
 import { useId, useMemo, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { ChevronDown, ExternalLink } from 'lucide-react'
 import type { SlaViolationMetric, SlaViolationTicket } from '@/domain/SlaViolationReport'
 import { slaIssueType } from '@/domain/SlaViolationFilters'
@@ -10,6 +10,8 @@ import { useJira } from '@/presentation/context/JiraContext'
 import { slaCreatedDate, slaTimestamp } from '@/presentation/utils/slaViolationFormatters'
 import { getIssueTypeLabel } from '@/presentation/utils/issueTypeLabel'
 import { useTablePreferences } from '@/presentation/hooks/useTablePreferences'
+import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
+import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import SlaViolationTableHeader, { DEFAULT_SLA_COLUMN_WIDTHS, MIN_SLA_COLUMN_WIDTHS, SLA_TICKET_COLUMNS, resizeSlaColumnWidths } from './SlaViolationTableHeader'
 
 const TICKET_COLUMNS = 'lg:grid-cols-[var(--sla-ticket-columns)]'
@@ -18,10 +20,10 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
   const [expanded, setExpanded] = useState(false)
   const detailsId = useId()
   const { jiraBrowse } = useJira()
-  const facts = [
+  const facts: [string, ReactNode][] = [
     ['고객사명', ticket.customer], ['담당 파트너사', slaPartnersLabel(ticket.partners)],
     ['보고자', ticket.reporter], ['담당자', ticket.assignee], ['TAC 담당자', ticket.tac_assignee],
-    ['현재 체류 상태', ticket.current_status],
+    ['현재 체류 상태', <StatusBadge status={ticket.current_status || '확인 불가'} variant="stage" />],
   ]
   return (
     <li className="border-t border-apple-divider/70">
@@ -31,7 +33,7 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
           aria-label={`${ticket.key} ${ticket.summary} · Jira 새 탭에서 열기`}>
           <span className="col-span-2 row-start-1 flex min-w-0 items-center gap-1.5 font-semibold text-brand-600 lg:col-span-1 lg:row-auto"><span className="min-w-0 break-all">{ticket.key}</span><ExternalLink size={12} className="shrink-0" aria-hidden="true" /></span>
           <span className="col-span-2 row-start-2 break-words font-medium text-apple-dark lg:col-span-1 lg:row-auto">{ticket.summary}</span>
-          <span className="col-span-2 row-start-3 min-w-0 break-words text-xs text-apple-mid lg:col-span-1 lg:row-auto"><span className="mr-1.5 lg:hidden">유형</span>{getIssueTypeLabel(slaIssueType(ticket))}</span>
+          <span className="col-span-2 row-start-3 min-w-0 break-words text-xs text-apple-mid lg:col-span-1 lg:row-auto"><span className="mr-1.5 lg:hidden">유형</span><IssueTypeBadge type={getIssueTypeLabel(slaIssueType(ticket))} className="max-w-full whitespace-normal break-words" /></span>
           <span className="row-start-4 text-xs tabular-nums text-apple-mid lg:row-auto"><span className="mr-1.5 lg:hidden">생성일</span>{slaCreatedDate(ticket.created_at)}</span>
           <span className="row-start-4 text-right text-xs tabular-nums text-apple-mid lg:row-auto"><span className="mr-1.5 lg:hidden">경과일</span>{ticket.elapsed_days.toLocaleString('ko-KR')}일</span>
         </a>
@@ -48,7 +50,7 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
             <ul className="mt-2 flex flex-wrap gap-2">
               {ticket.breaches.filter((breach) => breach.metric === metric).map((breach, index) => (
                 <li key={`${breach.breached_at}-${index}`} className="rounded-lg border border-apple-divider bg-apple-surface px-3 py-2">
-                  <span className="text-sm font-semibold text-apple-dark">{breach.status || '확인 불가'}</span>
+                  <StatusBadge status={breach.status || '확인 불가'} variant="stage" />
                   <span className="ml-2 text-xs text-apple-mid">{slaTimestamp(breach.breached_at)}{breach.breached_at ? ' KST' : ''}</span>
                 </li>
               ))}
@@ -64,7 +66,7 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
             {ticket.status_durations ? (
               <dl className="mt-3 flex flex-wrap gap-2">
                 {ticket.status_durations.map(({ status, hours }) => (
-                  <div key={status} className="flex items-center gap-2 rounded-lg bg-apple-surface px-3 py-2 text-xs"><dt className="text-apple-mid">{status}</dt><dd className="font-semibold tabular-nums text-apple-dark">{hours.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}시간</dd></div>
+                  <div key={status} className="flex items-center gap-2 rounded-lg bg-apple-surface px-3 py-2 text-xs"><dt><StatusBadge status={status || '확인 불가'} variant="stage" /></dt><dd className="font-semibold tabular-nums text-apple-dark">{hours.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}시간</dd></div>
                 ))}
               </dl>
             ) : <p className="mt-2 text-xs text-apple-mid">상태 변경 이력이 불완전하여 체류 기간을 확인할 수 없습니다.</p>}
