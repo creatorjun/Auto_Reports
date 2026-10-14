@@ -85,6 +85,17 @@ class SlaViolationJiraSourceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("second", searches[1]["nextPageToken"])
         self.assertNotIn("issuetype", searches[0]["jql"].lower())
         self.assertNotIn("status", searches[0]["jql"].lower())
+        self.assertIn("issuetype", searches[0]["fields"])
+        self.assertEqual([None, "새 요청 유형"], [item.issue_type for item in result])
+
+    async def test_missing_or_empty_issue_type_remains_unknown(self) -> None:
+        candidates = [issue(f"TACEA-{index}", issuetype=value) for index, value in enumerate((None, {}, {"name": " "}))]
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            data = {"issues": candidates, "isLast": True} if request.url.path.endswith("/search/jql") else history_page()
+            return httpx.Response(200, json=data)
+
+        self.assertTrue(all(item.issue_type is None for item in await self.collect(handler)))
 
     async def test_retains_each_metric_and_exact_breach_time_with_full_history(self) -> None:
         requested_starts = []

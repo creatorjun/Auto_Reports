@@ -10,7 +10,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 |------|-------|------|
 | `LoginPage` | `/login` | credential 입력과 로그인 mutation |
 | `DashboardPage` | `/`, `/reports/:id`, `/reports/annual/:year` | 최신·선택·연간 보고서 dashboard, 기간별 생성·완료 card, 업무 유형별 열린 요청 card, PDF·Excel 내보내기 |
-| `SlaViolationPage` | `/sla-violations`, `/sla-violations/history/:id` | 최초응답·해결 SLA 위반의 기간별 생성·자동 저장, 최신·저장 보고서와 접기/펼치기 |
+| `SlaViolationPage` | `/sla-violations`, `/sla-violations/history/:id` | 최초응답·해결 SLA 위반의 기간별 생성·자동 저장, 요청 유형·현재 상태·반기 필터, 최신·저장 보고서와 접기/펼치기 |
 | `IssueManagementPage` | `/issues` | 전체 이슈 조회, 공통 필터·컬럼 검색, 전체 검색 결과 PDF·Excel 내보내기 |
 | `SlaDashboardPage` | `/sla-dashboard` | 장기 이슈 메뉴: 최근 이슈 티켓의 활동 정보와 기본 펼침 댓글 목록·5개씩 더보기 |
 | `HistoryPage` | `/history` | 보고서 pagination, 선택, 삭제 |
@@ -42,6 +42,8 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 연간 전용 화면은 해당 연도의 생성 버튼을 제공합니다. 기존 날짜 범위 API로 연간 전용 보고서를 생성하며 완료 시 해당 연간 query를 갱신하고 최신 일반 보고서 캐시와 구분합니다.
 
 연간 전용 화면의 최초응답·해결시간 SLA 준수율 차트는 월을 `1월`, `2월` 형식으로 표시합니다. 차트 축·툴팁과 PDF·Excel에도 동일하게 적용하며 원본 연도·월과 상세 조회 기준은 유지합니다.
+
+SLA 위반 화면도 `IssueTypeFilter`를 사용합니다. 요청 유형·현재 상태·반기를 함께 적용한 저장 티켓 목록을 최초응답·해결 위반 목록에 전달하며, 각 목록은 필터 결과로 건수를 계산합니다. 기본값은 모든 티켓이고 필터 선택은 서버 저장 값과 히스토리 건수를 바꾸지 않습니다. 유형 누락은 `확인 불가`로 선택할 수 있으며 반기는 KST 생성월을 기준으로 합니다. 자세한 기존 보고서 호환 방식은 [SLA 위반 문서](../../backend/docs/08_sla_violation_report.md)를 참고하세요.
 
 SLA 티켓 행은 처음에 펼쳐져 있으며 최신 댓글 5개를 표시합니다. 데스크톱과 모바일은 같은 댓글 패널을 사용하고, `댓글 더보기`를 누를 때마다 최신 댓글을 처음부터 10개, 15개 순으로 다시 조회합니다. 조회에 성공하면 누적 범위의 최신 응답으로 목록을 갱신하고 작성 시각이 최신인 댓글부터 표시하므로, 클릭 사이에 추가된 댓글도 반영됩니다. 마지막 댓글까지 조회하면 더보기 버튼을 숨기며, 조회가 실패하면 기존 댓글을 유지하고 다시 시도할 수 있습니다.
 

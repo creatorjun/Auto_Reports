@@ -18,6 +18,7 @@ export interface SlaViolationBreach {
 export interface SlaViolationTicket {
   key: string
   summary: string
+  issue_type?: string | null
   created_at: string
   elapsed_days: number
   customer: string | null

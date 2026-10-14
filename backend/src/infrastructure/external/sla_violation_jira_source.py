@@ -174,7 +174,7 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
 
     async def _search(self, jql: str) -> list[dict]:
         fields = list(dict.fromkeys((
-            "summary", "created", "status", "reporter", "assignee",
+            "summary", "created", "status", "reporter", "assignee", "issuetype",
             _CUSTOMER_NAME_FIELD, _CUSTOMER_ASSET_FIELD, _PARTNER_FIELD,
             self._tac_field, *(field for field, _ in self._sla_fields),
         )))
@@ -351,4 +351,5 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
             tac_assignee=_text(fields.get(self._tac_field)) or None,
             cycles=cycles, changes=changes, history_complete=complete,
             warnings=tuple(dict.fromkeys(warnings)),
+            issue_type=_text(fields.get("issuetype")) or None,
         )

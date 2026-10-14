@@ -38,8 +38,9 @@ function sourceLoader(overrides = {}) {
 const load = sourceLoader()
 const { slaDateRange, slaToday, slaTicketsForMetric, slaPartnersLabel } = load('application/services/slaViolationReport')
 const { slaCreatedDate } = load('presentation/utils/slaViolationFormatters')
+const { filterSlaViolationTickets, slaViolationFilterOptions } = load('domain/SlaViolationFilters')
 const ticket = {
-  key: 'TACEA-1234', summary: '[서울 교통공사] MF2 컴포넌트 개선의 건', created_at: '2026-05-05T16:00:00Z', elapsed_days: 123,
+  key: 'TACEA-1234', summary: '[서울 교통공사] MF2 컴포넌트 개선의 건', issue_type: '서비스 요청', created_at: '2026-05-05T16:00:00Z', elapsed_days: 123,
   customer: '서울교통공사', partners: [], reporter: '김영준 과장', assignee: '조장희 수석', tac_assignee: '한준희 선임', current_status: '결과 대기 중',
   status_durations: [{ status: '할일', hours: 3.25 }, { status: '연구소 검토 중', hours: 120.5 }],
   breaches: [{ metric: 'initial_response', breached_at: '2026-05-06T04:00:00Z', status: '할일' }, { metric: 'resolution', breached_at: '2026-05-08T06:00:00Z', status: '연구소 검토 중' }], warnings: [],
@@ -98,6 +99,90 @@ test('metric lists include dual breaches in both groups exactly once and preserv
   assert.equal(slaPartnersLabel([]), '본사')
   assert.equal(slaPartnersLabel(null), '확인 불가')
   assert.equal(slaPartnersLabel(['에이치씨인포', '파트너2']), '에이치씨인포, 파트너2')
+})
+
+test('SLA filter options include every saved type and explicitly retain legacy unknown types', () => {
+  const rows = ['라이선스', '승인된 서비스 요청', '케이스', null, undefined, ''].map((issue_type, index) => ({ ...ticket, key: `T-${index}`, issue_type }))
+  const original = structuredClone(rows)
+  const options = slaViolationFilterOptions(rows)
+  assert.deepEqual(new Set(options.issueTypes), new Set(['라이선스', '승인된 서비스 요청', '케이스', '확인 불가']))
+  assert.equal(options.unknownTypeCount, 3)
+  assert.deepEqual(options.statuses, ['결과 대기 중'])
+  assert.strictEqual(filterSlaViolationTickets(rows, null, null, null), rows)
+  assert.deepEqual(filterSlaViolationTickets(rows, new Set(['확인 불가']), null, null).map((row) => row.key), ['T-3', 'T-4', 'T-5'])
+  assert.deepEqual(filterSlaViolationTickets(rows, new Set(), null, null), [])
+  assert.deepEqual(filterSlaViolationTickets(rows, null, new Set(), null), [])
+  assert.deepEqual(rows, original)
+  const unknownStatusRows = [{ ...ticket, current_status: '' }, { ...ticket, current_status: '   ' }, { ...ticket, current_status: ' 닫힘 ' }]
+  assert.deepEqual(slaViolationFilterOptions(unknownStatusRows).statuses, ['닫힘', '확인 불가'])
+  assert.deepEqual(filterSlaViolationTickets(unknownStatusRows, null, new Set(['확인 불가']), null), unknownStatusRows.slice(0, 2))
+  assert.deepEqual(filterSlaViolationTickets(unknownStatusRows, null, new Set(['닫힘']), null), unknownStatusRows.slice(2))
+})
+
+test('SLA type, saved current status, and KST creation semester filters intersect without dropping other years', () => {
+  const rows = [
+    { ...ticket, key: 'JUNE', created_at: '2026-06-30T14:59:59Z' },
+    { ...ticket, key: 'JULY', created_at: '2026-06-30T15:00:00Z' },
+    { ...ticket, key: 'DECEMBER', created_at: '2025-12-31T14:59:59Z', current_status: '닫힘' },
+    { ...ticket, key: 'JANUARY', created_at: '2025-12-31T15:00:00Z', issue_type: '케이스' },
+  ]
+  assert.deepEqual(filterSlaViolationTickets(rows, null, null, 'h1').map((row) => row.key), ['JUNE', 'JANUARY'])
+  assert.deepEqual(filterSlaViolationTickets(rows, null, null, 'h2').map((row) => row.key), ['JULY', 'DECEMBER'])
+  assert.deepEqual(filterSlaViolationTickets(rows, new Set(['서비스 요청']), new Set(['결과 대기 중']), 'h2').map((row) => row.key), ['JULY'])
+  assert.deepEqual(filterSlaViolationTickets(rows, null, new Set(['할일']), null), [])
+})
+
+test('SLA page filters both metric lists immediately, preserves same-report choices, and resets for a new report', (t) => {
+  const rows = [ticket, { ...ticket, key: 'TACEA-2', issue_type: '케이스', current_status: '닫힘', created_at: '2026-07-01T00:00:00+09:00', breaches: [ticket.breaches[0]] }, { ...ticket, key: 'TACEA-3', issue_type: null, breaches: [ticket.breaches[1]] }]
+  let current = { ...report, tickets: rows, ticket_count: 3, initial_response_count: 2, resolution_count: 2 }
+  const original = structuredClone(current)
+  let generationCalls = 0
+  const setCurrentReport = () => {}
+  const instance = sourceLoader({
+    'react-router-dom': { useParams: () => ({}), useNavigate: () => () => {}, Link: ({ children, to, ...props }) => React.createElement('a', { href: to, ...props }, children) },
+    'presentation/context/JiraContext': { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) },
+    'presentation/state/reportStore': { useReportStore: (selector) => selector({ setCurrentReport }) },
+    'presentation/hooks/useSlaViolations': { useSlaViolationReport: () => ({ data: current }), useGenerateSlaViolationReport: () => ({ mutate: () => { generationCalls += 1 } }) },
+  })
+  const Page = instance('presentation/pages/SlaViolationPage').default
+  const List = instance('presentation/components/sla-violations/SlaViolationList').default
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(Page)) })
+  t.after(() => act(() => view.unmount()))
+  const click = (name) => act(() => view.root.findAllByType('button').find((button) => textOf(button).trim() === name).props.onClick())
+  const metricKeys = () => view.root.findAllByType(List).map((list) => list.findAllByType('a').map((link) => link.props.href.split('/').at(-1)))
+  const metricCounts = () => view.root.findAllByType(List).map((list) => Number(textOf(list).match(/(\d+)\s*건/)[1]))
+  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2'], ['TACEA-1234', 'TACEA-3']])
+  assert.match(textOf(view.toJSON()), /요청 유형이 저장되지 않은 티켓\s+1\s*건/)
+  assert.equal(view.root.findAllByProps({ 'aria-label': '이슈 제목 검색' }).length, 0)
+  click('필터 펼치기')
+  click('확인 불가')
+  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2'], ['TACEA-1234']])
+  click('닫힘')
+  assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234']])
+  assert.deepEqual(metricCounts(), [1, 1])
+  act(() => view.root.findAllByProps({ 'aria-label': 'TACEA-1234 상세 펼치기' })[0].props.onClick())
+  current = { ...current, tickets: current.tickets.map((row) => ({ ...row })) }
+  act(() => view.update(React.createElement(Page)))
+  assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234']])
+  assert.equal(view.root.findAllByProps({ 'aria-label': 'TACEA-1234 상세 접기' }).length, 1)
+  click('하반기')
+  assert.deepEqual(metricKeys(), [[], []])
+  assert.match(textOf(view.toJSON()), /선택한 필터에 맞는\s+최초응답 위반\s+티켓이 없습니다/)
+  click('전체 선택')
+  assert.deepEqual(metricKeys(), [['TACEA-2'], []])
+  click('하반기')
+  click('전체 해제')
+  assert.deepEqual(metricKeys(), [[], []])
+  click('전체 선택')
+  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2'], ['TACEA-1234', 'TACEA-3']])
+  click('케이스')
+  current = { ...current, id: 11 }
+  act(() => view.update(React.createElement(Page)))
+  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2'], ['TACEA-1234', 'TACEA-3']])
+  assert.equal(view.root.findAllByProps({ 'aria-label': 'TACEA-1234 상세 접기' }).length, 0)
+  assert.equal(generationCalls, 0)
+  assert.deepEqual({ ...current, id: report.id }, original)
 })
 
 test('API preserves generation scope, long request timeout, read cancellation, and history pagination', async () => {
@@ -173,6 +258,9 @@ test('ticket rows start folded, use a separate accessible disclosure, and show o
   assert.equal(link.props.href, 'https://jira.example/browse/TACEA-1234')
   assert.match(textOf(link), /2026-05-06/)
   assert.match(textOf(link), /123/)
+  assert.match(textOf(link), /서비스 요청/)
+  const columns = view.root.findAllByType('div').find((node) => node.props['aria-hidden'] === 'true')
+  assert.deepEqual(columns.findAllByType('span').map((node) => textOf(node)), ['번호', '제목', '유형', '생성일', '경과일', '상세'])
   assert.equal(view.root.findByType('button').props['aria-expanded'], false)
   assert.equal(link.findAllByType('button').length, 0)
   assert.doesNotMatch(textOf(view.toJSON()), /김영준 과장/)
@@ -183,6 +271,9 @@ test('ticket rows start folded, use a separate accessible disclosure, and show o
   assert.doesNotMatch(content, /2026\. 05\. 08\./)
   act(() => view.root.findByType('button').props.onClick())
   assert.doesNotMatch(textOf(view.toJSON()), /김영준 과장/)
+  act(() => view.update(React.createElement(List, { tickets: [{ ...ticket, issue_type: null }], metric: 'resolution' })))
+  assert.match(textOf(view.root.findByType('a')), /확인 불가/)
+  assert.equal(view.root.findByType('button').props['aria-expanded'], false)
 })
 
 test('page restores saved controls, separates changed conditions, and submits the chosen period', async (t) => {

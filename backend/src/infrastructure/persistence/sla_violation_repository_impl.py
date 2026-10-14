@@ -57,6 +57,7 @@ def _deserialize_ticket(payload: dict) -> SlaViolationTicket:
             for breach in payload["breaches"]
         ),
         warnings=tuple(payload.get("warnings", ())),
+        issue_type=payload.get("issue_type"),
     )
 
 

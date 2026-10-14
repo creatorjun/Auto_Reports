@@ -2,9 +2,13 @@
 import { useId, useState } from 'react'
 import { ChevronDown, ExternalLink } from 'lucide-react'
 import type { SlaViolationMetric, SlaViolationTicket } from '@/domain/SlaViolationReport'
+import { slaIssueType } from '@/domain/SlaViolationFilters'
 import { SLA_METRIC_LABELS, slaPartnersLabel, slaTicketsForMetric } from '@/application/services/slaViolationReport'
 import { useJira } from '@/presentation/context/JiraContext'
 import { slaCreatedDate, slaTimestamp } from '@/presentation/utils/slaViolationFormatters'
+import { getIssueTypeLabel } from '@/presentation/utils/issueTypeLabel'
+
+const TICKET_COLUMNS = 'lg:grid-cols-[7rem_minmax(0,1fr)_6rem_6rem_4rem]'
 
 function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: SlaViolationMetric }) {
   const [expanded, setExpanded] = useState(false)
@@ -19,12 +23,13 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
     <li className="border-t border-apple-divider/70">
       <div className="flex items-stretch gap-1 px-3 sm:px-5">
         <a href={`${jiraBrowse}/${encodeURIComponent(ticket.key)}`} target="_blank" rel="noopener noreferrer"
-          className="grid min-w-0 flex-1 grid-cols-2 items-center gap-x-4 gap-y-2 rounded-xl px-1 py-4 text-sm transition-colors hover:bg-apple-gray focus-visible:outline-brand-400 sm:grid-cols-[7rem_minmax(0,1fr)_7rem_5rem]"
+          className={`grid min-w-0 flex-1 grid-cols-2 items-center gap-x-4 gap-y-2 rounded-xl px-1 py-4 text-sm transition-colors hover:bg-apple-gray focus-visible:outline-brand-400 ${TICKET_COLUMNS}`}
           aria-label={`${ticket.key} ${ticket.summary} · Jira 새 탭에서 열기`}>
-          <span className="col-span-2 row-start-1 flex items-center gap-1.5 font-semibold text-brand-600 sm:col-span-1 sm:row-auto">{ticket.key}<ExternalLink size={12} className="shrink-0" aria-hidden="true" /></span>
-          <span className="col-span-2 row-start-2 break-words font-medium text-apple-dark sm:col-span-1 sm:row-auto">{ticket.summary}</span>
-          <span className="row-start-3 text-xs tabular-nums text-apple-mid sm:row-auto"><span className="mr-1.5 sm:hidden">생성일</span>{slaCreatedDate(ticket.created_at)}</span>
-          <span className="row-start-3 text-right text-xs tabular-nums text-apple-mid sm:row-auto"><span className="mr-1.5 sm:hidden">경과일</span>{ticket.elapsed_days.toLocaleString('ko-KR')}일</span>
+          <span className="col-span-2 row-start-1 flex items-center gap-1.5 font-semibold text-brand-600 lg:col-span-1 lg:row-auto">{ticket.key}<ExternalLink size={12} className="shrink-0" aria-hidden="true" /></span>
+          <span className="col-span-2 row-start-2 break-words font-medium text-apple-dark lg:col-span-1 lg:row-auto">{ticket.summary}</span>
+          <span className="col-span-2 row-start-3 min-w-0 break-words text-xs text-apple-mid lg:col-span-1 lg:row-auto"><span className="mr-1.5 lg:hidden">유형</span>{getIssueTypeLabel(slaIssueType(ticket))}</span>
+          <span className="row-start-4 text-xs tabular-nums text-apple-mid lg:row-auto"><span className="mr-1.5 lg:hidden">생성일</span>{slaCreatedDate(ticket.created_at)}</span>
+          <span className="row-start-4 text-right text-xs tabular-nums text-apple-mid lg:row-auto"><span className="mr-1.5 lg:hidden">경과일</span>{ticket.elapsed_days.toLocaleString('ko-KR')}일</span>
         </a>
         <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-controls={detailsId}
           aria-label={`${ticket.key} 상세 ${expanded ? '접기' : '펼치기'}`}
@@ -67,7 +72,7 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
   )
 }
 
-export default function SlaViolationList({ tickets, metric }: { tickets: SlaViolationTicket[]; metric: SlaViolationMetric }) {
+export default function SlaViolationList({ tickets, metric, isFiltered = false }: { tickets: SlaViolationTicket[]; metric: SlaViolationMetric; isFiltered?: boolean }) {
   const filtered = slaTicketsForMetric(tickets, metric)
   const titleId = useId()
   return (
@@ -78,10 +83,12 @@ export default function SlaViolationList({ tickets, metric }: { tickets: SlaViol
       </div>
       {filtered.length > 0 ? (
         <>
-          <div aria-hidden="true" className="hidden grid-cols-[7rem_minmax(0,1fr)_7rem_5rem_3rem] gap-4 bg-apple-gray/70 px-6 py-2.5 text-xs font-medium text-apple-mid sm:grid"><span>티켓 번호</span><span>티켓 제목</span><span>생성일</span><span className="text-right">경과일</span><span className="text-center">상세</span></div>
+          <div aria-hidden="true" className="hidden items-center gap-1 bg-apple-gray/70 px-5 py-2.5 text-xs font-medium text-apple-mid lg:flex">
+            <div className={`grid min-w-0 flex-1 gap-4 px-1 ${TICKET_COLUMNS}`}><span>번호</span><span>제목</span><span>유형</span><span>생성일</span><span className="text-right">경과일</span></div><span className="w-12 shrink-0 text-center">상세</span>
+          </div>
           <ul>{filtered.map((ticket) => <TicketRow key={ticket.key} ticket={ticket} metric={metric} />)}</ul>
         </>
-      ) : <p className="border-t border-apple-divider/70 px-5 py-12 text-center text-sm text-apple-mid">해당 기간에 생성된 {SLA_METRIC_LABELS[metric]} 티켓이 없습니다.</p>}
+      ) : <p className="border-t border-apple-divider/70 px-5 py-12 text-center text-sm text-apple-mid">{isFiltered ? '선택한 필터에 맞는' : '해당 기간에 생성된'} {SLA_METRIC_LABELS[metric]} 티켓이 없습니다.</p>}
     </section>
   )
 }

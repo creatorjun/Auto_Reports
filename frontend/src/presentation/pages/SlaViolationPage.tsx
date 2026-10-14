@@ -7,7 +7,7 @@ import { SLA_PERIOD_LABELS, slaDateRange, slaToday } from '@/application/service
 import { RequestError } from '@/application/errors/RequestError'
 import { useGenerateSlaViolationReport, useSlaViolationReport } from '@/presentation/hooks/useSlaViolations'
 import { useReportStore } from '@/presentation/state/reportStore'
-import SlaViolationList from '@/presentation/components/sla-violations/SlaViolationList'
+import SlaViolationReportContent from '@/presentation/components/sla-violations/SlaViolationReportContent'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 
 function errorMessage(error: unknown): string {
@@ -90,13 +90,7 @@ export default function SlaViolationPage() {
       {(query.isError || generation.isError || invalidId) && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{invalidId ? '올바르지 않은 보고서 주소입니다.' : errorMessage(generation.error ?? query.error)}{query.isError && <button type="button" disabled={generation.isPending} onClick={() => void query.refetch()} className="ml-3 underline">다시 불러오기</button>}</div>}
       {savedId === report?.id && <p role="status" className="text-sm text-brand-600">보고서를 생성하고 히스토리에 저장했습니다.</p>}
       {query.isFetching && !report && !invalidId && <LoadingSpinner text="마지막 SLA 위반 보고서를 불러오는 중..." />}
-      {report && (
-        <>
-          {report.warnings.length > 0 && <details className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><summary className="cursor-pointer font-medium">일부 데이터 확인 필요 ({report.warnings.length})</summary><ul className="mt-2 space-y-1 text-xs">{report.warnings.map((warning, index) => <li key={index} className="break-words">{warning}</li>)}</ul></details>}
-          <SlaViolationList key={`${report.id}-initial`} tickets={report.tickets} metric="initial_response" />
-          <SlaViolationList key={`${report.id}-resolution`} tickets={report.tickets} metric="resolution" />
-        </>
-      )}
+      {report && <SlaViolationReportContent key={report.id} report={report} />}
       {!report && !query.isFetching && !query.isError && !invalidId && !generation.isPending && <div className="rounded-2xl border border-dashed border-apple-divider bg-apple-surface px-6 py-16 text-center"><AlarmClock size={32} className="mx-auto mb-4 text-brand-600" /><h2 className="text-base font-semibold text-apple-dark">아직 생성한 SLA 위반 보고서가 없습니다.</h2><p className="mt-2 text-sm text-apple-mid">기간과 날짜를 선택하고 ‘보고서 생성’을 누르세요.<br />다음 방문부터 가장 최근 보고서를 자동으로 보여드립니다.</p></div>}
     </div>
   )

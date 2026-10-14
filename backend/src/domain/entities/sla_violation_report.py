@@ -35,6 +35,7 @@ class SlaViolationIssue:
     changes: tuple[SlaViolationChange, ...] = ()
     history_complete: bool = True
     warnings: tuple[str, ...] = ()
+    issue_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -65,6 +66,7 @@ class SlaViolationTicket:
     status_durations: tuple[SlaStatusDuration, ...] | None
     breaches: tuple[SlaViolationBreach, ...]
     warnings: tuple[str, ...] = ()
+    issue_type: str | None = None
 
 
 @dataclass(frozen=True)

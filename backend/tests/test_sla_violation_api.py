@@ -62,6 +62,7 @@ class SlaViolationApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([], ticket["partners"])
         self.assertIsNone(ticket["breaches"][1]["breached_at"])
         self.assertEqual("TAC 담당자", ticket["tac_assignee"])
+        self.assertEqual("서비스 요청", ticket["issue_type"])
         self.audit.record.assert_called_once_with(
             "SLA_VIOLATION_REPORT_CREATE", report_id=5, period="month", selected_date="2026-10-14",
             ticket_count=1, initial_response_count=1, resolution_count=1,
@@ -83,6 +84,17 @@ class SlaViolationApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(5, response.json()[0]["id"])
         self.assertNotIn("tickets", response.json()[0])
         self.assertNotIn("warnings", response.json()[0])
+
+    async def test_unknown_issue_type_is_null_in_snapshot_responses(self) -> None:
+        stored = replace(self.report, tickets=(replace(self.report.tickets[0], issue_type=None),))
+        self.use_case.get_latest.return_value = stored
+        self.use_case.get_by_id.return_value = stored
+        for path in ("/latest", "/5"):
+            with self.subTest(path=path):
+                response = await self.client.get(self.endpoint + path, headers=self.headers)
+                self.assertEqual(200, response.status_code, response.text)
+                self.assertIsNone(response.json()["tickets"][0]["issue_type"])
+                self.assertEqual((1, 1, 1), tuple(response.json()[key] for key in ("ticket_count", "initial_response_count", "resolution_count")))
 
     async def test_saved_report_missing_is_404(self) -> None:
         self.use_case.get_by_id.side_effect = EntityNotFoundError("report", 9)

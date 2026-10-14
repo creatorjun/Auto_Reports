@@ -43,6 +43,7 @@ class SlaViolationTicketSchema(BaseModel):
     status_durations: tuple[SlaStatusDurationSchema, ...] | None
     breaches: tuple[SlaViolationBreachSchema, ...]
     warnings: tuple[str, ...] = ()
+    issue_type: str | None = None
 
 
 class SlaViolationReportSummarySchema(BaseModel):

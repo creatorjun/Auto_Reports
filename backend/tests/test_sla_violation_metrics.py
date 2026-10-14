@@ -95,6 +95,11 @@ class SlaViolationMetricsTest(unittest.TestCase):
         self.assertEqual((), values["HQ"])
         self.assertIsNone(values["UNKNOWN"])
 
+    def test_issue_types_are_preserved_without_changing_violation_counts(self):
+        report = self.build([issue(key="KNOWN", issue_type="서비스 요청"), issue(key="UNKNOWN")])
+        self.assertEqual({"KNOWN": "서비스 요청", "UNKNOWN": None}, {row.key: row.issue_type for row in report.tickets})
+        self.assertEqual((2, 2, 2), (report.ticket_count, report.initial_response_count, report.resolution_count))
+
     def test_no_history_and_same_day_have_valid_zero_day_age(self):
         sample = issue(created_at=timestamp(7, 12), current_status="할 일", changes=(), cycles=(SlaViolationCycle("resolution", timestamp(7, 13)),))
         row = self.build([sample], now=timestamp(7, 14)).tickets[0]

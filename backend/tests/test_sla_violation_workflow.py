@@ -1,5 +1,6 @@
 # backend/tests/test_sla_violation_workflow.py
 import asyncio
+from copy import deepcopy
 from dataclasses import asdict, replace
 from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -63,6 +64,7 @@ def sample_report() -> SlaViolationReport:
                 SlaViolationBreach("resolution", None, None),
             ),
             warnings=("위반 시각 확인 불가",),
+            issue_type="서비스 요청",
         ),),
         warnings=("일부 위반 시각 확인 불가",),
     )
@@ -180,9 +182,22 @@ class SlaViolationRepositoryTest(unittest.IsolatedAsyncioTestCase):
         self.session.rollback.assert_not_awaited()
         self.assertEqual(1, saved.id)
         self.assertEqual(saved, self.repository._to_report(self.rows[-1]))
-        ticket = replace(report.tickets[0], partners=None, status_durations=None)
+        ticket = replace(report.tickets[0], partners=None, status_durations=None, issue_type=None)
         unknown = await self.repository.save(replace(report, tickets=(ticket,)))
         self.assertEqual(unknown, self.repository._to_report(self.rows[-1]))
+
+    async def test_old_snapshot_reads_unknown_issue_type_without_changing_stored_payload(self) -> None:
+        saved = await self.repository.save(sample_report())
+        row = self.rows[-1]
+        row.payload["tickets"][0].pop("issue_type")
+        original_payload = deepcopy(row.payload)
+        self.session.commit.reset_mock()
+        self.session.execute.return_value = Mock(scalar_one_or_none=lambda: row)
+        expected = replace(saved, tickets=(replace(saved.tickets[0], issue_type=None),))
+        self.assertEqual(expected, await self.repository.get_latest())
+        self.assertEqual(expected, await self.repository.get_by_id(saved.id))
+        self.assertEqual(original_payload, row.payload)
+        self.session.commit.assert_not_awaited()
 
     async def test_failed_commit_rolls_back_and_raises(self) -> None:
         self.session.commit.side_effect = RuntimeError("write failed")

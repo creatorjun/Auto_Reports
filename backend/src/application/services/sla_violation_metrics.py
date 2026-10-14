@@ -90,6 +90,7 @@ def _ticket(issue: SlaViolationIssue, generated_at: datetime) -> SlaViolationTic
         status_durations=durations,
         breaches=tuple(breaches),
         warnings=tuple(dict.fromkeys(warnings)),
+        issue_type=issue.issue_type,
     )
 
 
