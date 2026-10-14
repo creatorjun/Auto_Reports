@@ -49,7 +49,7 @@ export default function SlaRateCard({ label, rate, met, total, slaFields = [] }:
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`text-label font-bold leading-none ${c.text}`}>{rate}%</span>
+            <span className={`text-label font-semibold leading-none ${c.text}`}>{rate}%</span>
           </div>
         </div>
 

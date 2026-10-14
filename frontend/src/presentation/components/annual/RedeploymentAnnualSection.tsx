@@ -292,7 +292,7 @@ function PartnerMatrix({ matrix, onDetails }: { matrix: Record<string, Record<st
                       const opacity = count ? 0.12 + (count / maxCount) * 0.54 : 0
                       return <td key={issueType} className="px-4 py-3.5 font-semibold tabular-nums text-apple-dark" style={{ backgroundColor: `rgb(var(--color-chart-created) / ${opacity})` }}>{exportMode ? count || '–' : <button type="button" className={`w-full ${DETAILS_BUTTON_CLASS}`} aria-label={`${partner} ${issueType} 재배포 ${count}건 상세 보기`} onClick={() => onDetails(partner, count, issueType)}>{count.toLocaleString('ko-KR')}</button>}</td>
                     })}
-                    <td className="bg-apple-gray/50 px-4 py-3.5 font-bold tabular-nums text-apple-dark">{exportMode ? total.toLocaleString('ko-KR') : <button type="button" className={`w-full ${DETAILS_BUTTON_CLASS}`} aria-label={`${partner} 전체 유형 재배포 ${total}건 상세 보기`} onClick={() => onDetails(partner, total)}>{total.toLocaleString('ko-KR')}</button>}</td>
+                    <td className="bg-apple-gray/50 px-4 py-3.5 font-semibold tabular-nums text-apple-dark">{exportMode ? total.toLocaleString('ko-KR') : <button type="button" className={`w-full ${DETAILS_BUTTON_CLASS}`} aria-label={`${partner} 전체 유형 재배포 ${total}건 상세 보기`} onClick={() => onDetails(partner, total)}>{total.toLocaleString('ko-KR')}</button>}</td>
                   </tr>
                 )
               })}

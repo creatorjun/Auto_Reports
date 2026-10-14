@@ -16,7 +16,7 @@ export default function AiSummaryCard({ ai }: { ai: AiAnalysis }) {
         <h3 className="text-section-title font-semibold text-apple-dark">AI 종합 분석</h3>
         <span data-pdf-paragraph data-pdf-prefix="상태: " className={cfg.badge}>{cfg.label}</span>
       </div>
-      <p className="text-label md:text-body text-apple-dark/80 leading-relaxed mb-4 md:mb-5">{ai.summary}</p>
+      <p className="text-label text-apple-dark/80 leading-relaxed mb-4 md:mb-5">{ai.summary}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
         <div>
           <p className="text-caption font-semibold text-red-600 uppercase tracking-wider mb-2">주목 리스크</p>

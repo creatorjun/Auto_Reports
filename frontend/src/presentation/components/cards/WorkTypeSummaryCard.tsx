@@ -34,15 +34,15 @@ export default function WorkTypeSummaryCard({
       onClick={onClick}
     >
       <span className="min-w-0">
-        <span className="block truncate text-caption 3xl:text-label font-semibold text-apple-light uppercase tracking-wider">
+        <span className="block truncate text-caption font-semibold text-apple-light uppercase tracking-wider">
           {label}
         </span>
-        <span className={`mt-2 flex items-center gap-1.5 text-caption 3xl:text-label font-medium ${colors.text}`}>
+        <span className={`mt-2 flex items-center gap-1.5 text-caption font-medium ${colors.text}`}>
           <span className={`flex h-5 w-5 items-center justify-center rounded-full ${colors.bg}`}><CircleDot size={12} className="shrink-0" /></span>
           현재 열림
         </span>
       </span>
-      <span className={`shrink-0 text-metric 3xl:text-metric-hero font-semibold leading-none tracking-tight tabular-nums ${colors.text}`}>
+      <span className={`shrink-0 text-metric font-semibold leading-none tracking-tight tabular-nums ${colors.text}`}>
         {count}
       </span>
     </button>

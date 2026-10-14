@@ -131,7 +131,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                         to={child.to}
                         aria-label={'ariaLabel' in child ? child.ariaLabel : child.label}
                         className={({ isActive }) =>
-                          ['nav-link 3xl:text-control 3xl:py-2.5', isActive ? 'nav-link-active' : ''].join(' ')
+                          ['nav-link 3xl:py-2.5', isActive ? 'nav-link-active' : ''].join(' ')
                         }
                       >
                         {child.label}
@@ -155,7 +155,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                 ['nav-link min-h-10',
                  sidebarCollapsed ? 'justify-center px-0' : '',
                  isActive ? 'nav-link-active' : '',
-                 '3xl:text-control 3xl:py-2.5',
+                 '3xl:py-2.5',
                 ].join(' ')
               }
             >
@@ -166,7 +166,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
         })}
         {!me.isError && canViewAuditLogs(me.data) && (
           <NavLink to="/audit-logs" title={sidebarCollapsed ? '감사로그' : undefined}
-            className={({ isActive }) => ['nav-link min-h-10 3xl:text-control 3xl:py-2.5', sidebarCollapsed ? 'justify-center px-0' : '', isActive ? 'nav-link-active' : ''].join(' ')}>
+            className={({ isActive }) => ['nav-link min-h-10 3xl:py-2.5', sidebarCollapsed ? 'justify-center px-0' : '', isActive ? 'nav-link-active' : ''].join(' ')}>
             <ShieldCheck size={16} className="flex-shrink-0" />
             {!sidebarCollapsed && <span>감사로그</span>}
           </NavLink>

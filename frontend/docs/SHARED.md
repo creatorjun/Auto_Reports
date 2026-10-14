@@ -19,16 +19,14 @@
 
 `designTokens.json`을 수정하면 `tailwind.config.js`가 CSS 변수와 의미별 유틸리티를 생성합니다. 별도 생성 파일을 편집할 필요가 없습니다. 차트에서 숫자 속성이 필요할 때도 같은 JSON을 참조하며, 페이지별 팔레트 덮어쓰기는 사용하지 않습니다.
 
-| 역할 | 클래스 | 크기 / 굵기 |
-|------|--------|-------------|
-| 페이지·대화상자 제목 | `text-page-title` | 24px / 600 |
-| 위젯 제목 | `text-section-title` | 20px / 600 |
-| 섹션 구분 | `text-section-label` | 18px / 600 |
-| 본문·표의 주요 값 | `text-body` | 20px / 400 |
-| 레이블·표의 보조 값 | `text-label` | 18px / 400 |
-| 설명·배지 | `text-caption` | 16px / 400 |
-| 입력·버튼·탐색 | `text-control` | 14px / 500 |
-| 작은 컨트롤 레이블 | `text-control-label` | 12px / 500 |
-| 대표 지표 | `text-metric`, `text-metric-hero` | 48px, 57px / 600 |
+화면 글꼴 크기는 아래 세 단계로 제한합니다. `typography.size`의 의미별 클래스는 이 세 값만 사용하며, 화면 너비에 따라 다른 글꼴 크기로 바꾸지 않습니다.
 
-본문 강조에는 `font-medium`(500), 제목·지표에는 `font-semibold`(600)을 사용합니다. 기존 `text-ui-*`는 같은 상수를 참조하는 호환 이름입니다. 차트 축·범례·레이블은 11px이고 PDF 차트 글자는 14px입니다. PDF는 기존 NanumGothic 글꼴과 라이트 팔레트를 유지하며, 업로드 문서·스프레드시트 본문은 원래 서식을 보존합니다.
+| 단계 | 역할 / 클래스 | 크기 |
+|------|----------------|------|
+| 제목·핵심 지표 | `text-page-title`, `text-metric`, `text-metric-hero`, `text-metric-compact` | 24px |
+| 본문·위젯 제목 | `text-body`, `text-label`, `text-section-title`, `text-section-label` | 16px |
+| 보조 정보·컨트롤 | `text-caption`, `text-control`, `text-control-label`, 차트 축·범례·레이블 | 14px |
+
+굵기는 `font-normal`(400), `font-medium`(500), `font-semibold`(600) 세 단계입니다. 일반 본문·설명은 400, 버튼·레이블 강조는 500, 제목·주요 숫자는 600을 사용합니다. `text-ui-*`와 `font-bold`는 기존 사용처를 위한 호환 이름이며 별도 크기나 굵기를 추가하지 않습니다. 제목·지표의 행간은 1.4, 본문·보조 정보는 1.5로 맞춥니다.
+
+PDF는 기존 NanumGothic 글꼴과 인쇄용 조판을 유지하며, PDF 차트 글자는 14px입니다. 업로드 문서·스프레드시트 본문은 원래 서식을 보존합니다.
