@@ -11,7 +11,7 @@ import LazyGenerateReportModal from '@/presentation/components/common/LazyGenera
 const tabs = [
   { to: '/',        label: '대시보드', icon: <LayoutDashboard size={20} /> },
   { to: '/issues',  label: '이슈 관리', icon: <ListChecks size={20} /> },
-  { to: '/sla-dashboard', label: 'SLA 대시보드', icon: <Gauge size={20} /> },
+  { to: '/sla-dashboard', label: '장기 이슈', icon: <Gauge size={20} /> },
   { to: '/c-level-report', label: 'C-Level', icon: <Presentation size={20} /> },
   { to: '/history', label: '히스토리',   icon: <History        size={20} /> },
   { to: '/sites',   label: '사이트',     icon: <Building2      size={20} /> },

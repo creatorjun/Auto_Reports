@@ -7,12 +7,12 @@ import { useSlaDashboardIssues } from '@/presentation/hooks/useSlaDashboard'
 export default function SlaDashboardPage() {
   const { data: issues = [], isLoading, isError, refetch } = useSlaDashboardIssues()
 
-  if (isLoading) return <LoadingSpinner text="SLA 대시보드 로딩 중..." />
+  if (isLoading) return <LoadingSpinner text="장기 이슈 로딩 중..." />
 
   return (
     <div className="mx-auto w-full max-w-content space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-apple-dark">SLA 대시보드</h1>
+        <h1 className="text-xl font-semibold text-apple-dark">장기 이슈</h1>
         <p className="mt-1 text-[13px] text-apple-light">
           최근 이슈 현황 기반 · 최신 {issues.length}건
         </p>

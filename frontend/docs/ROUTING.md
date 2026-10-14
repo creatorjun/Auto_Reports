@@ -8,7 +8,7 @@
 |------|----------|------|------|
 | `/login` | `LoginPage` | 불필요 | 로그인 |
 | `/` | `DashboardPage` | 필요 | 최신 보고서 대시보드 |
-| `/sla-dashboard` | `SlaDashboardPage` | 필요 | 최근 이슈 활동과 최근 댓글 SLA 대시보드 |
+| `/sla-dashboard` | `SlaDashboardPage` | 필요 | 장기 이슈: 최근 이슈 활동과 최근 댓글 |
 | `/history` | `HistoryPage` | 필요 | 보고서 목록 |
 | `/reports/:id` | `DashboardPage` | 필요 | 특정 보고서 대시보드 |
 | `/partners` | `PartnerManagementPage` | 필요 | 파트너 관리 |

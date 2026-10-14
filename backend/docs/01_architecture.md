@@ -70,7 +70,7 @@ Jira 필드 선택은 `JiraIssueField`로 표현합니다. `issuetype`, `resolut
 
 `presentation/email/issue_notification_renderer.py`는 알림 레이아웃을 렌더링합니다. `Container`가 이 구현을 알림 유스케이스에 주입하며, 기준 시각은 유스케이스가 전달합니다. SMTP 전송은 기존 Email 포트와 Infrastructure adapter를 그대로 사용합니다.
 
-Presentation dependency는 이미 조립된 유스케이스 또는 요청 단위 factory만 소비합니다. SLA 대시보드처럼 보고서 저장소와 Jira 포트가 함께 필요한 유스케이스도 라우터에서 생성하지 않고 `Container.get_sla_dashboard()`가 조립합니다.
+Presentation dependency는 이미 조립된 유스케이스 또는 요청 단위 factory만 소비합니다. 장기 이슈처럼 보고서 저장소와 Jira 포트가 함께 필요한 유스케이스도 라우터에서 생성하지 않고 `Container.get_sla_dashboard()`가 조립합니다.
 
 ### Bootstrap
 

@@ -78,7 +78,7 @@ Jira 검색은 3개 대상 유형의 생성·해결·상태 변경 기간과 현
 
 ## 아키텍처와 배포
 
-Domain은 Jira 상태·SLA 측정 주기·코멘트·스냅샷 모델을 소유합니다. Application은 기간·이력·집계 정책과 조회/저장 유스케이스 및 포트를 소유합니다. Infrastructure는 Jira HTTP, Assets, 캐시, SQLAlchemy 구현을 소유하고 Presentation은 FastAPI 계약을 제공합니다. 모든 구현은 기존 `Container`에서 조립하고 HTTP·DB·캐시 수명은 종료 시 정리합니다. 기존 보고서 수집기와 SLA 대시보드 집계는 변경하지 않습니다.
+Domain은 Jira 상태·SLA 측정 주기·코멘트·스냅샷 모델을 소유합니다. Application은 기간·이력·집계 정책과 조회/저장 유스케이스 및 포트를 소유합니다. Infrastructure는 Jira HTTP, Assets, 캐시, SQLAlchemy 구현을 소유하고 Presentation은 FastAPI 계약을 제공합니다. 모든 구현은 기존 `Container`에서 조립하고 HTTP·DB·캐시 수명은 종료 시 정리합니다. 기존 보고서 수집기와 장기 이슈 집계는 변경하지 않습니다.
 
 Alembic `0015_add_c_level_reports`가 기존 테이블을 변경하지 않고 `c_level_comments`, `c_level_snapshots` 테이블을 추가합니다. 기존 컨테이너 시작 절차의 `alembic upgrade head`로 적용됩니다. 백엔드와 프런트엔드를 함께 다시 빌드합니다.
 
