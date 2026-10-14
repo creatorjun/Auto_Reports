@@ -56,7 +56,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
       className={[
         sidebarCollapsed ? 'w-14 3xl:w-16' : 'w-56 xl:w-60 2xl:w-64 3xl:w-72',
         'bg-apple-surface border-r border-apple-divider/80',
-        'flex flex-col py-5 3xl:py-7 px-2 3xl:px-3',
+        'flex flex-col whitespace-nowrap py-5 3xl:py-7 px-2 3xl:px-3',
         'transition-all duration-250 ease-in-out flex-shrink-0',
       ].join(' ')}
     >
@@ -106,7 +106,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                     else setGroupExpanded(item.id, !expanded)
                   }}
                   className={[
-                    'nav-link w-full text-left text-control 3xl:py-2.5',
+                    'nav-link min-h-10 w-full text-left text-control 3xl:py-2.5',
                     sidebarCollapsed ? 'justify-center px-0' : '',
                     active ? 'nav-link-active' : '',
                   ].join(' ')}
@@ -152,7 +152,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
               end={to === '/'}
               title={sidebarCollapsed ? label : undefined}
               className={({ isActive }) =>
-                ['nav-link',
+                ['nav-link min-h-10',
                  sidebarCollapsed ? 'justify-center px-0' : '',
                  isActive ? 'nav-link-active' : '',
                  '3xl:text-control 3xl:py-2.5',
@@ -166,7 +166,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
         })}
         {!me.isError && canViewAuditLogs(me.data) && (
           <NavLink to="/audit-logs" title={sidebarCollapsed ? '감사로그' : undefined}
-            className={({ isActive }) => ['nav-link 3xl:text-control 3xl:py-2.5', sidebarCollapsed ? 'justify-center px-0' : '', isActive ? 'nav-link-active' : ''].join(' ')}>
+            className={({ isActive }) => ['nav-link min-h-10 3xl:text-control 3xl:py-2.5', sidebarCollapsed ? 'justify-center px-0' : '', isActive ? 'nav-link-active' : ''].join(' ')}>
             <ShieldCheck size={16} className="flex-shrink-0" />
             {!sidebarCollapsed && <span>감사로그</span>}
           </NavLink>
