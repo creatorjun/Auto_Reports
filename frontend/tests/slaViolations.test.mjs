@@ -39,6 +39,7 @@ const load = sourceLoader()
 const { slaDateRange, slaToday, slaTicketsForMetric, slaPartnersLabel } = load('application/services/slaViolationReport')
 const { slaCreatedDate } = load('presentation/utils/slaViolationFormatters')
 const { filterSlaViolationTickets, slaViolationFilterOptions } = load('domain/SlaViolationFilters')
+const { sortSlaViolationTickets } = load('domain/SlaViolationSort')
 const ticket = {
   key: 'TACEA-1234', summary: '[서울 교통공사] MF2 컴포넌트 개선의 건', issue_type: '서비스 요청', created_at: '2026-05-05T16:00:00Z', elapsed_days: 123,
   customer: '서울교통공사', partners: [], reporter: '김영준 과장', assignee: '조장희 수석', tac_assignee: '한준희 선임', current_status: '결과 대기 중',
@@ -99,6 +100,45 @@ test('metric lists include dual breaches in both groups exactly once and preserv
   assert.equal(slaPartnersLabel([]), '본사')
   assert.equal(slaPartnersLabel(null), '확인 불가')
   assert.equal(slaPartnersLabel(['에이치씨인포', '파트너2']), '에이치씨인포, 파트너2')
+})
+
+test('SLA columns sort naturally by number, Korean text, type, actual creation time, and numeric age', () => {
+  const rows = [
+    { ...ticket, key: 'TACEA-10', summary: '나 고객사', issue_type: '서비스 요청', created_at: '2026-06-30T17:00:00Z', elapsed_days: 100 },
+    { ...ticket, key: 'TACEA-2', summary: '다 고객사', issue_type: '인시던트', created_at: '2026-07-01T01:00:00+09:00', elapsed_days: 9 },
+    { ...ticket, key: 'TACEA-1', summary: '가 고객사', issue_type: '개선', created_at: '2026-07-01T02:30:00+09:00', elapsed_days: 20 },
+  ]
+  const original = structuredClone(rows)
+  const expected = {
+    key: ['TACEA-1', 'TACEA-2', 'TACEA-10'],
+    summary: ['TACEA-1', 'TACEA-10', 'TACEA-2'],
+    issue_type: ['TACEA-1', 'TACEA-10', 'TACEA-2'],
+    created_at: ['TACEA-2', 'TACEA-10', 'TACEA-1'],
+    elapsed_days: ['TACEA-2', 'TACEA-1', 'TACEA-10'],
+  }
+  assert.strictEqual(sortSlaViolationTickets(rows, null), rows)
+  for (const [key, ascending] of Object.entries(expected)) {
+    assert.deepEqual(sortSlaViolationTickets(rows, { key, direction: 'asc' }).map((row) => row.key), ascending)
+    assert.deepEqual(sortSlaViolationTickets(rows, { key, direction: 'desc' }).map((row) => row.key), [...ascending].reverse())
+  }
+  assert.deepEqual(rows, original)
+})
+
+test('SLA sorting preserves tied rows, equivalent offsets, legacy unknown types, and filter membership', () => {
+  const rows = [
+    { ...ticket, key: 'TACEA-20', issue_type: null, created_at: '2026-07-01T00:00:00+09:00' },
+    { ...ticket, key: 'TACEA-3', issue_type: undefined, created_at: '2026-06-30T15:00:00Z' },
+    { ...ticket, key: 'TACEA-1', issue_type: '인시던트', created_at: '2026-06-30T14:59:59Z' },
+  ]
+  for (const direction of ['asc', 'desc']) {
+    assert.deepEqual(sortSlaViolationTickets(rows.slice(0, 2), { key: 'created_at', direction }), rows.slice(0, 2))
+    assert.deepEqual(sortSlaViolationTickets(rows.slice(0, 2), { key: 'issue_type', direction }), rows.slice(0, 2))
+  }
+  const filtered = filterSlaViolationTickets(rows, new Set(['확인 불가']), null, 'h2')
+  assert.deepEqual(sortSlaViolationTickets(filtered, { key: 'key', direction: 'asc' }).map((row) => row.key), ['TACEA-3', 'TACEA-20'])
+  assert.deepEqual(sortSlaViolationTickets([], { key: 'elapsed_days', direction: 'asc' }), [])
+  const sameDisplay = [{ ...ticket, key: 'TACEA-10', issue_type: '라이센스' }, { ...ticket, key: 'TACEA-2', issue_type: '라이선스' }]
+  for (const direction of ['asc', 'desc']) assert.deepEqual(sortSlaViolationTickets(sameDisplay, { key: 'issue_type', direction }), sameDisplay)
 })
 
 test('SLA filter options include every saved type and explicitly retain legacy unknown types', () => {
@@ -259,21 +299,112 @@ test('ticket rows start folded, use a separate accessible disclosure, and show o
   assert.match(textOf(link), /2026-05-06/)
   assert.match(textOf(link), /123/)
   assert.match(textOf(link), /서비스 요청/)
-  const columns = view.root.findAllByType('div').find((node) => node.props['aria-hidden'] === 'true')
-  assert.deepEqual(columns.findAllByType('span').map((node) => textOf(node)), ['번호', '제목', '유형', '생성일', '경과일', '상세'])
-  assert.equal(view.root.findByType('button').props['aria-expanded'], false)
+  for (const label of ['번호', '제목', '유형', '생성일', '경과일']) assert.equal(view.root.findByProps({ 'aria-label': `${label} 오름차순 정렬` }).props['aria-pressed'], false)
+  const disclosure = () => view.root.findAllByType('button').find((button) => button.props['aria-controls'])
+  assert.equal(disclosure().props['aria-expanded'], false)
   assert.equal(link.findAllByType('button').length, 0)
   assert.doesNotMatch(textOf(view.toJSON()), /김영준 과장/)
-  act(() => view.root.findByType('button').props.onClick())
-  assert.equal(view.root.findByType('button').props['aria-expanded'], true)
+  act(() => disclosure().props.onClick())
+  assert.equal(disclosure().props['aria-expanded'], true)
   const content = textOf(view.toJSON())
   for (const value of ['본사', '김영준 과장', '조장희 수석', '한준희 선임', '결과 대기 중', '3.25', '120.5', '2026. 05. 06.']) assert.ok(content.includes(value), value)
   assert.doesNotMatch(content, /2026\. 05\. 08\./)
-  act(() => view.root.findByType('button').props.onClick())
+  act(() => disclosure().props.onClick())
   assert.doesNotMatch(textOf(view.toJSON()), /김영준 과장/)
   act(() => view.update(React.createElement(List, { tickets: [{ ...ticket, issue_type: null }], metric: 'resolution' })))
   assert.match(textOf(view.root.findByType('a')), /확인 불가/)
-  assert.equal(view.root.findByType('button').props['aria-expanded'], false)
+  assert.equal(disclosure().props['aria-expanded'], false)
+})
+
+test('each SLA list keeps independent sorting and widths through filtering and same-report refresh', (t) => {
+  const rows = [{ ...ticket, key: 'TACEA-10', elapsed_days: 100 }, { ...ticket, key: 'TACEA-2', elapsed_days: 9 }, { ...ticket, key: 'TACEA-1', elapsed_days: 20 }]
+  const original = structuredClone(rows)
+  const instance = sourceLoader({ 'presentation/context/JiraContext': { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) } })
+  const Content = instance('presentation/components/sla-violations/SlaViolationReportContent').default
+  const List = instance('presentation/components/sla-violations/SlaViolationList').default
+  let current = { ...report, tickets: rows }
+  const element = () => React.createElement(Content, { key: current.id, report: current })
+  let view
+  act(() => { view = TestRenderer.create(element()) })
+  t.after(() => act(() => view.unmount()))
+  const list = (metric = 'initial_response') => view.root.findAllByType(List).find((node) => node.props.metric === metric)
+  const keys = (metric) => list(metric).findAllByType('a').map((node) => node.props.href.split('/').at(-1))
+  const click = (name) => act(() => list().findByProps({ 'aria-label': name }).props.onClick())
+  click('번호 오름차순 정렬')
+  assert.deepEqual(keys(), ['TACEA-1', 'TACEA-2', 'TACEA-10'])
+  assert.deepEqual(keys('resolution'), ['TACEA-10', 'TACEA-2', 'TACEA-1'])
+  click('번호 오름차순 정렬 중, 내림차순 정렬')
+  assert.deepEqual(keys(), ['TACEA-10', 'TACEA-2', 'TACEA-1'])
+  click('경과일 오름차순 정렬')
+  assert.deepEqual(keys(), ['TACEA-2', 'TACEA-1', 'TACEA-10'])
+  click('TACEA-2 상세 펼치기')
+  click('경과일 오름차순 정렬 중, 내림차순 정렬')
+  assert.deepEqual(keys(), ['TACEA-10', 'TACEA-1', 'TACEA-2'])
+  const separator = (metric) => list(metric).findByProps({ role: 'separator', 'aria-label': '번호 열 너비 조절' })
+  const initialWidth = separator().props['aria-valuenow']
+  act(() => separator().props.onKeyDown({ key: 'ArrowRight', shiftKey: false, preventDefault() {}, stopPropagation() {} }))
+  assert.equal(separator().props['aria-valuenow'], initialWidth + 1)
+  assert.equal(separator('resolution').props['aria-valuenow'], initialWidth)
+  current = { ...current, tickets: rows.filter((row) => row.key !== 'TACEA-1').map((row) => ({ ...row })) }
+  act(() => view.update(element()))
+  assert.deepEqual(keys(), ['TACEA-10', 'TACEA-2'])
+  assert.equal(separator().props['aria-valuenow'], initialWidth + 1)
+  assert.equal(list().findByProps({ 'aria-label': 'TACEA-2 상세 접기' }).props['aria-expanded'], true)
+  act(() => list().findByType('select').props.onChange({ target: { value: 'key' } }))
+  assert.deepEqual(keys(), ['TACEA-2', 'TACEA-10'])
+  current = { ...report, id: 11, tickets: rows }
+  act(() => view.update(element()))
+  assert.deepEqual(keys(), ['TACEA-10', 'TACEA-2', 'TACEA-1'])
+  assert.equal(separator().props['aria-valuenow'], initialWidth)
+  assert.equal(list().findByProps({ 'aria-label': 'TACEA-2 상세 펼치기' }).props['aria-expanded'], false)
+  assert.deepEqual(rows, original)
+})
+
+test('SLA column resizing clamps adjacent widths without moving other columns or changing the total', () => {
+  const { DEFAULT_SLA_COLUMN_WIDTHS: widths, resizeSlaColumnWidths: resize } = load('presentation/components/sla-violations/SlaViolationTableHeader')
+  const original = { ...widths }
+  for (const delta of [-100, -0.03, 0.1, 100]) {
+    const changed = resize(widths, 'key', 'summary', delta)
+    assert.ok(Math.abs(Object.values(changed).reduce((sum, value) => sum + value, 0) - 1) < 1e-12)
+    assert.ok(changed.key >= 0.08 && changed.summary >= 0.18 - 1e-12)
+    for (const key of ['issue_type', 'created_at', 'elapsed_days']) assert.equal(changed[key], widths[key])
+  }
+  assert.strictEqual(resize(widths, 'key', 'summary', NaN), widths)
+  assert.deepEqual(widths, original)
+})
+
+test('SLA resize pointer capture cancels cleanly and never sorts or follows a row link', (t) => {
+  const Header = sourceLoader()('presentation/components/sla-violations/SlaViolationTableHeader').default
+  const { DEFAULT_SLA_COLUMN_WIDTHS: widths } = load('presentation/components/sla-violations/SlaViolationTableHeader')
+  const previousWindow = globalThis.window
+  globalThis.window = { getComputedStyle: () => ({ paddingLeft: '4px', paddingRight: '4px', columnGap: '16px' }) }
+  t.after(() => { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow })
+  let sorts = 0
+  const deltas = []
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(Header, { label: '최초응답 위반', widths, sort: null, onSort: () => { sorts += 1 }, onResize: (...args) => deltas.push(args) }), { createNodeMock: () => ({ getBoundingClientRect: () => ({ width: 1008 }) }) }) })
+  t.after(() => act(() => view.unmount()))
+  const handle = view.root.findByProps({ role: 'separator', 'aria-label': '번호 열 너비 조절' })
+  const captured = new Set()
+  const currentTarget = { focus() {}, setPointerCapture: (id) => captured.add(id), hasPointerCapture: (id) => captured.has(id), releasePointerCapture: (id) => captured.delete(id) }
+  const event = (clientX, pointerId = 1) => ({ clientX, pointerId, button: 0, currentTarget, preventDefault() {}, stopPropagation() {} })
+  act(() => handle.props.onPointerDown(event(10)))
+  assert.ok(captured.has(1))
+  act(() => handle.props.onPointerMove(event(103.6)))
+  assert.equal(deltas.length, 1)
+  assert.ok(Math.abs(deltas[0][2] - 0.1) < 1e-12)
+  act(() => handle.props.onPointerMove(event(150, 2)))
+  assert.equal(deltas.length, 1)
+  act(() => handle.props.onPointerCancel(event(103.6)))
+  assert.equal(captured.size, 0)
+  act(() => handle.props.onPointerMove(event(200)))
+  assert.equal(deltas.length, 1)
+  act(() => handle.props.onPointerDown(event(10)))
+  act(() => handle.props.onLostPointerCapture())
+  act(() => handle.props.onPointerMove(event(200)))
+  act(() => handle.props.onClick(event(200)))
+  assert.equal(deltas.length, 1)
+  assert.equal(sorts, 0)
 })
 
 test('page restores saved controls, separates changed conditions, and submits the chosen period', async (t) => {
