@@ -1,16 +1,23 @@
 # Frontend Components
 
+문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+
 기준 경로는 `src/presentation/components`입니다.
 
 | 폴더 | 책임 |
 |------|------|
-| `auth` | route 인증 가드 |
+| `auth` | 일반 route 인증 및 SuperadminRoute |
 | `layout` | Header, Sidebar, MobileTabBar, Outlet layout |
 | `common` | loading, error boundary, 검색, 보고서 생성, 공통 modal shell·table |
 | `cards` | AI, SLA, 숫자 summary card와 업무 유형별 열린 요청 건수 card |
 | `charts` | 월별, SLA, 사유, 처리시간, 유형 Recharts 시각화 |
 | `tables` | 이슈 종류별 modal과 history report table |
-| `history` | 보고서 삭제 확인 |
+| `history` | 일반·연간 보고서 삭제 확인 |
+| `annual` | 연간 생성·비교·차트 상세·재배포 품질 분석 |
+| `sla-violations` | SLA 개요·차트·접힌 표·상태별 시간·이력 |
+| `redeployments` | 재배포 상세 티켓 목록 |
+| `sla` | 장기 이슈 활동과 기본 펼침 댓글 |
+| `export` | PDF·Excel용 별도 렌더링 및 캡처 |
 | `partner` | 조직, 멤버, 이슈 panel과 row |
 | `site` | 생성 form helper와 node·patch·visit section/form |
 | `storage` | table, modal, icon, preview, link 복사와 표시 utility |
@@ -25,7 +32,15 @@
 
 ## 필터 전체 선택·해제
 
-`IssueTypeFilter`의 일괄 선택 버튼은 선택 가능한 요청 유형과 현재 상태가 모두 선택됐으면 `전체 해제`, 하나라도 빠졌으면 `전체 선택`을 표시합니다. 버튼을 누르면 두 그룹을 한 번에 선택하거나 해제하며 개별 항목을 바꿀 때도 문구가 즉시 갱신됩니다. 현재 대시보드·과거 보고서·연간 보고서·전체 이슈·파트너 관리가 같은 컴포넌트와 동작을 사용합니다. 반기와 제목·경과일·컬럼 검색은 별도 조건으로 유지하고, 선택할 항목이 없는 그룹이나 지원하지 않는 그룹은 일괄 선택 상태 판단에서 제외합니다.
+`IssueTypeFilter`의 일괄 선택 버튼은 선택 가능한 요청 유형과 현재 상태가 모두 선택됐으면 `전체 해제`, 하나라도 빠졌으면 `전체 선택`을 표시합니다. 버튼을 누르면 두 그룹을 한 번에 선택하거나 해제하며 개별 항목을 바꿀 때도 문구가 즉시 갱신됩니다. 현재 대시보드·과거 보고서·연간 보고서·전체 이슈·파트너 관리·SLA 현황이 같은 컴포넌트와 동작을 사용합니다. 반기와 제목·경과일·컬럼 검색은 별도 조건으로 유지하고, 선택할 항목이 없는 그룹이나 지원하지 않는 그룹은 일괄 선택 상태 판단에서 제외합니다.
+
+## SLA 개요와 표
+
+`SlaViolationReportContent`가 공통 필터와 상세 선택을 소유하고 `SlaViolationOverview`에 저장 데이터 집계를 전달합니다. 네 카드·현재 상태 분포·생성 추이는 순수 Domain 계산을 사용합니다. 상태·날짜·검색은 상세 목록에 교집합으로 적용하며, 위반 티켓 합계와 최초응답/해결 목록 건수는 중복 포함 의미가 다릅니다.
+
+`SlaViolationList`는 번호·제목·유형·생성일·경과일의 접힌 행, Jira 링크와 펼침, 정렬·인접 열 너비 조절을 담당합니다. `SlaStatusDurations`는 닫힘을 뺀 시간 합계의 비율 막대와 상태명·시간·비율 tooltip을 표시합니다. 리스트별 영속 설정은 `useTablePreferences`로 분리합니다. [SLA 계약](../../backend/docs/08_sla_violation_report.md)을 참고하세요.
+
+`BrandLogo`, `IssueTypeBadge`, `StatusBadge`는 공통 브랜드와 의미별 하이라이트를 담당합니다. 스타일 값을 개별 위젯에서 추가하지 않고 [디자인 토큰](SHARED.md)을 사용합니다.
 
 ## 이슈 컬럼 검색
 
@@ -37,7 +52,7 @@
 
 PDF와 Excel에는 내보내기 시작 시 복사한 검색 조건과 일치하는 전체 행을 포함하고 검색 입력 UI는 제외합니다. 내보내기 중 화면의 검색 조건을 바꿔도 파일의 결과는 바뀌지 않습니다.
 
-전체 이슈의 컬럼 검색 상태는 `IssueManagementPage`가 소유하고 `RecentIssuesWidget`에 전달합니다. 상단에서 PDF 또는 Excel (.xlsx)을 선택하면 업무 유형·현재 상태·반기·제목·적용된 경과일과 이슈·제목·진행 상태·보고자·담당자·TAC 담당자·생성일 (경과) 컬럼 검색을 함께 적용해 모든 페이지의 일치 행을 내보냅니다. 목록도 항목별로 복사하여 자동 동기화와 분리하고 적용 조건 및 마지막 동기화 시각을 기록합니다. 최초 수집이 끝나기 전에는 내보내기를 비활성화하며 빈 검색 결과도 그대로 내보냅니다.
+전체 이슈의 컬럼 검색 상태는 `IssueManagementPage`가 소유하고 `RecentIssuesWidget`에 전달합니다. 상단에서 PDF 또는 Excel (.xlsx)을 선택하면 업무 유형·현재 상태·반기·제목·적용된 경과일과 이슈·제목·티켓 타입·진행 상태·보고자·담당자·TAC 담당자·생성일 (경과) 컬럼 검색을 함께 적용해 모든 페이지의 일치 행을 내보냅니다. 목록도 항목별로 복사하여 자동 동기화와 분리하고 적용 조건 및 마지막 동기화 시각을 기록합니다. 최초 수집이 끝나기 전에는 내보내기를 비활성화하며 빈 검색 결과도 그대로 내보냅니다.
 
 ## 대시보드 다운로드
 

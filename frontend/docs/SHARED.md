@@ -1,5 +1,7 @@
 # Presentation Shared Elements
 
+문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+
 기존 `src/shared` catch-all 레이어는 제거했습니다. 모든 레이어가 자유롭게 참조하는 Shared 폴더는 의존 방향을 우회하기 쉬우므로, 항목을 실제 소유 레이어에 배치합니다.
 
 | 위치 | 책임 |
@@ -10,7 +12,10 @@
 | `presentation/config/constants.ts` | 차트·테이블·SLA 표시 상수 |
 | `presentation/config/designTokens.json` | 대시보드 기준 라이트·다크 팔레트, 글꼴·크기·굵기·행간, 차트 스타일, 모서리·콘텐츠 폭의 단일 원본 |
 | `presentation/config/ui.ts` | Tailwind 표시 토큰 |
-| `presentation/config/queryKeys.ts` | TanStack Query key |
+| `presentation/config/queryKeys.ts` | 기본 보고서·인증·설정 등의 Query key; 신규 기능 키는 해당 훅에서도 관리 |
+| `presentation/config/issueBadgeColors.ts` | 유형·상태 이름의 정규화와 공통 색상 mapping |
+| `presentation/components/common/BrandLogo.tsx` | 테마별 PNG 선택 |
+| `presentation/hooks/useTablePreferences.ts` | 표 정렬·너비의 검증·저장·복원 |
 | `presentation/utils/formatters.ts` | 날짜와 숫자 표시 formatter |
 
 새 공용 코드는 사용처가 넓다는 이유만으로 별도 Shared에 두지 않고, 변경 이유와 책임을 기준으로 소유 레이어를 정합니다.
@@ -28,5 +33,11 @@
 | 보조 정보·컨트롤 | `text-caption`, `text-control`, `text-control-label`, 차트 축·범례·레이블 | 14px |
 
 굵기는 `font-normal`(400), `font-medium`(500), `font-semibold`(600) 세 단계입니다. 일반 본문·설명은 400, 버튼·레이블 강조는 500, 제목·주요 숫자는 600을 사용합니다. `text-ui-*`와 `font-bold`는 기존 사용처를 위한 호환 이름이며 별도 크기나 굵기를 추가하지 않습니다. 제목·지표의 행간은 1.4, 본문·보조 정보는 1.5로 맞춥니다.
+
+## 브랜드와 표시 규칙
+
+`seculayer-wordmark-light.png`와 `seculayer-wordmark-dark.png`는 투명 배경의 글자가 포함된 이미지입니다. Header와 LoginPage는 BrandLogo를 사용하고 별도 SecuLayer 텍스트를 겹치지 않습니다. 헤더는 뷰포트 `left: 50%` 기준으로 배치해 사이드바 폭과 무관하게 가운데를 유지합니다. 기존 정사각형 `seculayer-logo.png`는 favicon 용도입니다.
+
+업무 유형·상태 배지와 SLA 체류 막대는 같은 의미의 색상 mapping을 공유합니다. 닫힘 별칭과 띄어쓰기 차이는 같은 색상이며 미등록 값은 중립색입니다. 정적 집계 기간·자동 저장·자동 갱신 사용법 안내를 새 페이지마다 추가하지 않습니다. 실제 데이터·단위·로딩·오류·누락 경고는 상태에 맞게 표시합니다.
 
 PDF는 기존 NanumGothic 글꼴과 인쇄용 조판을 유지하며, PDF 차트 글자는 14px입니다. 업로드 문서·스프레드시트 본문은 원래 서식을 보존합니다.

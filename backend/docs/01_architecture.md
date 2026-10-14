@@ -1,5 +1,7 @@
 # Backend Architecture
 
+문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+
 ## 의존성 규칙
 
 ```text
@@ -46,9 +48,9 @@
 
 `src/application/ports`에 Jira, Service Desk, AI, 이메일, 저장소, 캐시, 인증 토큰, 감사, 파일 저장소와 변환기, 잡 실행 계약이 있습니다. `use_cases`는 이 추상화만 조합하며 FastAPI 요청 객체, SQLAlchemy 세션, APScheduler를 받지 않습니다.
 
-Jira 필드 선택은 `JiraIssueField`로 표현합니다. `issuetype`, `resolutiondate`, `customfield_*`, SLA cycle, ADF와 rendered HTML 같은 공급자 표현의 해석은 Jira adapter 한 곳에만 있으며, Application은 불변 경계 타입의 속성만 사용합니다. Jira/Confluence 통합 검색 역시 Presentation에서 출력 포트를 직접 호출하지 않고 `SearchUseCase`를 통과합니다.
+일반 Jira 포트의 필드 선택은 `JiraIssueField`로 표현합니다. `issuetype`, `resolutiondate`, `customfield_*`, SLA cycle, ADF와 rendered HTML 같은 공급자 표현은 Infrastructure의 `JiraClient`와 전용 SLA·재배포 source adapter에서 내부 경계 타입으로 변환합니다. Application은 원시 Jira JSON을 해석하지 않습니다. Jira/Confluence 통합 검색도 `SearchUseCase`를 통과합니다.
 
-보고서 위젯 수집기는 시스템 시계를 직접 읽지 않습니다. 보고서 생성·갱신 경계에서 결정된 기준 시각을 전달받아 경과일과 미해결 처리 시간을 계산하므로, 과거/연간 보고서를 다시 생성해도 실행 시점에 따라 값이 바뀌지 않습니다.
+보고서 위젯 수집기는 생성·갱신 경계에서 정한 기준 시각을 전달받습니다. `ReportAssembler`는 조회 범위의 종료 시각(`now`)과 실제 수집 시각(`collected_at`)을 구분합니다. 최근 이슈의 경과일 등은 수집 시각을 사용하므로 과거 기간을 다시 생성해도 과거 시점의 상태를 완전히 재현하는 것은 아닙니다. 저장된 데이터만 다시 조회하는 것과 Jira를 재수집하는 것을 구분합니다.
 
 사이트 하위 엔티티 갱신은 frozen dataclass를 직접 변경하지 않고 `dataclasses.replace`로 새 값을 만든 뒤 aggregate 전체를 저장합니다. 없는 aggregate나 하위 엔티티는 `EntityNotFoundError`로 표현하고 HTTP 404 매핑은 바깥 레이어에서 수행합니다.
 
@@ -90,36 +92,26 @@ Presentation dependency는 이미 조립된 유스케이스 또는 요청 단위
 
 SSE는 조회한 `JobStatus`를 `wait_for_update()`에 전달합니다. 실행기는 대기자를 등록하기 전후로 상태를 다시 확인해 lost notification을 막고, 대기자 set은 종료 시 제거합니다.
 
+## 보고서와 캐시의 경계
+
+일반·연간 보고서는 `ReportScope`로 구분하고 `JobRunner`와 `ReportAssembler`를 공유합니다. 생성은 새 행을 저장하며 주기 갱신은 최신 일반 보고서와 현재 연도 전용 보고서의 위젯을 같은 ID에 갱신합니다. `scope=annual`은 최신 일반 보고서 조회와 자동 보존 정리에서 제외됩니다.
+
+SLA 현황은 `SlaViolationReportUseCase`가 기간별 티켓 수집과 저장을 담당하며 일반 보고서 job/SSE와 분리된 HTTP 요청입니다. 재배포 현황은 별도 수집·저장 포트와 DB advisory lock을 사용하고, 스케줄러는 매일 08시 KST 및 시작 시 보충 작업을 등록합니다. 자세한 동시성·저장 계약은 [SLA](08_sla_violation_report.md)와 [재배포](09_redeployment_report.md)에 있습니다.
+
+전체 이슈 캐시는 `IssueManagementUseCase`가 소유하며 목록 요청에서 백그라운드 갱신을 시작합니다. 첫 전체 수집, 30초 최소 갱신 간격, 2분 중첩 증분 조회, 1시간 경과 후 전체 재수집을 사용합니다. DB 스냅샷이 아니므로 프로세스 종료 시 소멸합니다. 응답의 목록 객체는 복사하여 호출자 변경이 내부 캐시를 오염시키지 않게 합니다.
+
+일반 보고서 w14의 상태 이력 계산은 잘못된 티켓 이력의 `ValueError`만 잡아 해당 이슈의 단계별 시간에서 제외하고 로그를 남깁니다. Jira 요청 실패·잘린 페이지 같은 공급자 오류는 전파합니다. SLA 현황의 불완전 이력은 위반 티켓 자체를 제외하지 않고 미확인 상세·경고로 보존합니다. 두 계약을 혼동하지 않습니다.
+
+보고서 목록 조회는 `find_summaries()`에서 위젯 JSON을 읽거나 복원하지 않습니다. 저장 위젯 복원은 타입 메타데이터만 제한적으로 캐시하고 가변 보고서 값을 전역 공유하지 않습니다.
+
 ## 검증
 
-### 2026-10-06 클린 아키텍처 검토
-
-기존 백엔드 실행 코드 135개, 운영 스크립트 10개와 마이그레이션 15개의 import·호출 구조를 검토했습니다. Domain/Application의 외부 프레임워크 의존, 계층 역방향 import, 순환 참조와 전역 설정 우회는 발견되지 않았습니다. 요청 단위 DB 트랜잭션, Container의 AI·Jira·캐시·이슈 동기화 종료, JobRunner·SSE 수명도 확인했습니다. 운영 스크립트와 migration entrypoint의 외부 구현 조립은 독립 실행 진입점의 책임으로 유지합니다.
-
-확인된 책임 혼합은 알림 유스케이스의 HTML 레이아웃 생성이며, 렌더링 포트와 Presentation 구현으로 분리했습니다. 두 메일의 기존 HTML을 고정 시각에서 변경 전 코드와 바이트 단위로 비교해 일치를 확인했습니다. 알림 대상·제목·중복 방지 정책을 유지하며, 렌더링과 발송 실패 후 재시도도 테스트했습니다.
-
-AST 경계 검사는 `from src import infrastructure`나 `from ... import presentation`처럼 패키지에서 직접 가져오는 import도 검사하도록 보강했습니다. Core에 HTML 레이아웃이 재도입되는 것도 차단합니다. 알림이 켜진 설정에서도 Bootstrap이 두 알림 유스케이스에 렌더러를 주입하는지 검증합니다. Docker 런타임에서 백엔드 223개 테스트가 통과했으며 Python 구문 검사도 통과했습니다. 외부 Jira 조회나 실제 메일 발송을 수행한 검증은 아닙니다.
-
-새 백엔드 이미지의 lifespan 시작·종료와 인증된 이력·최신·연간 보고서 API 조회도 확인했습니다. 실제 실행 중인 백엔드는 기존 이슈 캐시를 유지하도록 재시작하지 않았으며, 운영 서버에 배포하지 않았습니다.
-
-### 2026-10-06 성능 검토
-
-백엔드 실행 코드 135개 파일과 운영 스크립트 10개, 마이그레이션 15개를 대상으로 의존 관계, 반복 처리, DB 조회, 외부 요청, 비동기 작업과 리소스 수명을 검토했습니다. 프런트엔드 실행 코드 153개 파일, 스타일과 빌드·배포 설정도 함께 검토했습니다.
-
-보고서 이력 API는 `GetReportUseCase.get_summaries()`와 `ReportRepository.find_summaries()`를 사용합니다. SQL adapter는 위젯 JSON을 조회하거나 복원하지 않고 요약에 필요한 열만 읽습니다. 기존 상세 조회와 전체 `Report`를 반환하는 `find_all()` 계약은 유지하며, 다른 저장소 구현에는 기존 전체 조회를 사용하는 기본 요약 구현을 제공합니다. 이력 응답 필드, 정렬, 페이지 처리, 시간대와 인증 계약은 동일합니다.
-
-이슈 관리의 표시 목록은 성공한 Jira 동기화 또는 KST 날짜 변경 시 다시 계산합니다. 응답마다 별도 `RecentIssueDetail` 객체를 만들어 호출자의 변경이 이후 응답에 영향을 주지 않도록 합니다. Jira 동기화 주기, 증분 병합, 시간별 삭제 반영, 오류 시 기존 목록 유지와 종료 시 작업 취소는 유지합니다. 위젯 복원에는 상한이 있는 타입 메타데이터 캐시만 사용하며, 보고서 값과 가변 목록은 공유하지 않습니다.
-
-로컬 DB에서 20건의 이력 조회 결과를 기존 경로와 비교해 응답 일치를 확인했습니다. 같은 데이터의 반복 조회 5회 중앙값은 기존 전체 조회 약 90ms, 요약 조회 약 1ms였습니다. 이는 해당 데이터와 로컬 환경에서 DB 조회 및 객체 가공을 측정한 값이며 운영 서버의 전체 HTTP 응답 시간을 뜻하지 않습니다.
-
-3,000개 이슈 fixture를 동일 프로세스에서 기존 코드와 비교한 반복 조회 중앙값은 이슈 표시 목록 약 35.3ms에서 14.5ms, 위젯 복원 약 44.7ms에서 16.3ms였습니다. 표시 목록 캐시가 준비된 반복 조회 기준이며 최초 처리 시간이나 전체 HTTP 응답 시간을 뜻하지 않습니다. 추가된 표시 목록 캐시는 현재 이슈 수에 비례하는 메모리를 사용합니다.
-
-검증 결과는 백엔드 217개와 프런트엔드 260개 테스트 통과, Python 구문 검사, 프런트엔드 production build, 두 Docker 이미지 build와 Compose 설정 검사입니다. 새 백엔드 이미지에서 lifespan 시작·종료와 health·이력·최신·연간 보고서 API를 확인했습니다. 로컬 화면에서는 검색 결과 52개 이슈의 키를 PDF와 Excel에 담긴 전체 행과 대조했습니다. 프런트엔드는 로컬에 반영했으며, 기존 이슈 캐시를 유지하기 위해 실행 중인 백엔드는 재시작하지 않았습니다. 운영 서버는 배포하지 않았습니다.
-
-Jira 캐시의 만료 정책과 강제 갱신, 외부 요청 동시성, 파일 스트리밍·할당량 검사, 보고서 생성·알림, 인증·SSE 수명은 이번 변경 대상으로 삼지 않았습니다. 이 경로들은 기존 회귀 테스트와 의존·리소스 흐름 검토로 확인했습니다. 모든 외부 서비스와 운영 환경의 실제 실행을 보장하는 검증은 아닙니다.
+현재 구조의 유지 기준은 [검수 기준](05_issue_catalog.md)에 정리합니다. 과거 특정 날짜의 파일 수·벤치마크·테스트 통과 수는 현재 배포 보증으로 사용하지 않습니다.
 
 ```bash
 cd backend
 python -m unittest discover -s tests -v
 python -m compileall -q src tests
 ```
+
+운영 반영은 이 검사와 별도로 이미지 기동, DB revision, health와 필요한 실제 Jira 수집을 확인합니다. [운영 가이드](10_operations.md)를 참고하세요.

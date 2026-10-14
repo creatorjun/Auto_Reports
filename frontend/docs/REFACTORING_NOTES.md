@@ -1,30 +1,33 @@
-# Frontend Clean Architecture Audit
+# 구조 유지 기준과 변경 기록
 
-검수 기준일: 2026-08-12
-검수 범위: `frontend/src`, 타입 계약, 인증·SSE 비동기 경계, 빌드 구성, 문서
+문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
 
-| 기존 문제 | 리팩터링 결과 |
-|-----------|---------------|
-| Presentation이 구체 API module을 직접 import | `ApplicationServices` gateway와 Provider 주입 |
-| Infrastructure hook이 React, Zustand, Presentation 타입에 의존 | hook과 store를 Presentation으로 이동하고 Domain 모델 분리 |
-| axios client가 구체 auth store를 import | `AuthSessionPort`를 Composition Root에서 주입 |
-| Presentation이 axios 오류 구조를 해석 | Infrastructure가 `RequestError`로 정규화 |
-| 동시 401 queue 실패 시 Promise가 영구 대기 | 단일 refresh Promise를 공유하고 실패를 명시적으로 reject |
-| 컴포넌트 타입이 dashboard hook의 데이터 계약 | Dashboard 모델을 Domain으로 이동 |
-| 검색 타입이 API adapter 내부에 위치 | Search 모델을 Domain으로 이동 |
-| 모든 레이어가 참조하는 `shared` catch-all | 표시 상수·query key·formatter를 Presentation 소유로 이동 |
-| App 폴더가 router, context, store를 혼합 | App은 router와 shell만 유지하고 state/context는 Presentation으로 이동 |
-| 사이트 하위 변경 응답 타입이 백엔드와 불일치 | 전체 `SiteDetail` 반환 계약으로 정정 |
-| lockfile과 자동 의존 규칙 검사 부재 | pnpm lockfile과 Node architecture test 추가 |
+2026-10-14 구현 기준입니다. 과거 리팩터링에서 정리한 경계를 현재 기능에 맞춰 유지합니다. 과거 실행 파일 수·테스트 개수·벤치마크를 현재 배포 결과로 사용하지 않습니다.
 
-현재 의존 방향과 파일 주석 규칙은 `frontend/tests/architecture.test.mjs`로 강제합니다. TypeScript `noEmit` 검사와 Vite production build도 최종 검증에 포함합니다.
+| 변경 이유 | 현재 유지할 구조 |
+|---|---|
+| Presentation의 구체 API 결합 | ApplicationServices gateway와 Provider 주입 |
+| axios의 인증 store 결합 | main.tsx에서 AuthSessionPort 조립 |
+| HTTP 라이브러리 오류 누출 | RequestError로 정규화 |
+| 동시 401 대기열 미종료 | 하나의 refresh Promise 공유, 실패 시 reject·세션 제거 |
+| 화면 훅에 대시보드 계산 혼합 | application/services/dashboardData.ts |
+| UI에서 문서 형식 직접 해석 | PreviewParserPort + infrastructure/preview |
+| 전역 Shared로 의존 방향 우회 | Domain·Application·Presentation의 책임별 배치 |
+| 일반/연간 보고서 최신 상태 혼동 | scope별 query 및 생성 완료 처리 |
+| SLA 상세만으로 전체 파악 어려움 | 순수 요약·추이·검색 정책과 선택 가능한 개요 컴포넌트 |
+| 페이지별 색상·타이포그래피 불일치 | designTokens.json, 공통 배지, 3단계 크기·굵기 |
+| 표 재진입 시 설정 유실 | useTablePreferences의 목록별 localStorage 검증·복원 |
 
-## 2026-10-06 성능 검토
+대시보드 필터 메타데이터는 보고서가 바뀔 때 계산하고 선택 조건의 결과는 useMemo로 보관합니다. 전체 이슈·컬럼 검색은 조건이 없으면 원본 목록을 재사용하므로 호출자가 배열이나 행을 변경해서는 안 됩니다. 정렬과 내보내기는 별도 배열/스냅샷을 사용합니다.
 
-실행 코드 153개 파일의 의존 관계, 목록 순회·정렬, React 상태와 메모이제이션, 요청·타이머·객체 URL 수명, 동적 import와 배포 구성을 검토했습니다.
+## 현재 기능 범위
 
-- 대시보드의 유형·상태·반기 지원 정보는 보고서가 바뀔 때만 계산합니다. 필터를 바꾸면 해당 선택에 따른 통계와 목록은 다시 계산하며, 새 보고서에는 변경된 선택지와 지원 범위를 적용합니다. 직접 호출하는 `buildDashboardData()`는 매번 전달한 보고서를 해석하므로 별도 전역 캐시가 없습니다.
-- 전체 이슈와 컬럼 검색은 적용된 조건이 없으면 원본 목록을 재사용합니다. 호출자는 목록을 변경하지 않으며, 표시 정렬은 별도 배열에서 수행합니다. 빈 선택 집합은 계속 전체 해제를 뜻하고 공백 검색어는 전체 행을 표시합니다.
-- 연간 상세 목록은 검색어가 없으면 전체 목록을 다시 정규화하지 않습니다. 검색·페이지 처리와 원본 목록의 독립성은 유지합니다.
+C-Level 화면·로직은 제거했습니다. Rovo/A2A 분석은 제공하지 않습니다. 기존 `/sla-dashboard`는 장기 이슈, `/sla-violations`는 SLA 현황이며 사용자 메뉴명과 내부 호환 이름을 구분합니다. 히스토리는 페이지를 유지하고 대메뉴에서만 제거했습니다.
 
-3,000개 이슈를 사용하는 React 테스트 렌더러에서 필터를 반복 변경한 5회 중앙값은 약 1.29ms에서 0.40ms로 줄었습니다. 이 수치는 데이터 가공과 테스트 렌더러를 포함한 측정이며 실제 브라우저의 화면 표시 시간은 아닙니다. PDF·Excel의 모든 행과 필터 스냅샷, 전체 선택·해제, 라이센스와 숨겨진 유형 정책, 검색·정렬·페이지 상태는 기존 회귀 테스트로 함께 검증합니다.
+재배포 현황은 매일 08시 KST, SLA 현황은 기간별 수동 생성입니다. SLA 카드·차트·검색은 저장된 데이터에서 계산하고 과거 보고서의 값을 현재 Jira로 덮어쓰지 않습니다. 일반 보고서와 연간 일부 상세 차트의 현재 Jira 조회는 별도 계약입니다.
+
+## 검증과 유지보수
+
+`tests/architecture.test.mjs`가 import 방향·직접 네트워크 호출·주석 규칙을 검사합니다. SLA·재배포·보고서 생성·필터·내보내기·표 설정은 각 회귀 테스트에서 확인합니다. 전체 실행은 `node --test tests/*.test.mjs`, TypeScript와 번들 검증은 `pnpm build`입니다.
+
+연도 전환 시 `config/annualReports.ts`의 연도 목록·자동 조회 대상과 서버의 현재 연도 갱신 정책을 함께 확인합니다. 메뉴·API·데이터 정책을 변경하면 [사용 가이드](USER_GUIDE.md), [라우팅](ROUTING.md), [데이터 흐름](data-flow.md), 관련 백엔드 문서를 함께 갱신합니다. 문서에 실제 서버 검증 결과를 쓸 때에는 수행 날짜와 코드·DB revision, 테스트 범위를 명시합니다.

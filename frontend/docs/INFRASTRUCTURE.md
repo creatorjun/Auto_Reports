@@ -1,6 +1,8 @@
 # Frontend Infrastructure
 
-Infrastructure는 `src/infrastructure/api`의 HTTP adapter와 `src/infrastructure/export`의 PDF 생성 adapter를 포함합니다. React hook과 Zustand store는 이 레이어에 두지 않습니다.
+문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+
+Infrastructure는 `src/infrastructure/api`의 HTTP adapter와 `src/infrastructure/export`의 PDF·Excel 생성 adapter 및 `src/infrastructure/preview`의 파일 해석 adapter를 포함합니다. React hook과 Zustand store는 이 레이어에 두지 않습니다.
 
 ## HTTP client
 
@@ -25,13 +27,23 @@ client는 Presentation store를 직접 import하지 않습니다. `main.tsx`가 
 | `partnerApi.ts` | `PartnerGateway` | 파트너 조직, 멤버, 이슈 조회 |
 | `searchApi.ts` | `SearchGateway` | Jira 이슈 검색과 base URL 조회 |
 | `slaDashboardApi.ts` | `SlaDashboardGateway` | 최신 보고서 기반 이슈 활동과 offset에 따른 티켓별 댓글 페이지 조회 |
+| `slaViolationApi.ts` | `SlaViolationGateway` | SLA 생성, 최신·ID·이력 조회 |
+| `redeploymentApi.ts` | `RedeploymentGateway` | 최신 재배포 조회·갱신 |
+| `issueManagementApi.ts` | `ApplicationServices.issueManagement` | 전체 이슈 동기화 스냅샷 조회 |
+| `auditLogApi.ts` | `AuditLogGateway` | 관리자 감사로그 조건 조회 |
 | `storageApi.ts` | `StorageGateway` | 파일 목록, 업로드, 다운로드, 미리보기, 삭제 |
 
 위 HTTP adapter는 HTTP 응답을 Domain 모델로 반환합니다. 사이트 하위 리소스 변경 API는 백엔드 계약대로 갱신된 `SiteDetail` aggregate를 반환합니다.
 
 TanStack Query 기반 hook은 `src/presentation/hooks`에 있으며 `useApplicationServices()`로 위 gateway를 주입받습니다.
 
-## PDF 생성 adapter
+일반 보고서의 `watchJob`은 SSE와 polling 전환을 소유합니다. SLA·재배포 생성 요청은 최대 10분 HTTP timeout을 사용하며 별도 job stream이 없습니다. 취소 가능한 조회는 Application의 `CancellationSignal`을 받아 HTTP 취소로 연결합니다.
+
+`reportApi`는 연간 보고서와 차트 상세도 조회합니다. `slaDashboardApi`는 댓글 이미지 바이너리 조회를 지원합니다. 파일 변환 요청은 150초 timeout, 바이너리는 `BinaryContent`와 명시적 object URL 해제를 사용합니다.
+
+Vite 개발 프록시의 기본 backend 주소는 `http://backend:8000`입니다. 호스트에서 `pnpm dev`를 실행하면 이 이름이 해석되지 않을 수 있으므로 개발 주소/프록시를 실제 API 주소에 맞춰야 합니다. 빌드된 앱 기본 base URL은 `/api/v1`이며 Compose nginx가 이를 전달합니다.
+
+## PDF·Excel 생성 adapter
 
 `DashboardExportGateway.renderPdf(document)`와 `renderExcel(document)`은 같은 `DashboardPdfDocument`를 받아 `BinaryContent`를 반환하는 Application 계약입니다. `main.tsx`가 `dashboardPdfExporter`와 `dashboardExcelExporter`를 조립하여 `ApplicationServices.dashboardExport`에 주입하며, Presentation은 pdfmake나 xlsx를 직접 import하지 않습니다.
 

@@ -1,5 +1,7 @@
 # Data Model
 
+문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+
 Alembic `0018`은 재배포 스냅샷 테이블 `redeployment_reports`를 추가합니다. `id`, KST 날짜 유일 키 `snapshot_date`, `generated_at`, `generated_by`, 원본 티켓·JQL·경고를 포함한 JSONB `payload`를 저장하며 같은 날 갱신은 원자적으로 대체합니다. 자세한 계약은 [재배포 보고서](09_redeployment_report.md)를 참고하세요.
 
 PostgreSQL과 SQLAlchemy async ORM을 사용합니다. 영속성 모델은 `src/infrastructure/persistence`, 프레임워크 독립 모델은 `src/domain`에 있습니다.
@@ -14,8 +16,14 @@ PostgreSQL과 SQLAlchemy async ORM을 사용합니다. 영속성 모델은 `src/
 | week_start, week_end | date | 보고 범위 |
 | report_date | varchar | 표시용 보고서 날짜 |
 | widgets | jsonb | widget serializer 결과 |
-| ai_analysis | jsonb nullable | AI 요약, 위험, 권고, sentiment |
+| ai_analysis | jsonb nullable | 선택적 Gemini 요약, 위험, 권고, sentiment |
+| scope | varchar | `standard` 또는 `annual`, 기본 standard |
+| report_year | integer nullable | 연간 전용 보고서의 연도 |
 | created_at | timestamptz | 생성 시각, index |
+
+일반 보고서는 주·월·연 선택과 관계없이 `scope=standard`입니다. 연간 전용 메뉴는 `scope=annual`, `report_year`를 사용합니다. 최신 일반 조회는 standard만, 연도별 조회는 해당 annual만 선택합니다. 이력 목록은 두 scope 모두 포함합니다. 주기 갱신은 위젯·기간·표시 날짜를 갱신하지만 생성 ID·생성 시각·AI 분석은 유지합니다.
+
+자동 보존 정리는 새 보고서 생성 후 수행하며 standard의 `created_at`을 KST 기준 cutoff와 비교합니다. 기본 52주, 0은 비활성입니다. SLA·재배포와 연간 전용 보고서에는 이 정리를 적용하지 않습니다.
 
 ### jobs
 
@@ -47,13 +55,29 @@ site_id 외래키와 hostname, role, CPU core/thread, memory/disk 용량, OS, IP
 
 주간·월간·연간 SLA 현황 보고서의 `period`, `selected_date`, `start_date`, `end_date`, `generated_at`, `generated_by`, `ticket_count`, `initial_response_count`, `resolution_count`와 티켓 상세·데이터 경고를 담은 `payload` JSONB를 저장합니다. `0017_add_sla_violation_reports.py`로 생성하고 최신 보고서는 생성 시각·ID 내림차순으로 선택합니다. 일반 보고서와 독립된 불변 스냅샷이며 상세 이력은 [SLA 현황 보고서 문서](08_sla_violation_report.md)에 정리했습니다.
 
+### redeployment_reports
+
+| Column | Type | 설명 |
+|---|---|---|
+| id | integer PK | 저장 ID |
+| snapshot_date | date unique | 생성 시각의 KST 날짜 |
+| generated_at | timestamptz | 실제 수집 기준 시각 |
+| generated_by | varchar | 생성자 |
+| payload | jsonb | 기간 시작, 원본 JQL, 티켓·상세 사유·경고 |
+
+같은 날짜 갱신은 upsert로 대체하고 이전 날짜 행은 유지합니다. API는 최신 조회와 갱신만 제공하며 날짜별 이력 조회·삭제 API는 없습니다.
+
+### DB 밖의 데이터
+
+파일 보관함은 `storage_data`, 감사로그는 `audit_logs` 볼륨에 저장합니다. 전체 이슈와 Jira 조회 캐시는 프로세스 메모리, 화면의 테마·열 너비·정렬은 브라우저 localStorage입니다. PostgreSQL 백업만으로 이 데이터가 함께 보존되지는 않습니다.
+
 ## Domain aggregate
 
 `Site`는 `DeploymentNode`, `PatchHistory`, `VisitHistory`, `AccessCredentials`를 소유합니다. 하위 dataclass는 frozen이며 Application 유스케이스가 새 값으로 교체한 뒤 aggregate를 저장합니다. ORM relationship은 `delete-orphan` cascade로 aggregate 저장 정책을 구현합니다.
 
 `Report`는 `WidgetResult` map과 선택적 `AiAnalysis`를 가집니다. JSONB 변환은 `widget_serializer.py` adapter의 책임이고 Domain 모델은 JSONB나 SQLAlchemy를 알지 못합니다.
 
-widget ID는 영속성 계약으로 유지합니다. `0013_reorder_dashboard_widget_ids.py`는 기존 보고서 JSONB의 이전 키를 새 순번으로 변환합니다. 화면에서는 월별 해결시간 SLA 다음에 평균 소요 시간 그래프 두 개를 표시하며, 두 그래프는 `w14` 데이터를 공유합니다.
+widget ID는 영속성 계약으로 유지합니다. `0013_reorder_dashboard_widget_ids.py`는 기존 보고서 JSONB의 이전 키를 새 순번으로 변환합니다. 화면에서는 월별 해결시간 SLA 다음에 평균 소요 시간 그래프 두 개를 표시하며, 두 그래프는 `w14` 데이터를 공유합니다. `w15`는 연간 전용 재배포 품질 집계이며 독립 재배포 현황의 `redeployment_reports`와 다른 데이터입니다.
 
 ### 평균 소요 시간
 
@@ -61,11 +85,11 @@ widget ID는 영속성 계약으로 유지합니다. `0013_reorder_dashboard_wid
 
 화면의 기간·업무 유형·현재 상태 필터를 이슈별 집계에 적용합니다. 기간은 해결일 기준이며, 선택 기간에 해결된 이슈의 전체 처리 이력을 사용합니다. 요청 분류별 평균은 기존 `w14.by_type` 및 반기·현재 상태별 집계를 사용해 생성부터 해결까지의 시간을 표시합니다.
 
-`stage_issues`가 없는 기존 보고서는 이력 미수집 안내를 표시합니다. 재수집하면 새 필드가 저장되며 JSONB에 대한 스키마 마이그레이션은 필요하지 않습니다. 이력 요청은 최대 5개씩 병렬 실행합니다. 일반 수집에서는 이력 캐시를 5분간 사용하고, 수동 새로고침은 이를 우회합니다. 요청 실패나 잘린 페이지, 연결이 끊긴 상태 이력은 집계를 실패시켜 거짓 평균을 저장하지 않습니다.
+`stage_issues`가 없는 기존 보고서는 이력 미수집 안내를 표시합니다. 재수집하면 새 필드가 저장되며 JSONB에 대한 스키마 마이그레이션은 필요하지 않습니다. 이력 요청은 최대 5개씩 병렬 실행합니다. 일반 수집에서는 이력 캐시를 5분간 사용하고, 수동 새로고침은 이를 우회합니다. Jira 요청 실패나 잘린 페이지는 전파하여 정상 집계로 저장하지 않습니다. 개별 티켓의 잘못된 날짜·연결이 끊긴 상태 이력은 `ValueError`로 분리해 그 티켓의 `stage_issues`만 제외하고 키와 원인을 로그에 남깁니다. 유형별 평균과 정상 이슈는 유지하며, 이 경우 단계별 평균의 표본 수가 전체 해결 건수보다 작을 수 있습니다.
 
 ## Migration
 
-마이그레이션은 `backend/alembic/versions`에 있습니다.
+마이그레이션은 `backend/alembic/versions`에 있으며 현재 head는 `0018`입니다. `0014`는 annual scope, `0017`은 SLA, `0018`은 재배포 테이블을 추가합니다. Docker backend entrypoint는 서버 시작 전에 head까지 적용합니다. 백업·배포 절차는 [운영 가이드](10_operations.md)를 참고하세요.
 
 `0016_remove_c_level_reports.py`는 제거된 C-Level 기능의 `c_level_comments`, `c_level_snapshots` 테이블과 저장된 데이터를 삭제합니다. 기존 DB의 revision을 인식할 수 있도록 `0015` 생성 이력은 유지합니다. `0016`을 downgrade하면 빈 테이블 구조만 복원되며 삭제된 데이터는 복구되지 않습니다. 기존 보고서·사이트·파일 데이터와 감사로그는 유지합니다.
 

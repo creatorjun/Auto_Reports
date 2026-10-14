@@ -1,5 +1,7 @@
 # Frontend Architecture
 
+문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+
 ## 의존성 규칙
 
 ```text
@@ -70,6 +72,13 @@ pnpm build
 
 아키텍처 테스트는 TypeScript AST로 정적·상대·동적 import를 모두 확인하고, Presentation의 직접 네트워크 transport 사용과 Application 포트의 브라우저 파일 객체 누출을 차단합니다.
 
-2026-10-06 검토에서는 기존 실행 코드 153개 파일의 import 그래프와 순환 참조, 조립 지점, 화면·훅·어댑터 호출 경로를 확인했습니다. 대시보드 업무 계산과 파일 형식 해석의 책임을 분리했고, Presentation의 xlsx·mammoth 의존 및 대시보드 집계 함수 재도입을 차단하는 검사를 추가했습니다. 프런트엔드 269개 테스트와 production build가 통과했습니다. 실제 Excel·DOCX 데이터를 사용한 파서 검증, 기존 전체 선택·해제, 필터와 PDF·Excel snapshot 회귀 테스트도 포함합니다.
 
-Docker frontend 이미지 빌드 후 로컬 프런트엔드에 반영했습니다. 실제 2024 연간 보고서에서 전체 해제 시 선택 기간 지표가 0으로 바뀌고, 전체 선택 시 생성 748건·해결 573건으로 복원되는 것을 확인했습니다. 현재 보고서와 연간 비교표의 화면 렌더링도 확인했으며, 운영 서버는 배포하지 않았습니다.
+## 현재 기능별 계산 경계
+
+대시보드의 `application/services/dashboardData.ts`, 재배포의 `application/services/redeploymentReport.ts`, SLA의 `domain/SlaViolationFilters.ts`·`SlaViolationOverview.ts`·`SlaViolationSort.ts`가 화면과 독립적으로 계산합니다. SLA 요약과 차트 선택은 저장 보고서만 사용하므로 컴포넌트에서 별도 Jira 요청을 만들지 않습니다. 연간 일부 차트 상세는 `ReportGateway.getChartIssues`를 통해 현재 Jira를 조회하는 별도 계약입니다.
+
+주·월·연 날짜 계산은 `domain/ReportPeriod.ts`와 `application/services/reportPeriod.ts`를 공유합니다. 일반 보고서 생성은 layout 소유 SSE 구독, SLA·재배포 생성은 각 query mutation의 HTTP 응답으로 완료합니다. 같은 완료 추적 방식으로 설명하지 않습니다.
+
+테마와 3단계 글자 크기·굵기는 단일 디자인 토큰에서 정의하고, 배지 색상은 의미별 mapping으로 참조합니다. 표의 너비·정렬 영속화는 Presentation의 `useTablePreferences`가 담당하며 Domain 계산이나 API payload에 넣지 않습니다.
+
+과거 특정 검토의 파일 수·테스트 수·브라우저 결과는 현재 기능 보증으로 사용하지 않습니다. 변경 검증은 [구조 유지 기준](REFACTORING_NOTES.md)과 [운영 가이드](../../backend/docs/10_operations.md)에 따라 해당 작업의 결과로 기록합니다.

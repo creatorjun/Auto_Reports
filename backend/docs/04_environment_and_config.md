@@ -1,5 +1,7 @@
 # Environment and Configuration
 
+문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+
 `pydantic-settings`가 프로세스 환경과 실행 디렉터리의 `.env`를 읽습니다. 환경 변수 이름은 대소문자를 구분하지 않지만 배포 파일에서는 아래 대문자 표기를 권장합니다.
 
 ## Required
@@ -15,10 +17,10 @@
 | Variable | Default | 설명 |
 |----------|---------|------|
 | `PROJECT_KEY` | `TACEA` | 집계 프로젝트 |
-| `ISSUE_TYPES` | `["인시던트","개선","CVE","서비스 요청","H/W 장애 요청","승인된 서비스 요청"]` | Jira 프로젝트 유형 목록 조회 실패 시 사용할 대시보드 토글 기본값 |
+| `ISSUE_TYPES` | `["인시던트","개선","CVE","서비스 요청","H/W 장애 요청","승인된 서비스 요청","라이선스"]` | Jira 프로젝트 유형 목록 조회 실패 시 사용할 대시보드 토글 기본값 |
 | `ACTIVE_STATUSES` | 사내 기본 목록 | 활성 상태 JSON list |
 | `CLOSED_STATUSES` | 사내 기본 목록 | 종료 상태 JSON list |
-| `SLA_THRESHOLD_DAYS` | `30` | SLA 지연 기준 |
+| `SLA_THRESHOLD_DAYS` | `30` | 일반 대시보드의 지연 분류 기준. SLA 현황의 `breached=true` 판정을 대체하지 않음 |
 | `SLA_INITIAL_RESPONSE_FIELD_ID` | `customfield_12152` | 최초 응답 field |
 | `SLA_RESOLUTION_FIELD_ID` | `customfield_12151` | 해결 SLA field |
 | `JIRA_TAC_ASSIGNEE_FIELD_ID` | `customfield_10859` | 기존 담당자 표시·알림에서 우선 조회하는 호환 설정. 현재 Jira의 기본 ID는 파트너사 필드 |
@@ -65,10 +67,14 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 | `AI_ENABLED` | `true` | false면 AI 분석 생략 |
 | `STORAGE_DIR` | `/app/storage` | 파일 root |
 | `AUDIT_LOG_DIR` | `logs` | 감사로그 저장·조회 경로. Compose에서는 `/app/logs`로 고정하고 named volume에 보관 |
-| `SCHEDULE_CRON` | `0 23 * * 5` | 금요일 23시 |
+| `SCHEDULE_CRON` | `0 23 * * 5` | APScheduler 숫자 요일 기준 토요일 23시. 금요일은 `0 23 * * fri` |
 | `TZ` | `Asia/Seoul` | scheduler timezone |
-| `REFRESH_REPORT_ENABLED` | `true` | 최신 보고서 주기 갱신 |
+| `REFRESH_REPORT_ENABLED` | `true` | 최신 일반 및 현재 연도 전용 보고서의 기존 ID 주기 갱신 |
 | `REFRESH_REPORT_INTERVAL_MINUTES` | `5` | 갱신 주기 |
+
+Settings 기본값과 `.env.example`은 구분합니다. 예제는 `LOGIN=true`, 별도의 `ISSUE_TYPES` 목록 등 일부 값을 명시적으로 덮어씁니다. `AI_ENABLED=true`라도 Gemini key가 비어 있으면 클라이언트를 초기화하지 않고 분석 결과를 null로 반환합니다. 현재 Gemini 분석은 일반·연간 보고서의 종합 분석이고 SLA별 Rovo/A2A 분석이 아닙니다.
+
+APScheduler는 숫자 요일을 월요일=0으로 해석합니다. 재배포 현황의 매일 08시 KST 작업은 코드에 별도로 등록하며 `SCHEDULE_CRON`, `TZ`, `REFRESH_REPORT_ENABLED`와 독립적입니다. SLA 현황은 수동 생성만 제공합니다. 전체 이슈 동기화 간격과 재배포 시작일 2026-01-01은 환경 변수 설정이 아닙니다.
 
 LibreOffice는 문서 PDF 변환에 사용하며 실행 파일이 없으면 변환 endpoint가 명시적 오류를 반환합니다.
 
@@ -87,6 +93,19 @@ LibreOffice는 문서 PDF 변환에 사용하며 실행 파일이 없으면 변�
 | `NOTIFY_TAC_KEYWORD` | 사내 기본값 |
 
 SMTP host와 각 enable·recipient 조건이 모두 충족된 알림만 구성됩니다.
+
+## 실행 방식별 설정
+
+| 항목 | 적용 범위 |
+|---|---|
+| `APP_PORT=80` | Compose frontend의 호스트 포트. Settings 항목이 아님 |
+| `TZ`, `AUDIT_LOG_DIR` | 현재 Compose backend의 `environment`가 각각 `Asia/Seoul`, `/app/logs`로 명시하여 env_file 값보다 우선 |
+| `STORAGE_DIR` | 변경 시 Compose의 storage volume mount도 같은 경로로 맞춰야 함 |
+| `VITE_API_BASE_URL` | 프런트엔드 빌드/개발 시 API 주소. 기본 `/api/v1`, 이미 빌드된 nginx 컨테이너의 런타임 env로 바뀌지 않음 |
+| `CONFLUENCE_SPACE_KEY`, `CONFLUENCE_PARENT_PAGE_ID` | Settings에는 있으나 현재 수집/게시 경로에서 사용하지 않음. 자동 Confluence 게시 기능 없음 |
+| `DOMAIN`, `SSL_EMAIL` | 예제에 남은 값이며 현재 Compose에서 사용하지 않음. 자동 TLS 설정 기능 없음 |
+
+목록 설정은 JSON 배열 형식입니다. `.env` 변경은 프로세스 재생성 때 반영되며 frontend 빌드 시 설정과 구분합니다. API host를 로컬에서 직접 실행할 때는 `DB_HOST` 등 Compose 내부 이름을 실제 접근 주소로 조정합니다.
 
 ## Example
 

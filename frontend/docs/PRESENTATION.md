@@ -1,5 +1,7 @@
 # Presentation Layer
 
+문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+
 Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client state, Context, 표시 상수와 formatter를 소유합니다.
 
 앱 표시 이름은 `SecuLayer`이며 데스크톱·모바일 헤더, 로그인 화면과 브라우저 탭 제목에 동일하게 적용합니다. 헤더와 로그인 화면은 공통 `BrandLogo`를 통해 테마에 따라 투명 배경의 `src/assets/seculayer-wordmark-light.png` 또는 `seculayer-wordmark-dark.png` 원본만 표시하며 별도 텍스트를 붙이지 않습니다. 헤더 로고는 전체 브라우저 뷰포트의 가로 중앙에 고정하여 사이드바 펼침·접힘 및 좌우 컨트롤 너비에 영향을 받지 않습니다. 브라우저 탭 아이콘은 기존 `src/assets/seculayer-logo.png`를 사용합니다.
@@ -10,10 +12,12 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 |------|-------|------|
 | `LoginPage` | `/login` | credential 입력과 로그인 mutation |
 | `DashboardPage` | `/`, `/reports/:id`, `/reports/annual/:year` | 최신·선택·연간 보고서 dashboard, 기간별 생성·완료 card, 업무 유형별 열린 요청 card, PDF·Excel 내보내기 |
-| `SlaViolationPage` | `/sla-violations`, `/sla-violations/history/:id` | 최초응답·해결 SLA 위반의 기간별 생성·자동 저장, 요청 유형·현재 상태·반기 필터, 최신·저장 보고서와 접기/펼치기 |
+| `SlaViolationPage` | `/sla-violations`, `/sla-violations/history/:id` | 기간별 생성·저장, 공통 필터, 4개 요약 카드·상태 분포·생성 추이·검색과 접힌 목록 |
+| `RedeploymentPage` | `/redeployments` | 원인·월별 현황, 카드·검색·교집합 선택과 수동 갱신 |
+| `AuditLogPage` | `/audit-logs` | SUPERADMIN의 감사로그 검색·상세 조회 |
 | `IssueManagementPage` | `/issues` | 전체 이슈 조회, 공통 필터·컬럼 검색, 전체 검색 결과 PDF·Excel 내보내기 |
 | `SlaDashboardPage` | `/sla-dashboard` | 장기 이슈 메뉴: 최근 이슈 티켓의 활동 정보와 기본 펼침 댓글 목록·5개씩 더보기 |
-| `HistoryPage` | `/history` | 보고서 pagination, 선택, 삭제 |
+| `HistoryPage` | `/history` | 일반·연간 보고서 pagination·선택·삭제 및 SLA 이력 조회 |
 | `PartnerManagementPage` | `/partners` | 조직·멤버·이슈 탐색 |
 | `StoragePage` | `/storage` | 폴더 탐색, 업로드, 삭제, preview |
 | `StoragePreviewPage` | `/storage/preview` | 공유 가능한 preview route shell |
@@ -32,6 +36,10 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 | `useReport` | 보고서 query·delete·refresh polling |
 | `useJobStream` | SSE 우선, polling fallback |
 | `useTrigger` | 전역 trigger 상태 연결 |
+| `useRedeployments` | 최신 재배포 60초 조회와 갱신 mutation |
+| `useIssueManagement` | 전체 이슈 수집 중 2초, 그 외 30초 조회 |
+| `useAuditLogs` | 관리자 감사로그 조건별 조회 |
+| `useTablePreferences` | SLA·대시보드 표 정렬과 너비 localStorage 보존 |
 | `useStorage` | 파일·폴더 query와 mutation |
 | `useDashboardData` | widget map을 표시 모델로 변환하고 w7 미완료 상세를 업무 유형별 열린 요청 현황으로 분류 |
 | `useSlaDashboard` | 장기 이슈 목록 query와 펼쳐진 행의 최신 댓글 조회 범위를 5개→10개→15개로 늘리는 infinite query |
@@ -57,7 +65,7 @@ SLA의 상태별 체류 기간은 `slaVisibleStatusDurations`에서 닫힘(`닫�
 
 `useTablePreferences`는 SLA 최초응답·해결 목록과 대시보드 최근 이슈 표의 정렬·너비를 각각 별도 키로 브라우저 `localStorage`에 저장합니다. 보고서 ID와 무관하게 새로고침, 메뉴 재진입, 다른 보고서 조회 후에도 복원합니다. 같은 브라우저·사이트에서 사용하는 표시 설정이며 티켓 데이터, 필터와 페이지 번호는 저장하지 않습니다. 저장된 버전·정렬 컬럼·방향·열 최소 너비·너비 합계를 검증하고 저장소 접근 실패는 화면 동작을 중단하지 않습니다. `DashboardContent`가 `tablePreferenceKey`를 전달하므로 일반·저장·연간 보고서의 최근 이슈 표는 같은 설정을 사용하고 전체 이슈 표와는 분리됩니다. PDF·Excel용 숨김 렌더링은 이 설정을 읽거나 덮어쓰지 않습니다.
 
-SLA 티켓 행은 처음에 펼쳐져 있으며 최신 댓글 5개를 표시합니다. 데스크톱과 모바일은 같은 댓글 패널을 사용하고, `댓글 더보기`를 누를 때마다 최신 댓글을 처음부터 10개, 15개 순으로 다시 조회합니다. 조회에 성공하면 누적 범위의 최신 응답으로 목록을 갱신하고 작성 시각이 최신인 댓글부터 표시하므로, 클릭 사이에 추가된 댓글도 반영됩니다. 마지막 댓글까지 조회하면 더보기 버튼을 숨기며, 조회가 실패하면 기존 댓글을 유지하고 다시 시도할 수 있습니다.
+**장기 이슈**의 티켓 행은 처음에 펼쳐져 있으며 최신 댓글 5개를 표시합니다. 데스크톱과 모바일은 같은 댓글 패널을 사용하고, `댓글 더보기`를 누를 때마다 최신 댓글을 처음부터 10개, 15개 순으로 다시 조회합니다. 조회에 성공하면 누적 범위의 최신 응답으로 목록을 갱신하고 작성 시각이 최신인 댓글부터 표시하므로, 클릭 사이에 추가된 댓글도 반영됩니다. 마지막 댓글까지 조회하면 더보기 버튼을 숨기며, 조회가 실패하면 기존 댓글을 유지하고 다시 시도할 수 있습니다.
 
 기본 대시보드와 연간 보고서의 요청 유형 선택항목에서는 `승인된 서비스 요청`과 `케이스`를 제거하지만, 해당 유형의 이슈는 다른 유형을 선택하거나 해제해도 기존 필터 목록 밖 유형처럼 통계와 상세 목록에 기본 포함하며 선택한 반기 조건은 적용합니다.
 
@@ -73,8 +81,8 @@ SLA 티켓 행은 처음에 펼쳐져 있으며 최신 댓글 5개를 표시합�
 
 ## State와 context
 
-`presentation/state`는 auth, report selection, trigger UI만 저장합니다. 서버 데이터는 Zustand에 복제하지 않고 TanStack Query가 소유합니다. `ApplicationServicesContext`는 gateway를, `JiraContext`는 이슈 링크 구성을 제공합니다.
+`presentation/state`는 auth, theme, report selection, trigger UI를 소유합니다. 서버 요청 캐시는 TanStack Query가 담당하고 `reportStore.currentReport`는 현재 표시 보고서를 공유하는 참조입니다. SLA·재배포 조회 결과를 별도 전역 store에 복제하지 않습니다. `ApplicationServicesContext`는 gateway를, `JiraContext`는 이슈 링크 구성을 제공합니다.
 
 ## Styles
 
-라이트·다크 실제 색상 값은 `presentation/config/designTokens.json`에서 단일 관리합니다. Tailwind semantic token과 Recharts 표시 상수는 이 CSS 변수를 참조하며, 공통 CSS는 `presentation/styles`, 날짜·숫자 formatter는 `presentation/utils`에 있습니다.
+라이트·다크 실제 색상 값과 14·16·24px 크기, 400·500·600 굵기는 `presentation/config/designTokens.json`에서 단일 관리합니다. [공통 디자인](SHARED.md)의 역할별 클래스를 사용합니다. Tailwind semantic token과 Recharts 표시 상수는 이 CSS 변수를 참조하며, 공통 CSS는 `presentation/styles`, 날짜·숫자 formatter는 `presentation/utils`에 있습니다.

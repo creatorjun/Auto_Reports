@@ -1,8 +1,12 @@
 # API Reference
 
-재배포 보고서는 인증된 `GET /api/v1/redeployments/latest`로 최신 저장본을 조회하고, `POST /api/v1/redeployments`로 현재 시점 재생성을 요청합니다. 스키마·오류·수집 기준은 [재배포 보고서](09_redeployment_report.md)를 참고하세요.
+문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+
+재배포 보고서는 기존 보호 라우트 인증 규칙을 적용하는 `GET /api/v1/redeployments/latest`로 최신 저장본을 조회하고, `POST /api/v1/redeployments`로 현재 시점 재생성을 요청합니다. 스키마·오류·수집 기준은 [재배포 보고서](09_redeployment_report.md)를 참고하세요.
 
 Base URL은 `/api/v1`입니다. `LOGIN=true`일 때 보호 라우트는 `Authorization: Bearer <access token>`이 필요합니다. EventSource와 파일 링크는 사용자 정의 헤더를 보낼 수 없으므로 `_t=<access token>` query parameter를 사용합니다.
+
+`GET /api/health`는 버전 prefix 밖의 공개 프로세스 확인 API이며 `{ "status": "ok" }`를 반환합니다. Jira 연결·권한 검사는 수행하지 않습니다. API의 상세 입력 모델은 `src/presentation/api/v1` 및 `src/presentation/schemas`가 원본입니다.
 
 ## Public 또는 자체 인증 라우트
 
@@ -36,6 +40,8 @@ Markdown·텍스트·CSV 등 원본 미리보기도 파일 조회 실패 시 로
 |--------|------|------|------|
 | GET | `/reports/?limit=20&offset=0` | pagination | `ReportSummary[]` |
 | GET | `/reports/latest` | 없음 | `ReportDetail` 또는 `null` |
+| GET | `/reports/annual/{year}` | 연도 | 해당 연도의 마지막 annual 보고서, 없으면 404 |
+| GET | `/reports/{report_id}/chart-issues` | chart 및 선택·필터 조건 | 현재 Jira 상세와 저장본 비교 메타데이터 |
 | GET | `/reports/{report_id}` | path id | `ReportDetail`, 없으면 404 |
 | DELETE | `/reports/{report_id}` | path id | 204, 없으면 404 |
 | POST | `/trigger/` | period와 date 또는 기존 start_date, end_date | 202와 job_id, 중복 실행이면 409 |
@@ -46,17 +52,44 @@ Markdown·텍스트·CSV 등 원본 미리보기도 파일 조회 실패 시 로
 
 대시보드 생성은 `{"period":"week","date":"2026-10-07"}` 형식으로 요청합니다. `period`는 `week`, `month`, `year`이며 `date`와 함께 전달해야 합니다. KST 기준 월요일~일요일, 해당 달 전체, 해당 연도 전체로 기간을 계산합니다. 미래 기준일, 잘못된 기간, 두 필드 중 하나만 전달하거나 기존 `start_date`/`end_date`와 혼용하면 422입니다. 현재 주·월·연의 종료일은 미래일 수 있지만 실제 생성 시점에 조회 가능한 Jira 데이터만 집계합니다.
 
-이 요청은 연간 선택도 `scope=standard`로 저장하므로 기존 대시보드 지표와 위젯 구성을 유지합니다. 기존 `start_date`/`end_date` API와 스케줄러의 연간 판정은 유지합니다. 날짜를 생략하면 유스케이스가 기본 보고 범위를 계산합니다. SSE는 300초 timeout과 15초 keepalive를 사용하며 프런트엔드는 상태 조회로 이어서 생성 완료를 추적합니다.
+이 요청은 연간 선택도 `scope=standard`로 저장하므로 기존 대시보드 지표와 위젯 구성을 유지합니다. 기존 `start_date`/`end_date` API는 1월 1일 시작·같은 연도이며 연말 종료 또는 현재 연도 범위이면 annual로 판정합니다. 날짜 없는 정기 생성은 standard입니다. 날짜를 생략하면 유스케이스가 기본 보고 범위를 계산합니다. SSE는 300초 timeout과 15초 keepalive를 사용하며 프런트엔드는 상태 조회로 이어서 생성 완료를 추적합니다.
 
-장기 이슈 목록은 최신 보고서의 w7 티켓 집합을 기준으로 Jira의 현재 `created`, `updated`, `status`를 조회합니다. `updated`는 댓글 생성·수정·삭제를 포함한 Jira 최종 업데이트 시각이며, 댓글 본문은 Jira 문서 형식을 일반 텍스트로 변환해 반환합니다. 댓글 endpoint는 최신 보고서에 포함되지 않은 티켓 key를 404로 거부합니다.
+이력 목록은 standard와 annual을 모두 포함하고 `/reports/latest`는 standard만 조회합니다. 주기 갱신은 같은 ID의 데이터를 바꿀 수 있으므로 일반 보고서 ID 조회를 불변 SLA 이력과 동일하게 취급하지 않습니다.
+
+장기 이슈 목록은 최신 일반 보고서의 w7 티켓 집합을 기준으로 Jira의 현재 `created`, `updated`, `status`를 조회합니다. `updated`는 댓글 생성·수정·삭제를 포함한 Jira 최종 업데이트 시각이며, 댓글 본문은 Jira 문서 형식을 일반 텍스트로 변환해 반환합니다. 댓글 endpoint는 최신 보고서에 포함되지 않은 티켓 key를 404로 거부합니다.
 
 댓글 응답은 `comments` 배열과 `next_offset`을 가진 객체이며, `limit`을 생략하면 최대 5개를 반환합니다. 이어지는 댓글이 있으면 `next_offset`은 `offset + limit`이고 마지막 댓글까지 조회하면 `null`입니다. 다음 요청의 `offset`에 이 값을 전달하는 조회도 지원하지만, 장기 이슈 화면의 `댓글 더보기`는 `offset=0`을 유지하고 `limit=5`, `10`, `15` 순으로 늘려 최신 댓글부터 누적 범위를 다시 조회합니다. 음수 `offset`이나 1 미만의 `limit`은 422로 거부합니다.
 
 댓글 목록 조회는 서버의 Jira 응답 캐시를 사용하지 않고 요청마다 Jira에 작성 시각 최신순(`orderBy=-created`)으로 조회합니다. 프론트엔드 댓글 query의 `staleTime`은 2분이며, 더보기를 누르면 늘어난 `limit`으로 새 요청을 보내고 성공한 최신 응답으로 표시 목록을 갱신합니다. 실패하면 이전에 표시한 댓글을 유지합니다.
 
+### 차트 상세 조회
+
+`GET /reports/{report_id}/chart-issues`의 `chart`는 `sla_initial`, `sla_resolution`, `resolution_type`, `redeployment`입니다. `month`(1~12), `issue_type`, `semester=h1|h2`, `sla_status=all|met|violated`, `filter_types`·반복 `selected_types`, `filter_statuses`·반복 `selected_statuses`를 받습니다. 재배포는 추가로 `partner`, `cause`, `assignee` 중 상세 항목 하나를 선택합니다.
+
+SLA 차트는 month 필수, 처리일 유형 차트는 month 불가입니다. 재배포는 month/partner/cause/assignee 중 하나만 허용하고 반기·현재 상태 필터를 허용하지 않습니다. `filter_types=true`인데 `selected_types`가 없으면 빈 선택이며 필터 생략과 다릅니다. 유효하지 않은 조합은 422입니다.
+
+응답은 `issues`, `snapshot_count`, `current_count`, `source_total`, `source_total_exact`, `collection_limit`, `truncated`, `queried_at`, `snapshot_at`, `source=current_jira`입니다. 저장 차트의 수치와 현재 Jira 상세가 다를 수 있으며 보고서 자체를 갱신하지 않습니다. 없는 보고서는 404, Jira 수집 실패는 502입니다.
+
+### 장기 이슈 댓글 이미지
+
+`GET /sla-dashboard/issues/{issue_key}/comments/{comment_id}/images/{attachment_id}`는 해당 최신 보고서 티켓과 댓글에 연결된 이미지인지 확인한 뒤 바이너리로 반환합니다. 보호 API의 Bearer 인증을 사용하고 `Cache-Control: private, max-age=120`을 반환합니다. 임의 첨부 ID나 최신 티켓 집합 밖의 키는 허용하지 않습니다. 원본 공급자 실패는 502입니다.
+
+## 전체 이슈
+
+`GET /issue-management/issues`는 `issues`, `initialized`, `refreshing`, `synced_at`, `error`를 반환합니다. 서버에서 프로젝트 전체/증분 수집을 백그라운드로 시작하고 현재 메모리 캐시를 즉시 반환합니다. 최소 30초 간격의 요청 유발 갱신이며 처음과 1시간 경과 후 전체를 수집합니다. 증분 조회에는 2분 중첩을 둡니다. 동기화 실패는 기존 캐시와 error에 반영하므로 HTTP 성공을 최신 동기화 성공과 구분합니다. 서버 측 검색·pagination API가 아니라 프런트엔드가 받은 전체 목록을 필터링합니다.
+
 ## SLA 현황 보고서
 
 `POST /sla-violations`는 `period=week|month|year`와 `date`를 JSON으로 받아 선택 날짜가 속한 기간에 생성된 위반 티켓을 수집하고 히스토리에 자동 저장한 보고서를 201로 반환합니다. `GET /sla-violations/latest`는 마지막 보고서 또는 `null`, `GET /sla-violations/history?limit=20&offset=0`은 생성순 요약 목록, `GET /sla-violations/{id}`는 저장된 보고서를 반환합니다. 잘못된 입력은 422, 생성 중 중복 요청은 409, Jira 수집 오류는 502입니다. [집계 기준과 응답 계약](08_sla_violation_report.md)을 참고하세요.
+
+## 재배포 현황 보고서
+
+| Method | Path | 응답 |
+|---|---|---|
+| GET | `/redeployments/latest` | 마지막 저장본 또는 null |
+| POST | `/redeployments` | body 없이 현재 기준 강제 갱신, 성공 200과 저장본 |
+
+동시 수집은 409, 수집 실패는 502이며 `Cache-Control: no-store`를 적용합니다. 같은 KST 날짜는 기존 저장본을 대체합니다. 매일 08시 KST 갱신은 서버 스케줄러가 수행합니다. 별도의 날짜별 이력 조회·삭제 API는 없습니다. [재배포 계약](09_redeployment_report.md)을 참고하세요.
 
 ## Sites
 
@@ -89,8 +122,10 @@ Aggregate 또는 하위 엔티티가 없으면 404입니다.
 | GET | `/partners/organizations/{org_id}/members` | 조직 멤버 목록 |
 | GET | `/partners/issues?org_id=...` | 조직 이슈 목록 |
 | GET | `/partners/issues?account_id=...` | 멤버 이슈 목록 |
-| GET | `/search?q=...&limit=5` | Jira 검색 결과 |
+| GET | `/search?q=...&limit=5` | Jira·Confluence 검색 결과, q 1~200자·limit 1~20 |
 | GET | `/config` | jira_base_url |
+
+통합 검색은 Jira와 Confluence를 병렬 조회합니다. limit는 각 공급자에 적용되므로 총 결과 수가 limit보다 많을 수 있습니다. 한 공급자 오류는 로그에 남기고 다른 공급자의 결과를 반환할 수 있습니다. Confluence 자동 게시 API는 없습니다.
 
 ## Storage
 
