@@ -31,7 +31,7 @@ export default function SlaStatusDurations({ durations }: { durations: SlaViolat
             <div key={status} title={`${status || '확인 불가'} · ${hours.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}시간 · ${percentageLabel(percentage)}`}
               style={{ ...getStatusBadgeStyle(status), width: `${percentage}%` }}
               className="flex min-w-0 shrink-0 items-center justify-center overflow-hidden border-r last:border-r-0" aria-hidden="true">
-              {percentage >= 8 && <span className="truncate px-1 text-xs font-semibold tabular-nums">{percentageLabel(percentage)}</span>}
+              {percentage >= 8 && <span className="truncate px-1 text-xs font-semibold tabular-nums">{status || '확인 불가'} · {percentageLabel(percentage)}</span>}
             </div>
           ))}
         </div>
