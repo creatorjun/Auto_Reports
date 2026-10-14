@@ -2,7 +2,7 @@
 
 Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client state, Context, 표시 상수와 formatter를 소유합니다.
 
-앱 표시 이름은 `SecuLayer`이며 데스크톱·모바일 헤더, 로그인 화면과 브라우저 탭 제목에 동일하게 적용합니다. 헤더·로그인 아이콘과 브라우저 탭 아이콘은 투명 배경의 `src/assets/seculayer-logo.png` 원본을 사용합니다.
+앱 표시 이름은 `SecuLayer`이며 데스크톱·모바일 헤더, 로그인 화면과 브라우저 탭 제목에 동일하게 적용합니다. 헤더와 로그인 화면은 공통 `BrandLogo`를 통해 테마에 따라 투명 배경의 `src/assets/seculayer-wordmark-light.png` 또는 `seculayer-wordmark-dark.png` 원본만 표시하며 별도 텍스트를 붙이지 않습니다. 헤더 로고는 전체 브라우저 뷰포트의 가로 중앙에 고정하여 사이드바 펼침·접힘 및 좌우 컨트롤 너비에 영향을 받지 않습니다. 브라우저 탭 아이콘은 기존 `src/assets/seculayer-logo.png`를 사용합니다.
 
 ## Pages
 

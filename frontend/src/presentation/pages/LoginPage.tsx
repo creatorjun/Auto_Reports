@@ -1,6 +1,6 @@
 // frontend/src/presentation/pages/LoginPage.tsx
 import { useState } from 'react'
-import seculayerLogo from '@/assets/seculayer-logo.png'
+import BrandLogo from '@/presentation/components/common/BrandLogo'
 import { Navigate } from 'react-router-dom'
 import { useLogin } from '@/presentation/hooks/useAuth'
 import { useAuthStore } from '@/presentation/state/authStore'
@@ -22,8 +22,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-apple-bg">
       <div className="bg-apple-surface rounded-2xl shadow-sm border border-apple-divider/60 p-8 w-full max-w-sm">
         <div className="flex flex-col items-center gap-2 mb-8">
-          <img src={seculayerLogo} alt="" className="w-14 h-14 object-contain" />
-          <h1 className="text-page-title font-semibold text-apple-dark tracking-tight">SecuLayer</h1>
+          <h1><BrandLogo className="w-64 max-w-full" /></h1>
           <p className="text-label text-apple-light">로그인이 필요합니다</p>
         </div>
 

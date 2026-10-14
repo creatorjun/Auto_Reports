@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/Header.tsx
-import seculayerLogo from '@/assets/seculayer-logo.png'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useUiStore } from '@/presentation/state/uiStore'
+import BrandLogo from '@/presentation/components/common/BrandLogo'
 import SearchWidget from '@/presentation/components/common/SearchWidget'
 import ThemeToggle from './ThemeToggle'
 
@@ -11,12 +11,14 @@ export default function Header() {
 
   return (
     <header className="bg-apple-surface flex-shrink-0 border-b border-apple-divider/60">
+      <div className="pointer-events-none fixed left-1/2 top-0 z-10 flex h-11 -translate-x-1/2 flex-col items-center justify-center gap-0.5 xl:h-14 3xl:h-16">
+        <BrandLogo className="w-44 xl:w-48 3xl:w-56" />
+        {triggerMessage && (
+          <span className="hidden max-w-[260px] truncate text-control-label text-green-700 xl:block">{triggerMessage}</span>
+        )}
+      </div>
       <div className="flex flex-col xl:hidden">
-        <div className="relative flex items-center justify-center px-4 pt-3 pb-1">
-          <div className="flex items-center gap-2">
-            <img src={seculayerLogo} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
-            <span className="text-label font-semibold text-apple-dark tracking-tight">SecuLayer</span>
-          </div>
+        <div className="relative h-11">
           <div className="absolute right-4 top-2.5">
             <ThemeToggle collapsed />
           </div>
@@ -39,23 +41,13 @@ export default function Header() {
       </div>
 
       <div className="hidden h-14 items-center justify-between px-4 xl:flex 3xl:h-16">
-        <div className="w-[28rem] 3xl:w-[32rem] flex items-center gap-3 overflow-hidden">
+        <div className="flex min-w-0 items-center gap-3 overflow-hidden">
           {currentReport && (
             <>
               <p className="hidden sm:block text-caption text-apple-light tabular-nums truncate">
                 {currentReport.week_start} – {currentReport.week_end}
               </p>
             </>
-          )}
-        </div>
-
-        <div className="flex flex-col items-center justify-center gap-0.5 flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <img src={seculayerLogo} alt="" className="w-8 h-8 3xl:w-10 3xl:h-10 object-contain flex-shrink-0" />
-            <span className="text-body font-semibold text-apple-dark tracking-tight">SecuLayer</span>
-          </div>
-          {triggerMessage && (
-            <span className="text-control-label text-green-700 max-w-[260px] truncate">{triggerMessage}</span>
           )}
         </div>
 
