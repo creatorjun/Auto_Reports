@@ -30,10 +30,11 @@ export function redeploymentMonths(report: RedeploymentReport) {
   return { months: [...counts].map(([month, count]) => ({ month, count })), unassigned }
 }
 
-export function filterRedeployments(tickets: RedeploymentTicket[], scope: RedeploymentScope, cause: string, query: string) {
+export function filterRedeployments(tickets: RedeploymentTicket[], scope: RedeploymentScope, cause: string, query: string, month = '') {
   const term = query.trim().toLocaleLowerCase('ko-KR')
   return tickets.filter((ticket) =>
     (scope === 'all' || ticket.closed === (scope === 'closed')) &&
+    (!month || (ticket.closed && ticket.completion_month === month)) &&
     (!cause || (ticket.cause || '원인 미입력') === cause) &&
     (!term || [ticket.key, ticket.summary, ticket.customer, ticket.cause, ticket.reason, ticket.assignee, ...ticket.partners].filter(Boolean).join(' ').toLocaleLowerCase('ko-KR').includes(term)),
   ).sort((a, b) => Number(a.closed) - Number(b.closed) || b.key.localeCompare(a.key, 'en', { numeric: true }))

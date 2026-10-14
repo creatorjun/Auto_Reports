@@ -12,8 +12,12 @@ import ts from 'typescript'
 const require = createRequire(import.meta.url)
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src')
 const cache = new Map()
+let pageReport
+const setCurrentReport = () => {}
 function load(relative) {
   if (relative === 'presentation/context/JiraContext') return { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) }
+  if (relative === 'presentation/hooks/useRedeployments') return { useRedeployments: () => ({ data: pageReport }), useRefreshRedeployments: () => ({ mutate() {} }) }
+  if (relative === 'presentation/state/reportStore') return { useReportStore: (select) => select({ setCurrentReport }) }
   const base = path.join(root, relative)
   const filename = [base, `${base}.ts`, `${base}.tsx`].find((item) => fs.existsSync(item) && fs.statSync(item).isFile())
   assert.ok(filename)
@@ -36,6 +40,7 @@ function load(relative) {
 
 const { redeploymentSummary, redeploymentMonths, filterRedeployments, redeploymentIsStale } = load('application/services/redeploymentReport')
 const { default: Tickets } = load('presentation/components/redeployments/RedeploymentTickets')
+const { default: RedeploymentPage } = load('presentation/pages/RedeploymentPage')
 const ticket = (key, overrides = {}) => ({ key, summary: '[고객사] 재배포', issue_type: '개선', status: '결과 대기 중', closed: false, created_at: '2025-12-01T09:00:00+09:00', resolved_at: null, completion_month: null, cause: '개발오류', reason: '파일 누락', repatch_count: 2, customer: '고객사', partners: [], assignee: '담당자', reporter: '보고자', ...overrides })
 
 test('totals preserve missing versus zero and scope active separately', () => {
@@ -59,6 +64,58 @@ test('cause and text search compose without modifying source and numeric keys so
   assert.deepEqual(filterRedeployments(items, 'active', '개발오류', '파일').map((item) => item.key), ['TACEA-10', 'TACEA-2'])
   assert.equal(filterRedeployments(items, 'closed', '', 'unknown').length, 0)
   assert.deepEqual(items, copy)
+})
+
+test('month filtering matches the chart cohort and combines with cause and search', () => {
+  const items = [
+    ticket('TACEA-1', { closed: true, completion_month: '2026-01', resolved_at: '2026-02-09T10:00:00+09:00' }),
+    ticket('TACEA-2', { completion_month: '2026-01' }),
+    ticket('TACEA-3', { closed: true, completion_month: '2025-01' }),
+    ticket('TACEA-4', { closed: true }),
+    ticket('TACEA-5', { closed: true, completion_month: '2026-01', cause: '환경변경' }),
+  ]
+  const copy = structuredClone(items)
+  assert.deepEqual(filterRedeployments(items, 'all', '', '', '2026-01').map((item) => item.key), ['TACEA-5', 'TACEA-1'])
+  assert.deepEqual(filterRedeployments(items, 'all', '개발오류', '파일', '2026-01').map((item) => item.key), ['TACEA-1'])
+  assert.equal(filterRedeployments(items, 'all', '', '', '2026-02').length, 0)
+  assert.equal(filterRedeployments(items, 'all', '', '', '').length, 5)
+  assert.deepEqual(items, copy)
+})
+
+test('month selection resets pagination, composes filters and toggles back to the previous scope', (t) => {
+  pageReport = { period_start: '2026-01-01', generated_at: '2026-03-10T00:00:00Z', warnings: [], tickets: [
+    ...Array.from({ length: 26 }, (_, index) => ticket(`TACEA-${index + 1}`, { closed: true, completion_month: '2026-01', cause: index % 2 ? '개발오류' : '환경변경', summary: index === 0 ? '검색 대상' : '재배포' })),
+    ticket('TACEA-27', { closed: true, completion_month: '2026-02' }),
+    ticket('TACEA-28', { completion_month: '2026-01' }),
+  ] }
+  let rendered
+  act(() => { rendered = TestRenderer.create(React.createElement(RedeploymentPage)) })
+  t.after(() => act(() => rendered.unmount()))
+  const text = (node) => typeof node === 'string' ? node : (node.children ?? []).map(text).join('')
+  const button = (label) => rendered.root.findAllByType('button').find((item) => text(item) === label)
+  const monthButton = (month, count) => rendered.root.findByProps({ 'aria-label': `${month} 재배포 완료 ${count}건` })
+  const listed = () => rendered.root.findByType(Tickets).props.tickets
+  act(() => button('다음').props.onClick())
+  act(() => monthButton('2026-01', 26).props.onClick())
+  assert.equal(monthButton('2026-01', 26).props['aria-pressed'], true)
+  assert.equal(listed().length, 26)
+  assert.equal(button('이전').props.disabled, true)
+  act(() => rendered.root.findAllByType('button').find((item) => text(item).startsWith('환경변경')).props.onClick())
+  assert.equal(listed().length, 13)
+  act(() => rendered.root.findByProps({ type: 'search' }).props.onChange({ target: { value: '검색 대상' } }))
+  assert.deepEqual(listed().map((item) => item.key), ['TACEA-1'])
+  act(() => rendered.root.findByProps({ type: 'search' }).props.onChange({ target: { value: '' } }))
+  act(() => button('진행 중').props.onClick())
+  assert.equal(monthButton('2026-01', 26).props['aria-pressed'], false)
+  assert.deepEqual(listed().map((item) => item.key), ['TACEA-28'])
+  act(() => monthButton('2026-02', 1).props.onClick())
+  assert.deepEqual(listed().map((item) => item.key), ['TACEA-27'])
+  act(() => monthButton('2026-02', 1).props.onClick())
+  assert.deepEqual(listed().map((item) => item.key), ['TACEA-28'])
+  act(() => monthButton('2026-03', 0).props.onClick())
+  assert.equal(listed().length, 0)
+  act(() => button('2026-03 · 해제 ×').props.onClick())
+  assert.deepEqual(listed().map((item) => item.key), ['TACEA-28'])
 })
 
 test('staleness changes exactly at 08:00 KST regardless of browser timezone', () => {
