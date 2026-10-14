@@ -1,5 +1,6 @@
 // frontend/src/presentation/pages/LoginPage.tsx
 import { useState } from 'react'
+import seculayerLogo from '@/assets/seculayer-logo.png'
 import { Navigate } from 'react-router-dom'
 import { useLogin } from '@/presentation/hooks/useAuth'
 import { useAuthStore } from '@/presentation/state/authStore'
@@ -21,15 +22,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-apple-bg">
       <div className="bg-apple-surface rounded-2xl shadow-sm border border-apple-divider/60 p-8 w-full max-w-sm">
         <div className="flex flex-col items-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
-              <rect x="1" y="1" width="5" height="5" rx="1.2" fill="white" />
-              <rect x="8" y="1" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
-              <rect x="1" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
-              <rect x="8" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.4" />
-            </svg>
-          </div>
-          <h1 className="text-[18px] font-bold text-apple-dark tracking-tight">TAC 보고서</h1>
+          <img src={seculayerLogo} alt="" className="w-14 h-14 object-contain" />
+          <h1 className="text-[18px] font-bold text-apple-dark tracking-tight">SecuLayer</h1>
           <p className="text-[12px] text-apple-light">로그인이 필요합니다</p>
         </div>
 

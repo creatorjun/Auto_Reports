@@ -1,5 +1,6 @@
 // frontend/src/presentation/components/layout/Header.tsx
 import { useEffect, useCallback } from 'react'
+import seculayerLogo from '@/assets/seculayer-logo.png'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useUiStore } from '@/presentation/state/uiStore'
 import { useRefreshReport } from '@/presentation/hooks/useReport'
@@ -49,15 +50,8 @@ export default function Header() {
       <div className="flex flex-col xl:hidden">
         <div className="relative flex items-center justify-center px-4 pt-3 pb-1">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-brand-600 flex items-center justify-center flex-shrink-0">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                <rect x="1" y="1" width="5" height="5" rx="1.2" fill="white" />
-                <rect x="8" y="1" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
-                <rect x="1" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
-                <rect x="8" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.4" />
-              </svg>
-            </div>
-            <span className="text-[17px] font-bold text-apple-dark tracking-tight">TAC 보고서</span>
+            <img src={seculayerLogo} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
+            <span className="text-[17px] font-bold text-apple-dark tracking-tight">SecuLayer</span>
           </div>
           <div className="absolute right-4 top-2.5">
             <ThemeToggle collapsed />
@@ -99,15 +93,8 @@ export default function Header() {
 
         <div className="flex flex-col items-center justify-center gap-0.5 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 3xl:w-8 3xl:h-8 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <rect x="1" y="1" width="5" height="5" rx="1.2" fill="white" />
-                <rect x="8" y="1" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
-                <rect x="1" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.7" />
-                <rect x="8" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.4" />
-              </svg>
-            </div>
-            <span className="text-[20px] 3xl:text-[24px] font-bold text-apple-dark tracking-tight">TAC 보고서</span>
+            <img src={seculayerLogo} alt="" className="w-8 h-8 3xl:w-10 3xl:h-10 object-contain flex-shrink-0" />
+            <span className="text-[20px] 3xl:text-[24px] font-bold text-apple-dark tracking-tight">SecuLayer</span>
           </div>
           {triggerMessage && (
             <span className="text-[11px] 3xl:text-[12px] text-green-700 max-w-[260px] truncate">{triggerMessage}</span>
