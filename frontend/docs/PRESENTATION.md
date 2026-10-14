@@ -21,6 +21,8 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 | `SiteCreatePage` | `/sites/new`, `/sites/:id/edit` | 생성·편집 form |
 | `SiteDetailPage` | `/sites/:id` | aggregate 상세와 하위 resource 편집 |
 
+`/history` 페이지는 대시보드·저장 보고서·연간 보고서 상단의 `보고서 히스토리` 버튼으로 이동합니다. SLA 위반 화면의 같은 버튼은 `/history#sla-violations`로 이동합니다. 데스크톱 사이드바와 모바일 탭 메뉴에서는 히스토리 항목을 표시하지 않습니다. 대시보드 기간별 생성 폼은 PDF·Excel 내보내기 영역 다음에 배치하며, 보고서가 없는 상태에도 표시합니다. 내보내는 문서에는 이 이동 버튼과 생성 폼을 포함하지 않습니다.
+
 ## Hooks
 
 | Hook | 역할 |

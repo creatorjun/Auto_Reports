@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/layout/MobileTabBar.tsx
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, ShieldCheck, AlarmClock } from 'lucide-react'
+import { LayoutDashboard, ListChecks, Gauge, Building2, HardDrive, ShieldCheck, AlarmClock } from 'lucide-react'
 import { canViewAuditLogs } from '@/domain/Auth'
 import { useMe } from '@/presentation/hooks/useAuth'
 
@@ -9,7 +9,6 @@ const tabs = [
   { to: '/sla-violations', label: 'SLA 위반', icon: <AlarmClock size={20} /> },
   { to: '/issues',  label: '이슈 관리', icon: <ListChecks size={20} /> },
   { to: '/sla-dashboard', label: '장기 이슈', icon: <Gauge size={20} /> },
-  { to: '/history', label: '히스토리',   icon: <History        size={20} /> },
   { to: '/sites',   label: '사이트',     icon: <Building2      size={20} /> },
   { to: '/storage', label: '보관함',     icon: <HardDrive      size={20} /> },
 ]

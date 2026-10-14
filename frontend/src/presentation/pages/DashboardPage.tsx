@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
-import { lazy, Suspense, useCallback, useEffect, useState, useMemo, useRef } from 'react'
-import { useParams } from 'react-router-dom'
-import { BarChart2, ShieldAlert, Activity, CalendarRange, RefreshCw, Download } from 'lucide-react'
+import { lazy, Suspense, useCallback, useEffect, useState, useMemo, useRef, type ReactNode } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { BarChart2, ShieldAlert, Activity, CalendarRange, RefreshCw, Download, History } from 'lucide-react'
 import { useAnnualReport, useLatestReport, useReportById } from '@/presentation/hooks/useReport'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useDashboardData } from '@/presentation/hooks/useDashboardData'
@@ -73,7 +73,7 @@ interface ExportSnapshot {
   fileName: string
 }
 
-function DashboardContent({ report, exportSelection }: { report: ReportDetail; exportSelection?: ExportSelection }) {
+function DashboardContent({ report, exportSelection, generationForm }: { report: ReportDetail; exportSelection?: ExportSelection; generationForm?: ReactNode }) {
   const isAnnual = report.scope === 'annual'
   const { setCurrentReport } = useReportStore()
   const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
@@ -254,6 +254,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
     <>
     <div className={`${isAnnual ? 'dashboard-report-view dashboard-view annual-report-view space-y-6 md:space-y-8' : 'dashboard-report-view dashboard-view space-y-4 md:space-y-6 3xl:space-y-8'}${exportSelection ? ' dashboard-report-export-view' : ''}`}>
       {isAnnual ? <AnnualReportHeader report={report} actions={exportActions} /> : exportActions}
+      {!exportSelection && generationForm}
       {isAnnual && !exportSelection && <AnnualYearComparison report={report} />}
       {!exportSelection && <IssueTypeFilter
         issueTypes={issueTypes}
@@ -547,7 +548,10 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-content flex-col gap-5 3xl:max-w-none">
-      {year ? <AnnualReportGenerate year={annualYear} loading={isLoading} /> : <DashboardGenerateForm report={data} loading={isLoading} />}
+      <div className="flex justify-end">
+        <Link to="/history" className="flex items-center gap-2 rounded-xl border border-apple-divider bg-apple-surface px-4 py-2.5 text-sm text-apple-mid hover:bg-apple-gray"><History size={16} />보고서 히스토리</Link>
+      </div>
+      {year ? <AnnualReportGenerate year={annualYear} loading={isLoading} /> : !data && <DashboardGenerateForm loading={isLoading} />}
       {isLoading && <LoadingSpinner text="보고서 로딩 중..." />}
       {error && year && !data ? (
         <div className="card text-center py-16">
@@ -556,7 +560,7 @@ export default function DashboardPage() {
           <p className="mt-2 text-[12px] text-apple-light">아직 생성하지 않았다면 위의 연간 보고서 생성 버튼을 누르세요.</p>
         </div>
       ) : error ? <div role="alert" className="card text-ui-base text-red-500">데이터를 불러올 수 없습니다.</div> : null}
-      {data && <DashboardContent report={data} />}
+      {data && <DashboardContent report={data} generationForm={!year && <DashboardGenerateForm report={data} loading={isLoading} />} />}
       {!data && !isLoading && !error && (
         <div className="card text-ui-base text-apple-light text-center py-16">
           생성된 보고서가 없습니다. 기간과 기준 날짜를 선택하고 <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 누르세요.
