@@ -43,7 +43,7 @@ export default function RedeploymentPage() {
     {query.isLoading && <LoadingSpinner text="마지막 재배포 보고서를 불러오는 중..." />}
     {!query.isLoading && !report && !query.isError && <div className="card py-14 text-center"><RotateCcw size={32} className="mx-auto mb-3 text-brand-600" /><h2 className="text-section-title font-semibold text-apple-dark">첫 재배포 보고서를 준비하고 있습니다.</h2><p className="mt-2 text-label text-apple-mid">자동 생성이 끝나면 표시됩니다. ‘지금 갱신’으로 직접 생성할 수도 있습니다.</p></div>}
     {report && <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {([
           ['all', '재배포 티켓', summary.total, '완료 + 현재 진행 중'],
           ['closed', '완료', summary.closed, '2026-01-01 이후 해결된 티켓'],
@@ -51,14 +51,14 @@ export default function RedeploymentPage() {
         ] as const).map(([value, label, count, note]) => <button key={value} onClick={() => changeScope(value)} aria-pressed={scope === value} className={`card text-left transition-shadow hover:shadow-md ${scope === value ? 'ring-2 ring-brand-400' : ''}`}><p className="flex items-center gap-2 text-label font-semibold text-apple-dark">{value === 'closed' ? <CheckCircle2 size={18} className="text-green-600" /> : <RotateCcw size={18} className="text-brand-600" />}{label}</p><p className="mt-3 text-metric-compact font-semibold tabular-nums text-apple-dark">{count}<span className="ml-2 text-label font-medium text-apple-mid">건</span></p><p className="mt-2 text-caption text-apple-mid">{note}</p></button>)}
         <div className="card"><p className="text-label font-semibold text-apple-dark">기록된 재패치 횟수</p><p className="mt-3 text-metric-compact font-semibold tabular-nums text-apple-dark">{summary.repatches}<span className="ml-2 text-label font-medium text-apple-mid">회</span></p><p className="mt-2 text-caption text-apple-mid">전체 티켓 입력값 합계 · 미입력 {summary.missingCount}건</p></div>
       </div>
-      <div className="grid gap-5 2xl:grid-cols-2">
-        <section className="card"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-section-title font-semibold text-apple-dark">재배포 원인</h2><span className="text-caption text-apple-mid">{scopeLabels[scope]} {scoped.length}건 기준</span></div><p className="mt-2 text-caption text-apple-mid">원인을 선택하면 아래 티켓 목록에 적용됩니다.</p>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <section className="card min-w-0"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-section-title font-semibold text-apple-dark">재배포 원인</h2><span className="text-caption text-apple-mid">{scopeLabels[scope]} {scoped.length}건 기준</span></div><p className="mt-2 text-caption text-apple-mid">원인을 선택하면 아래 티켓 목록에 적용됩니다.</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {causes.map((item, index) => <button key={item.name} type="button" aria-pressed={cause === item.name} onClick={() => setCause(cause === item.name ? '' : item.name)} className={`rounded-xl border p-3 text-left hover:bg-apple-gray ${cause === item.name ? 'border-brand-500 bg-brand-50' : 'border-apple-divider'}`}><div className="flex items-start justify-between gap-2 text-caption"><span className="font-medium text-apple-dark">{item.name}</span><span className="shrink-0 text-apple-mid">{item.count}건 · {(item.count / scoped.length * 100).toFixed(1)}%</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-apple-gray"><div className="h-full rounded-full" style={{ width: `${item.count / scoped.length * 100}%`, backgroundColor: CATEGORICAL_CHART_COLORS[index % CATEGORICAL_CHART_COLORS.length] }} /></div></button>)}
             {!causes.length && <p className="py-8 text-caption text-apple-mid">해당 범위의 재배포 티켓이 없습니다.</p>}
           </div>
         </section>
-        <section className="card"><h2 className="text-section-title font-semibold text-apple-dark">월별 재배포 완료</h2><p className="mt-2 text-caption text-apple-mid">완료 티켓의 ‘배포 완료 월’ 입력값 기준 · 단위: 건</p><div className="mt-5 overflow-x-auto"><div className="flex h-56 min-w-max items-end gap-3 border-b border-apple-divider px-1">
+        <section className="card min-w-0"><h2 className="text-section-title font-semibold text-apple-dark">월별 재배포 완료</h2><p className="mt-2 text-caption text-apple-mid">완료 티켓의 ‘배포 완료 월’ 입력값 기준 · 단위: 건</p><div className="mt-5 overflow-x-auto"><div className="flex h-56 min-w-max items-end gap-3 border-b border-apple-divider px-1">
           {monthly.months.map((item) => <div key={item.month} className="flex h-full w-10 flex-1 flex-col items-center justify-end" title={`${item.month}: ${item.count}건`}><span className="mb-2 text-caption font-semibold tabular-nums text-apple-dark">{item.count}</span><div className="w-full max-w-10 rounded-t-md bg-brand-500" style={{ height: `${item.count / maximum * 68}%`, minHeight: 2 }} /><span className="my-2 whitespace-nowrap text-control text-apple-mid">{item.month.startsWith('2026-') ? `${Number(item.month.slice(5))}월` : item.month}</span></div>)}
         </div></div><p className="mt-4 text-caption leading-relaxed text-apple-mid">해결일과 배포 완료 월은 다를 수 있습니다. 완료 월 미입력·집계 범위 밖 {monthly.unassigned}건은 그래프에서 제외됩니다.</p>
         </section>
