@@ -503,6 +503,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
       <Suspense fallback={<ChartFallback />}>
         <RecentIssuesWidget
           key={report.id}
+          tablePreferenceKey="dashboard:recent-issues"
           paginationResetKey={JSON.stringify([
             effectiveIssueTypes === null ? null : [...effectiveIssueTypes].sort(),
             effectiveStatuses === null ? null : [...effectiveStatuses].sort(),

@@ -17,7 +17,7 @@ export const DEFAULT_SLA_COLUMN_WIDTHS: SlaColumnWidths = {
   key: 0.18, summary: 0.44, issue_type: 0.12, created_at: 0.15, elapsed_days: 0.11,
 }
 
-const MIN_SLA_COLUMN_WIDTHS: SlaColumnWidths = {
+export const MIN_SLA_COLUMN_WIDTHS: SlaColumnWidths = {
   key: 0.08, summary: 0.18, issue_type: 0.08, created_at: 0.08, elapsed_days: 0.08,
 }
 

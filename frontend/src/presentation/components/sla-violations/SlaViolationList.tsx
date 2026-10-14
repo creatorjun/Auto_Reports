@@ -5,12 +5,12 @@ import { ChevronDown, ExternalLink } from 'lucide-react'
 import type { SlaViolationMetric, SlaViolationTicket } from '@/domain/SlaViolationReport'
 import { slaIssueType } from '@/domain/SlaViolationFilters'
 import { sortSlaViolationTickets } from '@/domain/SlaViolationSort'
-import type { SlaViolationSort } from '@/domain/SlaViolationSort'
 import { SLA_METRIC_LABELS, slaPartnersLabel, slaTicketsForMetric } from '@/application/services/slaViolationReport'
 import { useJira } from '@/presentation/context/JiraContext'
 import { slaCreatedDate, slaTimestamp } from '@/presentation/utils/slaViolationFormatters'
 import { getIssueTypeLabel } from '@/presentation/utils/issueTypeLabel'
-import SlaViolationTableHeader, { DEFAULT_SLA_COLUMN_WIDTHS, SLA_TICKET_COLUMNS, resizeSlaColumnWidths } from './SlaViolationTableHeader'
+import { useTablePreferences } from '@/presentation/hooks/useTablePreferences'
+import SlaViolationTableHeader, { DEFAULT_SLA_COLUMN_WIDTHS, MIN_SLA_COLUMN_WIDTHS, SLA_TICKET_COLUMNS, resizeSlaColumnWidths } from './SlaViolationTableHeader'
 
 const TICKET_COLUMNS = 'lg:grid-cols-[var(--sla-ticket-columns)]'
 
@@ -77,8 +77,7 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
 }
 
 export default function SlaViolationList({ tickets, metric, isFiltered = false }: { tickets: SlaViolationTicket[]; metric: SlaViolationMetric; isFiltered?: boolean }) {
-  const [sort, setSort] = useState<SlaViolationSort | null>(null)
-  const [widths, setWidths] = useState(DEFAULT_SLA_COLUMN_WIDTHS)
+  const { sort, setSort, widths, setWidths } = useTablePreferences(`sla-violations:${metric}`, DEFAULT_SLA_COLUMN_WIDTHS, MIN_SLA_COLUMN_WIDTHS)
   const filtered = useMemo(() => sortSlaViolationTickets(slaTicketsForMetric(tickets, metric), sort), [tickets, metric, sort])
   const titleId = useId()
   const gridStyle = { '--sla-ticket-columns': SLA_TICKET_COLUMNS.map(({ key }) => `minmax(0, ${widths[key]}fr)`).join(' ') } as CSSProperties

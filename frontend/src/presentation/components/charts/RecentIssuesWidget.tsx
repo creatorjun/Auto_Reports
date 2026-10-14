@@ -12,6 +12,7 @@ import { useDashboardExportMode } from '@/presentation/context/DashboardExportCo
 
 interface Props {
   title?: string
+  tablePreferenceKey?: string
   paginationResetKey?: string
   columnFilters?: IssueColumnFilters
   onColumnFilterChange?: (column: IssueColumn, value: string) => void
@@ -21,7 +22,7 @@ interface Props {
   onElapsedDaysFilterChange?: (value: number | null, comparison: ElapsedDaysComparison) => void
 }
 
-export default function RecentIssuesWidget({ title = '최근 이슈 현황', paginationResetKey, columnFilters: providedColumnFilters, onColumnFilterChange: providedColumnFilterChange, details, elapsedDaysThreshold, elapsedDaysComparison, onElapsedDaysFilterChange }: Props) {
+export default function RecentIssuesWidget({ title = '최근 이슈 현황', tablePreferenceKey, paginationResetKey, columnFilters: providedColumnFilters, onColumnFilterChange: providedColumnFilterChange, details, elapsedDaysThreshold, elapsedDaysComparison, onElapsedDaysFilterChange }: Props) {
   const exportMode = useDashboardExportMode()
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -116,6 +117,7 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', pag
       </div>
       <ResolutionTimeChart
         title={title}
+        tablePreferenceKey={tablePreferenceKey}
         details={filteredIssues}
         paginationResetKey={JSON.stringify([paginationResetKey, elapsedDaysThreshold, elapsedDaysComparison, columnFilters])}
         columnFilters={columnFilters}

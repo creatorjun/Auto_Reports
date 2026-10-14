@@ -9,6 +9,7 @@ import { issueTypeLabel } from '@/domain/Issue'
 import type { IssueColumn, IssueColumnFilters } from '@/domain/IssueColumnSearch'
 import ColumnSearchInput from '@/presentation/components/common/ColumnSearchInput'
 import { ISSUE_COLUMNS } from '@/presentation/config/issueColumns'
+import { useTablePreferences } from '@/presentation/hooks/useTablePreferences'
 
 const COLS = ISSUE_COLUMNS.map((column) => column.key)
 type ColKey = IssueColumn
@@ -27,6 +28,7 @@ const DEFAULT_FRACS: Record<ColKey, number> = {
 
 interface Props {
   title?: string
+  tablePreferenceKey?: string
   details: RecentIssue[]
   emptyMessage?: string
   paginationResetKey?: string
@@ -129,13 +131,13 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
   )
 }
 
-export default function ResolutionTimeChart({ title = '최근 이슈 현황', details, paginationResetKey, columnFilters, onColumnFilterChange, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
+export default function ResolutionTimeChart({ title = '최근 이슈 현황', tablePreferenceKey, details, paginationResetKey, columnFilters, onColumnFilterChange, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
   const exportMode = useDashboardExportMode()
   const { jiraBase } = useJira()
   const [page,    setPage]    = useState(1)
-  const [fracs,   setFracs]   = useState({ ...DEFAULT_FRACS })
-  const [sortKey, setSortKey] = useState<ColKey | null>(null)
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const { sort, setSort, widths: fracs, setWidths: setFracs } = useTablePreferences(exportMode ? undefined : tablePreferenceKey, DEFAULT_FRACS, TABLE_MIN_COL_FRAC)
+  const sortKey = sort?.key ?? null
+  const sortDir = sort?.direction ?? 'asc'
   const tableRef      = useRef<HTMLTableElement>(null)
   const tableWidthRef = useRef<number>(0)
 
@@ -147,12 +149,9 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', de
   }, [details, paginationResetKey])
 
   const handleSort = useCallback((col: ColKey) => {
-    setSortKey((prev) => {
-      if (prev === col) { setSortDir((d) => d === 'asc' ? 'desc' : 'asc'); return col }
-      setSortDir('asc'); return col
-    })
+    setSort((previous) => ({ key: col, direction: previous?.key === col && previous.direction === 'asc' ? 'desc' : 'asc' }))
     setPage(1)
-  }, [])
+  }, [setSort])
 
   const resize = useCallback((leftCol: ColKey, rightCol: ColKey, df: number) => {
     setFracs((prev) => {
@@ -161,7 +160,7 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', de
       if (newLeft + newRight !== prev[leftCol] + prev[rightCol]) return prev
       return { ...prev, [leftCol]: newLeft, [rightCol]: newRight }
     })
-  }, [])
+  }, [setFracs])
 
   const getTableWidth = useCallback(() => {
     tableWidthRef.current = tableRef.current?.offsetWidth ?? tableWidthRef.current
