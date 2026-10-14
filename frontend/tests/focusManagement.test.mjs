@@ -39,7 +39,7 @@ const Sidebar = load('presentation/components/layout/Sidebar').default
 const Mobile = load('presentation/components/layout/MobileTabBar').default
 const { FOCUS_MANAGEMENT_LINKS } = load('presentation/config/focusManagement')
 
-test('desktop groups the four routes in order and both parent menus open on mouse hover', (t) => {
+test('desktop groups the report routes in order and both parent menus open on mouse hover', (t) => {
   let view
   act(() => { view = TestRenderer.create(React.createElement(MemoryRouter, { initialEntries: ['/sla-violations/history/3'] }, React.createElement(Sidebar, { collapsed: false, setCollapsed: () => {} }))) })
   t.after(() => act(() => view.unmount()))

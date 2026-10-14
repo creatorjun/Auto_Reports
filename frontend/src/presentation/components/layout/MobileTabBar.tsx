@@ -1,14 +1,16 @@
 // frontend/src/presentation/components/layout/MobileTabBar.tsx
 import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, Building2, HardDrive, ShieldCheck, ChevronUp } from 'lucide-react'
+import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, ShieldCheck, ChevronUp } from 'lucide-react'
 import { canViewAuditLogs } from '@/domain/Auth'
 import { useMe } from '@/presentation/hooks/useAuth'
 import { FOCUS_MANAGEMENT_LABEL, FOCUS_MANAGEMENT_LINKS, isFocusManagementPath } from '@/presentation/config/focusManagement'
 
 const tabs = [
   { to: '/',        label: '대시보드', icon: <LayoutDashboard size={20} /> },
+  { to: '/issues',  label: '전체 이슈', icon: <List            size={20} /> },
   { to: '/sites',   label: '사이트',     icon: <Building2      size={20} /> },
+  { to: '/sla-dashboard', label: '장기 이슈', icon: <Clock     size={20} /> },
   { to: '/storage', label: '보관함',     icon: <HardDrive      size={20} /> },
 ]
 
@@ -36,7 +38,7 @@ export default function MobileTabBar() {
         aria-label="주 메뉴"
         className="fixed bottom-0 left-0 right-0 z-30 xl:hidden bg-apple-surface/90 backdrop-blur-xl border-t border-apple-divider/80 flex items-center justify-around overflow-x-auto px-1 h-16 safe-area-inset-bottom"
       >
-        {visibleTabs.map(({ to, icon, label }, index) => (
+        {visibleTabs.map(({ to, icon, label }) => (
           <div key={to} className="contents">
           <NavLink
             to={to}
@@ -50,7 +52,7 @@ export default function MobileTabBar() {
             {icon}
             <span className="max-w-full truncate text-control-label font-medium">{label}</span>
           </NavLink>
-          {index === 0 && <button ref={trigger} type="button" aria-expanded={expanded} aria-controls={menuId} onClick={() => setExpanded((value) => !value)} className={`flex min-w-12 shrink-0 flex-col items-center gap-1 rounded-xl px-1.5 py-1 ${expanded || isFocusManagementPath(pathname) ? 'text-brand-600' : 'text-apple-light'}`}><ListChecks size={20} /><span className="flex items-center gap-1 text-control-label font-medium">{FOCUS_MANAGEMENT_LABEL}<ChevronUp size={12} className={expanded ? 'rotate-180' : ''} /></span></button>}
+          {to === '/issues' && <button ref={trigger} type="button" aria-expanded={expanded} aria-controls={menuId} onClick={() => setExpanded((value) => !value)} className={`flex min-w-12 shrink-0 flex-col items-center gap-1 rounded-xl px-1.5 py-1 ${expanded || isFocusManagementPath(pathname) ? 'text-brand-600' : 'text-apple-light'}`}><ListChecks size={20} /><span className="flex items-center gap-1 text-control-label font-medium">{FOCUS_MANAGEMENT_LABEL}<ChevronUp size={12} className={expanded ? 'rotate-180' : ''} /></span></button>}
           </div>
         ))}
 

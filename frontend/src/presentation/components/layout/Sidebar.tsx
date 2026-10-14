@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { useId, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck } from 'lucide-react'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout, useMe } from '@/presentation/hooks/useAuth'
 import { canViewAuditLogs } from '@/domain/Auth'
@@ -17,10 +17,12 @@ const annualReportLinks = ANNUAL_REPORT_YEARS.map((year) => ({
 
 const reportLinks = [
   { to: '/',         label: '대시보드',      icon: <LayoutDashboard size={16} /> },
+  { to: '/issues',   label: '전체 이슈',     icon: <List            size={16} /> },
   { id: 'focus', label: FOCUS_MANAGEMENT_LABEL, icon: <ListChecks size={16} />, children: FOCUS_MANAGEMENT_LINKS },
   { id: 'annual', label: '연간 보고서', icon: <CalendarRange size={16} />, children: annualReportLinks },
   { to: '/partners', label: '파트너 관리',    icon: <Users           size={16} /> },
   { to: '/sites',    label: '사이트 관리',    icon: <Building2       size={16} /> },
+  { to: '/sla-dashboard', label: '장기 이슈', icon: <Clock          size={16} /> },
   { to: '/storage',  label: '파일 보관함',    icon: <HardDrive       size={16} /> },
 ]
 
