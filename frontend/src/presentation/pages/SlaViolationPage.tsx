@@ -9,7 +9,6 @@ import { useGenerateSlaViolationReport, useSlaViolationReport } from '@/presenta
 import { useReportStore } from '@/presentation/state/reportStore'
 import SlaViolationList from '@/presentation/components/sla-violations/SlaViolationList'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
-import { slaTimestamp } from '@/presentation/utils/slaViolationFormatters'
 
 function errorMessage(error: unknown): string {
   if (error instanceof RequestError && typeof error.detail === 'string') return error.detail
@@ -93,13 +92,6 @@ export default function SlaViolationPage() {
       {query.isFetching && !report && !invalidId && <LoadingSpinner text="마지막 SLA 위반 보고서를 불러오는 중..." />}
       {report && (
         <>
-          <section className="rounded-2xl border border-apple-divider bg-apple-surface px-5 py-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="text-xs font-medium text-apple-mid">{id === undefined ? '마지막으로 생성한 보고서' : '저장된 보고서'} · #{report.id}</p><h2 className="mt-1 text-base font-semibold text-apple-dark">{SLA_PERIOD_LABELS[report.period]} · {report.start_date} – {report.end_date}</h2></div>
-              <div className="text-right"><span className="text-2xl font-semibold tabular-nums text-apple-dark">{report.ticket_count.toLocaleString('ko-KR')}</span><span className="ml-1.5 text-sm text-apple-mid">위반 티켓</span><p className="mt-1 text-xs text-apple-mid">두 SLA를 모두 위반한 티켓은 각 목록에 표시</p></div>
-            </div>
-            <p className="mt-3 text-xs leading-relaxed text-apple-mid">생성: {slaTimestamp(report.generated_at)} KST · {report.generated_by}<br />SLA 위반 여부, 경과일, 현재 상태와 체류 기간은 이 보고서의 생성 시점 기준입니다.</p>
-          </section>
           {report.warnings.length > 0 && <details className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><summary className="cursor-pointer font-medium">일부 데이터 확인 필요 ({report.warnings.length})</summary><ul className="mt-2 space-y-1 text-xs">{report.warnings.map((warning, index) => <li key={index} className="break-words">{warning}</li>)}</ul></details>}
           <SlaViolationList key={`${report.id}-initial`} tickets={report.tickets} metric="initial_response" />
           <SlaViolationList key={`${report.id}-resolution`} tickets={report.tickets} metric="resolution" />
