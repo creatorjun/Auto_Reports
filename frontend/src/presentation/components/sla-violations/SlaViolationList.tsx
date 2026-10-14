@@ -86,7 +86,7 @@ export default function SlaViolationList({ tickets, metric, isFiltered = false }
   const gridStyle = { '--sla-ticket-columns': SLA_TICKET_COLUMNS.map(({ key }) => `minmax(0, ${widths[key]}fr)`).join(' ') } as CSSProperties
   return (
     <section aria-labelledby={titleId} style={gridStyle} className="min-w-0 overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface shadow-sm">
-      <div className="flex items-center justify-between gap-3 px-5 py-5">
+      <div className="flex items-center gap-2 px-5 py-5">
         <h2 id={titleId} className="text-base font-semibold text-apple-dark">{SLA_METRIC_LABELS[metric]}</h2>
         <span className={`rounded-full px-3 py-1 text-sm font-semibold tabular-nums ${metric === 'initial_response' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'}`}>{filtered.length.toLocaleString('ko-KR')}건</span>
       </div>
