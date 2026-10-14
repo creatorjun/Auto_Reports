@@ -10,6 +10,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 |------|-------|------|
 | `LoginPage` | `/login` | credential 입력과 로그인 mutation |
 | `DashboardPage` | `/`, `/reports/:id`, `/reports/annual/:year` | 최신·선택·연간 보고서 dashboard, 기간별 생성·완료 card, 업무 유형별 열린 요청 card, PDF·Excel 내보내기 |
+| `SlaViolationPage` | `/sla-violations`, `/sla-violations/history/:id` | 최초응답·해결 SLA 위반의 기간별 생성·자동 저장, 최신·저장 보고서와 접기/펼치기 |
 | `IssueManagementPage` | `/issues` | 전체 이슈 조회, 공통 필터·컬럼 검색, 전체 검색 결과 PDF·Excel 내보내기 |
 | `SlaDashboardPage` | `/sla-dashboard` | 장기 이슈 메뉴: 최근 이슈 티켓의 활동 정보와 기본 펼침 댓글 목록·5개씩 더보기 |
 | `HistoryPage` | `/history` | 보고서 pagination, 선택, 삭제 |
@@ -32,6 +33,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 | `useStorage` | 파일·폴더 query와 mutation |
 | `useDashboardData` | widget map을 표시 모델로 변환하고 w7 미완료 상세를 업무 유형별 열린 요청 현황으로 분류 |
 | `useSlaDashboard` | 장기 이슈 목록 query와 펼쳐진 행의 최신 댓글 조회 범위를 5개→10개→15개로 늘리는 infinite query |
+| `useSlaViolations` | SLA 위반 보고서의 최신·ID·히스토리 query, 생성 mutation과 저장 결과 캐시 갱신 |
 
 모든 서버 hook은 `useApplicationServices()`에서 gateway를 얻습니다.
 

@@ -9,6 +9,7 @@ from src.application.use_cases.get_report import GetReportUseCase
 from src.application.use_cases.get_report_chart_issues import GetReportChartIssuesUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
+from src.application.use_cases.sla_violation_report import SlaViolationReportUseCase
 from src.presentation.api.deps import ApiServices, get_api_services, get_auth
 
 _bearer = HTTPBearer(auto_error=False)
@@ -77,4 +78,13 @@ async def get_sla_dashboard_use_case(
     services: ApiServices = Depends(get_api_services),
 ) -> AsyncIterator[SlaDashboardUseCase]:
     async with services.get_sla_dashboard() as use_case:
+        yield use_case
+
+
+async def get_sla_violation_use_case(
+    services: ApiServices = Depends(get_api_services),
+) -> AsyncIterator[SlaViolationReportUseCase]:
+    if services.get_sla_violation is None:
+        raise HTTPException(status_code=503, detail="SLA 위반 보고서가 준비되지 않았습니다.")
+    async with services.get_sla_violation() as use_case:
         yield use_case

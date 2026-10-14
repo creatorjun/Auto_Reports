@@ -12,6 +12,7 @@ import { reportApi } from '@/infrastructure/api/reportApi'
 import { searchApi } from '@/infrastructure/api/searchApi'
 import { siteApi } from '@/infrastructure/api/siteApi'
 import { slaDashboardApi } from '@/infrastructure/api/slaDashboardApi'
+import { slaViolationApi } from '@/infrastructure/api/slaViolationApi'
 import { issueManagementApi } from '@/infrastructure/api/issueManagementApi'
 import { dashboardPdfExporter } from '@/infrastructure/export/dashboardPdfExporter'
 import { dashboardExcelExporter } from '@/infrastructure/export/dashboardExcelExporter'
@@ -51,6 +52,7 @@ const services = {
   partners: partnerApi,
   search: searchApi,
   slaDashboard: slaDashboardApi,
+  slaViolations: slaViolationApi,
   issueManagement: issueManagementApi,
 }
 

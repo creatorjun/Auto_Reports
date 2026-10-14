@@ -4,6 +4,7 @@ import { useAllReports, useDeleteReport } from '@/presentation/hooks/useReport'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import HistoryDeleteConfirmModal from '@/presentation/components/history/HistoryDeleteConfirmModal'
 import { HistoryReportTable } from '@/presentation/components/tables/HistoryReportTable'
+import SlaViolationHistory from '@/presentation/components/sla-violations/SlaViolationHistory'
 
 const PAGE_SIZE = 20
 
@@ -28,14 +29,6 @@ export default function HistoryPage() {
     deleteReport(confirmId, { onSuccess: () => setConfirmId(null) })
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <LoadingSpinner />
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-6 px-6 py-6 max-w-5xl mx-auto w-full">
       <div className="flex items-center justify-between">
@@ -44,11 +37,13 @@ export default function HistoryPage() {
       </div>
 
       <div className="bg-apple-surface border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
+        <h2 className="px-5 pt-4 pb-2 text-base font-semibold text-apple-dark">대시보드 보고서</h2>
+        {isLoading && <div className="py-8"><LoadingSpinner /></div>}
         <HistoryReportTable
           data={data ?? []}
           onDelete={setConfirmId}
         />
-        {!data?.length && (
+        {!isLoading && !data?.length && (
           <p className="text-center text-[13px] text-apple-light py-16">보고서가 없습니다.</p>
         )}
       </div>
@@ -72,6 +67,8 @@ export default function HistoryPage() {
           </button>
         </div>
       )}
+
+      <SlaViolationHistory />
 
       {confirmId != null && (
         <HistoryDeleteConfirmModal

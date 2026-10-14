@@ -7,6 +7,7 @@ from src.application.ports.ai_port import AiPort
 from src.application.ports.jira_port import JiraPort
 from src.application.ports.email_port import EmailPort
 from src.application.ports.issue_notification_renderer_port import IssueNotificationRendererPort
+from src.application.ports.sla_violation_port import SlaViolationSourcePort
 from src.bootstrap.container import Container
 from src.infrastructure.config.settings import Settings
 
@@ -23,11 +24,13 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         )
         self.jira = Mock(spec=JiraPort)
         self.ai = Mock(spec=AiPort)
+        self.sla_source = AsyncMock(spec=SlaViolationSourcePort)
 
     def create_container(self, ai: AiPort | None) -> Container:
         with (
             patch("src.bootstrap.container.JiraFactory.create", return_value=self.jira),
             patch("src.bootstrap.container.AiFactory.create", return_value=ai),
+            patch("src.bootstrap.container.SlaViolationJiraSource", return_value=self.sla_source),
         ):
             return Container(self.settings, Mock())
 
@@ -38,6 +41,7 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
 
         self.ai.aclose.assert_awaited_once_with()
         self.jira.aclose.assert_awaited_once_with()
+        self.sla_source.aclose.assert_awaited_once_with()
 
     async def test_enabled_notifications_receive_the_renderer_from_bootstrap(self) -> None:
         self.settings.smtp_host = "smtp.example.test"
@@ -91,3 +95,4 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         cache_close.assert_awaited_once_with()
         self.ai.aclose.assert_awaited_once_with()
         self.jira.aclose.assert_awaited_once_with()
+        self.sla_source.aclose.assert_awaited_once_with()

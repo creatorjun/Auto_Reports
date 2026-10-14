@@ -57,6 +57,7 @@ def create_app(settings: Settings) -> FastAPI:
                     get_report=container.get_report,
                     get_site=container.get_site,
                     get_sla_dashboard=container.get_sla_dashboard,
+                    get_sla_violation=container.get_sla_violation,
                     get_report_chart_issues=container.get_report_chart_issues,
                     issue_management=container.issue_management,
                     audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir)),

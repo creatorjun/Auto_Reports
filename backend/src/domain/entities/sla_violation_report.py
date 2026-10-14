@@ -1,0 +1,87 @@
+# backend/src/domain/entities/sla_violation_report.py
+from dataclasses import dataclass
+from datetime import date, datetime
+from typing import Literal
+
+SlaViolationPeriod = Literal["week", "month", "year"]
+SlaViolationMetric = Literal["initial_response", "resolution"]
+
+
+@dataclass(frozen=True)
+class SlaViolationChange:
+    changed_at: datetime
+    from_status: str
+    to_status: str
+
+
+@dataclass(frozen=True)
+class SlaViolationCycle:
+    metric: SlaViolationMetric
+    breached_at: datetime | None
+
+
+@dataclass(frozen=True)
+class SlaViolationIssue:
+    key: str
+    summary: str
+    created_at: datetime
+    current_status: str
+    customer: str | None
+    partners: tuple[str, ...] | None
+    reporter: str | None
+    assignee: str | None
+    tac_assignee: str | None
+    cycles: tuple[SlaViolationCycle, ...]
+    changes: tuple[SlaViolationChange, ...] = ()
+    history_complete: bool = True
+    warnings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class SlaViolationBreach:
+    metric: SlaViolationMetric
+    breached_at: datetime | None
+    status: str | None
+
+
+@dataclass(frozen=True)
+class SlaStatusDuration:
+    status: str
+    hours: float
+
+
+@dataclass(frozen=True)
+class SlaViolationTicket:
+    key: str
+    summary: str
+    created_at: datetime
+    elapsed_days: int
+    customer: str | None
+    partners: tuple[str, ...] | None
+    reporter: str | None
+    assignee: str | None
+    tac_assignee: str | None
+    current_status: str
+    status_durations: tuple[SlaStatusDuration, ...] | None
+    breaches: tuple[SlaViolationBreach, ...]
+    warnings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class SlaViolationReportSummary:
+    id: int
+    period: SlaViolationPeriod
+    selected_date: date
+    start_date: date
+    end_date: date
+    generated_at: datetime
+    generated_by: str
+    ticket_count: int
+    initial_response_count: int
+    resolution_count: int
+
+
+@dataclass(frozen=True)
+class SlaViolationReport(SlaViolationReportSummary):
+    tickets: tuple[SlaViolationTicket, ...]
+    warnings: tuple[str, ...] = ()

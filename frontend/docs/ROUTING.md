@@ -8,6 +8,8 @@
 |------|----------|------|------|
 | `/login` | `LoginPage` | 불필요 | 로그인 |
 | `/` | `DashboardPage` | 필요 | 최신 보고서 대시보드 |
+| `/sla-violations` | `SlaViolationPage` | 필요 | 마지막 SLA 위반 보고서와 기간별 생성 |
+| `/sla-violations/history/:id` | `SlaViolationPage` | 필요 | 저장된 SLA 위반 보고서 |
 | `/sla-dashboard` | `SlaDashboardPage` | 필요 | 장기 이슈: 최근 이슈 활동과 최근 댓글 |
 | `/history` | `HistoryPage` | 필요 | 보고서 목록 |
 | `/reports/:id` | `DashboardPage` | 필요 | 특정 보고서 대시보드 |
@@ -53,6 +55,8 @@ const Wrap = ({ children }) => (
 ```
 / (ProtectedRoute → Layout)
 ├── index           → DashboardPage
+├── sla-violations  → SlaViolationPage
+├── sla-violations/history/:id → SlaViolationPage
 ├── sla-dashboard   → SlaDashboardPage
 ├── history         → HistoryPage
 ├── reports/:id     → DashboardPage

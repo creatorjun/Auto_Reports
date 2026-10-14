@@ -41,6 +41,10 @@ site_id 외래키와 hostname, role, CPU core/thread, memory/disk 용량, OS, IP
 
 사이트와 1:1이며 CLI, Web, DB, VPN별 username, password, IP, port와 note를 저장합니다. `CREDENTIAL_ENCRYPTION_KEY`가 설정되면 repository adapter가 각 문자열을 Fernet으로 암호화한 뒤 저장하고 조회 시 복호화합니다. 키가 없으면 호환성을 위해 평문 저장되므로 운영 환경에서는 반드시 키를 설정해야 합니다.
 
+### sla_violation_reports
+
+주간·월간·연간 SLA 위반 보고서의 `period`, `selected_date`, `start_date`, `end_date`, `generated_at`, `generated_by`, `ticket_count`, `initial_response_count`, `resolution_count`와 티켓 상세·데이터 경고를 담은 `payload` JSONB를 저장합니다. `0017_add_sla_violation_reports.py`로 생성하고 최신 보고서는 생성 시각·ID 내림차순으로 선택합니다. 일반 보고서와 독립된 불변 스냅샷이며 상세 이력은 [SLA 위반 보고서 문서](08_sla_violation_report.md)에 정리했습니다.
+
 ## Domain aggregate
 
 `Site`는 `DeploymentNode`, `PatchHistory`, `VisitHistory`, `AccessCredentials`를 소유합니다. 하위 dataclass는 frozen이며 Application 유스케이스가 새 값으로 교체한 뒤 aggregate를 저장합니다. ORM relationship은 `delete-orphan` cascade로 aggregate 저장 정책을 구현합니다.

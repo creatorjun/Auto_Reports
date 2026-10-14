@@ -1,5 +1,6 @@
 # backend/src/bootstrap/container.py
 from contextlib import AsyncExitStack, asynccontextmanager
+import asyncio
 from datetime import datetime
 from typing import AsyncIterator
 
@@ -19,17 +20,20 @@ from src.application.use_cases.refresh_report import RefreshReportUseCase
 from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
+from src.application.use_cases.sla_violation_report import SlaViolationReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.smtp_email_client import SmtpEmailClient
+from src.infrastructure.external.sla_violation_jira_source import SlaViolationJiraSource
 from src.infrastructure.factories.ai_factory import AiFactory
 from src.infrastructure.factories.jira_factory import JiraFactory
 from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
+from src.infrastructure.persistence.sla_violation_repository_impl import SlaViolationRepositoryImpl
 from src.infrastructure.report_cache import ReportLruCache
 from src.infrastructure.security.credential_encryptor import CredentialEncryptor
 from src.infrastructure.security.jwt_service import JwtService
@@ -44,6 +48,16 @@ class Container:
         self._database = database
         self._jira = JiraFactory.create(settings)
         self._ai = AiFactory.create(settings)
+        self._sla_violation_source = SlaViolationJiraSource(
+            base_url=settings.jira_base_url,
+            email=settings.jira_email,
+            api_token=settings.jira_api_token,
+            project_key=settings.project_key,
+            sla_initial_response_field_id=settings.sla_initial_response_field_id,
+            sla_resolution_field_id=settings.sla_resolution_field_id,
+            tac_assignee_field_id=settings.jira_recent_tac_assignee_field_id,
+        )
+        self._sla_violation_generation_lock = asyncio.Lock()
         collectors = WidgetCollectorFactory(self._jira)
         query_builder = WidgetQueryBuilder(
             QueryConfig(
@@ -149,6 +163,15 @@ class Container:
                 project_key=self._settings.project_key,
             )
 
+    @asynccontextmanager
+    async def get_sla_violation(self) -> AsyncIterator[SlaViolationReportUseCase]:
+        async with self._database.session() as session:
+            yield SlaViolationReportUseCase(
+                source=self._sla_violation_source,
+                repository=SlaViolationRepositoryImpl(session),
+                generation_lock=self._sla_violation_generation_lock,
+            )
+
     async def generate_report(
         self,
         start_date: datetime | None = None,
@@ -186,6 +209,7 @@ class Container:
     async def aclose(self) -> None:
         async with AsyncExitStack() as stack:
             stack.push_async_callback(self._jira.aclose)
+            stack.push_async_callback(self._sla_violation_source.aclose)
             if self._ai is not None:
                 stack.push_async_callback(self._ai.aclose)
             stack.push_async_callback(self._cache.aclose)

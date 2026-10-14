@@ -10,6 +10,7 @@ import type { ReportDetail, ReportSummary } from '@/domain/Report'
 import type { ChartIssuesRequest, ChartIssuesResult } from '@/domain/ReportChartDetails'
 import type { SearchResult } from '@/domain/Search'
 import type { SlaDashboardCommentPage, SlaDashboardIssue } from '@/domain/SlaDashboard'
+import type { SlaViolationReport, SlaViolationReportSummary, SlaViolationRequest } from '@/domain/SlaViolationReport'
 import type {
   DeploymentNodePayload,
   PatchHistoryPayload,
@@ -150,6 +151,13 @@ export interface DashboardExportGateway {
   renderExcel: (document: DashboardPdfDocument) => Promise<BinaryContent>
 }
 
+export interface SlaViolationGateway {
+  generate: (request: SlaViolationRequest) => Promise<SlaViolationReport>
+  getLatest: (signal?: CancellationSignal) => Promise<SlaViolationReport | null>
+  getById: (id: number, signal?: CancellationSignal) => Promise<SlaViolationReport>
+  getHistory: (limit?: number, offset?: number, signal?: CancellationSignal) => Promise<SlaViolationReportSummary[]>
+}
+
 export interface ApplicationServices {
   previewParser: PreviewParserPort
   dashboardExport: DashboardExportGateway
@@ -161,5 +169,6 @@ export interface ApplicationServices {
   partners: PartnerGateway
   search: SearchGateway
   slaDashboard: SlaDashboardGateway
+  slaViolations: SlaViolationGateway
   issueManagement: { getIssues: () => Promise<IssueManagementSnapshot> }
 }
