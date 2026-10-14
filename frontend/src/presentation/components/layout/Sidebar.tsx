@@ -83,7 +83,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
               setGroupExpanded(item.id, true)
             }
             return (
-              <div key={item.id} onPointerLeave={(event) => { if (event.pointerType === 'mouse') closeGroup(item.id) }} onKeyDown={(event) => {
+              <div key={item.id} onPointerLeave={(event) => { if (event.pointerType !== 'touch') closeGroup(item.id) }} onKeyDown={(event) => {
                 if (event.key === 'Escape') {
                   closeGroup(item.id)
                   event.currentTarget.querySelector('button')?.focus()
@@ -96,7 +96,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                   aria-controls={controlsId}
                   title={sidebarCollapsed ? item.label : undefined}
                   onPointerEnter={(event) => {
-                    if (event.pointerType === 'mouse') {
+                    if (event.pointerType !== 'touch') {
                       setHoveredGroup(item.id)
                       setGroupExpanded(item.id, true)
                     }
