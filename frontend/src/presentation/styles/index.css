@@ -14,7 +14,8 @@
     @apply bg-apple-surface text-apple-dark;
   }
   strong,
-  b {
+  b,
+  th {
     @apply font-semibold;
   }
   * {
