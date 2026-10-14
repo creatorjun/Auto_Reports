@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from src.application.ports.audit_port import AuditPort
+from src.application.services.report_period import report_period_dates
 from src.presentation.mappers.job_mapper import JobMapper
 from src.application.ports.job_runner_port import JobRunnerPort
 from src.presentation.api.deps import get_audit, get_job_runner
@@ -38,23 +39,32 @@ async def trigger_report(
     start_dt: datetime | None = None
     end_dt: datetime | None = None
 
-    if body.start_date:
-        start_dt = datetime.strptime(body.start_date, "%Y-%m-%d").replace(tzinfo=KST)
-    if body.end_date:
-        end_dt = datetime.strptime(body.end_date, "%Y-%m-%d").replace(
-            hour=23, minute=59, second=59, tzinfo=KST
-        )
+    try:
+        if body.period is not None and body.date is not None:
+            start_dt, end_dt = report_period_dates(body.period, body.date, datetime.now(KST).date())
+        else:
+            if body.start_date:
+                start_dt = datetime.strptime(body.start_date, "%Y-%m-%d").replace(tzinfo=KST)
+            if body.end_date:
+                end_dt = datetime.strptime(body.end_date, "%Y-%m-%d").replace(
+                    hour=23, minute=59, second=59, tzinfo=KST
+                )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
     job_id = str(uuid.uuid4())
-    await job_runner.submit(job_id, start_dt, end_dt, bypass_jira_cache=True)
+    if body.period is not None:
+        await job_runner.submit(job_id, start_dt, end_dt, bypass_jira_cache=True, force_standard=True)
+    else:
+        await job_runner.submit(job_id, start_dt, end_dt, bypass_jira_cache=True)
 
     ip = get_client_ip(request)
     audit.record(
         "REPORT_TRIGGER",
         ip=ip,
         job_id=job_id,
-        start=body.start_date or "auto",
-        end=body.end_date or "auto",
+        start=start_dt.date().isoformat() if start_dt else "auto",
+        end=end_dt.date().isoformat() if end_dt else "auto",
     )
     return TriggerAcceptedSchema(
         job_id=job_id,

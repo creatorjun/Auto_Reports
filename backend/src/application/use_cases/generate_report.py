@@ -42,11 +42,17 @@ class GenerateReportUseCase:
         now: datetime | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
+        *,
+        force_standard: bool = False,
     ) -> Report:
         now = now or datetime.now(tz=KST)
         logger.info(f"\ubcf4\uace0\uc11c \uc0dd\uc131 \uc2dc\uc791: {now}")
 
-        scope, report_year = self._resolve_scope(start_date, end_date, now)
+        scope, report_year = (
+            (ReportScope.STANDARD, None)
+            if force_standard
+            else self._resolve_scope(start_date, end_date, now)
+        )
         new_report = await self._assembler.collect(
             now=end_date or now,
             week_start_override=start_date,
@@ -114,7 +120,7 @@ class GenerateReportUseCase:
             return
 
         cutoff = (now - timedelta(weeks=self._retention_weeks)).date()
-        logger.info(f"[\ub3c4\ud0dc \uc815\ub9ac] week_start < {cutoff} \uc778 \ubcf4\uace0\uc11c \uc0ad\uc81c \uc2dc\uc791 (retention={self._retention_weeks}\uc8fc)")
+        logger.info(f"[\ub3c4\ud0dc \uc815\ub9ac] created_at < {cutoff} KST \uc778 \ubcf4\uace0\uc11c \uc0ad\uc81c \uc2dc\uc791 (retention={self._retention_weeks}\uc8fc)")
 
         try:
             deleted_ids = await self._repository.delete_before(cutoff)

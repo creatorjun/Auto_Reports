@@ -28,14 +28,17 @@ class JobRunnerTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.repository = InMemoryJobRepository()
         self.cache_modes: list[bool] = []
+        self.standard_modes: list[bool] = []
 
         async def generate(
             start: datetime.datetime | None,
             end: datetime.datetime | None,
             *,
             bypass_jira_cache: bool = False,
+            force_standard: bool = False,
         ) -> Report:
             self.cache_modes.append(bypass_jira_cache)
+            self.standard_modes.append(force_standard)
             return Report(
                 id=1,
                 week_start=datetime.date(2026, 8, 3),
@@ -76,3 +79,10 @@ class JobRunnerTest(unittest.IsolatedAsyncioTestCase):
         await self.runner.run_scheduled_job()
         await asyncio.sleep(0)
         self.assertEqual([False], self.cache_modes)
+        self.assertEqual([False], self.standard_modes)
+
+    async def test_dashboard_job_preserves_standard_widget_mode(self) -> None:
+        await self.runner.submit("dashboard-year", bypass_jira_cache=True, force_standard=True)
+        await self.runner.wait_for_update("dashboard-year", JobStatus.PENDING, timeout=1)
+        self.assertEqual([True], self.cache_modes)
+        self.assertEqual([True], self.standard_modes)

@@ -14,6 +14,7 @@ class JobRunnerPort(ABC):
         end_date: datetime | None = None,
         *,
         bypass_jira_cache: bool = False,
+        force_standard: bool = False,
     ) -> None: ...
 
     @abstractmethod

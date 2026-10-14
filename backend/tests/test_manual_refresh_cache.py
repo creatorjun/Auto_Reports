@@ -135,8 +135,14 @@ class ManualRefreshCacheTest(unittest.IsolatedAsyncioTestCase):
 
         with patch("src.bootstrap.container.GenerateReportUseCase") as use_case:
             use_case.return_value.execute = AsyncMock(side_effect=execute)
-            self.assertEqual(2, await container.generate_report(bypass_jira_cache=True))
+            self.assertEqual(2, await container.generate_report(bypass_jira_cache=True, force_standard=True))
+            use_case.return_value.execute.assert_awaited_with(
+                start_date=None, end_date=None, force_standard=True,
+            )
             self.assertEqual(1, await container.generate_report())
+            use_case.return_value.execute.assert_awaited_with(
+                start_date=None, end_date=None, force_standard=False,
+            )
 
     async def test_manual_trigger_requests_jira_cache_bypass(self) -> None:
         runner = AsyncMock()

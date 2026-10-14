@@ -36,13 +36,15 @@ Markdown·텍스트·CSV 등 원본 미리보기도 파일 조회 실패 시 로
 | GET | `/reports/latest` | 없음 | `ReportDetail` 또는 `null` |
 | GET | `/reports/{report_id}` | path id | `ReportDetail`, 없으면 404 |
 | DELETE | `/reports/{report_id}` | path id | 204, 없으면 404 |
-| POST | `/trigger/` | 선택적 start_date, end_date | 202와 job_id, 중복 실행이면 409 |
+| POST | `/trigger/` | period와 date 또는 기존 start_date, end_date | 202와 job_id, 중복 실행이면 409 |
 | GET | `/trigger/{job_id}/status` | path id | pending/running/done/error 상태 |
 | GET | `/trigger/{job_id}/stream?_t=...` | path id와 token | SSE status/done/error/timeout |
 | GET | `/sla-dashboard/issues` | 없음 | 최신 보고서의 최근 이슈 티켓별 생성·최종 업데이트·상태 |
 | GET | `/sla-dashboard/issues/{issue_key}/comments?offset=0&limit=5` | 최근 이슈 key, 0 이상의 offset(기본값 0), 1 이상의 limit(기본값 5) | 최신순 댓글 최대 limit개의 `comments`와 `next_offset` |
 
-SSE는 300초 timeout과 15초 keepalive를 사용합니다. 날짜를 생략하면 유스케이스가 기본 보고 범위를 계산합니다.
+대시보드 생성은 `{"period":"week","date":"2026-10-07"}` 형식으로 요청합니다. `period`는 `week`, `month`, `year`이며 `date`와 함께 전달해야 합니다. KST 기준 월요일~일요일, 해당 달 전체, 해당 연도 전체로 기간을 계산합니다. 미래 기준일, 잘못된 기간, 두 필드 중 하나만 전달하거나 기존 `start_date`/`end_date`와 혼용하면 422입니다. 현재 주·월·연의 종료일은 미래일 수 있지만 실제 생성 시점에 조회 가능한 Jira 데이터만 집계합니다.
+
+이 요청은 연간 선택도 `scope=standard`로 저장하므로 기존 대시보드 지표와 위젯 구성을 유지합니다. 기존 `start_date`/`end_date` API와 스케줄러의 연간 판정은 유지합니다. 날짜를 생략하면 유스케이스가 기본 보고 범위를 계산합니다. SSE는 300초 timeout과 15초 keepalive를 사용하며 프런트엔드는 상태 조회로 이어서 생성 완료를 추적합니다.
 
 장기 이슈 목록은 최신 보고서의 w7 티켓 집합을 기준으로 Jira의 현재 `created`, `updated`, `status`를 조회합니다. `updated`는 댓글 생성·수정·삭제를 포함한 Jira 최종 업데이트 시각이며, 댓글 본문은 Jira 문서 형식을 일반 텍스트로 변환해 반환합니다. 댓글 endpoint는 최신 보고서에 포함되지 않은 티켓 key를 404로 거부합니다.
 

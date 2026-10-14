@@ -21,6 +21,7 @@ class ReportGenerator(Protocol):
         end_date: datetime | None,
         *,
         bypass_jira_cache: bool = False,
+        force_standard: bool = False,
     ) -> Report:
         raise NotImplementedError
 
@@ -75,6 +76,7 @@ class JobRunner(JobRunnerPort):
         end_date: datetime | None = None,
         *,
         bypass_jira_cache: bool = False,
+        force_standard: bool = False,
     ) -> None:
         async with self._lock:
             if self._running_job_id is not None:
@@ -90,7 +92,7 @@ class JobRunner(JobRunnerPort):
             raise
 
         task = asyncio.create_task(
-            self._execute(job_id, start_date, end_date, bypass_jira_cache),
+            self._execute(job_id, start_date, end_date, bypass_jira_cache, force_standard),
             name=f"report-job-{job_id}",
         )
         self._tasks.add(task)
@@ -102,6 +104,7 @@ class JobRunner(JobRunnerPort):
         start_date: datetime | None,
         end_date: datetime | None,
         bypass_jira_cache: bool,
+        force_standard: bool,
     ) -> None:
         try:
             await self._repo.save(
@@ -110,6 +113,7 @@ class JobRunner(JobRunnerPort):
             self._notify(job_id)
             report = await self._generate_report(
                 start_date, end_date, bypass_jira_cache=bypass_jira_cache,
+                force_standard=force_standard,
             )
             await self._repo.save(
                 JobRecord(job_id=job_id, status=JobStatus.DONE, report_id=report.id)

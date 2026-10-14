@@ -114,9 +114,10 @@ class ReportRepositoryImpl(ReportRepository):
         return result.rowcount > 0
 
     async def delete_before(self, cutoff: date) -> list[int]:
+        created_before = datetime(cutoff.year, cutoff.month, cutoff.day, tzinfo=KST)
         select_stmt = select(ReportORM.id).where(
             ReportORM.scope == ReportScope.STANDARD.value,
-            ReportORM.week_start < cutoff,
+            ReportORM.created_at < created_before,
         )
         id_result = await self._session.execute(select_stmt)
         expired_ids: list[int] = list(id_result.scalars().all())

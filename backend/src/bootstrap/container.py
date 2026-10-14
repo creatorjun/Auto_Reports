@@ -178,6 +178,7 @@ class Container:
         end_date: datetime | None = None,
         *,
         bypass_jira_cache: bool = False,
+        force_standard: bool = False,
     ) -> Report:
         async with self._database.session() as session:
             use_case = GenerateReportUseCase(
@@ -193,6 +194,7 @@ class Container:
                 return await use_case.execute(
                     start_date=start_date,
                     end_date=end_date,
+                    force_standard=force_standard,
                 )
 
     async def refresh_report(self) -> None:

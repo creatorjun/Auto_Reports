@@ -1,8 +1,11 @@
 # backend/src/presentation/schemas/report_schema.py
 from datetime import date, datetime
+from datetime import date as SelectedDate
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
+
+from src.application.services.report_period import ReportPeriod
 
 
 class AiAnalysisSchema(BaseModel):
@@ -45,6 +48,16 @@ class ReportDetailSchema(BaseModel):
 class TriggerRequest(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    period: ReportPeriod | None = None
+    date: SelectedDate | None = None
+
+    @model_validator(mode="after")
+    def validate_period_selection(self) -> "TriggerRequest":
+        if (self.period is None) != (self.date is None):
+            raise ValueError("period와 date를 함께 입력해야 합니다.")
+        if self.period is not None and (self.start_date is not None or self.end_date is not None):
+            raise ValueError("기간 선택과 시작일/종료일을 함께 입력할 수 없습니다.")
+        return self
 
 
 class TriggerAcceptedSchema(BaseModel):
