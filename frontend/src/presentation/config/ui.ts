@@ -1,28 +1,4 @@
 // frontend/src/presentation/config/ui.ts
-export const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  '할 일':              { bg: 'bg-status-todo',    text: 'text-white' },
-  '재오픈':             { bg: 'bg-status-todo',    text: 'text-white' },
-  '자료 요청 중':       { bg: 'bg-status-data',    text: 'text-white' },
-  '이슈 리뷰 중':       { bg: 'bg-status-review',  text: 'text-white' },
-  '연구소 대기 중':     { bg: 'bg-status-lab',     text: 'text-white' },
-  '연구소 검토 중':     { bg: 'bg-status-lab',     text: 'text-white' },
-  '구현 중':           { bg: 'bg-status-impl',    text: 'text-white' },
-  '배포 파일 검토 중':  { bg: 'bg-status-deploy',  text: 'text-white' },
-  '결과 대기 중':       { bg: 'bg-status-pending', text: 'text-white' },
-  '보류 중':           { bg: 'bg-status-todo',    text: 'text-white' },
-  '영업본부 검토중':   { bg: 'bg-status-lab',     text: 'text-white' },
-}
-
-export const STATUS_LEGEND = [
-  { label: '할 일 / 재오픈',       color: 'bg-status-todo'    },
-  { label: '자료 요청 중',         color: 'bg-status-data'    },
-  { label: '이슈 리뷰 중',         color: 'bg-status-review'  },
-  { label: '연구소 대기/검토 중',  color: 'bg-status-lab'     },
-  { label: '구현 중',              color: 'bg-status-impl'    },
-  { label: '배포 파일 검토 중',    color: 'bg-status-deploy'  },
-  { label: '결과 대기 중',         color: 'bg-status-pending' },
-]
-
 export const STAGE_TOTAL = 7
 
 export const STAGE_MAP: Record<string, number> = {

@@ -2,7 +2,8 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { useJira } from '@/presentation/context/JiraContext'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
-import { STATUS_STYLE } from '@/presentation/config/ui'
+import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
+import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import { TABLE_PAGE_SIZE, TABLE_MIN_COL_FRAC } from '@/presentation/config/constants'
 import type { RecentIssue } from '@/domain/Issue'
 import { issueTypeLabel } from '@/domain/Issue'
@@ -34,10 +35,6 @@ interface Props {
   paginationResetKey?: string
   columnFilters?: IssueColumnFilters
   onColumnFilterChange?: (column: IssueColumn, value: string) => void
-}
-
-function getStatusStyle(status: string) {
-  return STATUS_STYLE[status] ?? { bg: 'bg-status-todo', text: 'text-white' }
 }
 
 function SortIcon({ dir }: { dir: SortDir | null }) {
@@ -99,7 +96,6 @@ function sortIssues(items: RecentIssue[], key: ColKey, dir: SortDir): RecentIssu
 }
 
 function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: string }) {
-  const style = getStatusStyle(issue.status)
   const jiraUrl = `${jiraBase}/browse/${issue.key}`
   const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
   return (
@@ -109,10 +105,10 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
     >
       <div className="flex items-center justify-center gap-2">
         <span className="font-mono text-[11px] text-blue-500 flex-shrink-0">{issue.key}</span>
-        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${style.bg} ${style.text}`}>{issue.status}</span>
+        <StatusBadge status={issue.status} size="xs" />
       </div>
       <p className="w-full text-[13px] text-apple-dark leading-snug line-clamp-2">{issue.summary}</p>
-      <span className="rounded-md bg-apple-gray px-2 py-1 text-[11px] font-medium text-apple-mid">티켓 타입 · {issueTypeLabel(issue.type)}</span>
+      <span className="text-[11px] text-apple-mid">티켓 타입 · <IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></span>
       <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-apple-light">
         <span>{issue.reporter}</span>
         <span className="text-apple-divider">·</span>
@@ -225,7 +221,6 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
           <tbody>
             {visibleItems.length === 0 && <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-apple-light">{noResultsMessage}</td></tr>}
             {visibleItems.map((issue) => {
-              const style   = getStatusStyle(issue.status)
               const jiraUrl = `${jiraBase}/browse/${issue.key}`
               const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
               return (
@@ -233,9 +228,9 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
                   className="cursor-pointer transition-colors hover:bg-gray-50">
                   <td className="overflow-hidden px-3 py-2 text-center" data-pdf-link={jiraUrl}><span className="block truncate font-mono text-ui-sm text-blue-500">{issue.key}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-apple-primary" title={issue.summary}>{issue.summary}</span></td>
-                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-mid" title={issueTypeLabel(issue.type)}>{issueTypeLabel(issue.type)}</span></td>
+                  <td className="overflow-hidden px-3 py-2 text-center"><IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></td>
                   <td className="overflow-hidden px-3 py-2 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-ui-sm font-medium ${style.bg} ${style.text} whitespace-nowrap`}>{issue.status}</span>
+                    <StatusBadge status={issue.status} size="md" />
                   </td>
                   <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light">{issue.reporter}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-ui-sm text-apple-light">{issue.tac_team}</span></td>
