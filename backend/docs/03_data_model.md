@@ -1,5 +1,7 @@
 # Data Model
 
+Alembic `0018`은 재배포 스냅샷 테이블 `redeployment_reports`를 추가합니다. `id`, KST 날짜 유일 키 `snapshot_date`, `generated_at`, `generated_by`, 원본 티켓·JQL·경고를 포함한 JSONB `payload`를 저장하며 같은 날 갱신은 원자적으로 대체합니다. 자세한 계약은 [재배포 보고서](09_redeployment_report.md)를 참고하세요.
+
 PostgreSQL과 SQLAlchemy async ORM을 사용합니다. 영속성 모델은 `src/infrastructure/persistence`, 프레임워크 독립 모델은 `src/domain`에 있습니다.
 
 ## Tables

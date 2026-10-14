@@ -1,5 +1,7 @@
 # API Reference
 
+재배포 보고서는 인증된 `GET /api/v1/redeployments/latest`로 최신 저장본을 조회하고, `POST /api/v1/redeployments`로 현재 시점 재생성을 요청합니다. 스키마·오류·수집 기준은 [재배포 보고서](09_redeployment_report.md)를 참고하세요.
+
 Base URL은 `/api/v1`입니다. `LOGIN=true`일 때 보호 라우트는 `Authorization: Bearer <access token>`이 필요합니다. EventSource와 파일 링크는 사용자 정의 헤더를 보낼 수 없으므로 `_t=<access token>` query parameter를 사용합니다.
 
 ## Public 또는 자체 인증 라우트

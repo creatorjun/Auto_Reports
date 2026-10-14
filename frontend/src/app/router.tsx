@@ -11,6 +11,7 @@ const DashboardPage          = lazy(() => import('@/presentation/pages/Dashboard
 const IssueManagementPage    = lazy(() => import('@/presentation/pages/IssueManagementPage'))
 const SlaDashboardPage       = lazy(() => import('@/presentation/pages/SlaDashboardPage'))
 const SlaViolationPage       = lazy(() => import('@/presentation/pages/SlaViolationPage'))
+const RedeploymentPage       = lazy(() => import('@/presentation/pages/RedeploymentPage'))
 const HistoryPage            = lazy(() => import('@/presentation/pages/HistoryPage'))
 const AuditLogPage           = lazy(() => import('@/presentation/pages/AuditLogPage'))
 const StoragePage            = lazy(() => import('@/presentation/pages/StoragePage'))
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true,            element: <Wrap><DashboardPage /></Wrap> },
+      { path: 'redeployments', element: <Wrap><RedeploymentPage /></Wrap> },
       { path: 'sla-violations', element: <Wrap><SlaViolationPage /></Wrap> },
       { path: 'sla-violations/history/:id', element: <Wrap><SlaViolationPage /></Wrap> },
       { path: 'issues',         element: <Wrap><IssueManagementPage /></Wrap> },

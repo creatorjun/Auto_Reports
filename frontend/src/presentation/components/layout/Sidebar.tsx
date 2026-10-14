@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { useId, useState } from 'react'
 import { NavLink, useMatch } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, Gauge, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, AlarmClock } from 'lucide-react'
+import { LayoutDashboard, ListChecks, Gauge, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, AlarmClock, RotateCcw } from 'lucide-react'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout, useMe } from '@/presentation/hooks/useAuth'
 import { canViewAuditLogs } from '@/domain/Auth'
@@ -16,6 +16,7 @@ const annualReportLinks = ANNUAL_REPORT_YEARS.map((year) => ({
 
 const reportLinks = [
   { to: '/',         label: '대시보드',      icon: <LayoutDashboard size={16} /> },
+  { to: '/redeployments', label: '재배포 이슈', icon: <RotateCcw size={16} /> },
   { to: '/sla-violations', label: 'SLA 위반', icon: <AlarmClock size={16} /> },
   { to: '/issues',   label: '이슈 관리',      icon: <ListChecks size={16} /> },
   { to: '/sla-dashboard', label: '장기 이슈', icon: <Gauge size={16} /> },

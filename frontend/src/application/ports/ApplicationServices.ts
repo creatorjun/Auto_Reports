@@ -7,6 +7,7 @@ import type { DashboardPdfDocument } from '@/domain/DashboardExport'
 import type { JobStatus, TriggerAccepted, TriggerParams } from '@/domain/Job'
 import type { PartnerIssue, PartnerMember, PartnerOrg } from '@/domain/Partner'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
+import type { RedeploymentReport } from '@/domain/RedeploymentReport'
 import type { ChartIssuesRequest, ChartIssuesResult } from '@/domain/ReportChartDetails'
 import type { SearchResult } from '@/domain/Search'
 import type { SlaDashboardCommentPage, SlaDashboardIssue } from '@/domain/SlaDashboard'
@@ -170,5 +171,11 @@ export interface ApplicationServices {
   search: SearchGateway
   slaDashboard: SlaDashboardGateway
   slaViolations: SlaViolationGateway
+  redeployments: RedeploymentGateway
   issueManagement: { getIssues: () => Promise<IssueManagementSnapshot> }
+}
+
+export interface RedeploymentGateway {
+  getLatest: (signal?: CancellationSignal) => Promise<RedeploymentReport | null>
+  generate: () => Promise<RedeploymentReport>
 }

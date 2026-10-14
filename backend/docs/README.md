@@ -13,3 +13,4 @@
 | [05_issue_catalog.md](./05_issue_catalog.md) | 전수 검토에서 발견한 위반과 리팩터링 결과 |
 | [07_audit_logs.md](./07_audit_logs.md) | 일반·관리자 계정 구분, 관리자 감사로그 화면과 조회 권한·보존 |
 | [08_sla_violation_report.md](./08_sla_violation_report.md) | SLA 위반 기간별 생성, 최초응답·해결 목록, 상태 이력, 자동 저장·히스토리 |
+| [09_redeployment_report.md](./09_redeployment_report.md) | 재배포 현황·원인, 2026년 이후 완료, 매일 08시 KST 자동 갱신 |

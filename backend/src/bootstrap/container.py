@@ -1,6 +1,7 @@
 # backend/src/bootstrap/container.py
 from contextlib import AsyncExitStack, asynccontextmanager
 import asyncio
+import logging
 from datetime import datetime
 from typing import AsyncIterator
 
@@ -21,12 +22,14 @@ from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.application.use_cases.sla_violation_report import SlaViolationReportUseCase
+from src.application.use_cases.redeployment_report import RedeploymentGenerationInProgress, RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.smtp_email_client import SmtpEmailClient
 from src.infrastructure.external.sla_violation_jira_source import SlaViolationJiraSource
+from src.infrastructure.external.redeployment_jira_source import RedeploymentJiraSource
 from src.infrastructure.factories.ai_factory import AiFactory
 from src.infrastructure.factories.jira_factory import JiraFactory
 from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
@@ -34,6 +37,7 @@ from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
 from src.infrastructure.persistence.sla_violation_repository_impl import SlaViolationRepositoryImpl
+from src.infrastructure.persistence.redeployment_repository_impl import RedeploymentRepositoryImpl
 from src.infrastructure.report_cache import ReportLruCache
 from src.infrastructure.security.credential_encryptor import CredentialEncryptor
 from src.infrastructure.security.jwt_service import JwtService
@@ -58,6 +62,10 @@ class Container:
             tac_assignee_field_id=settings.jira_recent_tac_assignee_field_id,
         )
         self._sla_violation_generation_lock = asyncio.Lock()
+        self._redeployment_source = RedeploymentJiraSource(
+            base_url=settings.jira_base_url, email=settings.jira_email,
+            api_token=settings.jira_api_token, project_key=settings.project_key,
+        )
         collectors = WidgetCollectorFactory(self._jira)
         query_builder = WidgetQueryBuilder(
             QueryConfig(
@@ -172,6 +180,19 @@ class Container:
                 generation_lock=self._sla_violation_generation_lock,
             )
 
+    @asynccontextmanager
+    async def get_redeployment(self) -> AsyncIterator[RedeploymentReportUseCase]:
+        async with self._database.session() as session:
+            yield RedeploymentReportUseCase(self._redeployment_source, RedeploymentRepositoryImpl(session))
+
+    async def refresh_redeployment_report(self) -> None:
+        try:
+            async with self.get_redeployment() as use_case:
+                report = await use_case.generate("schedule")
+            logging.getLogger(__name__).info("재배포 보고서 저장 확인: #%s (%s건)", report.id, len(report.tickets))
+        except RedeploymentGenerationInProgress:
+            logging.getLogger(__name__).info("재배포 보고서 갱신 진행 중: 중복 실행 생략")
+
     async def generate_report(
         self,
         start_date: datetime | None = None,
@@ -212,6 +233,7 @@ class Container:
         async with AsyncExitStack() as stack:
             stack.push_async_callback(self._jira.aclose)
             stack.push_async_callback(self._sla_violation_source.aclose)
+            stack.push_async_callback(self._redeployment_source.aclose)
             if self._ai is not None:
                 stack.push_async_callback(self._ai.aclose)
             stack.push_async_callback(self._cache.aclose)

@@ -7,6 +7,7 @@ from src.presentation.api.v1 import (
     config,
     partners,
     reports,
+    redeployments,
     search,
     sites,
     sla_dashboard,
@@ -23,6 +24,7 @@ router.include_router(storage.preview_router)
 
 _protected = APIRouter(dependencies=[Depends(require_auth)])
 _protected.include_router(reports.router)
+_protected.include_router(redeployments.router)
 _protected.include_router(audit_logs.router)
 _protected.include_router(issue_management.router)
 _protected.include_router(trigger.router)

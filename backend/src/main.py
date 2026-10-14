@@ -58,6 +58,7 @@ def create_app(settings: Settings) -> FastAPI:
                     get_site=container.get_site,
                     get_sla_dashboard=container.get_sla_dashboard,
                     get_sla_violation=container.get_sla_violation,
+                    get_redeployment=container.get_redeployment,
                     get_report_chart_issues=container.get_report_chart_issues,
                     issue_management=container.issue_management,
                     audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir)),
@@ -66,6 +67,7 @@ def create_app(settings: Settings) -> FastAPI:
                     schedule_cron=settings.schedule_cron,
                     timezone=settings.tz,
                     generate=job_runner.run_scheduled_job,
+                    refresh_redeployments=container.refresh_redeployment_report,
                     refresh_interval_minutes=(
                         settings.refresh_report_interval_minutes
                         if settings.refresh_report_enabled

@@ -8,6 +8,7 @@
 |------|----------|------|------|
 | `/login` | `LoginPage` | 불필요 | 로그인 |
 | `/` | `DashboardPage` | 필요 | 최신 보고서 대시보드 |
+| `/redeployments` | `RedeploymentPage` | 필요 | 재배포 현황·원인, 매일 08시 KST 갱신 |
 | `/sla-violations` | `SlaViolationPage` | 필요 | 마지막 SLA 위반 보고서와 기간별 생성 |
 | `/sla-violations/history/:id` | `SlaViolationPage` | 필요 | 저장된 SLA 위반 보고서 |
 | `/sla-dashboard` | `SlaDashboardPage` | 필요 | 장기 이슈: 최근 이슈 활동과 최근 댓글 |
@@ -55,6 +56,7 @@ const Wrap = ({ children }) => (
 ```
 / (ProtectedRoute → Layout)
 ├── index           → DashboardPage
+├── redeployments   → RedeploymentPage
 ├── sla-violations  → SlaViolationPage
 ├── sla-violations/history/:id → SlaViolationPage
 ├── sla-dashboard   → SlaDashboardPage

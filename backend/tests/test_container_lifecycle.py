@@ -25,12 +25,14 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.jira = Mock(spec=JiraPort)
         self.ai = Mock(spec=AiPort)
         self.sla_source = AsyncMock(spec=SlaViolationSourcePort)
+        self.redeployment_source = AsyncMock()
 
     def create_container(self, ai: AiPort | None) -> Container:
         with (
             patch("src.bootstrap.container.JiraFactory.create", return_value=self.jira),
             patch("src.bootstrap.container.AiFactory.create", return_value=ai),
             patch("src.bootstrap.container.SlaViolationJiraSource", return_value=self.sla_source),
+            patch("src.bootstrap.container.RedeploymentJiraSource", return_value=self.redeployment_source),
         ):
             return Container(self.settings, Mock())
 
@@ -42,6 +44,7 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.ai.aclose.assert_awaited_once_with()
         self.jira.aclose.assert_awaited_once_with()
         self.sla_source.aclose.assert_awaited_once_with()
+        self.redeployment_source.aclose.assert_awaited_once_with()
 
     async def test_enabled_notifications_receive_the_renderer_from_bootstrap(self) -> None:
         self.settings.smtp_host = "smtp.example.test"

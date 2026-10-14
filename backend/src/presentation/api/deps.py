@@ -15,6 +15,7 @@ from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.application.use_cases.sla_violation_report import SlaViolationReportUseCase
+from src.application.use_cases.redeployment_report import RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.application.use_cases.audit_logs import AuditLogsUseCase
@@ -37,6 +38,7 @@ class ApiServices:
     issue_management: IssueManagementUseCase | None = None
     audit_logs: AuditLogsUseCase | None = None
     get_sla_violation: Callable[[], AsyncContextManager[SlaViolationReportUseCase]] | None = None
+    get_redeployment: Callable[[], AsyncContextManager[RedeploymentReportUseCase]] | None = None
 
 
 def get_api_services(request: Request) -> ApiServices:

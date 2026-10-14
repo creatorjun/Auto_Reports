@@ -1,10 +1,12 @@
 # backend/src/infrastructure/scheduling/report_scheduler.py
 import logging
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
+from src.domain.constants import KST
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,7 @@ def create_scheduler(
     generate: Callable[[], Awaitable[None]],
     refresh_interval_minutes: int | None = None,
     refresh: Callable[[], Awaitable[None]] | None = None,
+    refresh_redeployments: Callable[[], Awaitable[None]] | None = None,
 ) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=timezone)
     scheduler.add_job(
@@ -44,4 +47,13 @@ def create_scheduler(
             "스케줄러 등록 [보고서 자동 갱신]: 매 %d분",
             refresh_interval_minutes,
         )
+    if refresh_redeployments:
+        scheduler.add_job(
+            refresh_redeployments,
+            CronTrigger(hour=8, minute=0, timezone="Asia/Seoul"),
+            id="redeployment_daily", name="재배포 이슈 매일 08:00 KST",
+            next_run_time=datetime.now(KST), coalesce=True, max_instances=1,
+            misfire_grace_time=3600,
+        )
+        logger.info("스케줄러 등록 [재배포 이슈]: 매일 08:00 KST, 시작 시 누락된 보고서 갱신")
     return scheduler

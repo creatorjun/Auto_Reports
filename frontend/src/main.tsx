@@ -12,6 +12,7 @@ import { searchApi } from '@/infrastructure/api/searchApi'
 import { siteApi } from '@/infrastructure/api/siteApi'
 import { slaDashboardApi } from '@/infrastructure/api/slaDashboardApi'
 import { slaViolationApi } from '@/infrastructure/api/slaViolationApi'
+import { redeploymentApi } from '@/infrastructure/api/redeploymentApi'
 import { issueManagementApi } from '@/infrastructure/api/issueManagementApi'
 import { dashboardPdfExporter } from '@/infrastructure/export/dashboardPdfExporter'
 import { dashboardExcelExporter } from '@/infrastructure/export/dashboardExcelExporter'
@@ -52,6 +53,7 @@ const services = {
   search: searchApi,
   slaDashboard: slaDashboardApi,
   slaViolations: slaViolationApi,
+  redeployments: redeploymentApi,
   issueManagement: issueManagementApi,
 }
 
