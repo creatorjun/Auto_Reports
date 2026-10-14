@@ -39,29 +39,37 @@ const Sidebar = load('presentation/components/layout/Sidebar').default
 const Mobile = load('presentation/components/layout/MobileTabBar').default
 const { FOCUS_MANAGEMENT_LINKS } = load('presentation/config/focusManagement')
 
-test('desktop groups the report routes in order and both parent menus open on mouse hover', (t) => {
+test('only parent menu buttons open on mouse hover and leaving their group closes them', (t) => {
   let view
   act(() => { view = TestRenderer.create(React.createElement(MemoryRouter, { initialEntries: ['/sla-violations/history/3'] }, React.createElement(Sidebar, { collapsed: false, setCollapsed: () => {} }))) })
   t.after(() => act(() => view.unmount()))
+  assert.equal(view.root.findByType('aside').props.onPointerEnter, undefined)
+  assert.equal(view.root.findAllByType('a').find((link) => link.props.href === '/issues').props.onPointerEnter, undefined)
   for (const name of ['집중 관리 항목', '연간 보고서']) {
     const trigger = () => view.root.findByProps({ 'aria-label': name })
     assert.equal(trigger().props['aria-expanded'], false)
-    act(() => trigger().parent.props.onPointerEnter({ pointerType: 'touch' }))
+    assert.equal(trigger().parent.props.onPointerEnter, undefined)
+    act(() => trigger().props.onPointerEnter({ pointerType: 'touch' }))
     assert.equal(trigger().props['aria-expanded'], false)
-    act(() => trigger().parent.props.onPointerEnter({ pointerType: 'mouse' }))
+    act(() => trigger().props.onPointerEnter({ pointerType: 'mouse' }))
     assert.equal(trigger().props['aria-expanded'], true)
     const content = view.root.findByProps({ id: trigger().props['aria-controls'] })
     assert.equal(content.props.hidden, false)
+    assert.equal(trigger().props.onPointerLeave, undefined)
     if (name === '집중 관리 항목') {
       assert.match(trigger().props.className, /nav-link-active/)
       assert.deepEqual(content.findAllByType('a').map((link) => [link.props.href, link.children.join('')]), FOCUS_MANAGEMENT_LINKS.map(({ to, label }) => [to, label]))
     }
+    act(() => trigger().parent.props.onPointerLeave({ pointerType: 'mouse' }))
+    assert.equal(trigger().props['aria-expanded'], false)
+    act(() => trigger().props.onClick())
+    assert.equal(trigger().props['aria-expanded'], true)
     act(() => trigger().props.onClick())
     assert.equal(trigger().props['aria-expanded'], false)
   }
 })
 
-test('hover expands a collapsed sidebar and keyboard Escape closes its submenu', (t) => {
+test('hover temporarily expands a collapsed sidebar and leave or Escape restores it', (t) => {
   function Collapsible() {
     const [collapsed, setCollapsed] = React.useState(true)
     return React.createElement(Sidebar, { collapsed, setCollapsed })
@@ -70,13 +78,22 @@ test('hover expands a collapsed sidebar and keyboard Escape closes its submenu',
   act(() => { view = TestRenderer.create(React.createElement(MemoryRouter, null, React.createElement(Collapsible))) })
   t.after(() => act(() => view.unmount()))
   const trigger = () => view.root.findByProps({ 'aria-label': '집중 관리 항목' })
-  act(() => trigger().parent.props.onPointerEnter({ pointerType: 'mouse' }))
+  act(() => trigger().props.onPointerEnter({ pointerType: 'mouse' }))
   assert.equal(trigger().props['aria-expanded'], true)
-  assert.equal(view.root.findByType(Sidebar).props.collapsed, false)
+  assert.equal(view.root.findByType(Sidebar).props.collapsed, true)
+  assert.match(view.root.findByType('aside').props.className, /w-56/)
+  act(() => trigger().parent.props.onPointerLeave({ pointerType: 'mouse' }))
+  assert.equal(trigger().props['aria-expanded'], false)
+  assert.match(view.root.findByType('aside').props.className, /w-14/)
+  act(() => trigger().props.onPointerEnter({ pointerType: 'mouse' }))
   let focused = false
   act(() => trigger().parent.props.onKeyDown({ key: 'Escape', currentTarget: { querySelector: () => ({ focus: () => { focused = true } }) } }))
   assert.equal(trigger().props['aria-expanded'], false)
   assert.equal(focused, true)
+  assert.match(view.root.findByType('aside').props.className, /w-14/)
+  act(() => trigger().props.onClick())
+  assert.equal(trigger().props['aria-expanded'], true)
+  assert.equal(view.root.findByType(Sidebar).props.collapsed, false)
 })
 
 test('mobile exposes one focus-management trigger and closes after a child route is selected', (t) => {

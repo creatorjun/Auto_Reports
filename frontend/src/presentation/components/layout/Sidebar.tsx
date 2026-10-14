@@ -33,6 +33,8 @@ interface Props {
 
 export default function Sidebar({ collapsed, setCollapsed }: Props) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [hoveredGroup, setHoveredGroup] = useState<string | null>(null)
+  const sidebarCollapsed = collapsed && hoveredGroup === null
   const submenuId = useId()
   const { pathname } = useLocation()
   const setGroupExpanded = (id: string, expanded: boolean) => setExpandedGroups((current) => {
@@ -41,6 +43,10 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
     else next.delete(id)
     return next
   })
+  const closeGroup = (id: string) => {
+    setGroupExpanded(id, false)
+    setHoveredGroup((current) => current === id ? null : current)
+  }
   const { loginRequired, username } = useAuthStore()
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
   const me = useMe()
@@ -48,24 +54,28 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
   return (
     <aside
       className={[
-        collapsed ? 'w-14 3xl:w-16' : 'w-56 xl:w-60 2xl:w-64 3xl:w-72',
+        sidebarCollapsed ? 'w-14 3xl:w-16' : 'w-56 xl:w-60 2xl:w-64 3xl:w-72',
         'bg-apple-surface border-r border-apple-divider/80',
         'flex flex-col py-5 3xl:py-7 px-2 3xl:px-3',
         'transition-all duration-250 ease-in-out flex-shrink-0',
       ].join(' ')}
     >
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={() => {
+          setExpandedGroups(new Set())
+          setHoveredGroup(null)
+          setCollapsed(!sidebarCollapsed)
+        }}
         className="flex items-center justify-center w-8 h-8 3xl:w-10 3xl:h-10 rounded-xl text-apple-light hover:bg-apple-gray hover:text-apple-dark transition-all duration-200 mb-2 self-end"
-        title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+        title={sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
       >
-        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
 
       <div className="flex flex-col gap-0.5 flex-1">
         {reportLinks.map((item) => {
           if (item.children) {
-            const expanded = expandedGroups.has(item.id) && !collapsed
+            const expanded = expandedGroups.has(item.id) && !sidebarCollapsed
             const controlsId = `${submenuId}-${item.id}`
             const active = item.children.some(({ to }) => pathname === to || pathname.startsWith(`${to}/`))
             const open = () => {
@@ -73,9 +83,9 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
               setGroupExpanded(item.id, true)
             }
             return (
-              <div key={item.id} onPointerEnter={(event) => { if (event.pointerType === 'mouse') open() }} onKeyDown={(event) => {
+              <div key={item.id} onPointerLeave={(event) => { if (event.pointerType === 'mouse') closeGroup(item.id) }} onKeyDown={(event) => {
                 if (event.key === 'Escape') {
-                  setGroupExpanded(item.id, false)
+                  closeGroup(item.id)
                   event.currentTarget.querySelector('button')?.focus()
                 }
               }}>
@@ -84,19 +94,25 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                   aria-label={item.label}
                   aria-expanded={expanded}
                   aria-controls={controlsId}
-                  title={collapsed ? item.label : undefined}
+                  title={sidebarCollapsed ? item.label : undefined}
+                  onPointerEnter={(event) => {
+                    if (event.pointerType === 'mouse') {
+                      setHoveredGroup(item.id)
+                      setGroupExpanded(item.id, true)
+                    }
+                  }}
                   onClick={() => {
-                    if (collapsed) open()
+                    if (sidebarCollapsed) open()
                     else setGroupExpanded(item.id, !expanded)
                   }}
                   className={[
                     'nav-link w-full text-left text-control 3xl:py-2.5',
-                    collapsed ? 'justify-center px-0' : '',
+                    sidebarCollapsed ? 'justify-center px-0' : '',
                     active ? 'nav-link-active' : '',
                   ].join(' ')}
                 >
                   <span className="flex-shrink-0">{item.icon}</span>
-                  {!collapsed && (
+                  {!sidebarCollapsed && (
                     <>
                       <span className="flex-1">{item.label}</span>
                       <ChevronDown
@@ -134,37 +150,37 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
               key={to}
               to={to}
               end={to === '/'}
-              title={collapsed ? label : undefined}
+              title={sidebarCollapsed ? label : undefined}
               className={({ isActive }) =>
                 ['nav-link',
-                 collapsed ? 'justify-center px-0' : '',
+                 sidebarCollapsed ? 'justify-center px-0' : '',
                  isActive ? 'nav-link-active' : '',
                  '3xl:text-control 3xl:py-2.5',
                 ].join(' ')
               }
             >
               <span className="flex-shrink-0">{icon}</span>
-              {!collapsed && <span>{label}</span>}
+              {!sidebarCollapsed && <span>{label}</span>}
             </NavLink>
           )
         })}
         {!me.isError && canViewAuditLogs(me.data) && (
-          <NavLink to="/audit-logs" title={collapsed ? '감사로그' : undefined}
-            className={({ isActive }) => ['nav-link 3xl:text-control 3xl:py-2.5', collapsed ? 'justify-center px-0' : '', isActive ? 'nav-link-active' : ''].join(' ')}>
+          <NavLink to="/audit-logs" title={sidebarCollapsed ? '감사로그' : undefined}
+            className={({ isActive }) => ['nav-link 3xl:text-control 3xl:py-2.5', sidebarCollapsed ? 'justify-center px-0' : '', isActive ? 'nav-link-active' : ''].join(' ')}>
             <ShieldCheck size={16} className="flex-shrink-0" />
-            {!collapsed && <span>감사로그</span>}
+            {!sidebarCollapsed && <span>감사로그</span>}
           </NavLink>
         )}
       </div>
 
-      <div className={['mt-auto pt-4 border-t border-apple-divider/60 flex flex-col', collapsed ? 'items-center' : ''].join(' ')}>
-        <ThemeToggle collapsed={collapsed} />
+      <div className={['mt-auto pt-4 border-t border-apple-divider/60 flex flex-col', sidebarCollapsed ? 'items-center' : ''].join(' ')}>
+        <ThemeToggle collapsed={sidebarCollapsed} />
 
         {loginRequired && (
           <>
             <div className="w-full border-t border-apple-divider/50 my-2" />
 
-            {collapsed ? (
+            {sidebarCollapsed ? (
               <button
                 onClick={() => logout()}
                 disabled={isLoggingOut}

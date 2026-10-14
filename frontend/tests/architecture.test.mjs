@@ -400,7 +400,7 @@ test('theme palette and persisted mode stay centralized in presentation', () => 
   assert.match(store, /document\.documentElement\.dataset\.theme = theme/)
   assert.match(toggle, /role="switch"/)
   assert.match(toggle, /aria-checked=\{isDark\}/)
-  assert.match(sidebar, /<ThemeToggle collapsed=\{collapsed\} \/>/)
+  assert.match(sidebar, /<ThemeToggle collapsed=\{sidebarCollapsed\} \/>/)
   assert.match(header, /<ThemeToggle collapsed \/>/)
   assert.match(main, /import '.\/presentation\/styles\/index\.css'/)
   assert.match(main, /applyTheme\(useThemeStore\.getState\(\)\.theme\)/)
