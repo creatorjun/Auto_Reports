@@ -10,7 +10,7 @@ export function slaIssueType(ticket: SlaViolationTicket): string {
   return ticket.issue_type?.trim() || UNKNOWN_SLA_ISSUE_TYPE
 }
 
-function slaCurrentStatus(ticket: SlaViolationTicket): string {
+export function slaCurrentStatus(ticket: SlaViolationTicket): string {
   return ticket.current_status.trim() || '확인 불가'
 }
 

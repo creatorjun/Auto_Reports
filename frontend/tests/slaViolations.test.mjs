@@ -40,6 +40,7 @@ const { slaDateRange, slaToday, slaTicketsForMetric, slaPartnersLabel } = load('
 const { slaCreatedDate } = load('presentation/utils/slaViolationFormatters')
 const { defaultSlaSelectedStatuses, filterSlaViolationTickets, slaViolationFilterOptions } = load('domain/SlaViolationFilters')
 const { sortSlaViolationTickets } = load('domain/SlaViolationSort')
+const { filterSlaViolationScope, filterSlaViolationDetails, slaViolationCounts, slaViolationStatuses, slaViolationTimeline } = load('domain/SlaViolationOverview')
 const ticket = {
   key: 'TACEA-1234', summary: '[서울 교통공사] MF2 컴포넌트 개선의 건', issue_type: '서비스 요청', created_at: '2026-05-05T16:00:00Z', elapsed_days: 123,
   customer: '서울교통공사', partners: [], reporter: '김영준 과장', assignee: '조장희 수석', tac_assignee: '한준희 선임', current_status: '결과 대기 중',
@@ -66,6 +67,94 @@ function textOf(node) {
   if (Array.isArray(node)) return node.map(textOf).join(' ')
   return node?.children ? textOf(node.children) : ''
 }
+
+test('overview counts tickets once per metric and separates the intersection from total violations', () => {
+  const rows = [
+    { ...ticket, breaches: [...ticket.breaches, ticket.breaches[0]] },
+    { ...ticket, key: 'T-2', current_status: '자료 요청 중', breaches: [ticket.breaches[0]] },
+    { ...ticket, key: 'T-3', current_status: '자료 요청 중', breaches: [ticket.breaches[1]] },
+    { ...ticket, key: 'T-4', breaches: [] },
+  ]
+  const original = structuredClone(rows)
+  assert.deepEqual(slaViolationCounts(rows), { all: 3, initial_response: 2, resolution: 2, both: 1 })
+  assert.deepEqual(filterSlaViolationScope(rows, 'both').map((row) => row.key), ['TACEA-1234'])
+  assert.deepEqual(slaViolationStatuses(filterSlaViolationScope(rows, 'all')), [{ status: '자료 요청 중', count: 2 }, { status: '결과 대기 중', count: 1 }])
+  assert.deepEqual(slaViolationCounts([]), { all: 0, initial_response: 0, resolution: 0, both: 0 })
+  assert.deepEqual(rows, original)
+})
+
+test('overview timeline uses KST creation dates across year boundaries and retains zero and leap-day buckets', () => {
+  const rows = [
+    { ...ticket, key: 'T-1', created_at: '2025-12-31T14:59:59Z' },
+    { ...ticket, key: 'T-2', created_at: '2025-12-31T15:00:00Z' },
+    { ...ticket, key: 'T-3', created_at: '2026-01-04T15:00:00Z' },
+    { ...ticket, key: 'T-4', created_at: 'invalid' },
+  ]
+  const week = slaViolationTimeline({ period: 'week', start_date: '2025-12-29', end_date: '2026-01-04' }, rows)
+  assert.equal(week.buckets.length, 7)
+  assert.deepEqual(week.buckets.filter((bucket) => bucket.count), [
+    { key: '2025-12-31', label: '12/31', count: 1 }, { key: '2026-01-01', label: '1/1', count: 1 },
+  ])
+  assert.equal(week.unassigned, 2)
+  const year = slaViolationTimeline({ period: 'year', start_date: '2026-01-01', end_date: '2026-12-31' }, rows)
+  assert.equal(year.buckets.length, 12)
+  assert.deepEqual(year.buckets[0], { key: '2026-01', label: '1월', count: 2 })
+  assert.equal(year.buckets[11].count, 0)
+  const leap = slaViolationTimeline({ period: 'month', start_date: '2024-02-01', end_date: '2024-02-29' }, [{ ...ticket, created_at: '2024-02-28T15:00:00Z' }])
+  assert.equal(leap.buckets.length, 29)
+  assert.deepEqual(leap.buckets[28], { key: '2024-02-29', label: '2/29', count: 1 })
+})
+
+test('overview drilldowns intersect creation bucket, current status and normalized ticket searches', () => {
+  const rows = [ticket, { ...ticket, key: 'T-2', customer: '다른 고객', partners: ['파트너'], created_at: '2026-06-01T00:00:00Z', current_status: '자료 요청 중' }]
+  const original = structuredClone(rows)
+  const keys = (...filters) => filterSlaViolationDetails(rows, ...filters).map((row) => row.key)
+  assert.deepEqual(keys('year', '결과 대기 중', '2026-05', '  TACEA-1234  '), [ticket.key])
+  assert.deepEqual(keys('month', null, '2026-05-06', '본사'), [ticket.key])
+  assert.deepEqual(keys('year', null, '2026-05', '한준희'), [ticket.key])
+  assert.deepEqual(keys('year', '자료 요청 중', '2026-05', ''), [])
+  assert.deepEqual(keys('year', '자료 요청 중', null, '파트너'), ['T-2'])
+  assert.deepEqual(keys('year', null, null, '없는 검색어'), [])
+  assert.deepEqual(rows, original)
+})
+
+test('overview cards, charts and search filter existing lists together while respecting default excluded statuses', (t) => {
+  const instance = sourceLoader({ 'presentation/context/JiraContext': { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) } })
+  const Content = instance('presentation/components/sla-violations/SlaViolationReportContent').default
+  const List = instance('presentation/components/sla-violations/SlaViolationList').default
+  const rows = [
+    ticket,
+    { ...ticket, key: 'T-2', current_status: '자료 요청 중', created_at: '2026-06-01T00:00:00Z', breaches: [ticket.breaches[0]] },
+    { ...ticket, key: 'T-3', current_status: '자료 요청 중', breaches: [ticket.breaches[1]] },
+    { ...ticket, key: 'T-closed', current_status: '닫힘' },
+    { ...ticket, key: 'T-held', current_status: '보류 중' },
+  ]
+  const snapshot = { ...report, period: 'year', start_date: '2026-01-01', end_date: '2026-12-31', tickets: rows }
+  const original = structuredClone(snapshot)
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(Content, { key: snapshot.id, report: snapshot })) })
+  t.after(() => act(() => view.unmount()))
+  const click = (label) => act(() => view.root.findByProps({ 'aria-label': label }).props.onClick())
+  const keys = () => view.root.findAllByType(List).map((list) => list.findAllByType('a').map((link) => link.props.href.split('/').at(-1)))
+  const search = (value) => act(() => view.root.findByProps({ type: 'search' }).props.onChange({ target: { value } }))
+  assert.equal(view.root.findByProps({ 'aria-label': '전체 위반 티켓 3건 보기' }).props['aria-pressed'], true)
+  click('최초응답 위반 2건 보기')
+  assert.deepEqual(keys(), [[ticket.key, 'T-2']])
+  click('자료 요청 중 위반 티켓 1건 보기')
+  click('2026-06 생성 위반 티켓 1건 보기')
+  assert.deepEqual(keys(), [['T-2']])
+  search('TACEA')
+  assert.deepEqual(keys(), [[]])
+  act(() => view.root.findAllByType('button').find((button) => textOf(button) === '상세 필터 초기화').props.onClick())
+  assert.deepEqual(keys(), [[ticket.key, 'T-2'], [ticket.key, 'T-3']])
+  click('동시 위반 1건 보기')
+  assert.deepEqual(keys(), [[ticket.key], [ticket.key]])
+  act(() => view.update(React.createElement(Content, { key: snapshot.id, report: { ...snapshot, tickets: [...rows] } })))
+  assert.equal(view.root.findByProps({ 'aria-label': '동시 위반 1건 보기' }).props['aria-pressed'], true)
+  act(() => view.update(React.createElement(Content, { key: 11, report: { ...snapshot, id: 11 } })))
+  assert.equal(view.root.findByProps({ 'aria-label': '전체 위반 티켓 3건 보기' }).props['aria-pressed'], true)
+  assert.deepEqual(snapshot, original)
+})
 
 test('duration bars use visible elapsed hours, omit closed time, and retain tiny percentages', () => {
   const Durations = load('presentation/components/sla-violations/SlaStatusDurations').default
@@ -470,7 +559,7 @@ test('page restores saved controls, separates changed conditions, and submits th
   let view
   act(() => { view = TestRenderer.create(renderPage()) })
   t.after(() => { act(() => view.unmount()); client.clear() })
-  await until(() => view.root.findByType('input').props.value === report.selected_date)
+  await until(() => view.root.findByProps({ type: 'date' }).props.value === report.selected_date)
   assert.equal(currentReport, null)
   const monthly = view.root.findAllByType('button').find((button) => textOf(button) === '월간')
   assert.equal(monthly.props['aria-pressed'], true)
@@ -480,7 +569,7 @@ test('page restores saved controls, separates changed conditions, and submits th
   await until(() => requests.length === 1)
   assert.deepEqual(requests[0], { period: 'year', date: '2026-05-06' })
   assert.equal(view.root.findByType('fieldset').props.disabled, true)
-  assert.equal(view.root.findByType('input').props.disabled, true)
+  assert.equal(view.root.findByProps({ type: 'date' }).props.disabled, true)
   generated.resolve({ ...report, id: 11, period: 'year', start_date: '2026-01-01', end_date: '2026-12-31' })
   await until(() => textOf(view.toJSON()).includes('히스토리에 저장했습니다'))
   assert.equal(view.root.findAllByType('button').find((button) => textOf(button) === '연간').props['aria-pressed'], true)
