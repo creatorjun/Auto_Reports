@@ -1,12 +1,13 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { useId, useState } from 'react'
-import { NavLink, useMatch } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, Gauge, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, AlarmClock, RotateCcw } from 'lucide-react'
+import { NavLink, useLocation } from 'react-router-dom'
+import { LayoutDashboard, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck } from 'lucide-react'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout, useMe } from '@/presentation/hooks/useAuth'
 import { canViewAuditLogs } from '@/domain/Auth'
 import ThemeToggle from './ThemeToggle'
 import { ANNUAL_REPORT_YEARS } from '@/presentation/config/annualReports'
+import { FOCUS_MANAGEMENT_LABEL, FOCUS_MANAGEMENT_LINKS } from '@/presentation/config/focusManagement'
 
 const annualReportLinks = ANNUAL_REPORT_YEARS.map((year) => ({
   to: `/reports/annual/${year}`,
@@ -16,11 +17,8 @@ const annualReportLinks = ANNUAL_REPORT_YEARS.map((year) => ({
 
 const reportLinks = [
   { to: '/',         label: '대시보드',      icon: <LayoutDashboard size={16} /> },
-  { to: '/redeployments', label: '재배포 이슈', icon: <RotateCcw size={16} /> },
-  { to: '/sla-violations', label: 'SLA 위반', icon: <AlarmClock size={16} /> },
-  { to: '/issues',   label: '이슈 관리',      icon: <ListChecks size={16} /> },
-  { to: '/sla-dashboard', label: '장기 이슈', icon: <Gauge size={16} /> },
-  { label: '연간 보고서', icon: <CalendarRange size={16} />, children: annualReportLinks },
+  { id: 'focus', label: FOCUS_MANAGEMENT_LABEL, icon: <ListChecks size={16} />, children: FOCUS_MANAGEMENT_LINKS },
+  { id: 'annual', label: '연간 보고서', icon: <CalendarRange size={16} />, children: annualReportLinks },
   { to: '/partners', label: '파트너 관리',    icon: <Users           size={16} /> },
   { to: '/sites',    label: '사이트 관리',    icon: <Building2       size={16} /> },
   { to: '/storage',  label: '파일 보관함',    icon: <HardDrive       size={16} /> },
@@ -32,10 +30,15 @@ interface Props {
 }
 
 export default function Sidebar({ collapsed, setCollapsed }: Props) {
-  const [annualReportsExpanded, setAnnualReportsExpanded] = useState(false)
-  const annualReportsId = useId()
-  const annualReportMatch = useMatch('/reports/annual/:year')
-  const showAnnualReports = annualReportsExpanded && !collapsed
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const submenuId = useId()
+  const { pathname } = useLocation()
+  const setGroupExpanded = (id: string, expanded: boolean) => setExpandedGroups((current) => {
+    const next = new Set(current)
+    if (expanded) next.add(id)
+    else next.delete(id)
+    return next
+  })
   const { loginRequired, username } = useAuthStore()
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
   const me = useMe()
@@ -60,26 +63,34 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
       <div className="flex flex-col gap-0.5 flex-1">
         {reportLinks.map((item) => {
           if (item.children) {
+            const expanded = expandedGroups.has(item.id) && !collapsed
+            const controlsId = `${submenuId}-${item.id}`
+            const active = item.children.some(({ to }) => pathname === to || pathname.startsWith(`${to}/`))
+            const open = () => {
+              if (collapsed) setCollapsed(false)
+              setGroupExpanded(item.id, true)
+            }
             return (
-              <div key={item.label}>
+              <div key={item.id} onPointerEnter={(event) => { if (event.pointerType === 'mouse') open() }} onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setGroupExpanded(item.id, false)
+                  event.currentTarget.querySelector('button')?.focus()
+                }
+              }}>
                 <button
                   type="button"
                   aria-label={item.label}
-                  aria-expanded={showAnnualReports}
-                  aria-controls={annualReportsId}
+                  aria-expanded={expanded}
+                  aria-controls={controlsId}
                   title={collapsed ? item.label : undefined}
                   onClick={() => {
-                    if (collapsed) {
-                      setCollapsed(false)
-                      setAnnualReportsExpanded(true)
-                    } else {
-                      setAnnualReportsExpanded((expanded) => !expanded)
-                    }
+                    if (collapsed) open()
+                    else setGroupExpanded(item.id, !expanded)
                   }}
                   className={[
                     'nav-link w-full text-left text-control 3xl:py-2.5',
                     collapsed ? 'justify-center px-0' : '',
-                    annualReportMatch ? 'nav-link-active' : '',
+                    active ? 'nav-link-active' : '',
                   ].join(' ')}
                 >
                   <span className="flex-shrink-0">{item.icon}</span>
@@ -89,23 +100,23 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
                       <ChevronDown
                         size={14}
                         aria-hidden="true"
-                        className={`flex-shrink-0 transition-transform duration-200 ${showAnnualReports ? '' : '-rotate-90'}`}
+                        className={`flex-shrink-0 transition-transform duration-200 ${expanded ? '' : '-rotate-90'}`}
                       />
                     </>
                   )}
                 </button>
-                <div id={annualReportsId} hidden={!showAnnualReports}>
+                <div id={controlsId} hidden={!expanded}>
                   <div className="ml-5 mt-1 flex flex-col gap-0.5 border-l border-apple-divider/80 pl-2">
-                    {item.children.map(({ to, label, ariaLabel }) => (
+                    {item.children.map((child) => (
                       <NavLink
-                        key={to}
-                        to={to}
-                        aria-label={ariaLabel}
+                        key={child.to}
+                        to={child.to}
+                        aria-label={'ariaLabel' in child ? child.ariaLabel : child.label}
                         className={({ isActive }) =>
                           ['nav-link 3xl:text-control 3xl:py-2.5', isActive ? 'nav-link-active' : ''].join(' ')
                         }
                       >
-                        {label}
+                        {child.label}
                       </NavLink>
                     ))}
                   </div>

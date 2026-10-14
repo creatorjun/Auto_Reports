@@ -22,6 +22,13 @@ export function slaViolationFilterOptions(tickets: SlaViolationTicket[]) {
   }
 }
 
+export function defaultSlaSelectedStatuses(tickets: SlaViolationTicket[]): Set<string> | null {
+  const excluded = new Set(['닫힘', '닫혀', 'closed', '반려됨', '보류중'])
+  const statuses = slaViolationFilterOptions(tickets).statuses
+  const selected = statuses.filter((status) => !excluded.has(status.normalize('NFKC').replace(/\s+/g, '').toLowerCase()))
+  return selected.length === statuses.length ? null : new Set(selected)
+}
+
 export function filterSlaViolationTickets(
   tickets: SlaViolationTicket[],
   selectedTypes: ReadonlySet<string> | null,

@@ -45,7 +45,7 @@ site_id 외래키와 hostname, role, CPU core/thread, memory/disk 용량, OS, IP
 
 ### sla_violation_reports
 
-주간·월간·연간 SLA 위반 보고서의 `period`, `selected_date`, `start_date`, `end_date`, `generated_at`, `generated_by`, `ticket_count`, `initial_response_count`, `resolution_count`와 티켓 상세·데이터 경고를 담은 `payload` JSONB를 저장합니다. `0017_add_sla_violation_reports.py`로 생성하고 최신 보고서는 생성 시각·ID 내림차순으로 선택합니다. 일반 보고서와 독립된 불변 스냅샷이며 상세 이력은 [SLA 위반 보고서 문서](08_sla_violation_report.md)에 정리했습니다.
+주간·월간·연간 SLA 현황 보고서의 `period`, `selected_date`, `start_date`, `end_date`, `generated_at`, `generated_by`, `ticket_count`, `initial_response_count`, `resolution_count`와 티켓 상세·데이터 경고를 담은 `payload` JSONB를 저장합니다. `0017_add_sla_violation_reports.py`로 생성하고 최신 보고서는 생성 시각·ID 내림차순으로 선택합니다. 일반 보고서와 독립된 불변 스냅샷이며 상세 이력은 [SLA 현황 보고서 문서](08_sla_violation_report.md)에 정리했습니다.
 
 ## Domain aggregate
 

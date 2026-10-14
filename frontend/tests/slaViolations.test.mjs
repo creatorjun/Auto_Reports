@@ -38,7 +38,7 @@ function sourceLoader(overrides = {}) {
 const load = sourceLoader()
 const { slaDateRange, slaToday, slaTicketsForMetric, slaPartnersLabel } = load('application/services/slaViolationReport')
 const { slaCreatedDate } = load('presentation/utils/slaViolationFormatters')
-const { filterSlaViolationTickets, slaViolationFilterOptions } = load('domain/SlaViolationFilters')
+const { defaultSlaSelectedStatuses, filterSlaViolationTickets, slaViolationFilterOptions } = load('domain/SlaViolationFilters')
 const { sortSlaViolationTickets } = load('domain/SlaViolationSort')
 const ticket = {
   key: 'TACEA-1234', summary: '[서울 교통공사] MF2 컴포넌트 개선의 건', issue_type: '서비스 요청', created_at: '2026-05-05T16:00:00Z', elapsed_days: 123,
@@ -201,6 +201,19 @@ test('SLA type, saved current status, and KST creation semester filters intersec
   assert.deepEqual(filterSlaViolationTickets(rows, null, new Set(['할일']), null), [])
 })
 
+test('SLA defaults exclude only closed, rejected, and on-hold aliases and allow explicit inclusion', () => {
+  const statuses = ['결과 대기 중', '닫힘', '반려됨', '보류 중', '보류중', ' Closed ', '닫혀', '취소됨', '중복 이슈', '']
+  const rows = statuses.map((current_status, index) => ({ ...ticket, key: `T-${index}`, current_status }))
+  const original = structuredClone(rows)
+  const selected = defaultSlaSelectedStatuses(rows)
+  assert.deepEqual(filterSlaViolationTickets(rows, null, selected, null).map((row) => row.key), ['T-0', 'T-7', 'T-8', 'T-9'])
+  assert.equal(filterSlaViolationTickets(rows, null, null, null).length, statuses.length)
+  assert.deepEqual(rows, original)
+  assert.equal(defaultSlaSelectedStatuses([ticket]), null)
+  assert.equal(defaultSlaSelectedStatuses([]), null)
+  assert.equal(defaultSlaSelectedStatuses([{ ...ticket, current_status: '닫힘' }]).size, 0)
+})
+
 test('SLA page filters both metric lists immediately, preserves same-report choices, and resets for a new report', (t) => {
   const rows = [ticket, { ...ticket, key: 'TACEA-2', issue_type: '케이스', current_status: '닫힘', created_at: '2026-07-01T00:00:00+09:00', breaches: [ticket.breaches[0]] }, { ...ticket, key: 'TACEA-3', issue_type: null, breaches: [ticket.breaches[1]] }]
   let current = { ...report, tickets: rows, ticket_count: 3, initial_response_count: 2, resolution_count: 2 }
@@ -221,11 +234,13 @@ test('SLA page filters both metric lists immediately, preserves same-report choi
   const click = (name) => act(() => view.root.findAllByType('button').find((button) => textOf(button).trim() === name).props.onClick())
   const metricKeys = () => view.root.findAllByType(List).map((list) => list.findAllByType('a').map((link) => link.props.href.split('/').at(-1)))
   const metricCounts = () => view.root.findAllByType(List).map((list) => Number(textOf(list).match(/(\d+)\s*건/)[1]))
-  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2'], ['TACEA-1234', 'TACEA-3']])
+  assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234', 'TACEA-3']])
   assert.match(textOf(view.toJSON()), /요청 유형이 저장되지 않은 티켓\s+1\s*건/)
   assert.equal(view.root.findAllByProps({ 'aria-label': '이슈 제목 검색' }).length, 0)
   click('필터 펼치기')
   click('확인 불가')
+  assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234']])
+  click('닫힘')
   assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2'], ['TACEA-1234']])
   click('닫힘')
   assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234']])
@@ -248,7 +263,7 @@ test('SLA page filters both metric lists immediately, preserves same-report choi
   click('케이스')
   current = { ...current, id: 11 }
   act(() => view.update(React.createElement(Page)))
-  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2'], ['TACEA-1234', 'TACEA-3']])
+  assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234', 'TACEA-3']])
   assert.equal(view.root.findAllByProps({ 'aria-label': 'TACEA-1234 상세 접기' }).length, 0)
   assert.equal(generationCalls, 0)
   assert.deepEqual({ ...current, id: report.id }, original)

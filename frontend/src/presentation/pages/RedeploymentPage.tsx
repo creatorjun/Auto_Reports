@@ -33,7 +33,7 @@ export default function RedeploymentPage() {
 
   return <div className="mx-auto flex w-full max-w-content flex-col gap-5 break-keep 3xl:max-w-none">
     <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><div className="mb-2 flex items-center gap-2 text-caption font-medium text-brand-600"><RotateCcw size={16} />재배포 현황 보고서</div><h1 className="text-page-title font-semibold tracking-tight text-apple-dark">재배포 이슈</h1><p className="mt-2 text-label text-apple-mid">2026년 1월 1일 이후 완료 현황과 현재 진행 중인 재배포의 원인을 확인합니다.</p></div>
+      <div><div className="mb-2 flex items-center gap-2 text-caption font-medium text-brand-600"><RotateCcw size={16} />재배포 현황 보고서</div><h1 className="text-page-title font-semibold tracking-tight text-apple-dark">재배포 현황</h1><p className="mt-2 text-label text-apple-mid">2026년 1월 1일 이후 완료 현황과 현재 진행 중인 재배포의 원인을 확인합니다.</p></div>
       <button type="button" disabled={refresh.isPending} onClick={() => refresh.mutate()} className="flex min-h-11 items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-control font-medium text-white hover:bg-brand-700 disabled:opacity-50">{refresh.isPending ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}{refresh.isPending ? '갱신 중' : '지금 갱신'}</button>
     </header>
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-apple-divider bg-apple-surface px-4 py-3 text-caption text-apple-mid"><span className="flex items-center gap-2"><Clock3 size={16} className="text-brand-600" />매일 08:00 자동 갱신 · KST</span><span>{report ? `마지막 갱신 ${formattedDate} KST` : '첫 보고서 생성 대기 중'}</span></div>

@@ -54,7 +54,7 @@ Markdown·텍스트·CSV 등 원본 미리보기도 파일 조회 실패 시 로
 
 댓글 목록 조회는 서버의 Jira 응답 캐시를 사용하지 않고 요청마다 Jira에 작성 시각 최신순(`orderBy=-created`)으로 조회합니다. 프론트엔드 댓글 query의 `staleTime`은 2분이며, 더보기를 누르면 늘어난 `limit`으로 새 요청을 보내고 성공한 최신 응답으로 표시 목록을 갱신합니다. 실패하면 이전에 표시한 댓글을 유지합니다.
 
-## SLA 위반 보고서
+## SLA 현황 보고서
 
 `POST /sla-violations`는 `period=week|month|year`와 `date`를 JSON으로 받아 선택 날짜가 속한 기간에 생성된 위반 티켓을 수집하고 히스토리에 자동 저장한 보고서를 201로 반환합니다. `GET /sla-violations/latest`는 마지막 보고서 또는 `null`, `GET /sla-violations/history?limit=20&offset=0`은 생성순 요약 목록, `GET /sla-violations/{id}`는 저장된 보고서를 반환합니다. 잘못된 입력은 422, 생성 중 중복 요청은 409, Jira 수집 오류는 502입니다. [집계 기준과 응답 계약](08_sla_violation_report.md)을 참고하세요.
 

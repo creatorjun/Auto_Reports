@@ -86,7 +86,7 @@ export default function IssueManagementPage() {
       comparison,
       format: exportFormat,
       metadata: {
-        title: '이슈 관리',
+        title: '전체 이슈',
         period: 'TACEA 전체 요청 · 완료 항목 포함',
         generatedAt: now.toLocaleString('ko-KR', { hour12: false }),
         filters,
@@ -102,7 +102,7 @@ export default function IssueManagementPage() {
     <div className="dashboard-view space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-page-title font-semibold text-apple-dark">이슈 관리</h1>
+          <h1 className="text-page-title font-semibold text-apple-dark">전체 이슈</h1>
           <p className="mt-1 text-label text-apple-mid">TACEA 전체 요청 · 완료 항목 포함 · 30초마다 변경분 동기화</p>
           <p className="mt-1 text-caption text-apple-light" aria-live="polite">{query.data?.synced_at ? `마지막 동기화 ${new Date(query.data.synced_at).toLocaleString('ko-KR')}` : '전체 이슈를 수집하고 있습니다.'}{query.data?.refreshing ? ' · 동기화 중' : ''}</p>
         </div>

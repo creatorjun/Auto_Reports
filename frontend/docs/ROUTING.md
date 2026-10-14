@@ -2,6 +2,10 @@
 
 # 라우팅 구조
 
+## 집중 관리 메뉴
+
+`대시보드` 다음에 `집중 관리 항목`을 두고 `재배포 현황`, `SLA 현황`, `장기 이슈`, `전체 이슈` 순서로 표시합니다. 경로는 아래 표의 기존 주소를 유지합니다. 데스크톱의 하위 메뉴가 있는 대메뉴는 마우스 진입 시 펼쳐지고 클릭·Escape로 접습니다. 접힌 사이드바에서도 마우스를 올리면 펼칩니다. 모바일은 버튼을 눌러 하위 목록을 열고 선택·바깥 영역 클릭·Escape로 닫습니다.
+
 ## 라우트 테이블
 
 | 경로 | 컴포넌트 | 인증 | 설명 |
@@ -9,8 +13,9 @@
 | `/login` | `LoginPage` | 불필요 | 로그인 |
 | `/` | `DashboardPage` | 필요 | 최신 보고서 대시보드 |
 | `/redeployments` | `RedeploymentPage` | 필요 | 재배포 현황·원인, 매일 08시 KST 갱신 |
-| `/sla-violations` | `SlaViolationPage` | 필요 | 마지막 SLA 위반 보고서와 기간별 생성 |
-| `/sla-violations/history/:id` | `SlaViolationPage` | 필요 | 저장된 SLA 위반 보고서 |
+| `/sla-violations` | `SlaViolationPage` | 필요 | SLA 현황: 마지막 저장본과 기간별 생성 |
+| `/sla-violations/history/:id` | `SlaViolationPage` | 필요 | 저장된 SLA 현황 보고서 |
+| `/issues` | `IssueManagementPage` | 필요 | 전체 이슈 |
 | `/sla-dashboard` | `SlaDashboardPage` | 필요 | 장기 이슈: 최근 이슈 활동과 최근 댓글 |
 | `/history` | `HistoryPage` | 필요 | 보고서 목록 |
 | `/reports/:id` | `DashboardPage` | 필요 | 특정 보고서 대시보드 |
