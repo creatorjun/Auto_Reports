@@ -21,7 +21,7 @@
 - component는 axios adapter를 import하지 않습니다.
 - 이슈 표는 `IssueModalShell`과 `IssueTableModal`을 재사용합니다.
 - query key와 표시 상수는 `presentation/config`, formatter는 `presentation/utils`를 사용합니다.
-- 큰 파일 preview renderer는 lazy loading하고 보고서 생성 modal은 배포 안정성을 위해 메인 bundle에 포함합니다.
+- 큰 파일 preview renderer는 lazy loading합니다. 보고서는 대시보드 상단의 `DashboardGenerateForm`에서 주간·월간·연간과 기준일을 선택해 생성합니다.
 
 ## 필터 전체 선택·해제
 

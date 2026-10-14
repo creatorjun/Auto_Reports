@@ -38,7 +38,7 @@ export default function ProtectedRoute({ children }) {
 모든 페이지 컴포넌트는 `React.lazy()` 로 동적 임포트됩니다.  
 `LazyErrorBoundary` + `Suspense` 조합으로 로드 실패·로딩 상태를 처리합니다.
 
-보고서 생성 모달은 배포 직후 이전 chunk 참조로 핵심 기능이 중단되지 않도록 메인 번들에 포함합니다. Nginx는 `index.html`을 캐시하지 않고 해시가 포함된 `/assets/` 파일만 장기 캐시하며, 존재하지 않는 asset 요청은 SPA fallback 대신 404를 반환합니다.
+보고서 생성 폼은 대시보드 안에 표시합니다. `Layout`의 `ReportGenerationProvider`가 생성 작업을 추적하므로 다른 메뉴로 이동해도 완료·실패 상태를 반영하며, 대시보드를 보고 있을 때 새 보고서로 전환합니다. Nginx는 `index.html`을 캐시하지 않고 해시가 포함된 `/assets/` 파일만 장기 캐시하며, 존재하지 않는 asset 요청은 SPA fallback 대신 404를 반환합니다.
 
 ```tsx
 const Wrap = ({ children }) => (

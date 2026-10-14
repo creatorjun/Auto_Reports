@@ -2,7 +2,6 @@
 import { useId, useState } from 'react'
 import { NavLink, useMatch } from 'react-router-dom'
 import { LayoutDashboard, ListChecks, Gauge, History, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, AlarmClock } from 'lucide-react'
-import TriggerButton from '../common/TriggerButton'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout, useMe } from '@/presentation/hooks/useAuth'
 import { canViewAuditLogs } from '@/domain/Auth'
@@ -150,8 +149,6 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
 
       <div className={['mt-auto pt-4 border-t border-apple-divider/60 flex flex-col', collapsed ? 'items-center' : ''].join(' ')}>
         <ThemeToggle collapsed={collapsed} />
-        <div className="h-2" />
-        <TriggerButton collapsed={collapsed} />
 
         {loginRequired && (
           <>

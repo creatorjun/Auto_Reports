@@ -6,6 +6,8 @@ import { useAnnualReport, useLatestReport, useReportById } from '@/presentation/
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useDashboardData } from '@/presentation/hooks/useDashboardData'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
+import DashboardGenerateForm from '@/presentation/components/common/DashboardGenerateForm'
+import { useReportGeneration } from '@/presentation/context/ReportGenerationContext'
 import SummaryCard, { SUMMARY_ICONS } from '@/presentation/components/cards/SummaryCard'
 import AiSummaryCard from '@/presentation/components/cards/AiSummaryCard'
 import WorkTypeSummaryCard from '@/presentation/components/cards/WorkTypeSummaryCard'
@@ -24,6 +26,7 @@ import '@/presentation/styles/dashboardExport.css'
 import type { RedeploymentAnalytics, Semester, SlaDelayIssue, ViolationEntry, WorkTypeOpenWidget } from '@/domain/Dashboard'
 import type { SlaViolationIssue } from '@/presentation/components/tables/SlaViolationModal'
 import AnnualReportHeader from '@/presentation/components/annual/AnnualReportHeader'
+import AnnualReportGenerate from '@/presentation/components/annual/AnnualReportGenerate'
 import AnnualYearComparison from '@/presentation/components/annual/AnnualYearComparison'
 import AnnualSummaryMetrics from '@/presentation/components/annual/AnnualSummaryMetrics'
 import AnnualIssueDetailsModal from '@/presentation/components/annual/AnnualIssueDetailsModal'
@@ -533,29 +536,30 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
 
 export default function DashboardPage() {
   const { id, year } = useParams<{ id: string; year: string }>()
+  const generation = useReportGeneration()
   const annualYear = Number(year)
-  const latestQuery = useLatestReport()
+  const latestQuery = useLatestReport(!generation.pending && !year && !id)
   const byIdQuery   = useReportById(Number(id))
   const annualQuery = useAnnualReport(annualYear)
   const { data, isLoading, error } = year ? annualQuery : id ? byIdQuery : latestQuery
 
-  if (isLoading) return <LoadingSpinner text="보고서 로딩 중..." />
-  if (error && year) return (
-    <div className="card text-center py-16">
-      <CalendarRange className="mx-auto mb-3 text-apple-light" size={28} />
-      <p className="text-ui-base font-medium text-apple-dark">{annualYear} 연간 보고서가 아직 생성되지 않았습니다.</p>
-      <p className="mt-2 text-[12px] text-apple-light">
-        {annualYear === 2026
-          ? '2026-01-01부터 오늘까지의 기간으로 보고서를 생성하면 자동으로 연결됩니다.'
-          : `${annualYear}-01-01부터 ${annualYear}-12-31까지의 기간으로 보고서를 생성하면 자동으로 연결됩니다.`}
-      </p>
+  return (
+    <div className="mx-auto flex w-full max-w-content flex-col gap-5 3xl:max-w-none">
+      {year ? <AnnualReportGenerate year={annualYear} loading={isLoading} /> : <DashboardGenerateForm report={data} loading={isLoading} />}
+      {isLoading && <LoadingSpinner text="보고서 로딩 중..." />}
+      {error && year && !data ? (
+        <div className="card text-center py-16">
+          <CalendarRange className="mx-auto mb-3 text-apple-light" size={28} />
+          <p className="text-ui-base font-medium text-apple-dark">{annualYear} 연간 보고서를 불러올 수 없습니다.</p>
+          <p className="mt-2 text-[12px] text-apple-light">아직 생성하지 않았다면 위의 연간 보고서 생성 버튼을 누르세요.</p>
+        </div>
+      ) : error ? <div role="alert" className="card text-ui-base text-red-500">데이터를 불러올 수 없습니다.</div> : null}
+      {data && <DashboardContent report={data} />}
+      {!data && !isLoading && !error && (
+        <div className="card text-ui-base text-apple-light text-center py-16">
+          생성된 보고서가 없습니다. 기간과 기준 날짜를 선택하고 <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 누르세요.
+        </div>
+      )}
     </div>
   )
-  if (error) return <div className="card text-ui-base text-red-500">데이터를 불러올 수 없습니다.</div>
-  if (!data)     return (
-    <div className="card text-ui-base text-apple-light text-center py-16">
-      생성된 보고서가 없습니다. <span className="text-brand-600 font-medium">보고서 생성</span> 버튼을 누르세요.
-    </div>
-  )
-  return <DashboardContent report={data} />
 }

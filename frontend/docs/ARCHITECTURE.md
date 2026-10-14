@@ -59,7 +59,7 @@ axios 오류는 Infrastructure에서 `RequestError`로 정규화됩니다. Prese
 
 ## 잡 진행
 
-보고서 생성 요청 뒤 `reportApi.watchJob()`이 SSE를 우선 사용하고 연결 실패 시 지수 백오프 폴링으로 전환합니다. SSE URL에는 EventSource의 헤더 제한을 고려한 인증 query token이 포함되고 백엔드는 같은 토큰을 검증합니다. `useJobStream`은 Application subscription을 시작·종료하며 컴포넌트 unmount 때 연결과 타이머를 회수합니다.
+보고서 생성 요청 뒤 `reportApi.watchJob()`이 SSE를 우선 사용하고 연결 실패 시 지수 백오프 폴링으로 전환합니다. SSE URL에는 EventSource의 헤더 제한을 고려한 인증 query token이 포함되고 백엔드는 같은 토큰을 검증합니다. `Layout`의 `ReportGenerationProvider`가 구독을 소유하여 메뉴 이동 중에도 생성을 추적합니다. `useJobStream`은 Application subscription을 시작·종료하며 인증된 layout이 unmount되면 연결과 타이머를 회수합니다. 완료한 보고서의 scope에 따라 최신 일반 보고서와 연간 전용 보고서 캐시를 구분해 갱신합니다.
 
 ## 검증
 

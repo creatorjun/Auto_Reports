@@ -209,8 +209,8 @@ test('infrastructure owns job streaming and file preview transport', () => {
     path.join(source, 'infrastructure/api/binaryContent.ts'),
     'utf8',
   )
-  const reportHook = fs.readFileSync(
-    path.join(source, 'presentation/hooks/useReport.ts'),
+  const triggerHook = fs.readFileSync(
+    path.join(source, 'presentation/hooks/useTrigger.ts'),
     'utf8',
   )
   assert.match(reportApi, /new EventSource\(/)
@@ -219,7 +219,8 @@ test('infrastructure owns job streaming and file preview transport', () => {
   assert.match(reportApi, /clearTimeout\(deadlineTimer\)/)
   assert.match(jobHook, /reports\.watchJob\(/)
   assert.doesNotMatch(jobHook, /EventSource|getJobStreamUrl|getJobStatus/)
-  assert.match(reportHook, /REFRESH_TIMEOUT_MS = 180_000/)
+  assert.match(triggerHook, /useJobStream\(/)
+  assert.match(triggerHook, /600_000/)
   assert.match(storageApi, /readPreview:/)
   assert.match(storageApi, /convertPreview:/)
   assert.match(preview, /storage\.readPreview\(/)
@@ -253,13 +254,13 @@ test('source comments follow project rule', () => {
 })
 
 test('deployment keeps critical report generation available across releases', () => {
-  const modal = fs.readFileSync(
-    path.join(source, 'presentation/components/common/LazyGenerateReportModal.tsx'),
+  const dashboard = fs.readFileSync(
+    path.join(source, 'presentation/pages/DashboardPage.tsx'),
     'utf8',
   )
   const nginx = fs.readFileSync(path.join(root, 'nginx.conf'), 'utf8')
-  assert.match(modal, /import GenerateReportModal from ['"]\.\/GenerateReportModal['"]/)
-  assert.doesNotMatch(modal, /lazy\s*\(|import\s*\(\s*['"]\.\/GenerateReportModal['"]\s*\)/)
+  assert.match(dashboard, /import DashboardGenerateForm from ['"]@\/presentation\/components\/common\/DashboardGenerateForm['"]/)
+  assert.doesNotMatch(dashboard, /lazy\s*\([^\n]*DashboardGenerateForm/)
   assert.match(nginx, /location = \/index\.html\s*\{[^}]*no-cache, no-store, must-revalidate/s)
   assert.match(nginx, /location \/assets\/\s*\{[^}]*try_files \$uri =404;/s)
   assert.match(nginx, /location \/assets\/\s*\{[^}]*max-age=31536000, immutable/s)

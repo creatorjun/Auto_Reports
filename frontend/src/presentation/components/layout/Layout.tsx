@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { JiraProvider } from '@/presentation/context/JiraContext'
+import { ReportGenerationProvider } from '@/presentation/context/ReportGenerationContext'
 import Header from './Header'
 import Sidebar from './Sidebar'
 import MobileTabBar from './MobileTabBar'
@@ -10,6 +11,7 @@ export default function Layout() {
   const [collapsed, setCollapsed] = useState(false)
   return (
     <JiraProvider>
+      <ReportGenerationProvider>
       <div className="flex h-screen bg-apple-bg overflow-hidden">
         <div className="hidden xl:flex">
           <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
@@ -22,6 +24,7 @@ export default function Layout() {
         </div>
         <MobileTabBar />
       </div>
+      </ReportGenerationProvider>
     </JiraProvider>
   )
 }
