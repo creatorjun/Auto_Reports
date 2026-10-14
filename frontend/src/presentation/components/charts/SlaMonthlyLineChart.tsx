@@ -20,6 +20,7 @@ interface Props {
   subtitle: string
   monthly: MonthlyEntry[]
   color: string
+  monthOnly?: boolean
   onMonthClick?: (entry: MonthlyEntry, status: 'all' | 'met' | 'violated') => void
 }
 
@@ -56,14 +57,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-function SlaMonthlyLineChart({ title, subtitle, monthly, color, onMonthClick }: Props) {
+function SlaMonthlyLineChart({ title, subtitle, monthly, color, monthOnly = false, onMonthClick }: Props) {
   const exportMode = useDashboardExportMode()
-  const exportTable = exportMode ? JSON.stringify({ headers: ['월', '대상 건수', '준수 건수', '위반 건수', '준수율 (%)'], rows: monthly.map((row) => [row.month, row.total, row.met, Math.max(0, row.total - row.met), row.total > 0 ? row.rate : null]) }) : undefined
+  const monthLabel = (entry: MonthlyEntry) => monthOnly ? `${entry.month_num}월` : entry.month
+  const exportTable = exportMode ? JSON.stringify({ headers: ['월', '대상 건수', '준수 건수', '위반 건수', '준수율 (%)'], rows: monthly.map((row) => [monthLabel(row), row.total, row.met, Math.max(0, row.total - row.met), row.total > 0 ? row.rate : null]) }) : undefined
   const [detailsOpen, setDetailsOpen] = useState(false)
   const gradientId = `sla-grad-${useId().replace(/:/g, '')}`
   const interactive = !exportMode && Boolean(onMonthClick)
   const chartData  = monthly.map((e) => ({
-    month: e.month,
+    month: monthLabel(e),
     rate:  e.total > 0 ? e.rate : null,
     meta:  e,
   }))

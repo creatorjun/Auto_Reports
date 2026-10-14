@@ -416,6 +416,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
           <div className={isAnnual ? 'grid grid-cols-1 xl:grid-cols-2 gap-4' : 'grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5'}>
             <Suspense fallback={<ChartFallback />}>
               <SlaMonthlyLineChart title="최초응답 SLA" subtitle={`${semesterLabel} · 응답시간 위반 여부`} monthly={isAnnual ? w10Monthly.filter((entry) => entry.year === reportYear && entry.month_num <= Number(report.week_end.slice(5, 7))) : w10Monthly} color={SLA_MONTHLY_COLORS.initial}
+                monthOnly={isAnnual}
                 onMonthClick={isAnnual && !exportSelection ? (entry, status) => setRemoteDetails({
                   title: `${entry.year}년 ${entry.month_num}월 최초응답 SLA · ${status === 'met' ? '준수' : status === 'violated' ? '위반' : '전체'}`,
                   total: status === 'met' ? entry.met : status === 'violated' ? entry.total - entry.met : entry.total,
@@ -425,6 +426,7 @@ function DashboardContent({ report, exportSelection }: { report: ReportDetail; e
             </Suspense>
             <Suspense fallback={<ChartFallback />}>
               <SlaMonthlyLineChart title="해결시간 SLA" subtitle={`${semesterLabel} · 해결시간 위반 여부`} monthly={isAnnual ? w11Monthly.filter((entry) => entry.year === reportYear && entry.month_num <= Number(report.week_end.slice(5, 7))) : w11Monthly} color={SLA_MONTHLY_COLORS.resolution}
+                monthOnly={isAnnual}
                 onMonthClick={isAnnual && !exportSelection ? (entry, status) => setRemoteDetails({
                   title: `${entry.year}년 ${entry.month_num}월 해결시간 SLA · ${status === 'met' ? '준수' : status === 'violated' ? '위반' : '전체'}`,
                   total: status === 'met' ? entry.met : status === 'violated' ? entry.total - entry.met : entry.total,
