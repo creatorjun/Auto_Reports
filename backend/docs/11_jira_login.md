@@ -20,7 +20,9 @@ access token 기본 수명은 30분입니다. Jira 세션은 최초 인증에서
 2. Jira API의 Classic scope `read:jira-user`, `read:jira-work`를 추가합니다. 사용자 확인과 대상 프로젝트 조회 권한 검사에 사용하며 쓰기 권한과 `offline_access`는 요청하지 않습니다.
 3. Authorization의 OAuth 2.0 callback URL을 `https://10.1.43.100/api/v1/auth/jira/callback`으로 등록합니다. 서버의 `JIRA_OAUTH_REDIRECT_URI`도 정확히 같은 HTTPS 주소로 설정하고 `COOKIE_SECURE=true`를 적용합니다.
 4. Settings의 Client ID와 Secret을 서버 `.env`에 저장합니다. Git·브라우저 코드·문서에 실제 Secret을 넣지 않습니다.
-5. 여러 직원이 사용하는 경우 Distribution에서 앱 공유를 활성화하고 조직의 앱 접근 정책을 확인합니다. 미공유 앱은 소유자에게만 인증이 허용될 수 있습니다.
+5. 여러 직원이 사용하는 경우 Distribution에 공급자명, 실제 개인정보처리방침·이용약관 URL, 지원 연락처를 등록하고 조직의 앱 접근 정책을 확인합니다. 정책 페이지는 로그인 전에도 대상 직원이 열 수 있어야 합니다. 미공유 앱은 소유자에게만 인증이 허용될 수 있습니다.
+
+Distribution에서 개인정보 저장을 `Yes`로 선언하면 Personal Data Reporting API 구현 확인이 필요합니다. 현재 버전은 Jira 표시 이름을 JWT와 브라우저 표시 정보에 보관하지만 해당 보고 API는 구현하지 않았습니다. 공유 설정을 완료하기 전에 [Atlassian 개인정보 보고 요구사항](https://developer.atlassian.com/cloud/jira/platform/user-privacy-developer-guide/)에 맞춰 보고·정정·삭제 처리를 구현해야 하며, 구현 확인란을 미리 선택하면 안 됩니다. 콜백 URL 등록 성공과 직원 대상 공유 활성화는 별도 단계입니다.
 
 ```dotenv
 LOGIN=true
@@ -40,6 +42,10 @@ COOKIE_SECURE=true
 자체 서명 인증서는 공개 인증기관이 보증하는 인증서가 아니므로 일반 브라우저에서 기본적으로 신뢰하지 않습니다. 사용자가 접속하는 각 클라이언트에 서버의 공개 인증서만 배포해 신뢰 설정을 적용해야 합니다. 인증서의 개인 키는 운영 서버에만 보관하며 클라이언트, Git, 프런트엔드 번들에 배포하지 않습니다.
 
 클라이언트에서 인증서 경고 없이 HTTPS 접속이 되는지 확인한 다음 Jira 로그인과 callback 복귀를 검증합니다. 인증서 검증을 생략한 연결 성공만으로 클라이언트의 신뢰 설정 완료를 판단하지 않습니다. `Secure` cookie를 사용하므로 운영 로그인은 HTTPS에서 진행하며, callback 등록 주소와 서버 환경값을 함께 유지합니다.
+
+## 감사로그
+
+Jira 사용자도 로그인·로그아웃, 보고서 생성·삭제, 파일 업로드·이동·삭제 등 기존 감사 이벤트의 기록 대상입니다. `SUPERADMIN`으로 설정한 root 계정이 조회하며 Jira 사용자와 일반 admin에게는 조회 권한을 부여하지 않습니다. 사용자 열에는 실제 이름 대신 `jira:<cloudId>:<accountId>` 식별자가 저장됩니다. 모든 화면 클릭, 조회, 검색, 필터 변경을 수집하는 방식은 아닙니다.
 
 ## 구현과 검증 경계
 
