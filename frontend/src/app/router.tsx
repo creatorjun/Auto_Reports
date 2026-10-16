@@ -18,6 +18,8 @@ const StoragePage            = lazy(() => import('@/presentation/pages/StoragePa
 const StoragePreviewPage     = lazy(() => import('@/presentation/pages/StoragePreviewPage'))
 const LoginPage              = lazy(() => import('@/presentation/pages/LoginPage'))
 const AdminLoginPage         = lazy(() => import('@/presentation/pages/AdminLoginPage'))
+const PrivacyPage            = lazy(() => import('@/presentation/pages/PrivacyPage'))
+const TermsPage              = lazy(() => import('@/presentation/pages/TermsPage'))
 const SiteManagementPage     = lazy(() => import('@/presentation/pages/SiteManagementPage'))
 const SiteCreatePage         = lazy(() => import('@/presentation/pages/SiteCreatePage'))
 const SiteDetailPage         = lazy(() => import('@/presentation/pages/SiteDetailPage'))
@@ -34,6 +36,8 @@ const Wrap = ({ children }: { children: React.ReactNode }) => (
 export const router = createBrowserRouter([
   { path: '/login',           element: <Wrap><LoginPage /></Wrap> },
   { path: '/admin',           element: <Wrap><AdminLoginPage /></Wrap> },
+  { path: '/privacy',         element: <Wrap><PrivacyPage /></Wrap> },
+  { path: '/terms',           element: <Wrap><TermsPage /></Wrap> },
   { path: '/storage/preview', element: <Wrap><StoragePreviewPage /></Wrap> },
   {
     path: '/',

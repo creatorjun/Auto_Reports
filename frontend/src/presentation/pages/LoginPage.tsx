@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { LogIn } from 'lucide-react'
 import BrandLogo from '@/presentation/components/common/BrandLogo'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
-import { Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import { useAuthSession } from '@/presentation/hooks/useAuthSession'
 import { useAuthStore } from '@/presentation/state/authStore'
@@ -52,7 +52,10 @@ export default function LoginPage() {
             {callbackError || 'Jira 로그인에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
           </p>
         )}
-
+        <footer className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-caption text-apple-light">
+          <Link to="/privacy" className="hover:text-brand-600">개인정보처리방침</Link>
+          <Link to="/terms" className="hover:text-brand-600">이용약관</Link>
+        </footer>
       </div>
     </main>
   )

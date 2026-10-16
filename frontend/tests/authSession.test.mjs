@@ -314,7 +314,7 @@ for (const { pathname, page } of [{ pathname: '/login', page: 'LoginPage' }, { p
       assert.match(rendered, /Jira 계정으로 로그인/)
       assert.equal(view.root.findAllByType('input').length, 0)
       assert.equal(view.root.findAllByType('form').length, 0)
-      assert.equal(view.root.findAllByType('a').length, 0)
+      assert.deepEqual(view.root.findAllByType('a').map((link) => link.props.href).sort(), ['/privacy', '/terms'])
       assert.doesNotMatch(rendered, /관리자|\/admin|Authenticated home/)
     } else {
       assert.ok(view.root.findAllByType('input').some((input) => input.props.autoComplete === 'current-password'))
@@ -323,6 +323,27 @@ for (const { pathname, page } of [{ pathname: '/login', page: 'LoginPage' }, { p
     }
   })
   }
+}
+
+for (const { page, title } of [{ page: 'PrivacyPage', title: '개인정보처리방침' }, { page: 'TermsPage', title: '이용약관' }]) {
+  test(`${page} renders without authentication providers and exposes policy and support links`, (t) => {
+    const app = setup()
+    const { default: Page } = app.load(`presentation/pages/${page}`)
+    let view
+    act(() => {
+      view = TestRenderer.create(React.createElement(MemoryRouter, { future: { v7_startTransition: true, v7_relativeSplatPath: true } }, React.createElement(Page)))
+    })
+    t.after(() => act(() => view.unmount()))
+    assert.equal(view.root.findByType('h1').children.join(''), title)
+    const links = view.root.findAllByType('a').map((link) => link.props.href)
+    for (const expected of ['/login', '/privacy', '/terms', 'mailto:jh.han@seculayer.com']) assert.ok(links.includes(expected))
+    assert.ok(!links.includes('/admin'))
+    const text = JSON.stringify(view.toJSON())
+    assert.match(text, /SecuLayer/)
+    assert.match(text, /2026년 10월 16일/)
+    assert.equal(app.store.getState().sessionReady, false)
+    assert.equal(view.root.findAllByType('input').length, 0)
+  })
 }
 
 for (const username of ['admin', 'superadmin']) {

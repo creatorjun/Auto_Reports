@@ -12,6 +12,8 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 |------|-------|------|
 | `LoginPage` | `/login` | Jira OAuth 로그인, JWT 세션 자동 복원 |
 | `AdminLoginPage` | `/admin` | URL 직접 접속 전용 admin·superadmin 입력, JWT 세션 자동 복원. 일반 로그인과 메뉴에 링크를 표시하지 않음 |
+| `PrivacyPage` | `/privacy` | 로그인 없이 개인정보 처리 범위·보관·문의 방법 안내 |
+| `TermsPage` | `/terms` | 로그인 없이 내부 서비스 이용 조건 안내 |
 | `DashboardPage` | `/`, `/reports/:id`, `/reports/annual/:year` | 최신·선택·연간 보고서 dashboard, 기간별 생성·완료 card, 업무 유형별 열린 요청 card, PDF·Excel 내보내기 |
 | `SlaViolationPage` | `/sla-violations`, `/sla-violations/history/:id` | 기간별 생성·저장, 공통 필터, 4개 요약 카드·상태 분포·생성 추이·검색과 접힌 목록 |
 | `RedeploymentPage` | `/redeployments` | 원인·월별 현황, 카드·검색·교집합 선택과 수동 갱신 |
@@ -25,6 +27,8 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 | `SiteManagementPage` | `/sites` | 사이트 검색, 최근·목록, 삭제 |
 | `SiteCreatePage` | `/sites/new`, `/sites/:id/edit` | 생성·편집 form |
 | `SiteDetailPage` | `/sites/:id` | aggregate 상세와 하위 resource 편집 |
+
+`PrivacyPage`와 `TermsPage`는 `PolicyLayout`의 로고·문서 폭·표시 토큰·문의 링크를 공유합니다. 로그인이나 API 조회 없이 문서를 표시하며 `/login` 하단에서 이동합니다. 각 문서에 로그인 복귀와 정책 간 링크를 제공하고 `/admin` 진입 링크는 표시하지 않습니다.
 
 `/history` 페이지는 대시보드·저장 보고서·연간 보고서 상단의 `보고서 히스토리` 버튼으로 이동합니다. SLA 현황 화면의 같은 버튼은 `/history#sla-violations`로 이동합니다. 데스크톱 사이드바와 모바일 탭 메뉴에서는 히스토리 항목을 표시하지 않습니다. 대시보드 기간별 생성 폼은 PDF·Excel 내보내기 영역 다음에 배치하며, 보고서가 없는 상태에도 표시합니다. 내보내는 문서에는 이 이동 버튼과 생성 폼을 포함하지 않습니다.
 
@@ -54,7 +58,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 
 대시보드와 연간 보고서의 최초응답·해결시간 SLA 준수율 차트는 월을 `1월`, `2월` 형식으로 표시합니다. 차트 축·툴팁과 PDF·Excel에도 동일하게 적용하며 원본 연도·월과 상세 조회 기준은 유지합니다.
 
-모든 페이지에서 집계 기간·시간대·자동 저장·자동 갱신 안내, 페이지 소개와 차트 클릭·필터 사용법 같은 고정 설명 문구를 표시하지 않습니다. 제목, 필드 라벨, 데이터·단위·조회 범위, 오류·처리 상태와 실제 데이터 누락 알림은 유지합니다. 보고서 생성, 자동 저장, 정기 갱신과 차트 상세 조회 동작은 그대로 유지합니다.
+업무 페이지에서 집계 기간·시간대·자동 저장·자동 갱신 안내, 페이지 소개와 차트 클릭·필터 사용법 같은 고정 설명 문구를 표시하지 않습니다. 제목, 필드 라벨, 데이터·단위·조회 범위, 오류·처리 상태와 실제 데이터 누락 알림은 유지합니다. 보고서 생성, 자동 저장, 정기 갱신과 차트 상세 조회 동작은 그대로 유지합니다. 공개 개인정보처리방침·이용약관의 본문은 이 생략 대상에 포함하지 않습니다.
 
 SLA 현황 화면도 `IssueTypeFilter`를 사용합니다. 요청 유형·현재 상태·반기를 함께 적용한 저장 티켓 목록을 `SLA 위반 티켓` 통합 목록에 전달하며, 목록은 필터 결과의 고유 티켓 건수를 표시합니다. 기본 상태 선택은 닫힘·반려됨·보류 중을 제외합니다. 같은 보고서를 보는 동안 사용자의 선택을 유지하며 메뉴 재진입이나 다른 보고서에서는 기본값을 적용합니다. 개별 상태나 전체 선택으로 제외 상태도 다시 포함할 수 있습니다. 필터 선택은 서버 저장 값과 히스토리 건수를 바꾸지 않습니다. 유형 누락은 `확인 불가`로 선택할 수 있으며 반기는 KST 생성월을 기준으로 합니다. 자세한 기존 보고서 호환 방식은 [SLA 현황 문서](../../backend/docs/08_sla_violation_report.md)를 참고하세요.
 

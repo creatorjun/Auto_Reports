@@ -16,6 +16,8 @@
 |---|---|---|---|
 | `/login` | LoginPage | 없음 | Jira 로그인 |
 | `/admin` | AdminLoginPage | 없음 | URL 직접 접속으로만 제공하는 기존 관리자 로그인 |
+| `/privacy` | PrivacyPage | 없음 | 로그인 없이 확인하는 개인정보처리방침 |
+| `/terms` | TermsPage | 없음 | 로그인 없이 확인하는 이용약관 |
 | `/storage/preview` | StoragePreviewPage | Layout 밖 | 파일별 API 인증을 적용하는 공유 preview |
 | `/` | DashboardPage | ProtectedRoute | 최신 일반 대시보드 |
 | `/issues` | IssueManagementPage | ProtectedRoute | 전체 이슈 |
@@ -38,6 +40,8 @@
 login·storage preview를 제외한 실제 페이지는 `ProtectedRoute → Layout → Outlet` 아래에 있습니다. 대시보드 버튼은 `/history`, SLA 버튼은 `/history#sla-violations`로 이동합니다. 메뉴명 변경 후에도 내부 `/sla-dashboard`, `/sla-violations` 등의 주소는 유지합니다. C-Level 경로는 없습니다.
 
 ## 인증과 로딩
+
+`/privacy`와 `/terms`는 인증 경로 밖에 있으며 로그인·API 요청 없이 문서를 표시합니다. `/login` 하단에서 두 문서로 이동할 수 있고, 문서 페이지에는 상호 링크와 로그인 복귀 링크를 제공합니다. 관리자 로그인 링크는 표시하지 않습니다.
 
 `ProtectedRoute`, `LoginPage`, `AdminLoginPage`는 `useAuthSession`으로 세션 복원을 공유합니다. access token이 없으면 refresh cookie를 사용하고, `/login`과 `/admin` 직접 접속도 자동 로그인합니다. `/login`은 Jira 로그인만 표시하고 기존 admin·superadmin 입력 폼은 `/admin`에서만 제공합니다. `/admin`으로 이동하는 링크나 메뉴는 표시하지 않습니다. 보호 경로는 `/auth/me`로 세션을 확인하며 복원 전에는 로딩을 표시합니다. `LOGIN=false`에서는 guest 접근을 허용합니다. `SuperadminRoute`와 서버 API 모두 관리자 권한을 확인하며 Jira 로그인은 superadmin 권한을 얻지 않습니다. OAuth callback은 백엔드가 처리한 뒤 `/login`으로 돌아옵니다.
 
