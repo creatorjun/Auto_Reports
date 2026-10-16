@@ -121,10 +121,11 @@ class SlaViolationJiraSourceTest(unittest.IsolatedAsyncioTestCase):
 
         result = (await self.collect(handler))[0]
         self.assertEqual([0, 1], requested_starts)
-        self.assertEqual(["initial_response", "initial_response", "resolution"], [cycle.metric for cycle in result.cycles])
-        self.assertEqual(breach, result.cycles[0].breached_at)
-        self.assertIsNone(result.cycles[1].breached_at)
-        self.assertEqual(datetime(2026, 10, 4, tzinfo=timezone.utc), result.cycles[2].breached_at)
+        self.assertEqual(["initial_response", "initial_response", "initial_response", "resolution"], [cycle.metric for cycle in result.cycles])
+        self.assertFalse(result.cycles[0].breached)
+        self.assertEqual(breach, result.cycles[1].breached_at)
+        self.assertIsNone(result.cycles[2].breached_at)
+        self.assertEqual(datetime(2026, 10, 4, tzinfo=timezone.utc), result.cycles[3].breached_at)
         self.assertTrue(result.history_complete)
         self.assertEqual(2, len(result.changes))
         self.assertEqual("서울교통공사", result.customer)
@@ -133,6 +134,72 @@ class SlaViolationJiraSourceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("조장희 수석", result.assignee)
         self.assertEqual("한준희 선임", result.tac_assignee)
         self.assertIn("최초응답 SLA 위반 시각 확인 불가", result.warnings)
+
+    async def test_preserves_contract_goals_and_each_cycle_without_wall_clock_time(self) -> None:
+        started = {"iso8601": "2026-10-01T00:00:00+09:00"}
+        stopped = {"iso8601": "2026-10-10T00:00:00+09:00"}
+        deadline = {"iso8601": "2026-10-02T00:00:00+09:00"}
+        candidates = [
+            issue("TACEA-1", customfield_12152={"completedCycles": [{
+                "breached": False, "startTime": started, "stopTime": stopped,
+                "breachTime": deadline, "goalDuration": {"millis": 14400000},
+                "elapsedTime": {"millis": 3600000}, "remainingTime": {"millis": 10800000},
+            }]}, customfield_12151={"completedCycles": [{
+                "breached": True, "startTime": started, "stopTime": stopped,
+                "breachTime": deadline, "goalDuration": {"millis": 144000000},
+                "elapsedTime": {"millis": 151200000}, "remainingTime": {"millis": -7200000},
+            }], "ongoingCycle": {
+                "breached": True, "startTime": stopped, "paused": True,
+                "breachTime": deadline, "goalDuration": {"millis": 432000000},
+                "elapsedTime": {"millis": 450000000}, "remainingTime": {"millis": -18000000},
+            }}),
+            issue("TACEA-2", customfield_12152=None, customfield_12151={"ongoingCycle": {
+                "breached": True, "paused": False, "goalDuration": {"millis": 576000000},
+                "elapsedTime": {"millis": 579600000}, "remainingTime": {"millis": -3600000},
+            }}),
+        ]
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            data = {"issues": candidates, "isLast": True} if request.url.path.endswith("/search/jql") else history_page()
+            return httpx.Response(200, json=data)
+
+        first, second = await self.collect(handler)
+        self.assertEqual([14400000, 144000000, 432000000], [cycle.goal_ms for cycle in first.cycles])
+        self.assertEqual([0, 7200000, 18000000], [cycle.exceeded_ms for cycle in first.cycles])
+        self.assertEqual([False, False, True], [cycle.ongoing for cycle in first.cycles])
+        self.assertEqual([None, None, True], [cycle.paused for cycle in first.cycles])
+        self.assertIsNone(first.cycles[0].breached_at)
+        self.assertEqual(_START, first.cycles[0].started_at)
+        self.assertEqual(datetime(2026, 10, 10, tzinfo=_KST), first.cycles[0].stopped_at)
+        self.assertIsNone(first.cycles[2].stopped_at)
+        self.assertEqual((576000000, 3600000), (second.cycles[0].goal_ms, second.cycles[0].exceeded_ms))
+        self.assertFalse(second.cycles[0].paused)
+
+    async def test_missing_and_invalid_times_remain_unknown_but_remaining_can_supply_excess(self) -> None:
+        cycles = [
+            {"breached": True},
+            {"breached": True, "remainingTime": {"millis": -90000}},
+            {"breached": True, "goalDuration": {"millis": 0}, "elapsedTime": {"millis": 1000}},
+            {"breached": True, "goalDuration": {"millis": 10}, "elapsedTime": {"millis": 20}, "remainingTime": {"millis": -9}},
+            {"breached": True, "goalDuration": {"millis": 10}, "elapsedTime": {"millis": 9}},
+            {"breached": False, "goalDuration": {"millis": 10}, "elapsedTime": {"millis": 11}},
+            {"breached": True, "remainingTime": {"millis": 10}},
+            *({"breached": True, "goalDuration": {"millis": value}, "elapsedTime": {"millis": value}, "remainingTime": {"millis": value}} for value in (True, "3600", 1.5, None, [], {})),
+            {"breached": True, "goalDuration": {"millis": -1}, "elapsedTime": {"millis": -2}},
+            {"breached": True, "goalDuration": "invalid", "elapsedTime": []},
+        ]
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            candidate = issue(customfield_12152={"completedCycles": cycles}, customfield_12151={"ongoingCycle": {"breached": False, "paused": "true"}})
+            data = {"issues": [candidate], "isLast": True} if request.url.path.endswith("/search/jql") else history_page()
+            return httpx.Response(200, json=data)
+
+        result = (await self.collect(handler))[0]
+        self.assertEqual([None, 90000, 1000, None, None, None, None], [cycle.exceeded_ms for cycle in result.cycles[:7]])
+        self.assertTrue(all(cycle.goal_ms is None and cycle.elapsed_ms is None and cycle.exceeded_ms is None for cycle in result.cycles[7:]))
+        self.assertIsNone(result.cycles[-1].paused)
+        self.assertTrue(any("일치하지" in warning for warning in result.warnings))
+        self.assertTrue(any("유효하지" in warning for warning in result.warnings))
 
     async def test_resolves_assets_and_preserves_unknown_partner(self) -> None:
         candidates = [

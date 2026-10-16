@@ -10,6 +10,7 @@ from src.application.ports.sla_violation_port import SlaViolationRepository
 from src.domain.entities.sla_violation_report import (
     SlaStatusDuration,
     SlaViolationBreach,
+    SlaViolationCycle,
     SlaViolationMetric,
     SlaViolationPeriod,
     SlaViolationReport,
@@ -30,12 +31,23 @@ def _serialize_ticket(ticket: SlaViolationTicket) -> dict:
         }
         for breach in ticket.breaches
     ]
+    result["sla_cycles"] = [
+        {
+            **asdict(cycle),
+            **{
+                name: value.isoformat() if (value := getattr(cycle, name)) is not None else None
+                for name in ("started_at", "stopped_at", "breached_at")
+            },
+        }
+        for cycle in ticket.sla_cycles
+    ] if ticket.sla_cycles is not None else None
     return result
 
 
 def _deserialize_ticket(payload: dict) -> SlaViolationTicket:
     durations = payload["status_durations"]
     partners = payload["partners"]
+    cycles = payload.get("sla_cycles")
     return SlaViolationTicket(
         key=payload["key"],
         summary=payload["summary"],
@@ -58,6 +70,18 @@ def _deserialize_ticket(payload: dict) -> SlaViolationTicket:
         ),
         warnings=tuple(payload.get("warnings", ())),
         issue_type=payload.get("issue_type"),
+        sla_cycles=tuple(
+            SlaViolationCycle(
+                **{
+                    **cycle,
+                    **{
+                        name: datetime.fromisoformat(cycle[name]) if cycle.get(name) else None
+                        for name in ("started_at", "stopped_at", "breached_at")
+                    },
+                },
+            )
+            for cycle in cycles
+        ) if cycles is not None else None,
     )
 
 

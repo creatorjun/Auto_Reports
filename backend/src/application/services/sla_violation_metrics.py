@@ -1,4 +1,5 @@
 # backend/src/application/services/sla_violation_metrics.py
+from dataclasses import replace
 from datetime import date, datetime, time, timedelta
 
 from src.domain.constants import KST
@@ -66,16 +67,19 @@ def _ticket(issue: SlaViolationIssue, generated_at: datetime) -> SlaViolationTic
     except ValueError as error:
         warnings.append(str(error))
     breaches: list[SlaViolationBreach] = []
+    cycles = []
     for cycle in issue.cycles:
-        breached_at = _local(cycle.breached_at) if cycle.breached_at else None
+        breached_at = _local(cycle.breached_at) if cycle.breached and cycle.breached_at else None
         status = None
-        if breached_at is None:
-            warnings.append("Jira에 정확한 SLA 위반 시각이 없어 위반 당시 상태는 확인 불가입니다.")
-        elif breached_at < _local(issue.created_at) or breached_at > generated_at:
-            warnings.append("SLA 위반 시각이 티켓 생성~집계 시점 범위를 벗어나 위반 당시 상태는 확인 불가입니다.")
-        elif intervals is not None:
-            status = next((name for start, end, name in reversed(intervals) if start <= breached_at <= end), None)
-        breaches.append(SlaViolationBreach(cycle.metric, breached_at, status))
+        if cycle.breached:
+            if breached_at is None:
+                warnings.append("Jira에 정확한 SLA 위반 시각이 없어 위반 당시 상태는 확인 불가입니다.")
+            elif breached_at < _local(issue.created_at) or breached_at > generated_at:
+                warnings.append("SLA 위반 시각이 티켓 생성~집계 시점 범위를 벗어나 위반 당시 상태는 확인 불가입니다.")
+            elif intervals is not None:
+                status = next((name for start, end, name in reversed(intervals) if start <= breached_at <= end), None)
+            breaches.append(SlaViolationBreach(cycle.metric, breached_at, status))
+        cycles.append(replace(cycle, breached_at=breached_at, status=status))
     return SlaViolationTicket(
         key=issue.key,
         summary=issue.summary,
@@ -91,6 +95,7 @@ def _ticket(issue: SlaViolationIssue, generated_at: datetime) -> SlaViolationTic
         breaches=tuple(breaches),
         warnings=tuple(dict.fromkeys(warnings)),
         issue_type=issue.issue_type,
+        sla_cycles=tuple(cycles),
     )
 
 
@@ -109,7 +114,7 @@ def build_sla_violation_report(
     seen: set[str] = set()
     for issue in issues:
         created = _local(issue.created_at)
-        if not (start <= created < end) or created > generated_at or not issue.cycles:
+        if not (start <= created < end) or created > generated_at or not any(cycle.breached for cycle in issue.cycles):
             continue
         if issue.key in seen:
             raise ValueError(f"중복 티켓이 수집되었습니다: {issue.key}")

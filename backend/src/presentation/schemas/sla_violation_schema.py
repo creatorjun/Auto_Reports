@@ -27,6 +27,22 @@ class SlaStatusDurationSchema(BaseModel):
     hours: float
 
 
+class SlaViolationCycleSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    metric: Literal["initial_response", "resolution"]
+    breached: bool
+    ongoing: bool
+    paused: bool | None
+    goal_ms: int | None
+    elapsed_ms: int | None
+    exceeded_ms: int | None
+    started_at: datetime | None
+    stopped_at: datetime | None
+    breached_at: datetime | None
+    status: str | None
+
+
 class SlaViolationTicketSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -44,6 +60,7 @@ class SlaViolationTicketSchema(BaseModel):
     breaches: tuple[SlaViolationBreachSchema, ...]
     warnings: tuple[str, ...] = ()
     issue_type: str | None = None
+    sla_cycles: tuple[SlaViolationCycleSchema, ...] | None = None
 
 
 class SlaViolationReportSummarySchema(BaseModel):

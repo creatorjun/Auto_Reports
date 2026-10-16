@@ -13,3 +13,13 @@ export function slaCreatedDate(value: string): string {
   const parts = Object.fromEntries(dateFormatter.formatToParts(date).map((part) => [part.type, part.value]))
   return `${parts.year}-${parts.month}-${parts.day}`
 }
+
+export function slaDuration(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value) || value < 0) return '확인 불가'
+  if (value === 0) return '0분'
+  if (value < 60_000) return '1분 미만'
+  const minutes = Math.floor(value / 60_000)
+  const hours = Math.floor(minutes / 60)
+  const remainder = minutes % 60
+  return [hours ? `${hours.toLocaleString('ko-KR')}시간` : '', remainder ? `${remainder}분` : ''].filter(Boolean).join(' ')
+}

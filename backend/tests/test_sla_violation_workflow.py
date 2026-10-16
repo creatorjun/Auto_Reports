@@ -199,6 +199,35 @@ class SlaViolationRepositoryTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(original_payload, row.payload)
         self.session.commit.assert_not_awaited()
 
+    async def test_cycle_timings_round_trip_as_json_without_combining_reset_cycles(self) -> None:
+        report = sample_report()
+        cycles = (
+            SlaViolationCycle("initial_response", None, breached=False, goal_ms=14400000, elapsed_ms=3600000, exceeded_ms=0, started_at=GENERATED_AT - timedelta(days=1), stopped_at=GENERATED_AT),
+            SlaViolationCycle("resolution", GENERATED_AT, goal_ms=144000000, elapsed_ms=151200000, exceeded_ms=7200000, status="할 일"),
+            SlaViolationCycle("resolution", None, ongoing=True, paused=True, goal_ms=432000000, elapsed_ms=None, exceeded_ms=None),
+        )
+        saved = await self.repository.save(replace(report, tickets=(replace(report.tickets[0], sla_cycles=cycles),)))
+        row = self.rows[-1]
+        self.assertEqual(saved, self.repository._to_report(row))
+        stored = row.payload["tickets"][0]["sla_cycles"]
+        self.assertEqual([0, 7200000, None], [cycle["exceeded_ms"] for cycle in stored])
+        self.assertEqual(GENERATED_AT.isoformat(), stored[0]["stopped_at"])
+        self.assertEqual(GENERATED_AT.isoformat(), stored[1]["breached_at"])
+        self.assertTrue(stored[2]["paused"])
+
+    async def test_legacy_snapshot_has_unknown_cycle_timings_without_mutation_or_refresh(self) -> None:
+        saved = await self.repository.save(sample_report())
+        row = self.rows[-1]
+        row.payload["tickets"][0].pop("sla_cycles")
+        original_payload = deepcopy(row.payload)
+        self.session.commit.reset_mock()
+        self.session.execute.return_value = Mock(scalar_one_or_none=lambda: row)
+        for stored in (await self.repository.get_latest(), await self.repository.get_by_id(saved.id)):
+            self.assertIsNone(stored.tickets[0].sla_cycles)
+            self.assertEqual(saved.tickets[0].breaches, stored.tickets[0].breaches)
+        self.assertEqual(original_payload, row.payload)
+        self.session.commit.assert_not_awaited()
+
     async def test_failed_commit_rolls_back_and_raises(self) -> None:
         self.session.commit.side_effect = RuntimeError("write failed")
         with self.assertRaisesRegex(RuntimeError, "write failed"):

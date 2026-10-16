@@ -59,6 +59,22 @@ class SlaViolationMetricsTest(unittest.TestCase):
         self.assertEqual({"할 일": 24, "연구소 검토 중": 48, "결과 대기 중": 144}, {part.status: part.hours for part in row.status_durations})
         self.assertEqual(9, row.elapsed_days)
 
+    def test_nonbreached_and_repeated_cycles_keep_separate_timing_and_only_breaches_are_counted(self):
+        cycles = (
+            SlaViolationCycle("initial_response", timestamp(6), breached=False, goal_ms=14400000, elapsed_ms=3600000, exceeded_ms=0),
+            SlaViolationCycle("resolution", timestamp(7), goal_ms=144000000, elapsed_ms=151200000, exceeded_ms=7200000),
+            SlaViolationCycle("resolution", timestamp(9), ongoing=True, paused=True, goal_ms=432000000, elapsed_ms=450000000, exceeded_ms=18000000),
+        )
+        report = self.build([issue(cycles=cycles), issue(key="MET", cycles=(cycles[0],))])
+        self.assertEqual((1, 0, 1), (report.ticket_count, report.initial_response_count, report.resolution_count))
+        row = report.tickets[0]
+        self.assertEqual(2, len(row.breaches))
+        self.assertEqual([None, "연구소 검토 중", "결과 대기 중"], [cycle.status for cycle in row.sla_cycles])
+        self.assertIsNone(row.sla_cycles[0].breached_at)
+        self.assertEqual([0, 7200000, 18000000], [cycle.exceeded_ms for cycle in row.sla_cycles])
+        self.assertEqual([14400000, 144000000, 432000000], [cycle.goal_ms for cycle in row.sla_cycles])
+        self.assertTrue(row.sla_cycles[-1].paused)
+
     def test_transition_boundary_uses_new_status_and_reentry_is_summed(self):
         sample = issue(current_status="할 일", changes=(SlaViolationChange(timestamp(6), "할 일", "검토 중"), SlaViolationChange(timestamp(7), "검토 중", "할 일")), cycles=(SlaViolationCycle("initial_response", timestamp(6)),))
         row = self.build([sample], now=timestamp(8)).tickets[0]

@@ -52,6 +52,35 @@ def _date(value: object) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
+def _duration_millis(cycle: dict, field: str, label: str, warnings: list[str], signed: bool = False) -> int | None:
+    raw = cycle.get(field)
+    if raw is None:
+        return None
+    value = raw.get("millis") if isinstance(raw, dict) else None
+    if isinstance(value, int) and not isinstance(value, bool) and (signed or value >= 0):
+        return value
+    name = {"goalDuration": "목표 시간", "elapsedTime": "경과 시간", "remainingTime": "잔여 시간"}[field]
+    warnings.append(f"{label} SLA {name} 값이 유효하지 않아 해당 시간을 확인할 수 없습니다.")
+    return None
+
+
+def _cycle_timing(cycle: dict, label: str, warnings: list[str]) -> tuple[int | None, int | None, int | None]:
+    goal = _duration_millis(cycle, "goalDuration", label, warnings)
+    elapsed = _duration_millis(cycle, "elapsedTime", label, warnings)
+    remaining = _duration_millis(cycle, "remainingTime", label, warnings, signed=True)
+    difference = elapsed - goal if goal is not None and elapsed is not None else None
+    if difference is not None and remaining is not None and difference != -remaining:
+        warnings.append(f"{label} SLA 목표·경과·잔여 시간이 일치하지 않아 초과 시간을 확인할 수 없습니다.")
+        return goal, elapsed, None
+    difference = difference if difference is not None else -remaining if remaining is not None else None
+    if difference is None:
+        return goal, elapsed, None
+    if (cycle["breached"] and difference < 0) or (not cycle["breached"] and difference > 0):
+        warnings.append(f"{label} SLA 위반 여부와 시간이 일치하지 않아 초과 시간을 확인할 수 없습니다.")
+        return goal, elapsed, None
+    return goal, elapsed, max(0, difference)
+
+
 class SlaViolationJiraSource(SlaViolationSourcePort):
     def __init__(
         self,
@@ -157,7 +186,7 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
                 continue
             warnings: list[str] = []
             cycles = self._cycles(fields, warnings)
-            if cycles:
+            if any(cycle.breached for cycle in cycles):
                 selected.append((raw, created, cycles, warnings))
         assets: dict[tuple[str, str], str | None] = {}
         result = []
@@ -216,18 +245,27 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
                 continue
             if not isinstance(raw, dict) or not isinstance(raw.get("completedCycles", []), list):
                 raise RuntimeError(f"Jira {metric} SLA data is invalid")
-            cycles = list(raw.get("completedCycles", []))
+            cycles = [(cycle, False) for cycle in raw.get("completedCycles", [])]
             if raw.get("ongoingCycle") is not None:
-                cycles.append(raw["ongoingCycle"])
-            for cycle in cycles:
+                cycles.append((raw["ongoingCycle"], True))
+            for cycle, ongoing in cycles:
                 if not isinstance(cycle, dict) or not isinstance(cycle.get("breached"), bool):
                     raise RuntimeError(f"Jira {metric} SLA cycle is invalid")
-                if cycle["breached"]:
-                    breached_at = _date(cycle.get("breachTime"))
-                    result.append(SlaViolationCycle(metric=metric, breached_at=breached_at))
-                    if breached_at is None:
-                        label = "최초응답" if metric == "initial_response" else "해결"
-                        warnings.append(f"{label} SLA 위반 시각 확인 불가")
+                label = "최초응답" if metric == "initial_response" else "해결"
+                breached_at = _date(cycle.get("breachTime")) if cycle["breached"] else None
+                goal, elapsed, exceeded = _cycle_timing(cycle, label, warnings)
+                paused = cycle.get("paused") if ongoing else None
+                if paused is not None and not isinstance(paused, bool):
+                    warnings.append(f"{label} SLA 일시정지 여부 확인 불가")
+                    paused = None
+                result.append(SlaViolationCycle(
+                    metric=metric, breached_at=breached_at, breached=cycle["breached"],
+                    ongoing=ongoing, paused=paused, goal_ms=goal, elapsed_ms=elapsed,
+                    exceeded_ms=exceeded, started_at=_date(cycle.get("startTime")),
+                    stopped_at=_date(cycle.get("stopTime")) if not ongoing else None,
+                ))
+                if cycle["breached"] and breached_at is None:
+                    warnings.append(f"{label} SLA 위반 시각 확인 불가")
         return tuple(result)
 
     async def _histories(self, key: str, current_status: object) -> tuple[tuple[SlaViolationChange, ...], bool]:

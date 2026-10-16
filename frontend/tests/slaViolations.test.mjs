@@ -37,7 +37,7 @@ function sourceLoader(overrides = {}) {
 
 const load = sourceLoader()
 const { slaDateRange, slaToday, slaTicketsForMetric, slaPartnersLabel } = load('application/services/slaViolationReport')
-const { slaCreatedDate } = load('presentation/utils/slaViolationFormatters')
+const { slaCreatedDate, slaDuration } = load('presentation/utils/slaViolationFormatters')
 const { defaultSlaSelectedStatuses, filterSlaViolationTickets, slaViolationFilterOptions } = load('domain/SlaViolationFilters')
 const { sortSlaViolationTickets } = load('domain/SlaViolationSort')
 const { filterSlaViolationScope, filterSlaViolationDetails, slaViolationCounts, slaViolationStatuses, slaViolationTimeline } = load('domain/SlaViolationOverview')
@@ -67,6 +67,45 @@ function textOf(node) {
   if (Array.isArray(node)) return node.map(textOf).join(' ')
   return node?.children ? textOf(node.children) : ''
 }
+
+test('SLA durations distinguish missing, zero, sub-minute and multi-day working time', () => {
+  for (const value of [null, undefined, -1, NaN, Infinity]) assert.equal(slaDuration(value), '확인 불가')
+  assert.equal(slaDuration(0), '0분')
+  assert.equal(slaDuration(17_848), '1분 미만')
+  assert.equal(slaDuration(60_000), '1분')
+  assert.equal(slaDuration(144_000_000), '40시간')
+  assert.equal(slaDuration(432_060_000), '120시간 1분')
+})
+
+test('ticket SLA details show both contractual targets, independent cycle overruns and paused clocks', () => {
+  const Targets = load('presentation/components/sla-violations/SlaTicketTargets').default
+  const first = { metric: 'initial_response', breached: true, ongoing: false, paused: null, goal_ms: 14_400_000, elapsed_ms: 57_600_000, exceeded_ms: 43_200_000, started_at: '2026-05-05T16:00:00Z', stopped_at: '2026-05-07T02:00:00Z', breached_at: '2026-05-06T04:00:00Z', status: '할 일' }
+  const cycles = [first, { ...first, goal_ms: 7_200_000, elapsed_ms: 10_800_000, exceeded_ms: 3_600_000, started_at: '2026-05-08T02:00:00Z', stopped_at: '2026-05-08T05:00:00Z', breached_at: '2026-05-08T04:00:00Z' }, { ...first, metric: 'resolution', breached: false, ongoing: true, paused: true, goal_ms: 576_000_000, elapsed_ms: 196_584_259, exceeded_ms: 0, stopped_at: null, breached_at: null, status: null }]
+  const input = { ...ticket, breaches: [ticket.breaches[0]], sla_cycles: cycles }
+  const original = structuredClone(input)
+  const view = TestRenderer.create(React.createElement(Targets, { ticket: input }))
+  const firstCard = textOf(view.root.findByProps({ 'aria-label': '최초응답 SLA 시간 상세' }))
+  assert.match(firstCard, /1\s*회차.*설정 시간.*4시간.*SLA 사용 시간.*16시간.*초과 시간.*12시간/)
+  assert.match(firstCard, /2\s*회차.*설정 시간.*2시간.*SLA 사용 시간.*3시간.*초과 시간.*1시간/)
+  assert.match(firstCard, /위반 당시 상태.*할 일/)
+  const resolution = textOf(view.root.findByProps({ 'aria-label': '해결시간 SLA 시간 상세' }))
+  assert.match(resolution, /미위반.*일시정지.*설정 시간.*160시간.*SLA 사용 시간.*54시간 36분.*초과 시간.*0분/)
+  assert.doesNotMatch(resolution, /위반 당시 상태|위반 시각/)
+  assert.deepEqual(input, original)
+  view.unmount()
+})
+
+test('ticket SLA details retain unknown timing and distinguish old reports from absent SLA cycles', () => {
+  const Targets = load('presentation/components/sla-violations/SlaTicketTargets').default
+  const view = TestRenderer.create(React.createElement(Targets, { ticket }))
+  assert.match(textOf(view.toJSON()), /이 보고서에는 SLA 시간이 저장되어 있지 않습니다/)
+  assert.doesNotMatch(textOf(view.toJSON()), /0분|SLA 측정 내역 없음/)
+  act(() => view.update(React.createElement(Targets, { ticket: { ...ticket, sla_cycles: [{ metric: 'initial_response', breached: true, ongoing: false, paused: null, goal_ms: null, elapsed_ms: null, exceeded_ms: null, started_at: null, stopped_at: null, breached_at: null, status: null }] } })))
+  assert.match(textOf(view.toJSON()), /설정 시간.*확인 불가.*SLA 사용 시간.*확인 불가.*초과 시간.*확인 불가/)
+  assert.match(textOf(view.root.findByProps({ 'aria-label': '해결시간 SLA 시간 상세' })), /SLA 측정 내역 없음/)
+  assert.doesNotMatch(textOf(view.toJSON()), /보고서를 다시 생성|0분/)
+  view.unmount()
+})
 
 test('overview counts tickets once per metric and separates the intersection from total violations', () => {
   const rows = [

@@ -19,8 +19,8 @@ export default function SlaStatusDurations({ durations }: { durations: SlaViolat
       <dl className="flex flex-wrap gap-2">
         {segments.map(({ status, hours, percentage }) => (
           <div key={status} className="flex items-center gap-2 rounded-lg bg-apple-surface px-3 py-2 text-caption">
-            <dt><StatusBadge status={status || '확인 불가'} /></dt>
-            <dd className="font-semibold tabular-nums text-apple-dark">{hours.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}시간 <span className="font-normal text-apple-mid">· {percentageLabel(percentage)}</span></dd>
+            <dt><StatusBadge status={status || '확인 불가'} size="md" /></dt>
+            <dd className="text-label font-semibold tabular-nums text-apple-dark">{hours.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}시간 <span className="font-normal text-apple-mid">· {percentageLabel(percentage)}</span></dd>
           </div>
         ))}
       </dl>

@@ -133,6 +133,7 @@ test('visible SLA durations exclude only closed aliases while preserving source 
 
 test('both SLA lists hide closed dwell time while retaining closed current and breach statuses', (t) => {
   const { default: SlaViolationList } = load('presentation/components/sla-violations/SlaViolationList')
+  const { default: SlaStatusDurations } = load('presentation/components/sla-violations/SlaStatusDurations')
   const ticket = {
     key: 'TACEA-42', summary: '닫힌 티켓', issue_type: '개선', created_at: '2026-01-01T00:00:00Z', elapsed_days: 10,
     customer: '고객사', partners: [], reporter: '보고자', assignee: '담당자', tac_assignee: 'TAC 담당자', current_status: '닫힘',
@@ -147,7 +148,7 @@ test('both SLA lists hide closed dwell time while retaining closed current and b
     const disclosure = view.root.findByProps({ 'aria-label': 'TACEA-42 상세 펼치기' })
     act(() => disclosure.props.onClick())
     const details = view.root.findByProps({ id: disclosure.props['aria-controls'] })
-    const dwellList = details.findAllByType('dl').find((node) => textOf(node).includes('시간'))
+    const dwellList = details.findByType(SlaStatusDurations).findByType('dl')
     assert.ok(dwellList)
     assert.match(textOf(dwellList), /할 일 3\.25\s*시간/)
     assert.match(textOf(dwellList), /취소됨 6\s*시간/)

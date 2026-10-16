@@ -18,6 +18,15 @@ class SlaViolationChange:
 class SlaViolationCycle:
     metric: SlaViolationMetric
     breached_at: datetime | None
+    breached: bool = True
+    ongoing: bool = False
+    paused: bool | None = None
+    goal_ms: int | None = None
+    elapsed_ms: int | None = None
+    exceeded_ms: int | None = None
+    started_at: datetime | None = None
+    stopped_at: datetime | None = None
+    status: str | None = None
 
 
 @dataclass(frozen=True)
@@ -67,6 +76,7 @@ class SlaViolationTicket:
     breaches: tuple[SlaViolationBreach, ...]
     warnings: tuple[str, ...] = ()
     issue_type: str | None = None
+    sla_cycles: tuple[SlaViolationCycle, ...] | None = None
 
 
 @dataclass(frozen=True)

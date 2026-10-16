@@ -1,6 +1,6 @@
 # Data Model
 
-문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+문서 기준: 2026-10-16.
 
 Alembic `0018`은 재배포 스냅샷 테이블 `redeployment_reports`를 추가합니다. `id`, KST 날짜 유일 키 `snapshot_date`, `generated_at`, `generated_by`, 원본 티켓·JQL·경고를 포함한 JSONB `payload`를 저장하며 같은 날 갱신은 원자적으로 대체합니다. 자세한 계약은 [재배포 보고서](09_redeployment_report.md)를 참고하세요.
 
@@ -54,6 +54,19 @@ site_id 외래키와 hostname, role, CPU core/thread, memory/disk 용량, OS, IP
 ### sla_violation_reports
 
 주간·월간·연간 SLA 현황 보고서의 `period`, `selected_date`, `start_date`, `end_date`, `generated_at`, `generated_by`, `ticket_count`, `initial_response_count`, `resolution_count`와 티켓 상세·데이터 경고를 담은 `payload` JSONB를 저장합니다. `0017_add_sla_violation_reports.py`로 생성하고 최신 보고서는 생성 시각·ID 내림차순으로 선택합니다. 일반 보고서와 독립된 불변 스냅샷이며 상세 이력은 [SLA 현황 보고서 문서](08_sla_violation_report.md)에 정리했습니다.
+
+티켓의 `sla_cycles`는 최초응답·해결 SLA의 완료 및 진행 주기를 각각 저장합니다. 위반 주기만 담는 `breaches`와 달리 정상 주기도 포함하므로 한 SLA만 위반한 티켓에서도 두 SLA의 목표를 비교할 수 있습니다. 반복 주기는 합산하거나 최근 하나로 덮어쓰지 않습니다.
+
+| 주기 필드 | 값과 의미 |
+|---|---|
+| `metric` | `initial_response` 또는 `resolution` |
+| `breached`, `ongoing` | 위반 여부와 현재 진행 주기 여부 |
+| `paused` | Jira의 일시정지 여부; 확인되지 않으면 null |
+| `goal_ms`, `elapsed_ms`, `exceeded_ms` | Jira SLA 기준 목표·경과·초과 시간의 밀리초 정수; 확인되지 않으면 null |
+| `started_at`, `stopped_at` | 주기 시작·완료 시각; 시간대를 포함한 ISO 8601 문자열 또는 null |
+| `breached_at`, `status` | 실제 위반 시각과 당시 상태; 미위반 또는 확인되지 않은 값은 null |
+
+초과 시간은 동일 주기의 Jira 목표·경과·잔여 시간으로 검증하며 상태별 체류시간이나 보고서 생성 시각으로 대신 계산하지 않습니다. 주기의 목표는 해당 티켓에 Jira가 적용한 값이며 고객사 계약 등급을 별도로 추정하지 않습니다. 저장하지 않았던 과거 `sla_cycles`는 null로 읽습니다. 새로 보고서를 생성해야 시간이 수집되며 기존 이력을 갱신하지 않습니다. 이 JSONB 확장은 별도의 Alembic 마이그레이션을 요구하지 않습니다.
 
 ### redeployment_reports
 

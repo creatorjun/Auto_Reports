@@ -13,6 +13,7 @@ import { useTablePreferences } from '@/presentation/hooks/useTablePreferences'
 import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import SlaStatusDurations from './SlaStatusDurations'
+import SlaTicketTargets from './SlaTicketTargets'
 import SlaViolationTableHeader, { DEFAULT_SLA_COLUMN_WIDTHS, MIN_SLA_COLUMN_WIDTHS, SLA_TICKET_COLUMNS, resizeSlaColumnWidths } from './SlaViolationTableHeader'
 
 const TICKET_COLUMNS = 'lg:grid-cols-[var(--sla-ticket-columns)]'
@@ -24,7 +25,7 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
   const facts: [string, ReactNode][] = [
     ['고객사명', ticket.customer], ['담당 파트너사', slaPartnersLabel(ticket.partners)],
     ['보고자', ticket.reporter], ['담당자', ticket.assignee], ['TAC 담당자', ticket.tac_assignee],
-    ['현재 체류 상태', <StatusBadge status={ticket.current_status || '확인 불가'} />],
+    ['현재 체류 상태', <StatusBadge status={ticket.current_status || '확인 불가'} size="md" />],
   ]
   return (
     <li className="border-t border-apple-divider/70">
@@ -46,20 +47,21 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
       </div>
       {expanded && (
         <div id={detailsId} className="mx-4 mb-4 rounded-xl bg-apple-gray/70 p-4 sm:mx-6 sm:p-5">
-          <div className="mb-5">
+          <SlaTicketTargets ticket={ticket} />
+          {ticket.sla_cycles == null && <div className="mb-5">
             <h3 className="text-section-label font-semibold text-apple-mid">SLA 위반 당시의 티켓 상태</h3>
             <ul className="mt-2 flex flex-wrap gap-2">
               {ticket.breaches.filter((breach) => breach.metric === metric).map((breach, index) => (
                 <li key={`${breach.breached_at}-${index}`} className="rounded-lg border border-apple-divider bg-apple-surface px-3 py-2">
-                  <StatusBadge status={breach.status || '확인 불가'} />
-                  <span className="ml-2 text-caption text-apple-mid">{slaTimestamp(breach.breached_at)}{breach.breached_at ? ' KST' : ''}</span>
+                  <StatusBadge status={breach.status || '확인 불가'} size="md" />
+                  <span className="ml-2 text-label text-apple-mid">{slaTimestamp(breach.breached_at)}{breach.breached_at ? ' KST' : ''}</span>
                 </li>
               ))}
             </ul>
-          </div>
+          </div>}
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
             {facts.map(([label, value]) => (
-              <div key={label}><dt className="text-caption text-apple-mid">{label}</dt><dd className="mt-1 break-words text-body font-medium text-apple-dark">{value || '확인 불가'}</dd></div>
+              <div key={label} className="min-w-0"><dt className="text-caption text-apple-mid">{label}</dt><dd className="mt-1 break-words text-metric font-medium text-apple-dark">{value || '확인 불가'}</dd></div>
             ))}
           </dl>
           <div className="mt-5 border-t border-apple-divider pt-4">

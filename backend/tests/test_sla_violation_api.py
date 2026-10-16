@@ -14,6 +14,7 @@ from src.application.use_cases.sla_violation_report import (
     SlaViolationReportUseCase,
     SlaViolationSourceError,
 )
+from src.domain.entities.sla_violation_report import SlaViolationCycle
 from src.presentation.api.deps import get_audit, get_auth
 from src.presentation.api.v1.deps import get_sla_violation_use_case
 from src.presentation.api.v1.router import router
@@ -76,6 +77,22 @@ class SlaViolationApiTest(unittest.IsolatedAsyncioTestCase):
         response = await self.client.get(self.endpoint + "/latest", headers=self.headers)
         self.assertEqual(200, response.status_code)
         self.assertIsNone(response.json())
+
+    async def test_cycle_contract_preserves_unknown_legacy_and_per_metric_timings(self) -> None:
+        legacy = await self.client.get(self.endpoint + "/latest", headers=self.headers)
+        self.assertIsNone(legacy.json()["tickets"][0]["sla_cycles"])
+        cycle = SlaViolationCycle(
+            "resolution", self.report.generated_at, ongoing=True, paused=True,
+            goal_ms=432000000, elapsed_ms=450000000, exceeded_ms=18000000, status="할 일",
+        )
+        self.use_case.get_latest.return_value = replace(self.report, tickets=(replace(self.report.tickets[0], sla_cycles=(cycle,)),))
+        response = await self.client.get(self.endpoint + "/latest", headers=self.headers)
+        self.assertEqual(200, response.status_code, response.text)
+        result = response.json()["tickets"][0]["sla_cycles"][0]
+        self.assertEqual((432000000, 450000000, 18000000), tuple(result[field] for field in ("goal_ms", "elapsed_ms", "exceeded_ms")))
+        self.assertEqual(("resolution", True, True, True, "할 일"), tuple(result[field] for field in ("metric", "breached", "ongoing", "paused", "status")))
+        self.assertIsNone(result["started_at"])
+        self.assertIsNone(result["stopped_at"])
 
     async def test_history_excludes_ticket_payload_and_passes_pagination(self) -> None:
         response = await self.client.get(self.endpoint + "/history?limit=7&offset=3", headers=self.headers)

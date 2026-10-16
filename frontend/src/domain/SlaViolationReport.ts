@@ -15,6 +15,20 @@ export interface SlaViolationBreach {
   status: string | null
 }
 
+export interface SlaViolationCycle {
+  metric: SlaViolationMetric
+  breached: boolean
+  ongoing: boolean
+  paused: boolean | null
+  goal_ms: number | null
+  elapsed_ms: number | null
+  exceeded_ms: number | null
+  started_at: string | null
+  stopped_at: string | null
+  breached_at: string | null
+  status: string | null
+}
+
 export interface SlaViolationTicket {
   key: string
   summary: string
@@ -29,6 +43,7 @@ export interface SlaViolationTicket {
   current_status: string
   status_durations: { status: string; hours: number }[] | null
   breaches: SlaViolationBreach[]
+  sla_cycles?: SlaViolationCycle[] | null
   warnings: string[]
 }
 
