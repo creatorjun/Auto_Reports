@@ -25,7 +25,7 @@ function CycleTiming({ cycle, index, repeated }: { cycle: SlaViolationCycle; ind
         { label: '초과 시간', value: cycle.exceeded_ms },
       ].map(({ label, value }, index) => <div key={label} className={`min-w-0 ${index === 2 ? 'col-span-2 sm:col-span-1' : ''}`}>
         <dt className="text-caption text-apple-mid">{label}</dt>
-        <dd className={`mt-1 break-words text-metric font-medium tabular-nums ${index === 2 && cycle.breached ? 'text-red-700' : 'text-apple-dark'}`}>{slaDuration(value)}</dd>
+        <dd className={`mt-1 break-keep break-words text-metric font-medium tabular-nums ${index === 2 && cycle.breached ? 'text-red-700' : 'text-apple-dark'}`}>{slaDuration(value)}</dd>
       </div>)}
     </dl>
     {cycle.breached && <dl className="flex flex-wrap items-start gap-x-5 gap-y-2 border-t border-apple-divider/70 pt-3">
