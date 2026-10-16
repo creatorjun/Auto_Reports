@@ -99,7 +99,7 @@ export default function SlaViolationTableHeader({ label, sort, widths, onSort, o
   const toggleSort = (key: SlaViolationSortKey) => onSort({ key, direction: sort?.key === key && sort.direction === 'asc' ? 'desc' : 'asc' })
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 border-t border-apple-divider/70 bg-apple-gray/70 px-4 py-3 lg:hidden">
+      <div className="flex flex-wrap items-center gap-2 border-t border-apple-divider/60 bg-apple-gray px-4 py-3 lg:hidden">
         <label className="flex items-center gap-2 text-control-label font-medium text-apple-mid">정렬
           <select value={sort?.key ?? ''} aria-label={`${label} 정렬 기준`}
             onChange={(event) => onSort(event.target.value ? { key: event.target.value as SlaViolationSortKey, direction: 'asc' } : null)}
@@ -114,7 +114,7 @@ export default function SlaViolationTableHeader({ label, sort, widths, onSort, o
           {sort?.direction === 'desc' ? '내림차순 ↓' : '오름차순 ↑'}
         </button>
       </div>
-      <div className="hidden items-center gap-1 bg-apple-gray/70 px-5 py-2 text-label font-medium text-apple-mid lg:flex">
+      <div className="hidden items-center gap-1 bg-apple-gray px-5 py-2 text-label font-medium text-apple-mid lg:flex">
         <div ref={gridRef} className="grid min-w-0 flex-1 grid-cols-[var(--sla-ticket-columns)] gap-x-4 px-1">
           {SLA_TICKET_COLUMNS.map((column, index) => {
             const active = sort?.key === column.key

@@ -42,6 +42,26 @@ const STATUS_TONES: Readonly<Record<string, BadgeTone>> = {
   취소됨: 'gray',
 }
 
+const STATUS_CHART_COLORS: Readonly<Record<BadgeTone, string>> = {
+  steel: 'rgb(var(--color-chart-created))',
+  sage: 'rgb(var(--color-chart-resolved))',
+  coral: 'rgb(var(--color-chart-danger))',
+  amber: 'rgb(var(--color-chart-warning))',
+  orange: 'rgb(var(--color-chart-orange))',
+  mauve: 'rgb(var(--color-chart-violet))',
+  teal: 'rgb(var(--color-chart-emerald))',
+  pink: 'rgb(var(--color-redeployment-pink))',
+  indigo: 'rgb(var(--color-redeployment-indigo))',
+  brown: 'rgb(var(--color-redeployment-brown))',
+  cyan: 'rgb(var(--color-redeployment-cyan))',
+  slate: 'rgb(var(--color-redeployment-slate))',
+  violet: 'color-mix(in srgb, rgb(var(--color-chart-violet)) 65%, rgb(var(--color-redeployment-indigo)))',
+  mint: 'color-mix(in srgb, rgb(var(--color-chart-emerald)) 65%, rgb(var(--color-chart-resolved)))',
+  rose: 'color-mix(in srgb, rgb(var(--color-chart-danger)) 65%, rgb(var(--color-redeployment-pink)))',
+  sand: 'rgb(var(--color-redeployment-olive))',
+  gray: 'rgb(var(--color-chart-axis))',
+}
+
 function normalizeBadgeLabel(value: string): string {
   return value.normalize('NFKC').trim().replace(/\s+/g, '').toLowerCase()
 }
@@ -66,4 +86,8 @@ export function getIssueTypeBadgeStyle(issueType: string): CSSProperties {
 
 export function getStatusBadgeStyle(status: string): CSSProperties {
   return getBadgeStyle(getBadgeTone(STATUS_TONES, status))
+}
+
+export function getStatusChartColor(status: string): string {
+  return STATUS_CHART_COLORS[getBadgeTone(STATUS_TONES, status)]
 }

@@ -29,7 +29,7 @@ function TicketRow({ ticket }: { ticket: SlaViolationTicket }) {
     ['현재 체류 상태', <StatusBadge status={ticket.current_status || '확인 불가'} size="md" />],
   ]
   return (
-    <li className="border-t border-apple-divider/70">
+    <li className="border-t border-apple-divider/60">
       <div className="flex items-stretch gap-1 px-3 sm:px-5">
         <a href={`${jiraBrowse}/${encodeURIComponent(ticket.key)}`} target="_blank" rel="noopener noreferrer"
           className={`grid min-w-0 flex-1 grid-cols-2 items-center gap-x-4 gap-y-2 rounded-xl px-1 py-4 text-body transition-colors hover:bg-apple-gray focus-visible:outline-brand-400 ${TICKET_COLUMNS}`}
@@ -53,13 +53,13 @@ function TicketRow({ ticket }: { ticket: SlaViolationTicket }) {
         </div>
       </div>
       {expanded && (
-        <div id={detailsId} className="mx-4 mb-4 rounded-xl bg-apple-gray/70 p-4 sm:mx-6 sm:p-5">
+        <div id={detailsId} className="mx-4 mb-4 rounded-xl border border-apple-divider/60 bg-apple-gray p-4 sm:mx-6 sm:p-5">
           <SlaTicketTargets ticket={ticket} />
           {ticket.sla_cycles == null && <div className="mb-5">
             <h3 className="text-section-label font-semibold text-apple-mid">SLA 위반 당시의 티켓 상태</h3>
             <ul className="mt-2 flex flex-wrap gap-2">
               {ticket.breaches.map((breach, index) => (
-                <li key={`${breach.metric}-${breach.breached_at}-${index}`} className="rounded-lg border border-apple-divider bg-apple-surface px-3 py-2">
+                <li key={`${breach.metric}-${breach.breached_at}-${index}`} className="rounded-lg border border-apple-divider/60 bg-apple-surface px-3 py-2">
                   <span className="mb-1 block text-caption font-medium text-apple-mid">{SLA_VIOLATION_METRICS.find(({ key }) => key === breach.metric)?.label}</span>
                   <StatusBadge status={breach.status || '확인 불가'} size="md" />
                   <span className="ml-2 text-label text-apple-mid">{slaTimestamp(breach.breached_at)}{breach.breached_at ? ' KST' : ''}</span>
@@ -72,7 +72,7 @@ function TicketRow({ ticket }: { ticket: SlaViolationTicket }) {
               <div key={label} className="min-w-0"><dt className="text-caption text-apple-mid">{label}</dt><dd className="mt-1 break-words text-metric font-medium text-apple-dark">{value || '확인 불가'}</dd></div>
             ))}
           </dl>
-          <div className="mt-5 border-t border-apple-divider pt-4">
+          <div className="mt-5 border-t border-apple-divider/60 pt-4">
             <SlaStatusDurations durations={ticket.status_durations} basis={ticket.status_durations_basis} />
           </div>
           {ticket.warnings.length > 0 && <div className="mt-4 text-caption text-amber-700"><p className="font-medium">일부 상세 정보 확인 필요</p><ul className="mt-1 space-y-1">{ticket.warnings.map((warning, index) => <li key={index} className="break-words">{warning}</li>)}</ul></div>}
@@ -88,7 +88,7 @@ export default function SlaViolationList({ tickets, isFiltered = false }: { tick
   const titleId = useId()
   const gridStyle = { '--sla-ticket-columns': SLA_TICKET_COLUMNS.map(({ key }) => `minmax(0, ${widths[key]}fr)`).join(' ') } as CSSProperties
   return (
-    <section aria-labelledby={titleId} style={gridStyle} className="min-w-0 overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface shadow-sm">
+    <section aria-labelledby={titleId} style={gridStyle} className="min-w-0 overflow-hidden rounded-2xl border border-apple-divider/60 bg-apple-surface shadow-apple">
       <div className="flex items-center gap-2 px-5 py-5">
         <h2 id={titleId} className="text-section-title font-semibold text-apple-dark">SLA 위반 티켓</h2>
         <span className="rounded-full bg-brand-50 px-3 py-1 text-label font-semibold tabular-nums text-brand-700">{sortedTickets.length.toLocaleString('ko-KR')}건</span>

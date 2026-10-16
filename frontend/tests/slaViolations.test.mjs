@@ -20,6 +20,10 @@ function sourceLoader(overrides = {}) {
     const base = path.join(sourceRoot, relative)
     const filename = [base, `${base}.ts`, `${base}.tsx`].find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile())
     assert.ok(filename, `Missing module ${relative}`)
+    if (filename.endsWith('.json')) {
+      const data = JSON.parse(fs.readFileSync(filename, 'utf8'))
+      return { ...data, default: data }
+    }
     if (modules.has(filename)) return modules.get(filename).exports
     const module = { exports: {} }
     modules.set(filename, module)
