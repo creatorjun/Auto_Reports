@@ -16,7 +16,7 @@ from src.domain.entities.sla_violation_report import (
 def sla_violation_window(period: SlaViolationPeriod, selected_date: date) -> tuple[datetime, datetime]:
     if period == "week":
         start_date = selected_date - timedelta(days=selected_date.weekday())
-        end_date = start_date + timedelta(days=7)
+        end_date = selected_date + timedelta(days=1)
     elif period == "month":
         start_date = selected_date.replace(day=1)
         end_date = date(start_date.year + 1, 1, 1) if start_date.month == 12 else date(start_date.year, start_date.month + 1, 1)

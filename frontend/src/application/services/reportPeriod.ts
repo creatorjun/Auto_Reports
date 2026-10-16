@@ -14,8 +14,6 @@ export function reportDateRange(period: ReportPeriod, selectedDate: string): { s
   const end = new Date(start)
   if (period === 'week') {
     start.setUTCDate(start.getUTCDate() - (start.getUTCDay() + 6) % 7)
-    end.setTime(start.getTime())
-    end.setUTCDate(end.getUTCDate() + 6)
   } else if (period === 'month') {
     start.setUTCDate(1)
     end.setUTCMonth(end.getUTCMonth() + 1, 0)
@@ -24,9 +22,4 @@ export function reportDateRange(period: ReportPeriod, selectedDate: string): { s
     end.setUTCMonth(11, 31)
   }
   return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }
-}
-
-export function dashboardReportDateRange(period: ReportPeriod, selectedDate: string): { start: string; end: string } | null {
-  const range = reportDateRange(period, selectedDate)
-  return range && period === 'week' ? { ...range, end: selectedDate } : range
 }

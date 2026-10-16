@@ -30,7 +30,7 @@ export default function SlaViolationPage() {
   const range = slaDateRange(period, date)
   const today = slaToday()
   const dateValid = range !== null && date <= today
-  const changed = report && (report.period !== period || report.selected_date !== date)
+  const changed = report && (report.period !== period || report.selected_date !== date || (range && (report.start_date !== range.start || report.end_date !== range.end)))
   const setCurrentReport = useReportStore((state) => state.setCurrentReport)
 
   useEffect(() => { setCurrentReport(null) }, [setCurrentReport, id])
@@ -78,7 +78,7 @@ export default function SlaViolationPage() {
           </button>
         </div>
         {!dateValid && <p role="alert" className="mt-3 text-caption text-red-600">오늘 또는 이전의 유효한 날짜를 선택해 주세요.</p>}
-        {changed && <p className="mt-3 text-caption font-medium text-brand-600">생성 조건을 변경했습니다. 아래에는 기존 보고서가 표시됩니다. 새 조건으로 집계하려면 보고서를 생성하세요.</p>}
+        {changed && <p className="mt-3 text-caption font-medium text-brand-600">선택한 생성 조건과 현재 보고서의 조건이 다릅니다. 아래에는 기존 보고서가 표시됩니다. 새 조건으로 집계하려면 보고서를 생성하세요.</p>}
       </form>
 
       {generation.isPending && <p role="status" className="text-label text-apple-mid">Jira 이력과 SLA를 집계하고 있습니다. 티켓 수에 따라 몇 분 정도 걸릴 수 있습니다.</p>}

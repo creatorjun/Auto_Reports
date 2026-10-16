@@ -95,7 +95,7 @@ function setup(t, gateway = {}) {
   }
 }
 
-test('dashboard weeks end on the reference date while SLA keeps full calendar weeks', () => {
+test('dashboard and SLA share Monday-through-reference-date weekly periods', () => {
   const load = sourceLoader()
   const period = load('application/services/reportPeriod')
   const sla = load('application/services/slaViolationReport')
@@ -106,20 +106,18 @@ test('dashboard weeks end on the reference date while SLA keeps full calendar we
     ['2026-10-05', '2026-10-05', '2026-10-05'],
     ['2026-10-11', '2026-10-05', '2026-10-11'],
     ['2026-01-01', '2025-12-29', '2026-01-01'],
-  ]) assert.deepEqual(period.dashboardReportDateRange('week', date), { start, end })
-  assert.deepEqual(sla.slaDateRange('week', '2026-10-09'), { start: '2026-10-05', end: '2026-10-11' })
-  assert.deepEqual(sla.slaDateRange('week', '2026-01-01'), { start: '2025-12-29', end: '2026-01-04' })
+  ]) assert.deepEqual(period.reportDateRange('week', date), { start, end })
   assert.equal(period.reportToday(new Date('2026-10-13T15:00:00Z')), '2026-10-14')
 })
 
-test('dashboard month and year cover the complete calendar period and reject invalid dates', () => {
-  const { dashboardReportDateRange } = sourceLoader()('application/services/reportPeriod')
-  assert.deepEqual(dashboardReportDateRange('month', '2026-10-09'), { start: '2026-10-01', end: '2026-10-31' })
-  assert.deepEqual(dashboardReportDateRange('year', '2026-10-09'), { start: '2026-01-01', end: '2026-12-31' })
-  assert.deepEqual(dashboardReportDateRange('month', '2024-02-29'), { start: '2024-02-01', end: '2024-02-29' })
+test('dashboard and SLA month and year cover the complete calendar period and reject invalid dates', () => {
+  const { reportDateRange } = sourceLoader()('application/services/reportPeriod')
+  assert.deepEqual(reportDateRange('month', '2026-10-09'), { start: '2026-10-01', end: '2026-10-31' })
+  assert.deepEqual(reportDateRange('year', '2026-10-09'), { start: '2026-01-01', end: '2026-12-31' })
+  assert.deepEqual(reportDateRange('month', '2024-02-29'), { start: '2024-02-01', end: '2024-02-29' })
   for (const period of ['week', 'month', 'year']) {
     for (const date of ['', '2026-2-01', '2026-02-29', '2026-13-01', '0000-01-01']) {
-      assert.equal(dashboardReportDateRange(period, date), null)
+      assert.equal(reportDateRange(period, date), null)
     }
   }
 })

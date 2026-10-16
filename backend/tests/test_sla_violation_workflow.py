@@ -82,9 +82,11 @@ class SlaViolationUseCaseTest(unittest.IsolatedAsyncioTestCase):
     async def test_generation_uses_creation_window_and_saves_empty_snapshot(self) -> None:
         report = await self.use_case.generate("week", date(2026, 10, 14), "tester")
         self.source.fetch_issues.assert_awaited_once_with(
-            datetime(2026, 10, 12, tzinfo=KST), datetime(2026, 10, 19, tzinfo=KST),
+            datetime(2026, 10, 12, tzinfo=KST), datetime(2026, 10, 15, tzinfo=KST),
         )
         self.assertEqual((7, "tester", 0), (report.id, report.generated_by, report.ticket_count))
+        self.assertEqual((date(2026, 10, 12), date(2026, 10, 14)), (report.start_date, report.end_date))
+        self.assertEqual(report.end_date, self.repository.save.await_args.args[0].end_date)
         self.repository.save.assert_awaited_once()
         self.assertFalse(self.lock.locked())
 
@@ -150,7 +152,7 @@ class SlaViolationUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.lock.locked())
 
     async def test_reads_return_stored_snapshot_without_refresh(self) -> None:
-        stored = replace(sample_report(), id=3)
+        stored = replace(sample_report(), id=3, period="week", selected_date=date(2026, 10, 7), start_date=date(2026, 10, 5), end_date=date(2026, 10, 11))
         self.repository.get_latest.return_value = stored
         self.repository.get_by_id.return_value = stored
         self.assertIs(stored, await self.use_case.get_latest())

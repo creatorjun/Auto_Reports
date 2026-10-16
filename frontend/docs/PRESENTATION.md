@@ -47,7 +47,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 
 모든 서버 hook은 `useApplicationServices()`에서 gateway를 얻습니다.
 
-`DashboardGenerateForm`은 기존 `DashboardContent` 밖에서 주간·월간·연간과 기준일을 입력받습니다. 날짜 선택만으로 기존 데이터는 바뀌지 않으며 생성 완료 후 새 보고서를 표시합니다. 빈 이력이나 조회 실패 시에도 생성 폼을 유지합니다. `reportPeriod` 공통 서비스의 KST 날짜·달력 검증을 사용하되 `dashboardReportDateRange`는 주간 종료일을 기준일로 제한합니다. 월간·연간은 해당 달·연도 전체이고 SLA 현황의 `reportDateRange`는 주간 월요일~일요일을 유지합니다. 서버의 `report_period_dates`도 대시보드 주간을 월요일~기준일로 계산하며 종료일 전체를 포함합니다. 생성 폼은 PDF·Excel 내보내기에 포함하지 않습니다. 좌측·모바일의 별도 생성 버튼과 헤더의 최근 7일 생성 동작은 제거했습니다.
+`DashboardGenerateForm`은 기존 `DashboardContent` 밖에서 주간·월간·연간과 기준일을 입력받습니다. 날짜 선택만으로 기존 데이터는 바뀌지 않으며 생성 완료 후 새 보고서를 표시합니다. 빈 이력이나 조회 실패 시에도 생성 폼을 유지합니다. 대시보드와 SLA 현황은 `reportPeriod` 공통 서비스의 KST 날짜·달력 검증과 `reportDateRange`를 함께 사용합니다. 주간은 월요일~기준일, 월간·연간은 해당 달·연도 전체이며 서버 계산도 KST 기준 종료일 전체를 포함합니다. 기존 저장 보고서의 기간과 티켓 목록은 재계산하지 않습니다. SLA 생성 폼은 선택한 단위·기준일뿐 아니라 계산한 시작일·종료일도 저장된 값과 비교하여 이전 월요일~일요일 보고서와 새 생성 조건의 차이를 안내합니다. 생성 폼은 PDF·Excel 내보내기에 포함하지 않습니다. 좌측·모바일의 별도 생성 버튼과 헤더의 최근 7일 생성 동작은 제거했습니다.
 
 연간 전용 화면은 해당 연도의 생성 버튼을 제공합니다. 기존 날짜 범위 API로 연간 전용 보고서를 생성하며 완료 시 해당 연간 query를 갱신하고 최신 일반 보고서 캐시와 구분합니다.
 

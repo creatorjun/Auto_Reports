@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import type { ReportPeriod } from '@/domain/ReportPeriod'
 import type { ReportDetail } from '@/domain/Report'
-import { REPORT_PERIOD_LABELS, dashboardReportDateRange, reportToday } from '@/application/services/reportPeriod'
+import { REPORT_PERIOD_LABELS, reportDateRange, reportToday } from '@/application/services/reportPeriod'
 import { useReportGeneration } from '@/presentation/context/ReportGenerationContext'
 
 export default function DashboardGenerateForm({ report, loading = false }: { report?: ReportDetail | null; loading?: boolean }) {
@@ -12,7 +12,7 @@ export default function DashboardGenerateForm({ report, loading = false }: { rep
   const [date, setDate] = useState(generation.lastRequest?.date ?? reportToday())
   const selectedPeriod = generation.pending ? generation.lastRequest?.period ?? period : period
   const selectedDate = generation.pending ? generation.lastRequest?.date ?? date : date
-  const range = dashboardReportDateRange(selectedPeriod, selectedDate)
+  const range = reportDateRange(selectedPeriod, selectedDate)
   const today = reportToday()
   const valid = range !== null && selectedDate <= today
   const changed = report && range && (report.week_start !== range.start || report.week_end !== range.end)

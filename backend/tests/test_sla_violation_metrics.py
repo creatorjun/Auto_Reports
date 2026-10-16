@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 import unittest
 
 from src.application.services.sla_violation_metrics import build_sla_violation_report, sla_violation_window
+from src.application.services.report_period import report_period_dates
 from src.domain.constants import KST
 from src.domain.entities.sla_violation_report import SlaViolationChange, SlaViolationCycle, SlaViolationIssue
 
@@ -29,16 +30,36 @@ class SlaViolationMetricsTest(unittest.TestCase):
 
     def test_periods_handle_monday_sunday_leap_month_and_year_boundary(self):
         for period, selected, expected_start, expected_end in (
+            ("week", date(2026, 10, 5), date(2026, 10, 5), date(2026, 10, 6)),
+            ("week", date(2026, 10, 9), date(2026, 10, 5), date(2026, 10, 10)),
             ("week", date(2026, 10, 11), date(2026, 10, 5), date(2026, 10, 12)),
-            ("week", date(2026, 1, 1), date(2025, 12, 29), date(2026, 1, 5)),
+            ("week", date(2026, 1, 1), date(2025, 12, 29), date(2026, 1, 2)),
             ("month", date(2024, 2, 29), date(2024, 2, 1), date(2024, 3, 1)),
+            ("month", date(2026, 10, 9), date(2026, 10, 1), date(2026, 11, 1)),
             ("month", date(2025, 12, 31), date(2025, 12, 1), date(2026, 1, 1)),
             ("year", date(2024, 2, 29), date(2024, 1, 1), date(2025, 1, 1)),
+            ("year", date(2026, 10, 9), date(2026, 1, 1), date(2027, 1, 1)),
         ):
             with self.subTest(period=period, selected=selected):
                 start, end = sla_violation_window(period, selected)
                 self.assertEqual((expected_start, expected_end), (start.date(), end.date()))
                 self.assertEqual(timedelta(hours=9), start.utcoffset())
+                dashboard_start, dashboard_end = report_period_dates(period, selected, date(2026, 10, 16))
+                self.assertEqual((dashboard_start.date(), dashboard_end.date()), (start.date(), (end - timedelta(days=1)).date()))
+
+    def test_week_includes_reference_day_in_kst_and_excludes_following_weekend(self):
+        start, end = sla_violation_window("week", date(2026, 10, 9))
+        report = self.build([
+            issue(key="MONDAY", created_at=start.astimezone(timezone.utc), changes=()),
+            issue(key="FRIDAY-END", created_at=(end - timedelta(microseconds=1)).astimezone(timezone.utc), changes=()),
+            issue(key="SATURDAY", created_at=end, changes=()),
+            issue(key="SUNDAY", created_at=timestamp(11, 23), changes=()),
+            issue(key="PRIOR-SUNDAY", created_at=start - timedelta(microseconds=1), changes=()),
+        ], selected=date(2026, 10, 9))
+
+        self.assertEqual(["FRIDAY-END", "MONDAY"], [row.key for row in report.tickets])
+        self.assertEqual((date(2026, 10, 5), date(2026, 10, 9)), (report.start_date, report.end_date))
+        self.assertEqual((2, 2, 2), (report.ticket_count, report.initial_response_count, report.resolution_count))
 
     def test_inclusion_uses_creation_in_kst_not_breach_date(self):
         start, end = sla_violation_window("week", date(2026, 10, 7))
@@ -49,7 +70,7 @@ class SlaViolationMetricsTest(unittest.TestCase):
             issue(key="CLEAN", cycles=()),
         ])
         self.assertEqual(["IN"], [row.key for row in report.tickets])
-        self.assertEqual((date(2026, 10, 5), date(2026, 10, 11)), (report.start_date, report.end_date))
+        self.assertEqual((date(2026, 10, 5), date(2026, 10, 7)), (report.start_date, report.end_date))
 
     def test_two_metrics_keep_separate_unique_counts_and_breach_status(self):
         report = self.build([issue(cycles=(*issue().cycles, SlaViolationCycle("resolution", timestamp(8, 12))))])

@@ -244,9 +244,12 @@ function hookSetup(t, gateway) {
   return { client, hooks, get query() { return query }, get mutation() { return mutation }, unmount: () => act(() => view.unmount()), remount: () => act(() => { view = TestRenderer.create(element) }) }
 }
 
-test('period selection follows Monday weeks, leap-year months, and cross-year boundaries', () => {
+test('period selection ends weekly reports on the reference date and keeps complete months and years', () => {
+  assert.deepEqual(slaDateRange('week', '2026-10-09'), { start: '2026-10-05', end: '2026-10-09' })
+  assert.deepEqual(slaDateRange('week', '2026-01-01'), { start: '2025-12-29', end: '2026-01-01' })
   assert.deepEqual(slaDateRange('week', '2026-01-04'), { start: '2025-12-29', end: '2026-01-04' })
-  assert.deepEqual(slaDateRange('week', '2026-01-05'), { start: '2026-01-05', end: '2026-01-11' })
+  assert.deepEqual(slaDateRange('week', '2026-01-05'), { start: '2026-01-05', end: '2026-01-05' })
+  assert.deepEqual(slaDateRange('month', '2026-10-09'), { start: '2026-10-01', end: '2026-10-31' })
   assert.deepEqual(slaDateRange('month', '2024-02-29'), { start: '2024-02-01', end: '2024-02-29' })
   assert.deepEqual(slaDateRange('month', '2026-12-31'), { start: '2026-12-01', end: '2026-12-31' })
   assert.deepEqual(slaDateRange('year', '2026-10-14'), { start: '2026-01-01', end: '2026-12-31' })
@@ -637,6 +640,41 @@ test('page restores saved controls, separates changed conditions, and submits th
   act(() => view.update(renderPage()))
   assert.equal(view.root.findAllByType('button').find((button) => textOf(button) === '연간').props['aria-pressed'], true)
   assert.doesNotMatch(textOf(view.toJSON()), /아래에는 기존 보고서가 표시됩니다/)
+})
+
+test('legacy full-week snapshots stay unchanged and show a mismatch until a new cutoff report is generated', async (t) => {
+  const saved = { ...report, period: 'week', selected_date: '2026-10-09', start_date: '2026-10-05', end_date: '2026-10-11' }
+  const original = structuredClone(saved)
+  const created = { ...saved, id: 11, end_date: saved.selected_date }
+  const generated = deferred()
+  const requests = []
+  const instance = sourceLoader({
+    'react-router-dom': { useParams: () => ({}), useNavigate: () => () => {}, Link: ({ children, to, ...props }) => React.createElement('a', { href: to, ...props }, children) },
+    'presentation/context/JiraContext': { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) },
+    'presentation/state/reportStore': { useReportStore: (selector) => selector({ setCurrentReport() {} }) },
+  })
+  const Page = instance('presentation/pages/SlaViolationPage').default
+  const Content = instance('presentation/components/sla-violations/SlaViolationReportContent').default
+  const { ApplicationServicesProvider } = instance('presentation/context/ApplicationServicesContext')
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+  const gateway = { getLatest: async () => saved, generate: async (request) => { requests.push(request); return generated.promise } }
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(ApplicationServicesProvider, { services: { slaViolations: gateway } }, React.createElement(QueryClientProvider, { client }, React.createElement(Page)))) })
+  t.after(() => { act(() => view.unmount()); client.clear() })
+  await until(() => view.root.findByProps({ type: 'date' }).props.value === saved.selected_date)
+  assert.equal(view.root.findAllByType('button').find((button) => textOf(button) === '주간').props['aria-pressed'], true)
+  assert.match(textOf(view.toJSON()), /아래에는 기존 보고서가 표시됩니다/)
+  assert.deepEqual(view.root.findByType(Content).props.report, original)
+  assert.deepEqual(requests, [])
+  act(() => view.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  await until(() => requests.length === 1)
+  assert.deepEqual(requests, [{ period: 'week', date: saved.selected_date }])
+  assert.deepEqual(view.root.findByType(Content).props.report, original)
+  generated.resolve(created)
+  await until(() => view.root.findByType(Content).props.report.id === created.id)
+  assert.doesNotMatch(textOf(view.toJSON()), /아래에는 기존 보고서가 표시됩니다/)
+  assert.equal(view.root.findByType(Content).props.report.end_date, saved.selected_date)
+  assert.deepEqual(saved, original)
 })
 
 test('history pages saved snapshots independently and links directly to each immutable report', async (t) => {
