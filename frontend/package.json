@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test:architecture": "node --test tests/architecture.test.mjs",
+    "test:auth": "node --test tests/authSession.test.mjs",
     "preview": "vite preview",
     "test:pdf": "node --test tests/dashboardPdf.test.mjs",
     "test:excel": "node --test tests/dashboardExcel.test.mjs",

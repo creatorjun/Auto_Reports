@@ -45,13 +45,13 @@ async def require_superadmin(
     if credentials is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        username = auth.decode_access_token(credentials.credentials)
+        identity = auth.decode_access_identity(credentials.credentials)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    if not auth.is_superadmin_user(username):
+    if identity.auth_provider != "local" or not auth.is_superadmin_user(identity.username):
         raise HTTPException(status_code=403, detail="관리자 계정만 감사로그를 조회할 수 있습니다.")
-    request.state.authenticated_username = username
-    return username
+    request.state.authenticated_username = identity.username
+    return identity.username
 
 
 async def get_get_use_case(

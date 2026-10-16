@@ -17,11 +17,13 @@ Infrastructure는 `src/infrastructure/api`의 HTTP adapter와 `src/infrastructur
 
 client는 Presentation store를 직접 import하지 않습니다. `main.tsx`가 store의 get/set 동작을 `AuthSessionPort` 형태로 주입합니다.
 
+초기 복원과 동시 401은 같은 refresh Promise를 사용합니다. 로그인·로그아웃이 시작되면 이전 세대의 갱신 응답을 적용하지 않으며, 로그아웃은 진행 중인 갱신이 완료된 뒤 cookie를 제거해 응답 순서 경합을 방지합니다.
+
 ## Gateway adapter
 
 | 파일 | 구현 계약 | 역할 |
 |------|-----------|------|
-| `authApi.ts` | `AuthGateway` | 로그인, 갱신, 로그아웃, 사용자 조회 |
+| `authApi.ts` | `AuthGateway` | 관리자 로그인, Jira OAuth 시작·설정 조회, 갱신, 로그아웃, 사용자 조회 |
 | `reportApi.ts` | `ReportGateway` | 보고서 조회·삭제, 생성 트리거와 잡 상태 |
 | `siteApi.ts` | `SiteGateway` | 사이트 aggregate와 하위 이력 관리 |
 | `partnerApi.ts` | `PartnerGateway` | 파트너 조직, 멤버, 이슈 조회 |

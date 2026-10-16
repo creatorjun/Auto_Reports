@@ -15,12 +15,17 @@ Base URL은 `/api/v1`입니다. `LOGIN=true`일 때 보호 라우트는 `Authori
 | POST | `/auth/login` | username, password | access token과 HttpOnly refresh cookie |
 | POST | `/auth/refresh` | refresh cookie | 새 access token |
 | POST | `/auth/logout` | 없음 | refresh cookie 제거 |
-| GET | `/auth/me` | HttpOnly refresh cookie | username, login_required, is_superadmin |
+| GET | `/auth/me` | HttpOnly refresh cookie | username, display_name, auth_provider, login_required, is_superadmin |
+| GET | `/auth/providers` | 없음 | Jira 로그인 사용 가능 여부 |
+| POST | `/auth/jira/start` | 같은 origin 요청 | authorization_url, 10분 HttpOnly state cookie |
+| GET | `/auth/jira/callback` | code, state 및 state cookie | JWT refresh cookie 발급 후 `/login?jira=success`로 303 이동 |
 | GET | `/storage/preview` | folder, name, `_t` | inline file |
 | GET | `/storage/preview-converted` | folder, name, `_t` | LibreOffice 변환 PDF |
 | GET | `/storage/download` | folder, name, `_t` | attachment file |
 
 일반 보호 API는 `LOGIN=false`이면 인증 검증을 건너뜁니다. 감사로그 API는 이 경우에도 접근을 거부합니다. 운영 cookie 속성은 `COOKIE_SECURE` 설정을 따릅니다.
+
+로그인·갱신 응답은 `access_token`, `token_type` 외에 `username`, `display_name`, `auth_provider`, `is_superadmin`을 포함합니다. Jira의 `username`은 `jira:<cloudId>:<accountId>`인 고유 식별자이며 화면 표시 이름과 분리합니다. Jira 계정에는 superadmin 권한을 부여하지 않습니다. cookie를 변경하는 인증 POST는 교차 사이트 요청을 거부합니다. OAuth 설정과 허용 조건은 [Jira 로그인](11_jira_login.md)을 참고하세요.
 
 ## 관리자 감사로그
 

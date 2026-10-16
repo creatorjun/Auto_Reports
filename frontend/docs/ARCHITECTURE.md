@@ -42,6 +42,8 @@ main.tsx Composition Root
 
 `main.tsx`는 `AuthSessionPort`를 구현하는 Zustand store adapter로 HTTP client를 한 번 구성합니다. axios interceptor는 access token을 주입합니다. 동시 401은 하나의 refresh Promise를 공유하며, 실패한 요청을 영구 대기시키지 않고 인증 상태를 지운 뒤 로그인 화면으로 이동합니다.
 
+`LoginPage`와 `ProtectedRoute`는 `useAuthSession`으로 초기 세션을 복원합니다. 초기 복원도 interceptor와 같은 refresh Promise를 공유합니다. 인증 세대 번호로 이전 로그인 요청의 결과를 차단하며, 로그아웃은 진행 중인 갱신 완료 후 cookie를 제거합니다. Jira 인증은 `AuthGateway`를 통해 OAuth를 시작하고 callback은 백엔드에서 처리합니다.
+
 axios 오류는 Infrastructure에서 `RequestError`로 정규화됩니다. Presentation은 axios response 구조를 알지 않고 상태 코드와 detail만 처리합니다.
 
 검색 UI는 자신이 생성한 취소 신호로 요청 수명을 판단하므로 HTTP 라이브러리의 오류 이름에 의존하지 않으며, 취소된 이전 응답이 현재 검색 결과나 로딩 상태를 변경하지 않습니다.

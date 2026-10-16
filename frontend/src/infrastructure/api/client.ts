@@ -1,9 +1,13 @@
 // frontend/src/infrastructure/api/client.ts
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 import { RequestError } from '@/application/errors/RequestError'
 import type { AuthSessionPort } from '@/application/ports/AuthSessionPort'
+import type { TokenResponse } from '@/domain/Auth'
 
-const SKIP_REFRESH_URLS = ['/auth/refresh', '/auth/login', '/auth/me']
+interface SessionRequestConfig extends InternalAxiosRequestConfig {
+  _authGeneration?: number
+  _retry?: boolean
+}
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
@@ -13,6 +17,10 @@ const client = axios.create({
 })
 
 let authSession: AuthSessionPort | null = null
+let authGeneration = 0
+let isLoggingOut = false
+let refreshPromise: Promise<TokenResponse> | null = null
+let logoutPromise: Promise<void> | null = null
 
 export function configureHttpClient(session: AuthSessionPort): void {
   authSession = session
@@ -22,14 +30,12 @@ export function getAccessToken(): string | null {
   return authSession?.getAccessToken() ?? null
 }
 
-client.interceptors.request.use((config) => {
+client.interceptors.request.use((config: SessionRequestConfig) => {
+  config._authGeneration = authGeneration
   const token = getAccessToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
-
-let isLoggingOut = false
-let refreshPromise: Promise<string> | null = null
 
 async function toRequestError(error: unknown): Promise<RequestError> {
   if (error instanceof RequestError) return error
@@ -45,45 +51,89 @@ async function toRequestError(error: unknown): Promise<RequestError> {
   return new RequestError(error.response?.status ?? null, data?.detail)
 }
 
+function sessionChanged(): RequestError {
+  return new RequestError(401, '로그인 상태가 변경되었습니다.')
+}
+
+function beginAuthSessionChange(): number {
+  authGeneration++
+  isLoggingOut = false
+  refreshPromise = null
+  return authGeneration
+}
+
 function redirectToLogin() {
   if (isLoggingOut) return
+  beginAuthSessionChange()
   isLoggingOut = true
   authSession?.clearAuth()
   authSession?.redirectToLogin()
 }
 
-async function refreshAccessToken(): Promise<string> {
-  const res = await client.post<{ access_token: string }>('/auth/refresh')
-  const token = res.data.access_token
-  authSession?.setAuth(token, authSession.getUsername() ?? '')
-  return token
+export function refreshAuthSession(): Promise<TokenResponse> {
+  if (logoutPromise) return Promise.reject(sessionChanged())
+  if (refreshPromise) return refreshPromise
+  const generation = authGeneration
+  const pending = client.post<TokenResponse>('/auth/refresh')
+    .then(({ data }) => {
+      if (generation !== authGeneration) throw sessionChanged()
+      authSession?.setAuth(data.access_token, data.display_name ?? data.username ?? authSession.getUsername() ?? '')
+      return data
+    })
+    .finally(() => {
+      if (refreshPromise === pending) refreshPromise = null
+    })
+  refreshPromise = pending
+  return pending
+}
+
+export async function startAuthSession<T>(operation: () => Promise<T>): Promise<T> {
+  const pendingRefresh = refreshPromise
+  const generation = beginAuthSessionChange()
+  if (pendingRefresh) await pendingRefresh.catch(() => undefined)
+  if (logoutPromise) await logoutPromise.catch(() => undefined)
+  if (generation !== authGeneration) throw sessionChanged()
+  const result = await operation()
+  if (generation !== authGeneration) throw sessionChanged()
+  return result
+}
+
+export function endAuthSession(operation: () => Promise<void>): Promise<void> {
+  if (logoutPromise) return logoutPromise
+  const pendingRefresh = refreshPromise
+  beginAuthSessionChange()
+  authSession?.clearAuth()
+  const pending = (async () => {
+    if (pendingRefresh) await pendingRefresh.catch(() => undefined)
+    await operation()
+  })().finally(() => {
+    if (logoutPromise === pending) logoutPromise = null
+  })
+  logoutPromise = pending
+  return pending
 }
 
 client.interceptors.response.use(
   (res) => res,
   async (err) => {
-    const original = err.config
+    const original: SessionRequestConfig | undefined = err.config
     const status = err.response?.status
-    const url: string = original?.url ?? ''
+    const url = original?.url ?? ''
 
-    if (isLoggingOut) throw await toRequestError(err)
+    if (isLoggingOut || logoutPromise || (original && original._authGeneration !== authGeneration)) {
+      throw await toRequestError(err)
+    }
 
-    const shouldSkip = SKIP_REFRESH_URLS.some((u) => url.includes(u))
-
-    if (status === 401 && !original._retry && !shouldSkip) {
+    if (status === 401 && original && !original._retry && !url.includes('/auth/')) {
       original._retry = true
-
+      const generation = authGeneration
       try {
-        if (refreshPromise === null) {
-          refreshPromise = refreshAccessToken().finally(() => {
-            refreshPromise = null
-          })
-        }
-        const newToken = await refreshPromise
-        original.headers.Authorization = `Bearer ${newToken}`
+        const result = await refreshAuthSession()
+        if (generation !== authGeneration) throw sessionChanged()
+        original.headers.Authorization = `Bearer ${result.access_token}`
         return client(original)
       } catch (refreshError) {
-        redirectToLogin()
+        if (generation === authGeneration) redirectToLogin()
         throw await toRequestError(refreshError)
       }
     }

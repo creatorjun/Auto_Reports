@@ -5,6 +5,7 @@ from threading import Lock
 from jose import JWTError, jwt
 
 from src.application.ports.token_service_port import TokenServicePort
+from src.domain.entities.auth_identity import AuthIdentity
 from src.infrastructure.config.settings import Settings
 
 ACCESS_TOKEN_TYPE = "access"
@@ -26,46 +27,85 @@ class JwtService(TokenServicePort):
         return self._superadmin_generation
 
     def create_access_token(self, subject: str, generation: int | None = None) -> str:
+        return self.create_identity_access_token(AuthIdentity(subject, subject), generation)
+
+    def create_identity_access_token(self, identity: AuthIdentity, generation: int | None = None) -> str:
         return self._create(
-            subject, ACCESS_TOKEN_TYPE,
+            identity, ACCESS_TOKEN_TYPE,
             timedelta(minutes=self._settings.jwt_access_expire_minutes),
             generation=generation,
         )
 
     def create_refresh_token(self, subject: str, generation: int | None = None) -> str:
+        return self.create_identity_refresh_token(AuthIdentity(subject, subject), generation)
+
+    def create_identity_refresh_token(self, identity: AuthIdentity, generation: int | None = None) -> str:
         return self._create(
-            subject, REFRESH_TOKEN_TYPE,
+            identity, REFRESH_TOKEN_TYPE,
             timedelta(days=self._settings.jwt_refresh_expire_days),
             generation=generation,
         )
 
     def decode_access_token(self, token: str) -> str:
-        return self._decode(token, ACCESS_TOKEN_TYPE)
+        return self.decode_access_identity(token).username
 
     def decode_refresh_token(self, token: str) -> str:
+        return self.decode_refresh_identity(token).username
+
+    def decode_access_identity(self, token: str) -> AuthIdentity:
+        return self._decode(token, ACCESS_TOKEN_TYPE)
+
+    def decode_refresh_identity(self, token: str) -> AuthIdentity:
         return self._decode(token, REFRESH_TOKEN_TYPE)
 
     def _create(
         self,
-        subject: str,
+        identity: AuthIdentity,
         token_type: str,
         expire_delta: timedelta,
         generation: int | None = None,
     ) -> str:
         expire = datetime.now(timezone.utc) + expire_delta
-        payload: dict = {"sub": subject, "type": token_type, "exp": expire}
+        if identity.auth_provider == "jira":
+            if type(identity.session_expires_at) is not int:
+                raise ValueError("Jira session expiration required")
+            expire = min(expire, datetime.fromtimestamp(identity.session_expires_at, timezone.utc))
+        payload: dict = {
+            "sub": identity.username,
+            "type": token_type,
+            "exp": expire,
+            "display_name": identity.display_name,
+            "auth_provider": identity.auth_provider,
+        }
         if generation is not None:
             payload["gen"] = generation
+        if identity.auth_provider == "jira":
+            payload["session_exp"] = identity.session_expires_at
         return jwt.encode(payload, self._settings.jwt_secret, algorithm="HS256")
 
-    def _decode(self, token: str, expected_type: str) -> str:
+    def _decode(self, token: str, expected_type: str) -> AuthIdentity:
         try:
-            payload = jwt.decode(token, self._settings.jwt_secret, algorithms=["HS256"])
+            payload = jwt.decode(
+                token, self._settings.jwt_secret, algorithms=["HS256"],
+                options={"require_exp": True, "require_sub": True},
+            )
             if payload.get("type") != expected_type:
                 raise ValueError("Token type mismatch")
             subject: str = payload["sub"]
             if not isinstance(subject, str) or not subject:
                 raise ValueError("Invalid subject")
+            provider = payload.get("auth_provider", "local")
+            display_name = payload.get("display_name", subject)
+            if provider not in {"local", "jira"} or not isinstance(display_name, str) or not display_name:
+                raise ValueError("Invalid identity")
+            if provider == "jira" and (not subject.startswith("jira:") or payload.get("gen") is not None):
+                raise ValueError("Invalid Jira identity")
+            session_exp = payload.get("session_exp") if provider == "jira" else None
+            if provider == "jira" and (
+                type(session_exp) is not int or payload["exp"] > session_exp
+                or session_exp <= datetime.now(timezone.utc).timestamp()
+            ):
+                raise ValueError("Invalid Jira session expiration")
             gen = payload.get("gen")
             superadmin_enabled = bool(
                 self._settings.login
@@ -77,6 +117,6 @@ class JwtService(TokenServicePort):
                 raise ValueError("Superadmin session required")
             if gen is not None and gen != self._superadmin_generation:
                 raise ValueError("Superadmin session invalidated")
-            return subject
-        except (JWTError, ValueError, KeyError) as e:
+            return AuthIdentity(subject, display_name, provider, session_exp)
+        except (JWTError, ValueError, KeyError, TypeError) as e:
             raise ValueError("Invalid or expired token") from e

@@ -54,6 +54,10 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 | `JWT_SECRET` | 개발용 placeholder | 강한 임의 값으로 변경 |
 | `JWT_ACCESS_EXPIRE_MINUTES` | `30` | access token 수명 |
 | `JWT_REFRESH_EXPIRE_DAYS` | `7` | refresh token 수명 |
+| `JIRA_LOGIN_ENABLED` | `false` | Jira OAuth 로그인 활성화. 기존 관리자 계정 유지 |
+| `JIRA_OAUTH_CLIENT_ID` | 빈 값 | Atlassian OAuth 앱 Client ID |
+| `JIRA_OAUTH_CLIENT_SECRET` | 빈 값 | 서버에서만 사용하는 앱 Secret |
+| `JIRA_OAUTH_REDIRECT_URI` | 빈 값 | 등록한 `/api/v1/auth/jira/callback` 절대 URL |
 | `COOKIE_SECURE` | `false` | HTTPS 운영에서는 true |
 | `CREDENTIAL_ENCRYPTION_KEY` | 빈 값 | 운영에서는 유효한 Fernet key 필수 |
 | `CORS_ORIGINS` | `["*"]` | 운영 frontend origin으로 제한 |

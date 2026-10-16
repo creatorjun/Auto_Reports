@@ -14,6 +14,7 @@ from src.infrastructure.config.settings import Settings, get_settings
 from src.infrastructure.job_runner import JobRunner
 from src.infrastructure.logging.audit_logger import AuditLogger
 from src.infrastructure.logging.audit_log_reader import FileAuditLogReader
+from src.infrastructure.logging.oauth_access_filter import OAuthAccessFilter
 from src.application.use_cases.audit_logs import AuditLogsUseCase
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.job_repository_impl import SqlJobRepository
@@ -26,6 +27,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
+logging.getLogger("uvicorn.access").addFilter(OAuthAccessFilter())
 
 
 def create_app(settings: Settings) -> FastAPI:

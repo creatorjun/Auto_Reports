@@ -1,24 +1,37 @@
 // frontend/src/infrastructure/api/authApi.ts
-import client from './client'
-import type { LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
+import client, { endAuthSession, refreshAuthSession, startAuthSession } from './client'
+import type { AuthProviders, JiraLoginStartResponse, LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
 
 export const authApi = {
   login: async ({ username, password }: LoginRequest): Promise<TokenResponse> => {
-    const res = await client.post<TokenResponse>('/auth/login', { username, password })
-    return res.data
+    return startAuthSession(async () => {
+      const res = await client.post<TokenResponse>('/auth/login', { username, password })
+      return res.data
+    })
   },
 
   refresh: async (): Promise<TokenResponse> => {
-    const res = await client.post<TokenResponse>('/auth/refresh')
-    return res.data
+    return refreshAuthSession()
   },
 
   logout: async (): Promise<void> => {
-    await client.post('/auth/logout')
+    return endAuthSession(async () => { await client.post('/auth/logout') })
   },
 
   me: async (): Promise<MeResponse> => {
     const res = await client.get<MeResponse>('/auth/me')
     return res.data
+  },
+
+  providers: async (): Promise<AuthProviders> => {
+    const res = await client.get<AuthProviders>('/auth/providers')
+    return res.data
+  },
+
+  startJira: async (): Promise<JiraLoginStartResponse> => {
+    return startAuthSession(async () => {
+      const res = await client.post<JiraLoginStartResponse>('/auth/jira/start')
+      return res.data
+    })
   },
 }

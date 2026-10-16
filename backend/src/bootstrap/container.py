@@ -28,6 +28,7 @@ from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.smtp_email_client import SmtpEmailClient
+from src.infrastructure.external.jira_oauth_client import JiraOAuthClient
 from src.infrastructure.external.sla_violation_jira_source import SlaViolationJiraSource
 from src.infrastructure.external.redeployment_jira_source import RedeploymentJiraSource
 from src.infrastructure.factories.ai_factory import AiFactory
@@ -98,6 +99,17 @@ class Container:
             superadmin_password=settings.superadmin_password,
             refresh_expire_days=settings.jwt_refresh_expire_days,
             cookie_secure=settings.cookie_secure,
+            jira_oauth=JiraOAuthClient(
+                client_id=settings.jira_oauth_client_id,
+                client_secret=settings.jira_oauth_client_secret,
+                redirect_uri=settings.jira_oauth_redirect_uri,
+                jira_base_url=settings.jira_base_url,
+                project_key=settings.project_key,
+            ) if (
+                settings.login and settings.jira_login_enabled
+                and settings.jira_oauth_client_id and settings.jira_oauth_client_secret
+                and settings.jira_oauth_redirect_uri
+            ) else None,
         )
         self.storage = StorageUseCase(
             storage=LocalStorageAdapter(settings.storage_dir),

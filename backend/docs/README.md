@@ -15,6 +15,7 @@
 | [SLA 현황](08_sla_violation_report.md) | 생성·집계·저장, 요약·차트·필터, 티켓 상세 |
 | [재배포 현황](09_redeployment_report.md) | 수집 기준, 원인·월별 탐색, 매일 08시 KST 갱신 |
 | [운영·배포](10_operations.md) | 실행, 백업, migration, 배포와 검증 |
+| [Jira 로그인](11_jira_login.md) | OAuth 앱 등록, 기존 관리자 로그인, JWT 자동 로그인과 검증 |
 
 일반·연간 보고서는 `reports`를 공유하고, SLA와 재배포는 각각 별도 테이블을 사용합니다. SLA 이력은 불변 저장본이고 재배포는 당일 저장본을 대체합니다. API 명세와 화면 필터 건수의 의미는 해당 기능 문서를 함께 확인합니다.
 

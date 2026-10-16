@@ -38,7 +38,7 @@ login·storage preview를 제외한 실제 페이지는 `ProtectedRoute → Layo
 
 ## 인증과 로딩
 
-`ProtectedRoute`는 access token이 없으면 refresh를 시도한 뒤 `/auth/me`로 세션을 확인합니다. 완료 전에는 로딩을 표시하고 인증을 복구하지 못하면 로그인으로 이동합니다. `LOGIN=false` 환경에서도 이 UI 흐름은 guest 세션을 사용합니다. `SuperadminRoute`와 서버 API 모두 관리자 권한을 확인합니다.
+`ProtectedRoute`와 `LoginPage`는 `useAuthSession`으로 세션 복원을 공유합니다. access token이 없으면 refresh cookie를 사용하고, `/login` 직접 접속도 자동 로그인합니다. 보호 경로는 `/auth/me`로 세션을 확인하며 복원 전에는 로딩을 표시합니다. `LOGIN=false`에서는 guest 접근을 허용합니다. `SuperadminRoute`와 서버 API 모두 관리자 권한을 확인하며 Jira 로그인은 superadmin 권한을 얻지 않습니다. OAuth callback은 백엔드가 처리한 뒤 로그인 페이지로 돌아옵니다.
 
 각 page는 `React.lazy`와 `LazyErrorBoundary`·`Suspense`로 로드합니다. `Layout`의 `ReportGenerationProvider`가 일반 보고서 job을 추적하여 메뉴 이동 중에도 진행 상태를 유지합니다. SLA·재배포는 별도 HTTP 생성 mutation입니다.
 

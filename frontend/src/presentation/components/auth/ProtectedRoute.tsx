@@ -1,32 +1,14 @@
 // frontend/src/presentation/components/auth/ProtectedRoute.tsx
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useMe } from '@/presentation/hooks/useAuth'
 import { useAuthStore } from '@/presentation/state/authStore'
-import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
+import { useAuthSession } from '@/presentation/hooks/useAuthSession'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { auth } = useApplicationServices()
-  const { accessToken, setAuth, setLoginRequired, clearAuth, username } = useAuthStore()
-  const [refreshDone, setRefreshDone] = useState(false)
-
-  useEffect(() => {
-    if (accessToken) {
-      setRefreshDone(true)
-      return
-    }
-    auth.refresh()
-      .then((res) => {
-        setAuth(res.access_token, username ?? '')
-      })
-      .catch(() => {
-        clearAuth()
-      })
-      .finally(() => {
-        setRefreshDone(true)
-      })
-  }, [accessToken, auth, clearAuth, setAuth, username])
+  const { accessToken, loginRequired, isRestoring } = useAuthSession()
+  const { setLoginRequired, clearAuth } = useAuthStore()
 
   const { data, isLoading, isError } = useMe()
 
@@ -38,7 +20,9 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     if (isError) clearAuth()
   }, [isError, clearAuth])
 
-  if (!refreshDone) return <LoadingSpinner />
+  if (isRestoring) return <LoadingSpinner />
+
+  if (!loginRequired) return <>{children}</>
 
   if (!accessToken) return <Navigate to="/login" replace />
 

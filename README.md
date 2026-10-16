@@ -75,6 +75,8 @@ C-Level 기능과 관련 테이블은 제거했습니다. Rovo/A2A 분석과 SLA
 Docker Engine/Desktop과 Compose v2가 필요합니다. Compose는 PostgreSQL 16, Python 3.11, Node 22 빌드 환경을 사용합니다.
 
 1. `.env.example`을 루트 `.env`로 복사하고 Jira·DB·로그인 설정을 입력합니다. 실제 비밀번호와 토큰은 Git에 저장하지 않습니다.
+
+   기존 관리자 로그인과 함께 Jira OAuth 로그인을 사용할 수 있습니다. 앱 등록과 환경 설정은 [Jira 로그인과 JWT 자동 로그인](backend/docs/11_jira_login.md)을 참고하세요. Jira 세션은 기본 7일 동안 새로고침·재접속 시 복원되며, 앱 등록 전에는 기존 관리자 로그인을 사용합니다.
 2. 최초 실행 전 [환경 설정](backend/docs/04_environment_and_config.md)과 기존 DB의 [마이그레이션](backend/docs/03_data_model.md)을 확인합니다.
 3. 저장소 루트에서 실행합니다.
 

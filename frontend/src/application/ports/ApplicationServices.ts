@@ -1,5 +1,5 @@
 // frontend/src/application/ports/ApplicationServices.ts
-import type { LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
+import type { AuthProviders, JiraLoginStartResponse, LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
 import type { AuditLogPage, AuditLogQuery } from '@/domain/AuditLog'
 import type { AppConfig } from '@/domain/Config'
 import type { IssueManagementSnapshot } from '@/domain/IssueManagement'
@@ -26,6 +26,8 @@ import type { PreviewParserPort } from '@/application/ports/PreviewParserPort'
 
 export interface AuthGateway {
   login: (request: LoginRequest) => Promise<TokenResponse>
+  providers: () => Promise<AuthProviders>
+  startJira: () => Promise<JiraLoginStartResponse>
   refresh: () => Promise<TokenResponse>
   logout: () => Promise<void>
   me: () => Promise<MeResponse>

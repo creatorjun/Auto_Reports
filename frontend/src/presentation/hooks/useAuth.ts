@@ -29,7 +29,7 @@ export const useLogin = () => {
     onSuccess: (data, variables) => {
       queryClient.removeQueries({ queryKey: ['me'] })
       queryClient.removeQueries({ queryKey: ['audit-logs'] })
-      setAuth(data.access_token, variables.username)
+      setAuth(data.access_token, data.display_name ?? data.username ?? variables.username)
       setLoginRequired(true)
       queryClient.invalidateQueries({ queryKey: ['me'] })
     },
@@ -43,14 +43,14 @@ export const useLogout = () => {
   const navigate = useNavigate()
   return useMutation({
     mutationFn: auth.logout,
-    onSuccess: () => {
+    onMutate: () => {
       clearAuth()
       queryClient.clear()
+    },
+    onSuccess: () => {
       navigate('/login', { replace: true })
     },
     onError: () => {
-      clearAuth()
-      queryClient.clear()
       navigate('/login', { replace: true })
     },
   })
