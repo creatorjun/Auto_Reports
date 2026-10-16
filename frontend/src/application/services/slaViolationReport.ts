@@ -7,5 +7,5 @@ export function slaPartnersLabel(partners: string[] | null): string {
 }
 
 export function slaVisibleStatusDurations(durations: SlaViolationTicket['status_durations']): SlaViolationTicket['status_durations'] {
-  return durations?.filter(({ status }) => !['닫힘', '닫혀', 'closed', '결과대기중', '자료요청중'].includes(status.normalize('NFKC').replace(/\s+/g, '').toLowerCase())) ?? null
+  return durations?.filter(({ status }) => !['닫힘', '닫혀', 'closed', '결과대기중', '자료요청중', '보류중'].includes(status.normalize('NFKC').replace(/\s+/g, '').toLowerCase())) ?? null
 }

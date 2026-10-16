@@ -23,7 +23,7 @@
 | `SLA_THRESHOLD_DAYS` | `30` | 일반 대시보드의 지연 분류 기준. SLA 현황의 `breached=true` 판정을 대체하지 않음 |
 | `SLA_INITIAL_RESPONSE_FIELD_ID` | `customfield_12152` | 최초 응답 field |
 | `SLA_RESOLUTION_FIELD_ID` | `customfield_12151` | 해결 SLA field |
-| `SLA_RESOLUTION_PAUSE_STATUSES` | `["결과 대기 중","자료 요청 중"]` | 상태별 해결 SLA 시간 계산에서 제외할 상태. Jira 정지 조건 변경 시 함께 갱신하며 계산 합계는 Jira 원본 사용 시간으로 검증 |
+| `SLA_RESOLUTION_PAUSE_STATUSES` | `["결과 대기 중","자료 요청 중","보류 중"]` | 상태별 해결 SLA 시간 계산에서 제외할 상태. Jira 정지 조건 변경 시 함께 갱신하며 계산 합계는 Jira 원본 사용 시간으로 검증 |
 | `JIRA_TAC_ASSIGNEE_FIELD_ID` | `customfield_10859` | 기존 담당자 표시·알림에서 우선 조회하는 호환 설정. 현재 Jira의 기본 ID는 파트너사 필드 |
 | `JIRA_QA_ASSIGNEE_FIELD_ID` | `customfield_12222` | 기존 담당자 표시·알림에서 다음으로 조회하는 호환 설정. 현재 Jira의 기본 ID는 테스트 범위 필드 |
 | `JIRA_RECENT_TAC_ASSIGNEE_FIELD_ID` | `customfield_12522` | 최근 이슈 현황의 별도 TAC 담당자 사용자 필드. 다른 담당자 값으로 대체하지 않으며, 이전 보고서의 미수집 값은 `-`로 표시 |

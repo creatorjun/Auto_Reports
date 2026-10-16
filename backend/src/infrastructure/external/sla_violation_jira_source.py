@@ -119,7 +119,7 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
         sla_resolution_field_id: str = "customfield_12151",
         tac_assignee_field_id: str = "customfield_12522",
         client: httpx.AsyncClient | None = None,
-        resolution_pause_statuses: tuple[str, ...] = ("결과 대기 중", "자료 요청 중"),
+        resolution_pause_statuses: tuple[str, ...] = ("결과 대기 중", "자료 요청 중", "보류 중"),
     ) -> None:
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", project_key):
             raise ValueError("Invalid Jira project key")

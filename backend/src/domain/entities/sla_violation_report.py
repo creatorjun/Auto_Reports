@@ -52,7 +52,7 @@ class SlaViolationIssue:
     clock_calendars: tuple["SlaClockCalendar", ...] = ()
     clock_snapshot_before: datetime | None = None
     clock_snapshot_after: datetime | None = None
-    clock_pause_statuses: tuple[str, ...] = ("결과 대기 중", "자료 요청 중")
+    clock_pause_statuses: tuple[str, ...] = ("결과 대기 중", "자료 요청 중", "보류 중")
 
 
 @dataclass(frozen=True)

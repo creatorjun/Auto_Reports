@@ -207,6 +207,7 @@ test('duration bars omit closed and paused statuses from values and denominator 
     { status: '할 일', hours: 25 }, { status: '구현 중', hours: 74.99 }, { status: '연구소 검토 중', hours: 0.01 },
     { status: '닫힘', hours: 900 }, { status: '결과 대기 중', hours: 100 }, { status: '자료 요청 중', hours: 200 },
     { status: ' 결 과\u3000대기\t중 ', hours: 300 }, { status: ' 자 료\u00a0요청중 ', hours: 400 }, { status: ' ＣＬＯＳＥＤ ', hours: 500 },
+    { status: '보류 중', hours: 600 }, { status: ' 보 류\u3000중 ', hours: 700 },
   ]
   const original = structuredClone(values)
   const view = TestRenderer.create(React.createElement(Durations, { durations: values, basis: 'resolution_sla' }))
@@ -219,7 +220,7 @@ test('duration bars omit closed and paused statuses from values and denominator 
   assert.match(textOf(view.toJSON()), /25\s*시간/)
   assert.match(textOf(view.toJSON()), /해결시간 SLA 기준/)
   assert.match(chart.props['aria-label'], /상태별 SLA 사용 비율/)
-  assert.doesNotMatch(textOf(view.toJSON()), /900|결과 대기 중|자료 요청 중|각 상태별 체류 기간|보고서 생성 시점까지/)
+  assert.doesNotMatch(textOf(view.toJSON()), /900|결과 대기 중|자료 요청 중|보류 중|각 상태별 체류 기간|보고서 생성 시점까지/)
   assert.deepEqual(values, original)
   view.unmount()
 })

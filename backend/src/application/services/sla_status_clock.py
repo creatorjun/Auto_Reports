@@ -172,7 +172,7 @@ def calculate_sla_status_durations(
     calendars: tuple[SlaClockCalendar, ...],
     snapshot_before: datetime | None,
     snapshot_after: datetime | None,
-    pause_statuses: tuple[str, ...] = ("결과 대기 중", "자료 요청 중"),
+    pause_statuses: tuple[str, ...] = ("결과 대기 중", "자료 요청 중", "보류 중"),
 ) -> SlaClockAllocation:
     try:
         intervals = _validated_intervals(intervals)

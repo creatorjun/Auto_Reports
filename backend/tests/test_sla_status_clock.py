@@ -74,7 +74,16 @@ class SlaStatusClockTest(unittest.TestCase):
 
     def test_unconfirmed_pause_status_is_not_excluded(self):
         intervals = ((timestamp(8, 9), timestamp(8, 18), "보류 중"),)
-        self.assertEqual({"보류 중": 8}, self.values(self.calculate(intervals, (completed(timestamp(8, 9), timestamp(8, 18), 8),))))
+        result = calculate_sla_status_durations(intervals, (completed(timestamp(8, 9), timestamp(8, 18), 8),), (business_calendar(),), None, None, pause_statuses=())
+        self.assertEqual({"보류 중": 8}, self.values(result))
+
+    def test_verified_hold_pause_is_excluded_in_completed_and_ongoing_cycles_and_resumes_after_exit(self):
+        intervals = ((timestamp(8, 9), timestamp(8, 10), "할 일"), (timestamp(8, 10), timestamp(8, 14), "보류중"), (timestamp(8, 14), timestamp(8, 16), "이슈 리뷰 중"), (timestamp(8, 16), timestamp(8, 18), "보류중"))
+        cycle = completed(timestamp(8, 9), timestamp(8, 18), 3)
+        for candidate in (cycle, replace(cycle, ongoing=True, paused=True, stopped_at=None)):
+            with self.subTest(ongoing=candidate.ongoing):
+                result = self.calculate(intervals, (candidate,), before=timestamp(8, 17), after=timestamp(8, 18))
+                self.assertEqual({"할 일": 1, "보류중": 0, "이슈 리뷰 중": 2}, self.values(result))
 
     def test_confirmed_request_pause_is_normalized_and_clock_resumes_after_exit(self):
         intervals = ((timestamp(8, 9), timestamp(8, 10), "할 일"), (timestamp(8, 10), timestamp(8, 14), "자료요청중"), (timestamp(8, 14), timestamp(8, 16), "할 일"), (timestamp(8, 16), timestamp(8, 18), "결과 대기 중"))
@@ -159,7 +168,8 @@ class SlaStatusClockTest(unittest.TestCase):
         before, after = timestamp(8, 19), timestamp(8, 20)
         intervals = ((timestamp(8, 9), after, "보류 중"),)
         cycle = SlaViolationCycle("resolution", None, ongoing=True, paused=True, elapsed_ms=8 * HOUR, started_at=timestamp(8, 9))
-        self.assertIsNone(self.calculate(intervals, (cycle,), before=before, after=after).durations)
+        result = calculate_sla_status_durations(intervals, (cycle,), (business_calendar(),), before, after, pause_statuses=())
+        self.assertIsNone(result.durations)
 
     def test_invalid_missing_ranges_and_history_fail_closed(self):
         intervals = ((timestamp(8, 9), timestamp(8, 18), "할 일"),)
