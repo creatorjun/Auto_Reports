@@ -131,7 +131,7 @@ test('visible SLA durations exclude only closed aliases while preserving source 
   assert.deepEqual(slaVisibleStatusDurations([{ status: '닫힘', hours: 123 }]), [])
 })
 
-test('both SLA lists hide closed dwell time while retaining closed current and breach statuses', (t) => {
+test('combined SLA list hides closed dwell time while retaining current status and both breach statuses', (t) => {
   const { default: SlaViolationList } = load('presentation/components/sla-violations/SlaViolationList')
   const { default: SlaStatusDurations } = load('presentation/components/sla-violations/SlaStatusDurations')
   const ticket = {
@@ -141,25 +141,23 @@ test('both SLA lists hide closed dwell time while retaining closed current and b
     breaches: [{ metric: 'initial_response', status: 'Closed', breached_at: '2026-01-02T00:00:00Z' }, { metric: 'resolution', status: '닫힘', breached_at: '2026-01-03T00:00:00Z' }], warnings: [],
   }
   const original = structuredClone(ticket)
-  for (const metric of ['initial_response', 'resolution']) {
-    let view
-    act(() => { view = TestRenderer.create(React.createElement(SlaViolationList, { tickets: [ticket], metric })) })
-    t.after(() => act(() => view.unmount()))
-    const disclosure = view.root.findByProps({ 'aria-label': 'TACEA-42 상세 펼치기' })
-    act(() => disclosure.props.onClick())
-    const details = view.root.findByProps({ id: disclosure.props['aria-controls'] })
-    const dwellList = details.findByType(SlaStatusDurations).findByType('dl')
-    assert.ok(dwellList)
-    assert.match(textOf(dwellList), /할 일 3\.25\s*시간/)
-    assert.match(textOf(dwellList), /취소됨 6\s*시간/)
-    assert.doesNotMatch(textOf(dwellList), /닫힘|Closed|8,765|9,876/)
-    assert.match(textOf(details), /현재 체류 상태 닫힘/)
-    assert.match(textOf(details.findByType('ul')), metric === 'initial_response' ? /Closed/ : /닫힘/)
-    const jira = view.root.findByType('a')
-    assert.equal(jira.props.href, 'https://jira.example/browse/TACEA-42')
-    assert.equal(jira.props.target, '_blank')
-    act(() => view.update(React.createElement(SlaViolationList, { tickets: [{ ...ticket, status_durations: null }], metric })))
-    assert.match(textOf(view.toJSON()), /상태 변경 이력이 불완전하여 체류 기간을 확인할 수 없습니다/)
-  }
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(SlaViolationList, { tickets: [ticket] })) })
+  t.after(() => act(() => view.unmount()))
+  const disclosure = view.root.findByProps({ 'aria-label': 'TACEA-42 상세 펼치기' })
+  act(() => disclosure.props.onClick())
+  const details = view.root.findByProps({ id: disclosure.props['aria-controls'] })
+  const dwellList = details.findByType(SlaStatusDurations).findByType('dl')
+  assert.ok(dwellList)
+  assert.match(textOf(dwellList), /할 일 3\.25\s*시간/)
+  assert.match(textOf(dwellList), /취소됨 6\s*시간/)
+  assert.doesNotMatch(textOf(dwellList), /닫힘|Closed|8,765|9,876/)
+  assert.match(textOf(details), /현재 체류 상태 닫힘/)
+  assert.match(textOf(details.findByType('ul')), /최초응답 위반 Closed.*해결시간 위반 닫힘/)
+  const jira = view.root.findByType('a')
+  assert.equal(jira.props.href, 'https://jira.example/browse/TACEA-42')
+  assert.equal(jira.props.target, '_blank')
+  act(() => view.update(React.createElement(SlaViolationList, { tickets: [{ ...ticket, status_durations: null }] })))
+  assert.match(textOf(view.toJSON()), /상태 변경 이력이 불완전하여 체류 기간을 확인할 수 없습니다/)
   assert.deepEqual(ticket, original)
 })

@@ -171,41 +171,47 @@ const ticket = {
 const slaTickets = [ticket, { ...ticket, key: 'TACEA-2', summary: '나 문의', elapsed_days: 2 }]
 const textOf = (node) => typeof node === 'string' || typeof node === 'number' ? String(node) : (node.children ?? []).map(textOf).join('')
 
-test('both SLA lists independently restore visible ordering and resized columns after leaving and reloading', (t) => {
-  const { data } = browserStorage(t)
+test('combined SLA list restores violation sorting and resized columns without reusing old split table settings', (t) => {
+  const legacyWidths = { key: 0.18, summary: 0.44, issue_type: 0.12, created_at: 0.15, elapsed_days: 0.11 }
+  const legacy = {
+    [storageKey('sla-violations:initial_response')]: preference({ key: 'key', direction: 'asc' }, legacyWidths),
+    [storageKey('sla-violations:resolution')]: preference({ key: 'elapsed_days', direction: 'desc' }, legacyWidths),
+  }
+  const { data } = browserStorage(t, legacy)
+  const rows = [slaTickets[0], { ...slaTickets[1], breaches: [ticket.breaches[0]] }, { ...ticket, key: 'TACEA-3', breaches: [ticket.breaches[1]] }]
+  const original = structuredClone(rows)
   let view
   function render(load) {
     const { default: List } = load('presentation/components/sla-violations/SlaViolationList')
-    act(() => { view = TestRenderer.create(React.createElement('main', null,
-      React.createElement(List, { metric: 'initial_response', tickets: slaTickets }),
-      React.createElement(List, { metric: 'resolution', tickets: slaTickets }),
-    )) })
+    act(() => { view = TestRenderer.create(React.createElement(List, { tickets: rows })) })
   }
   render(sourceLoader())
   t.after(() => act(() => view.unmount()))
-  const list = (index) => view.root.findAllByType('section')[index]
-  const keys = (index) => list(index).findAllByType('a').map((anchor) => anchor.props.href.split('/').at(-1))
-  const sort = (index, label) => list(index).findAllByType('button').find((button) => button.props['aria-label'] === label)
-  act(() => sort(0, '번호 오름차순 정렬').props.onClick())
-  act(() => sort(1, '경과일 오름차순 정렬').props.onClick())
-  act(() => sort(1, '경과일 오름차순 정렬 중, 내림차순 정렬').props.onClick())
-  const oldWidths = [list(0).props.style['--sla-ticket-columns'], list(1).props.style['--sla-ticket-columns']]
-  act(() => list(0).findByProps({ 'aria-label': '번호 열 너비 조절' }).props.onKeyDown({ key: 'ArrowRight', shiftKey: true, preventDefault() {}, stopPropagation() {} }))
-  act(() => list(1).findByProps({ 'aria-label': '제목 열 너비 조절' }).props.onKeyDown({ key: 'ArrowLeft', shiftKey: false, preventDefault() {}, stopPropagation() {} }))
-  const adjustedWidths = [list(0).props.style['--sla-ticket-columns'], list(1).props.style['--sla-ticket-columns']]
-  assert.notEqual(adjustedWidths[0], oldWidths[0])
-  assert.notEqual(adjustedWidths[1], oldWidths[1])
-  assert.deepEqual(keys(0), ['TACEA-2', 'TACEA-10'])
-  assert.deepEqual(keys(1), ['TACEA-10', 'TACEA-2'])
-  assert.equal(data.has(storageKey('sla-violations:initial_response')), true)
-  assert.equal(data.has(storageKey('sla-violations:resolution')), true)
+  const list = () => view.root.findByType('section')
+  const keys = () => list().findAllByType('a').map((anchor) => anchor.props.href.split('/').at(-1))
+  const sort = (label) => list().findByProps({ 'aria-label': label })
+  assert.deepEqual(keys(), ['TACEA-10', 'TACEA-2', 'TACEA-3'])
+  assert.equal(sort('위반 항목 오름차순 정렬').props['aria-pressed'], false)
+  act(() => sort('위반 항목 오름차순 정렬').props.onClick())
+  assert.deepEqual(keys(), ['TACEA-2', 'TACEA-10', 'TACEA-3'])
+  act(() => sort('위반 항목 오름차순 정렬 중, 내림차순 정렬').props.onClick())
+  assert.deepEqual(keys(), ['TACEA-3', 'TACEA-10', 'TACEA-2'])
+  const oldWidths = list().props.style['--sla-ticket-columns']
+  act(() => list().findByProps({ 'aria-label': '위반 항목 열 너비 조절' }).props.onKeyDown({ key: 'ArrowRight', shiftKey: true, preventDefault() {}, stopPropagation() {} }))
+  const adjustedWidths = list().props.style['--sla-ticket-columns']
+  assert.notEqual(adjustedWidths, oldWidths)
+  const stored = JSON.parse(data.get(storageKey('sla-violations:combined')))
+  assert.deepEqual(stored.sort, { key: 'violation', direction: 'desc' })
+  assert.deepEqual(Object.keys(stored.widths), ['key', 'summary', 'issue_type', 'violation', 'created_at', 'elapsed_days'])
+  assert.ok(Math.abs(stored.widths.violation - 0.24) < 1e-12)
+  assert.ok(Math.abs(Object.values(stored.widths).reduce((sum, value) => sum + value, 0) - 1) < 1e-12)
   act(() => view.unmount())
   render(sourceLoader())
-  assert.deepEqual(keys(0), ['TACEA-2', 'TACEA-10'])
-  assert.deepEqual(keys(1), ['TACEA-10', 'TACEA-2'])
-  assert.deepEqual([list(0).props.style['--sla-ticket-columns'], list(1).props.style['--sla-ticket-columns']], adjustedWidths)
-  assert.equal(sort(0, '번호 오름차순 정렬 중, 내림차순 정렬').props['aria-pressed'], true)
-  assert.equal(sort(1, '경과일 내림차순 정렬 중, 오름차순 정렬').props['aria-pressed'], true)
+  assert.deepEqual(keys(), ['TACEA-3', 'TACEA-10', 'TACEA-2'])
+  assert.equal(list().props.style['--sla-ticket-columns'], adjustedWidths)
+  assert.equal(sort('위반 항목 내림차순 정렬 중, 오름차순 정렬').props['aria-pressed'], true)
+  for (const [key, value] of Object.entries(legacy)) assert.equal(data.get(key), value)
+  assert.deepEqual(rows, original)
 })
 
 test('dashboard recent issue header sorting and drag widths persist while exports and unkeyed tables stay isolated', (t) => {

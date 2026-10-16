@@ -1,9 +1,10 @@
 // frontend/src/domain/SlaViolationSort.ts
 import { getIssueTypeLabel } from './IssueTypeLabel'
 import { slaIssueType } from './SlaViolationFilters'
+import { slaViolationLabel } from './SlaViolationMetric'
 import type { SlaViolationTicket } from './SlaViolationReport'
 
-export type SlaViolationSortKey = 'key' | 'summary' | 'issue_type' | 'created_at' | 'elapsed_days'
+export type SlaViolationSortKey = 'key' | 'summary' | 'issue_type' | 'violation' | 'created_at' | 'elapsed_days'
 export interface SlaViolationSort {
   key: SlaViolationSortKey
   direction: 'asc' | 'desc'
@@ -18,6 +19,7 @@ export function sortSlaViolationTickets(tickets: SlaViolationTicket[], sort: Sla
     if (sort.key === 'elapsed_days') result = left.elapsed_days - right.elapsed_days
     else if (sort.key === 'created_at') result = Date.parse(left.created_at) - Date.parse(right.created_at)
     else if (sort.key === 'issue_type') result = COLLATOR.compare(getIssueTypeLabel(slaIssueType(left)), getIssueTypeLabel(slaIssueType(right)))
+    else if (sort.key === 'violation') result = COLLATOR.compare(slaViolationLabel(left), slaViolationLabel(right))
     else result = COLLATOR.compare(left[sort.key], right[sort.key])
     return sort.direction === 'asc' ? result : -result
   })

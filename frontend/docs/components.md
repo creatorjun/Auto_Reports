@@ -1,6 +1,6 @@
 # Frontend Components
 
-문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+문서 기준: 2026-10-16.
 
 기준 경로는 `src/presentation/components`입니다.
 
@@ -36,9 +36,9 @@
 
 ## SLA 개요와 표
 
-`SlaViolationReportContent`가 공통 필터와 상세 선택을 소유하고 `SlaViolationOverview`에 저장 데이터 집계를 전달합니다. 네 카드·현재 상태 분포·생성 추이는 순수 Domain 계산을 사용합니다. 상태·날짜·검색은 상세 목록에 교집합으로 적용하며, 위반 티켓 합계와 최초응답/해결 목록 건수는 중복 포함 의미가 다릅니다.
+`SlaViolationReportContent`가 공통 필터와 상세 선택을 소유하고 `SlaViolationOverview`에 저장 데이터 집계를 전달합니다. 네 카드·현재 상태 분포·생성 추이는 순수 Domain 계산을 사용합니다. 카드의 SLA 범위와 상태·날짜·검색은 `SLA 위반 티켓` 통합 목록에 교집합으로 적용합니다. 목록은 티켓당 한 행이며 상단 최초응답·해결 카드에는 동시 위반 티켓이 각각 포함되므로 두 카드의 합을 전체 고유 티켓 수로 사용하지 않습니다.
 
-`SlaViolationList`는 번호·제목·유형·생성일·경과일의 접힌 행, Jira 링크와 펼침, 정렬·인접 열 너비 조절을 담당합니다. `SlaStatusDurations`는 닫힘을 뺀 시간 합계의 비율 막대와 상태명·시간·비율 tooltip을 표시합니다. 리스트별 영속 설정은 `useTablePreferences`로 분리합니다. [SLA 계약](../../backend/docs/08_sla_violation_report.md)을 참고하세요.
+`SlaViolationList`는 번호·제목·유형·위반 항목·생성일·경과일의 접힌 행, Jira 링크와 펼침, 정렬·인접 열 너비 조절을 담당합니다. `위반 항목`은 최초응답 위반·해결시간 위반 배지이며 동시 위반은 같은 행에 두 배지를 표시합니다. `SlaTicketTargets`는 상세의 두 SLA 목표·사용·초과 시간과 반복 주기를 표시합니다. `SlaStatusDurations`는 닫힘을 뺀 시간 합계의 비율 막대와 상태명·시간·비율 tooltip을 표시합니다. 통합 목록의 영속 설정은 `useTablePreferences`의 `sla-violations:combined` 키를 사용하며 이전 분리 목록의 설정을 재사용하지 않습니다. [SLA 계약](../../backend/docs/08_sla_violation_report.md)을 참고하세요.
 
 `BrandLogo`, `IssueTypeBadge`, `StatusBadge`는 공통 브랜드와 의미별 하이라이트를 담당합니다. 스타일 값을 개별 위젯에서 추가하지 않고 [디자인 토큰](SHARED.md)을 사용합니다.
 

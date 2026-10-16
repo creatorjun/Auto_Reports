@@ -64,8 +64,7 @@ export default function SlaViolationReportContent({ report }: { report: SlaViola
           <button type="button" onClick={resetDetails} className="ml-auto rounded-lg px-3 py-2 text-control font-medium text-apple-mid hover:bg-apple-gray">상세 필터 초기화</button>
         </div>}
       </section>
-      {scope !== 'resolution' && <SlaViolationList tickets={visibleTickets} metric="initial_response" isFiltered={isFiltered} />}
-      {scope !== 'initial_response' && <SlaViolationList tickets={visibleTickets} metric="resolution" isFiltered={isFiltered} />}
+      <SlaViolationList tickets={visibleTickets} isFiltered={isFiltered} />
     </>
   )
 }

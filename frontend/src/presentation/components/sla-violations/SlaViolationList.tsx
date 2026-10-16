@@ -2,10 +2,11 @@
 import { useId, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { ChevronDown, ExternalLink } from 'lucide-react'
-import type { SlaViolationMetric, SlaViolationTicket } from '@/domain/SlaViolationReport'
+import type { SlaViolationTicket } from '@/domain/SlaViolationReport'
 import { slaIssueType } from '@/domain/SlaViolationFilters'
+import { SLA_VIOLATION_METRICS, slaViolatedMetrics, slaViolationLabel } from '@/domain/SlaViolationMetric'
 import { sortSlaViolationTickets } from '@/domain/SlaViolationSort'
-import { SLA_METRIC_LABELS, slaPartnersLabel, slaTicketsForMetric } from '@/application/services/slaViolationReport'
+import { slaPartnersLabel } from '@/application/services/slaViolationReport'
 import { useJira } from '@/presentation/context/JiraContext'
 import { slaCreatedDate, slaTimestamp } from '@/presentation/utils/slaViolationFormatters'
 import { getIssueTypeLabel } from '@/presentation/utils/issueTypeLabel'
@@ -18,7 +19,7 @@ import SlaViolationTableHeader, { DEFAULT_SLA_COLUMN_WIDTHS, MIN_SLA_COLUMN_WIDT
 
 const TICKET_COLUMNS = 'lg:grid-cols-[var(--sla-ticket-columns)]'
 
-function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: SlaViolationMetric }) {
+function TicketRow({ ticket }: { ticket: SlaViolationTicket }) {
   const [expanded, setExpanded] = useState(false)
   const detailsId = useId()
   const { jiraBrowse } = useJira()
@@ -32,12 +33,16 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
       <div className="flex items-stretch gap-1 px-3 sm:px-5">
         <a href={`${jiraBrowse}/${encodeURIComponent(ticket.key)}`} target="_blank" rel="noopener noreferrer"
           className={`grid min-w-0 flex-1 grid-cols-2 items-center gap-x-4 gap-y-2 rounded-xl px-1 py-4 text-body transition-colors hover:bg-apple-gray focus-visible:outline-brand-400 ${TICKET_COLUMNS}`}
-          aria-label={`${ticket.key} ${ticket.summary} · Jira 새 탭에서 열기`}>
+          aria-label={`${ticket.key} ${ticket.summary} · ${slaViolationLabel(ticket)} · Jira 새 탭에서 열기`}>
           <span className="col-span-2 row-start-1 flex min-w-0 items-center gap-1.5 font-semibold text-brand-600 lg:col-span-1 lg:row-auto"><span className="min-w-0 break-all">{ticket.key}</span><ExternalLink size={12} className="shrink-0" aria-hidden="true" /></span>
           <span className="col-span-2 row-start-2 break-words font-medium text-apple-dark lg:col-span-1 lg:row-auto">{ticket.summary}</span>
           <span className="col-span-2 row-start-3 min-w-0 break-words text-label text-apple-mid lg:col-span-1 lg:row-auto"><span className="mr-1.5 lg:hidden">유형</span><IssueTypeBadge type={getIssueTypeLabel(slaIssueType(ticket))} className="max-w-full whitespace-normal break-words" /></span>
-          <span className="row-start-4 text-label tabular-nums text-apple-mid lg:row-auto"><span className="mb-0.5 block lg:hidden">생성일</span>{slaCreatedDate(ticket.created_at)}</span>
-          <span className="row-start-4 text-right text-label tabular-nums text-apple-mid lg:row-auto"><span className="mb-0.5 block lg:hidden">경과일</span>{ticket.elapsed_days.toLocaleString('ko-KR')}일</span>
+          <span className="col-span-2 row-start-4 min-w-0 lg:col-span-1 lg:row-auto">
+            <span className="mb-1 block text-label text-apple-mid lg:hidden">위반 항목</span>
+            <span className="flex flex-wrap gap-1.5">{slaViolatedMetrics(ticket).map(({ key, label }) => <span key={key} className={`max-w-full rounded-full px-2.5 py-1 text-caption font-medium ${key === 'initial_response' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'}`}>{label}</span>)}</span>
+          </span>
+          <span className="row-start-5 text-label tabular-nums text-apple-mid lg:row-auto"><span className="mb-0.5 block lg:hidden">생성일</span>{slaCreatedDate(ticket.created_at)}</span>
+          <span className="row-start-5 text-right text-label tabular-nums text-apple-mid lg:row-auto"><span className="mb-0.5 block lg:hidden">경과일</span>{ticket.elapsed_days.toLocaleString('ko-KR')}일</span>
         </a>
         <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-controls={detailsId}
           aria-label={`${ticket.key} 상세 ${expanded ? '접기' : '펼치기'}`}
@@ -51,8 +56,9 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
           {ticket.sla_cycles == null && <div className="mb-5">
             <h3 className="text-section-label font-semibold text-apple-mid">SLA 위반 당시의 티켓 상태</h3>
             <ul className="mt-2 flex flex-wrap gap-2">
-              {ticket.breaches.filter((breach) => breach.metric === metric).map((breach, index) => (
-                <li key={`${breach.breached_at}-${index}`} className="rounded-lg border border-apple-divider bg-apple-surface px-3 py-2">
+              {ticket.breaches.map((breach, index) => (
+                <li key={`${breach.metric}-${breach.breached_at}-${index}`} className="rounded-lg border border-apple-divider bg-apple-surface px-3 py-2">
+                  <span className="mb-1 block text-caption font-medium text-apple-mid">{SLA_VIOLATION_METRICS.find(({ key }) => key === breach.metric)?.label}</span>
                   <StatusBadge status={breach.status || '확인 불가'} size="md" />
                   <span className="ml-2 text-label text-apple-mid">{slaTimestamp(breach.breached_at)}{breach.breached_at ? ' KST' : ''}</span>
                 </li>
@@ -74,24 +80,24 @@ function TicketRow({ ticket, metric }: { ticket: SlaViolationTicket; metric: Sla
   )
 }
 
-export default function SlaViolationList({ tickets, metric, isFiltered = false }: { tickets: SlaViolationTicket[]; metric: SlaViolationMetric; isFiltered?: boolean }) {
-  const { sort, setSort, widths, setWidths } = useTablePreferences(`sla-violations:${metric}`, DEFAULT_SLA_COLUMN_WIDTHS, MIN_SLA_COLUMN_WIDTHS)
-  const filtered = useMemo(() => sortSlaViolationTickets(slaTicketsForMetric(tickets, metric), sort), [tickets, metric, sort])
+export default function SlaViolationList({ tickets, isFiltered = false }: { tickets: SlaViolationTicket[]; isFiltered?: boolean }) {
+  const { sort, setSort, widths, setWidths } = useTablePreferences('sla-violations:combined', DEFAULT_SLA_COLUMN_WIDTHS, MIN_SLA_COLUMN_WIDTHS)
+  const sortedTickets = useMemo(() => sortSlaViolationTickets(tickets, sort), [tickets, sort])
   const titleId = useId()
   const gridStyle = { '--sla-ticket-columns': SLA_TICKET_COLUMNS.map(({ key }) => `minmax(0, ${widths[key]}fr)`).join(' ') } as CSSProperties
   return (
     <section aria-labelledby={titleId} style={gridStyle} className="min-w-0 overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface shadow-sm">
       <div className="flex items-center gap-2 px-5 py-5">
-        <h2 id={titleId} className="text-section-title font-semibold text-apple-dark">{SLA_METRIC_LABELS[metric]}</h2>
-        <span className={`rounded-full px-3 py-1 text-label font-semibold tabular-nums ${metric === 'initial_response' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'}`}>{filtered.length.toLocaleString('ko-KR')}건</span>
+        <h2 id={titleId} className="text-section-title font-semibold text-apple-dark">SLA 위반 티켓</h2>
+        <span className="rounded-full bg-brand-50 px-3 py-1 text-label font-semibold tabular-nums text-brand-700">{sortedTickets.length.toLocaleString('ko-KR')}건</span>
       </div>
-      {filtered.length > 0 ? (
+      {sortedTickets.length > 0 ? (
         <>
-          <SlaViolationTableHeader label={SLA_METRIC_LABELS[metric]} sort={sort} widths={widths} onSort={setSort}
+          <SlaViolationTableHeader label="SLA 위반 티켓" sort={sort} widths={widths} onSort={setSort}
             onResize={(left, right, delta) => setWidths((current) => resizeSlaColumnWidths(current, left, right, delta))} />
-          <ul>{filtered.map((ticket) => <TicketRow key={ticket.key} ticket={ticket} metric={metric} />)}</ul>
+          <ul>{sortedTickets.map((ticket) => <TicketRow key={ticket.key} ticket={ticket} />)}</ul>
         </>
-      ) : <p className="border-t border-apple-divider/70 px-5 py-12 text-center text-label text-apple-mid">{isFiltered ? '선택한 필터에 맞는' : '해당 기간에 생성된'} {SLA_METRIC_LABELS[metric]} 티켓이 없습니다.</p>}
+      ) : <p className="border-t border-apple-divider/70 px-5 py-12 text-center text-label text-apple-mid">{isFiltered ? '선택한 필터에 맞는' : '해당 기간에 생성된'} SLA 위반 티켓이 없습니다.</p>}
     </section>
   )
 }

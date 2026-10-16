@@ -36,10 +36,11 @@ function sourceLoader(overrides = {}) {
 }
 
 const load = sourceLoader()
-const { slaDateRange, slaToday, slaTicketsForMetric, slaPartnersLabel } = load('application/services/slaViolationReport')
+const { slaDateRange, slaToday, slaPartnersLabel } = load('application/services/slaViolationReport')
 const { slaCreatedDate, slaDuration } = load('presentation/utils/slaViolationFormatters')
 const { defaultSlaSelectedStatuses, filterSlaViolationTickets, slaViolationFilterOptions } = load('domain/SlaViolationFilters')
 const { sortSlaViolationTickets } = load('domain/SlaViolationSort')
+const { slaViolatedMetrics, slaViolationLabel } = load('domain/SlaViolationMetric')
 const { filterSlaViolationScope, filterSlaViolationDetails, slaViolationCounts, slaViolationStatuses, slaViolationTimeline } = load('domain/SlaViolationOverview')
 const ticket = {
   key: 'TACEA-1234', summary: '[서울 교통공사] MF2 컴포넌트 개선의 건', issue_type: '서비스 요청', created_at: '2026-05-05T16:00:00Z', elapsed_days: 123,
@@ -157,7 +158,7 @@ test('overview drilldowns intersect creation bucket, current status and normaliz
   assert.deepEqual(rows, original)
 })
 
-test('overview cards, charts and search filter existing lists together while respecting default excluded statuses', (t) => {
+test('overview cards, charts and search filter one combined list while respecting default excluded statuses', (t) => {
   const instance = sourceLoader({ 'presentation/context/JiraContext': { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) } })
   const Content = instance('presentation/components/sla-violations/SlaViolationReportContent').default
   const List = instance('presentation/components/sla-violations/SlaViolationList').default
@@ -177,6 +178,8 @@ test('overview cards, charts and search filter existing lists together while res
   const keys = () => view.root.findAllByType(List).map((list) => list.findAllByType('a').map((link) => link.props.href.split('/').at(-1)))
   const search = (value) => act(() => view.root.findByProps({ type: 'search' }).props.onChange({ target: { value } }))
   assert.equal(view.root.findByProps({ 'aria-label': '전체 위반 티켓 3건 보기' }).props['aria-pressed'], true)
+  assert.equal(view.root.findAllByType(List).length, 1)
+  assert.deepEqual(keys(), [[ticket.key, 'T-2', 'T-3']])
   click('최초응답 위반 2건 보기')
   assert.deepEqual(keys(), [[ticket.key, 'T-2']])
   click('자료 요청 중 위반 티켓 1건 보기')
@@ -185,9 +188,11 @@ test('overview cards, charts and search filter existing lists together while res
   search('TACEA')
   assert.deepEqual(keys(), [[]])
   act(() => view.root.findAllByType('button').find((button) => textOf(button) === '상세 필터 초기화').props.onClick())
-  assert.deepEqual(keys(), [[ticket.key, 'T-2'], [ticket.key, 'T-3']])
+  assert.deepEqual(keys(), [[ticket.key, 'T-2', 'T-3']])
+  click('해결 위반 2건 보기')
+  assert.deepEqual(keys(), [[ticket.key, 'T-3']])
   click('동시 위반 1건 보기')
-  assert.deepEqual(keys(), [[ticket.key], [ticket.key]])
+  assert.deepEqual(keys(), [[ticket.key]])
   act(() => view.update(React.createElement(Content, { key: snapshot.id, report: { ...snapshot, tickets: [...rows] } })))
   assert.equal(view.root.findByProps({ 'aria-label': '동시 위반 1건 보기' }).props['aria-pressed'], true)
   act(() => view.update(React.createElement(Content, { key: 11, report: { ...snapshot, id: 11 } })))
@@ -250,26 +255,35 @@ test('period selection follows Monday weeks, leap-year months, and cross-year bo
   assert.equal(slaCreatedDate(ticket.created_at), '2026-05-06')
 })
 
-test('metric lists include dual breaches in both groups exactly once and preserve partner certainty', () => {
+test('violation labels retain canonical metric order, omit repeated cycles, and preserve unknown values', () => {
   const firstOnly = { ...ticket, key: 'TACEA-2', breaches: [ticket.breaches[0], ticket.breaches[0]] }
-  assert.deepEqual(slaTicketsForMetric([ticket, firstOnly], 'initial_response').map((item) => item.key), ['TACEA-1234', 'TACEA-2'])
-  assert.deepEqual(slaTicketsForMetric([ticket, firstOnly], 'resolution').map((item) => item.key), ['TACEA-1234'])
+  const repeated = { ...ticket, breaches: [ticket.breaches[1], ...ticket.breaches, ticket.breaches[1]] }
+  assert.deepEqual(slaViolatedMetrics(firstOnly), [{ key: 'initial_response', label: '최초응답 위반' }])
+  assert.deepEqual(slaViolatedMetrics(repeated), [{ key: 'initial_response', label: '최초응답 위반' }, { key: 'resolution', label: '해결시간 위반' }])
+  assert.equal(slaViolationLabel(repeated), '최초응답 위반 · 해결시간 위반')
+  assert.equal(slaViolationLabel({ ...ticket, breaches: [ticket.breaches[1]] }), '해결시간 위반')
+  assert.equal(slaViolationLabel({ ...ticket, breaches: [] }), '확인 불가')
+  for (const direction of ['asc', 'desc']) assert.deepEqual(sortSlaViolationTickets([ticket, repeated], { key: 'violation', direction }), [ticket, repeated])
+})
+
+test('partner labels preserve unassigned headquarters and unknown provenance', () => {
   assert.equal(slaPartnersLabel([]), '본사')
   assert.equal(slaPartnersLabel(null), '확인 불가')
   assert.equal(slaPartnersLabel(['에이치씨인포', '파트너2']), '에이치씨인포, 파트너2')
 })
 
-test('SLA columns sort naturally by number, Korean text, type, actual creation time, and numeric age', () => {
+test('SLA columns sort naturally by number, Korean text, type, violation, actual creation time, and numeric age', () => {
   const rows = [
-    { ...ticket, key: 'TACEA-10', summary: '나 고객사', issue_type: '서비스 요청', created_at: '2026-06-30T17:00:00Z', elapsed_days: 100 },
+    { ...ticket, key: 'TACEA-10', summary: '나 고객사', issue_type: '서비스 요청', created_at: '2026-06-30T17:00:00Z', elapsed_days: 100, breaches: [ticket.breaches[1]] },
     { ...ticket, key: 'TACEA-2', summary: '다 고객사', issue_type: '인시던트', created_at: '2026-07-01T01:00:00+09:00', elapsed_days: 9 },
-    { ...ticket, key: 'TACEA-1', summary: '가 고객사', issue_type: '개선', created_at: '2026-07-01T02:30:00+09:00', elapsed_days: 20 },
+    { ...ticket, key: 'TACEA-1', summary: '가 고객사', issue_type: '개선', created_at: '2026-07-01T02:30:00+09:00', elapsed_days: 20, breaches: [ticket.breaches[0]] },
   ]
   const original = structuredClone(rows)
   const expected = {
     key: ['TACEA-1', 'TACEA-2', 'TACEA-10'],
     summary: ['TACEA-1', 'TACEA-10', 'TACEA-2'],
     issue_type: ['TACEA-1', 'TACEA-10', 'TACEA-2'],
+    violation: ['TACEA-1', 'TACEA-2', 'TACEA-10'],
     created_at: ['TACEA-2', 'TACEA-10', 'TACEA-1'],
     elapsed_days: ['TACEA-2', 'TACEA-1', 'TACEA-10'],
   }
@@ -342,7 +356,7 @@ test('SLA defaults exclude only closed, rejected, and on-hold aliases and allow 
   assert.equal(defaultSlaSelectedStatuses([{ ...ticket, current_status: '닫힘' }]).size, 0)
 })
 
-test('SLA page filters both metric lists immediately, preserves same-report choices, and resets for a new report', (t) => {
+test('SLA page filters the combined list immediately, preserves same-report choices, and resets for a new report', (t) => {
   const rows = [ticket, { ...ticket, key: 'TACEA-2', issue_type: '케이스', current_status: '닫힘', created_at: '2026-07-01T00:00:00+09:00', breaches: [ticket.breaches[0]] }, { ...ticket, key: 'TACEA-3', issue_type: null, breaches: [ticket.breaches[1]] }]
   let current = { ...report, tickets: rows, ticket_count: 3, initial_response_count: 2, resolution_count: 2 }
   const original = structuredClone(current)
@@ -362,36 +376,36 @@ test('SLA page filters both metric lists immediately, preserves same-report choi
   const click = (name) => act(() => view.root.findAllByType('button').find((button) => textOf(button).trim() === name).props.onClick())
   const metricKeys = () => view.root.findAllByType(List).map((list) => list.findAllByType('a').map((link) => link.props.href.split('/').at(-1)))
   const metricCounts = () => view.root.findAllByType(List).map((list) => Number(textOf(list).match(/(\d+)\s*건/)[1]))
-  assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234', 'TACEA-3']])
+  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-3']])
   assert.match(textOf(view.toJSON()), /요청 유형이 저장되지 않은 티켓\s+1\s*건/)
   assert.equal(view.root.findAllByProps({ 'aria-label': '이슈 제목 검색' }).length, 0)
   click('필터 펼치기')
   click('확인 불가')
-  assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234']])
+  assert.deepEqual(metricKeys(), [['TACEA-1234']])
   click('닫힘')
-  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2'], ['TACEA-1234']])
+  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2']])
   click('닫힘')
-  assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234']])
-  assert.deepEqual(metricCounts(), [1, 1])
+  assert.deepEqual(metricKeys(), [['TACEA-1234']])
+  assert.deepEqual(metricCounts(), [1])
   act(() => view.root.findAllByProps({ 'aria-label': 'TACEA-1234 상세 펼치기' })[0].props.onClick())
   current = { ...current, tickets: current.tickets.map((row) => ({ ...row })) }
   act(() => view.update(React.createElement(Page)))
-  assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234']])
+  assert.deepEqual(metricKeys(), [['TACEA-1234']])
   assert.equal(view.root.findAllByProps({ 'aria-label': 'TACEA-1234 상세 접기' }).length, 1)
   click('하반기')
-  assert.deepEqual(metricKeys(), [[], []])
-  assert.match(textOf(view.toJSON()), /선택한 필터에 맞는\s+최초응답 위반\s+티켓이 없습니다/)
+  assert.deepEqual(metricKeys(), [[]])
+  assert.match(textOf(view.toJSON()), /선택한 필터에 맞는\s+SLA 위반 티켓이 없습니다/)
   click('전체 선택')
-  assert.deepEqual(metricKeys(), [['TACEA-2'], []])
+  assert.deepEqual(metricKeys(), [['TACEA-2']])
   click('하반기')
   click('전체 해제')
-  assert.deepEqual(metricKeys(), [[], []])
+  assert.deepEqual(metricKeys(), [[]])
   click('전체 선택')
-  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2'], ['TACEA-1234', 'TACEA-3']])
+  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2', 'TACEA-3']])
   click('케이스')
   current = { ...current, id: 11 }
   act(() => view.update(React.createElement(Page)))
-  assert.deepEqual(metricKeys(), [['TACEA-1234'], ['TACEA-1234', 'TACEA-3']])
+  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-3']])
   assert.equal(view.root.findAllByProps({ 'aria-label': 'TACEA-1234 상세 접기' }).length, 0)
   assert.equal(generationCalls, 0)
   assert.deepEqual({ ...current, id: report.id }, original)
@@ -458,11 +472,11 @@ test('failed generation keeps the last saved report intact', async (t) => {
   assert.equal(state.query.data, report)
 })
 
-test('ticket rows start folded, use a separate accessible disclosure, and show only this metric breach state', (t) => {
+test('ticket rows start folded, show each violated metric once, and disclose all legacy breach states', (t) => {
   const instance = sourceLoader({ 'presentation/context/JiraContext': { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) } })
   const List = instance('presentation/components/sla-violations/SlaViolationList').default
   let view
-  act(() => { view = TestRenderer.create(React.createElement(List, { tickets: [ticket], metric: 'initial_response' })) })
+  act(() => { view = TestRenderer.create(React.createElement(List, { tickets: [{ ...ticket, breaches: [...ticket.breaches, ticket.breaches[0]] }] })) })
   t.after(() => act(() => view.unmount()))
   const link = view.root.findByType('a')
   assert.equal(link.props.target, '_blank')
@@ -471,7 +485,9 @@ test('ticket rows start folded, use a separate accessible disclosure, and show o
   assert.match(textOf(link), /2026-05-06/)
   assert.match(textOf(link), /123/)
   assert.match(textOf(link), /서비스 요청/)
-  for (const label of ['번호', '제목', '유형', '생성일', '경과일']) assert.equal(view.root.findByProps({ 'aria-label': `${label} 오름차순 정렬` }).props['aria-pressed'], false)
+  assert.equal((textOf(link).match(/최초응답 위반/g) ?? []).length, 1)
+  assert.equal((textOf(link).match(/해결시간 위반/g) ?? []).length, 1)
+  for (const label of ['번호', '제목', '유형', '위반 항목', '생성일', '경과일']) assert.equal(view.root.findByProps({ 'aria-label': `${label} 오름차순 정렬` }).props['aria-pressed'], false)
   const disclosure = () => view.root.findAllByType('button').find((button) => button.props['aria-controls'])
   assert.equal(disclosure().props['aria-expanded'], false)
   assert.equal(link.findAllByType('button').length, 0)
@@ -480,15 +496,15 @@ test('ticket rows start folded, use a separate accessible disclosure, and show o
   assert.equal(disclosure().props['aria-expanded'], true)
   const content = textOf(view.toJSON())
   for (const value of ['본사', '김영준 과장', '조장희 수석', '한준희 선임', '결과 대기 중', '3.25', '120.5', '2026. 05. 06.']) assert.ok(content.includes(value), value)
-  assert.doesNotMatch(content, /2026\. 05\. 08\./)
+  assert.match(content, /2026\. 05\. 08\./)
   act(() => disclosure().props.onClick())
   assert.doesNotMatch(textOf(view.toJSON()), /김영준 과장/)
-  act(() => view.update(React.createElement(List, { tickets: [{ ...ticket, issue_type: null }], metric: 'resolution' })))
+  act(() => view.update(React.createElement(List, { tickets: [{ ...ticket, issue_type: null }] })))
   assert.match(textOf(view.root.findByType('a')), /확인 불가/)
   assert.equal(disclosure().props['aria-expanded'], false)
 })
 
-test('each SLA list keeps independent sorting and widths through filtering and same-report refresh', (t) => {
+test('combined SLA list keeps sorting and widths through filtering and same-report refresh', (t) => {
   const rows = [{ ...ticket, key: 'TACEA-10', elapsed_days: 100 }, { ...ticket, key: 'TACEA-2', elapsed_days: 9 }, { ...ticket, key: 'TACEA-1', elapsed_days: 20 }]
   const original = structuredClone(rows)
   const instance = sourceLoader({ 'presentation/context/JiraContext': { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) } })
@@ -499,12 +515,11 @@ test('each SLA list keeps independent sorting and widths through filtering and s
   let view
   act(() => { view = TestRenderer.create(element()) })
   t.after(() => act(() => view.unmount()))
-  const list = (metric = 'initial_response') => view.root.findAllByType(List).find((node) => node.props.metric === metric)
-  const keys = (metric) => list(metric).findAllByType('a').map((node) => node.props.href.split('/').at(-1))
+  const list = () => view.root.findByType(List)
+  const keys = () => list().findAllByType('a').map((node) => node.props.href.split('/').at(-1))
   const click = (name) => act(() => list().findByProps({ 'aria-label': name }).props.onClick())
   click('번호 오름차순 정렬')
   assert.deepEqual(keys(), ['TACEA-1', 'TACEA-2', 'TACEA-10'])
-  assert.deepEqual(keys('resolution'), ['TACEA-10', 'TACEA-2', 'TACEA-1'])
   click('번호 오름차순 정렬 중, 내림차순 정렬')
   assert.deepEqual(keys(), ['TACEA-10', 'TACEA-2', 'TACEA-1'])
   click('경과일 오름차순 정렬')
@@ -512,11 +527,10 @@ test('each SLA list keeps independent sorting and widths through filtering and s
   click('TACEA-2 상세 펼치기')
   click('경과일 오름차순 정렬 중, 내림차순 정렬')
   assert.deepEqual(keys(), ['TACEA-10', 'TACEA-1', 'TACEA-2'])
-  const separator = (metric) => list(metric).findByProps({ role: 'separator', 'aria-label': '번호 열 너비 조절' })
+  const separator = () => list().findByProps({ role: 'separator', 'aria-label': '번호 열 너비 조절' })
   const initialWidth = separator().props['aria-valuenow']
   act(() => separator().props.onKeyDown({ key: 'ArrowRight', shiftKey: false, preventDefault() {}, stopPropagation() {} }))
   assert.equal(separator().props['aria-valuenow'], initialWidth + 1)
-  assert.equal(separator('resolution').props['aria-valuenow'], initialWidth)
   current = { ...current, tickets: rows.filter((row) => row.key !== 'TACEA-1').map((row) => ({ ...row })) }
   act(() => view.update(element()))
   assert.deepEqual(keys(), ['TACEA-10', 'TACEA-2'])
@@ -533,13 +547,17 @@ test('each SLA list keeps independent sorting and widths through filtering and s
 })
 
 test('SLA column resizing clamps adjacent widths without moving other columns or changing the total', () => {
-  const { DEFAULT_SLA_COLUMN_WIDTHS: widths, resizeSlaColumnWidths: resize } = load('presentation/components/sla-violations/SlaViolationTableHeader')
+  const { DEFAULT_SLA_COLUMN_WIDTHS: widths, MIN_SLA_COLUMN_WIDTHS: minimums, SLA_TICKET_COLUMNS: columns, resizeSlaColumnWidths: resize } = load('presentation/components/sla-violations/SlaViolationTableHeader')
   const original = { ...widths }
-  for (const delta of [-100, -0.03, 0.1, 100]) {
-    const changed = resize(widths, 'key', 'summary', delta)
-    assert.ok(Math.abs(Object.values(changed).reduce((sum, value) => sum + value, 0) - 1) < 1e-12)
-    assert.ok(changed.key >= 0.08 && changed.summary >= 0.18 - 1e-12)
-    for (const key of ['issue_type', 'created_at', 'elapsed_days']) assert.equal(changed[key], widths[key])
+  assert.deepEqual(columns.map((column) => column.label), ['번호', '제목', '유형', '위반 항목', '생성일', '경과일'])
+  for (const [index, { key: left }] of columns.slice(0, -1).entries()) {
+    const right = columns[index + 1].key
+    for (const delta of [-100, -0.03, 0.1, 100]) {
+      const changed = resize(widths, left, right, delta)
+      assert.ok(Math.abs(Object.values(changed).reduce((sum, value) => sum + value, 0) - 1) < 1e-12)
+      assert.ok(changed[left] >= minimums[left] - 1e-12 && changed[right] >= minimums[right] - 1e-12)
+      for (const { key } of columns.filter(({ key }) => key !== left && key !== right)) assert.equal(changed[key], widths[key])
+    }
   }
   assert.strictEqual(resize(widths, 'key', 'summary', NaN), widths)
   assert.deepEqual(widths, original)
@@ -554,7 +572,7 @@ test('SLA resize pointer capture cancels cleanly and never sorts or follows a ro
   let sorts = 0
   const deltas = []
   let view
-  act(() => { view = TestRenderer.create(React.createElement(Header, { label: '최초응답 위반', widths, sort: null, onSort: () => { sorts += 1 }, onResize: (...args) => deltas.push(args) }), { createNodeMock: () => ({ getBoundingClientRect: () => ({ width: 1008 }) }) }) })
+  act(() => { view = TestRenderer.create(React.createElement(Header, { label: 'SLA 위반 티켓', widths, sort: null, onSort: () => { sorts += 1 }, onResize: (...args) => deltas.push(args) }), { createNodeMock: () => ({ getBoundingClientRect: () => ({ width: 1008 }) }) }) })
   t.after(() => act(() => view.unmount()))
   const handle = view.root.findByProps({ role: 'separator', 'aria-label': '번호 열 너비 조절' })
   const captured = new Set()
@@ -562,12 +580,12 @@ test('SLA resize pointer capture cancels cleanly and never sorts or follows a ro
   const event = (clientX, pointerId = 1) => ({ clientX, pointerId, button: 0, currentTarget, preventDefault() {}, stopPropagation() {} })
   act(() => handle.props.onPointerDown(event(10)))
   assert.ok(captured.has(1))
-  act(() => handle.props.onPointerMove(event(103.6)))
+  act(() => handle.props.onPointerMove(event(102)))
   assert.equal(deltas.length, 1)
   assert.ok(Math.abs(deltas[0][2] - 0.1) < 1e-12)
   act(() => handle.props.onPointerMove(event(150, 2)))
   assert.equal(deltas.length, 1)
-  act(() => handle.props.onPointerCancel(event(103.6)))
+  act(() => handle.props.onPointerCancel(event(102)))
   assert.equal(captured.size, 0)
   act(() => handle.props.onPointerMove(event(200)))
   assert.equal(deltas.length, 1)

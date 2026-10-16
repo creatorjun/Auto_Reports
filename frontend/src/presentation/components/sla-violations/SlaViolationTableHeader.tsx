@@ -7,6 +7,7 @@ export const SLA_TICKET_COLUMNS: { key: SlaViolationSortKey; label: string }[] =
   { key: 'key', label: '번호' },
   { key: 'summary', label: '제목' },
   { key: 'issue_type', label: '유형' },
+  { key: 'violation', label: '위반 항목' },
   { key: 'created_at', label: '생성일' },
   { key: 'elapsed_days', label: '경과일' },
 ]
@@ -14,11 +15,11 @@ export const SLA_TICKET_COLUMNS: { key: SlaViolationSortKey; label: string }[] =
 export type SlaColumnWidths = Record<SlaViolationSortKey, number>
 
 export const DEFAULT_SLA_COLUMN_WIDTHS: SlaColumnWidths = {
-  key: 0.18, summary: 0.44, issue_type: 0.12, created_at: 0.15, elapsed_days: 0.11,
+  key: 0.14, summary: 0.32, issue_type: 0.11, violation: 0.19, created_at: 0.14, elapsed_days: 0.10,
 }
 
 export const MIN_SLA_COLUMN_WIDTHS: SlaColumnWidths = {
-  key: 0.08, summary: 0.18, issue_type: 0.08, created_at: 0.08, elapsed_days: 0.08,
+  key: 0.08, summary: 0.18, issue_type: 0.08, violation: 0.10, created_at: 0.08, elapsed_days: 0.07,
 }
 
 export function resizeSlaColumnWidths(widths: SlaColumnWidths, left: SlaViolationSortKey, right: SlaViolationSortKey, delta: number): SlaColumnWidths {
