@@ -32,7 +32,7 @@ export default function PartnerIssueRow({
         S{issue.stage_index}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-body text-apple-dark">{issue.summary}</p>
+        <p className="break-words text-body text-apple-dark">{issue.summary}</p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <span className="text-label text-apple-light">{issue.key}</span>
           <StatusBadge status={status} />

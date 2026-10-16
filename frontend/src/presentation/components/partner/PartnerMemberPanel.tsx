@@ -96,13 +96,13 @@ export default function PartnerMemberPanel({
             ].join(' ')}
           >
             <p className={[
-              'text-body truncate',
+              'break-words text-body',
               selectedAccountId === m.account_id ? 'text-blue-700 font-medium' : 'text-apple-dark',
             ].join(' ')}>
               {m.display_name}
             </p>
             {m.email && (
-              <p className="text-label text-apple-light truncate mt-0.5">{m.email}</p>
+              <p className="mt-0.5 break-all text-label text-apple-light">{m.email}</p>
             )}
           </button>
         ))}

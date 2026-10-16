@@ -58,7 +58,7 @@ export default function PartnerOrgPanel({
             ].join(' ')}
           >
             <div className="flex items-center">
-              <span className="min-w-0 truncate">{org.name}</span>
+              <span className="min-w-0 break-words">{org.name}</span>
               <span className="ml-1 flex-shrink-0 tabular-nums text-label text-apple-light">({org.issue_count.toLocaleString('ko-KR')})</span>
               {selectedOrgId === org.id && (
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="ml-auto flex-shrink-0 pl-2 box-content">

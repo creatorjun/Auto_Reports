@@ -662,7 +662,7 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
               </button>
             </div>
           )}
-          <div className="flex flex-col min-w-0 flex-1 basis-48">
+          <div className="flex flex-col min-w-0 flex-1 basis-full sm:basis-48">
             <p className="break-all text-section-title font-semibold text-apple-dark">{name}</p>
             <p className="text-caption text-apple-light capitalize">
               {type === 'unsupported' ? '미지원 형식'
