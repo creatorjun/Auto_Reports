@@ -14,7 +14,8 @@
 
 | 경로 | 컴포넌트 | 보호 | 역할 |
 |---|---|---|---|
-| `/login` | LoginPage | 없음 | 로그인 |
+| `/login` | LoginPage | 없음 | Jira 로그인 |
+| `/admin` | AdminLoginPage | 없음 | URL 직접 접속으로만 제공하는 기존 관리자 로그인 |
 | `/storage/preview` | StoragePreviewPage | Layout 밖 | 파일별 API 인증을 적용하는 공유 preview |
 | `/` | DashboardPage | ProtectedRoute | 최신 일반 대시보드 |
 | `/issues` | IssueManagementPage | ProtectedRoute | 전체 이슈 |
@@ -38,7 +39,7 @@ login·storage preview를 제외한 실제 페이지는 `ProtectedRoute → Layo
 
 ## 인증과 로딩
 
-`ProtectedRoute`와 `LoginPage`는 `useAuthSession`으로 세션 복원을 공유합니다. access token이 없으면 refresh cookie를 사용하고, `/login` 직접 접속도 자동 로그인합니다. 보호 경로는 `/auth/me`로 세션을 확인하며 복원 전에는 로딩을 표시합니다. `LOGIN=false`에서는 guest 접근을 허용합니다. `SuperadminRoute`와 서버 API 모두 관리자 권한을 확인하며 Jira 로그인은 superadmin 권한을 얻지 않습니다. OAuth callback은 백엔드가 처리한 뒤 로그인 페이지로 돌아옵니다.
+`ProtectedRoute`, `LoginPage`, `AdminLoginPage`는 `useAuthSession`으로 세션 복원을 공유합니다. access token이 없으면 refresh cookie를 사용하고, `/login`과 `/admin` 직접 접속도 자동 로그인합니다. `/login`은 Jira 로그인만 표시하고 기존 admin·superadmin 입력 폼은 `/admin`에서만 제공합니다. `/admin`으로 이동하는 링크나 메뉴는 표시하지 않습니다. 보호 경로는 `/auth/me`로 세션을 확인하며 복원 전에는 로딩을 표시합니다. `LOGIN=false`에서는 guest 접근을 허용합니다. `SuperadminRoute`와 서버 API 모두 관리자 권한을 확인하며 Jira 로그인은 superadmin 권한을 얻지 않습니다. OAuth callback은 백엔드가 처리한 뒤 `/login`으로 돌아옵니다.
 
 각 page는 `React.lazy`와 `LazyErrorBoundary`·`Suspense`로 로드합니다. `Layout`의 `ReportGenerationProvider`가 일반 보고서 job을 추적하여 메뉴 이동 중에도 진행 상태를 유지합니다. SLA·재배포는 별도 HTTP 생성 mutation입니다.
 

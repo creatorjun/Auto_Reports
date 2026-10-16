@@ -1,4 +1,6 @@
 .env
+.certs/
+docker-compose.override.yml
 __pycache__/
 *.pyc
 *.pyo

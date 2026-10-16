@@ -276,10 +276,11 @@ test('new authentication waits until logout has cleared the previous cookie', as
   assert.equal(result.access_token, 'new-session')
 })
 
-for (const validCookie of [true, false]) {
-  test(`direct /login ${validCookie ? 'restores the cookie session and redirects' : 'shows local and Jira login after cookie rejection'}`, async (t) => {
+for (const { pathname, page } of [{ pathname: '/login', page: 'LoginPage' }, { pathname: '/admin', page: 'AdminLoginPage' }]) {
+  for (const validCookie of [true, false]) {
+  test(`direct ${pathname} ${validCookie ? 'restores the cookie session and redirects' : 'shows only its intended login method after cookie rejection'}`, async (t) => {
     const app = setup()
-    const { default: LoginPage } = app.load('presentation/pages/LoginPage')
+    const { default: Page } = app.load(`presentation/pages/${page}`)
     const { ApplicationServicesProvider } = app.load('presentation/context/ApplicationServicesContext')
     const queries = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     let refreshes = 0
@@ -296,9 +297,9 @@ for (const validCookie of [true, false]) {
     act(() => {
       view = TestRenderer.create(React.createElement(ApplicationServicesProvider, { services: { auth: app.auth } },
         React.createElement(QueryClientProvider, { client: queries },
-          React.createElement(MemoryRouter, { initialEntries: ['/login?jira=success'], future: { v7_startTransition: true, v7_relativeSplatPath: true } },
+          React.createElement(MemoryRouter, { initialEntries: [pathname], future: { v7_startTransition: true, v7_relativeSplatPath: true } },
             React.createElement(Routes, null,
-              React.createElement(Route, { path: '/login', element: React.createElement(LoginPage) }),
+              React.createElement(Route, { path: pathname, element: React.createElement(Page) }),
               React.createElement(Route, { path: '/', element: React.createElement('div', null, 'Authenticated home') }))))))
     })
     t.after(() => { act(() => view.unmount()); queries.clear() })
@@ -309,10 +310,50 @@ for (const validCookie of [true, false]) {
     if (validCookie) {
       assert.match(rendered, /Authenticated home/)
       assert.equal(app.store.getState().username, 'Jira User')
-    } else {
+    } else if (pathname === '/login') {
       assert.match(rendered, /Jira 계정으로 로그인/)
+      assert.equal(view.root.findAllByType('input').length, 0)
+      assert.equal(view.root.findAllByType('form').length, 0)
+      assert.equal(view.root.findAllByType('a').length, 0)
+      assert.doesNotMatch(rendered, /관리자|\/admin|Authenticated home/)
+    } else {
       assert.ok(view.root.findAllByType('input').some((input) => input.props.autoComplete === 'current-password'))
-      assert.doesNotMatch(rendered, /Authenticated home/)
+      assert.equal(view.root.findAllByType('form').length, 1)
+      assert.doesNotMatch(rendered, /Jira 계정으로 로그인|Authenticated home/)
     }
+  })
+  }
+}
+
+for (const username of ['admin', 'superadmin']) {
+  test(`/admin submits ${username} credentials through the existing local login API`, async (t) => {
+    const app = setup()
+    app.store.getState().clearAuth()
+    const { default: AdminLoginPage } = app.load('presentation/pages/AdminLoginPage')
+    const { ApplicationServicesProvider } = app.load('presentation/context/ApplicationServicesContext')
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const requests = []
+    app.client.defaults.adapter = async (config) => {
+      requests.push({ url: config.url, data: JSON.parse(config.data) })
+      return response(config, { access_token: `${username}-session`, username, display_name: username, auth_provider: 'local' })
+    }
+    let view
+    act(() => {
+      view = TestRenderer.create(React.createElement(ApplicationServicesProvider, { services: { auth: app.auth } },
+        React.createElement(QueryClientProvider, { client: queries },
+          React.createElement(MemoryRouter, { initialEntries: ['/admin'], future: { v7_startTransition: true, v7_relativeSplatPath: true } },
+            React.createElement(Routes, null,
+              React.createElement(Route, { path: '/admin', element: React.createElement(AdminLoginPage) }),
+              React.createElement(Route, { path: '/', element: React.createElement('div', null, 'Authenticated home') }))))))
+    })
+    t.after(() => { act(() => view.unmount()); queries.clear() })
+    act(() => {
+      view.root.findByProps({ id: 'admin-username' }).props.onChange({ target: { value: username } })
+      view.root.findByProps({ id: 'admin-password' }).props.onChange({ target: { value: 'test-password' } })
+    })
+    act(() => view.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+    await until(() => app.store.getState().accessToken === `${username}-session`)
+    assert.deepEqual(requests, [{ url: '/auth/login', data: { username, password: 'test-password' } }])
+    assert.match(JSON.stringify(view.toJSON()), /Authenticated home/)
   })
 }

@@ -17,6 +17,7 @@ const AuditLogPage           = lazy(() => import('@/presentation/pages/AuditLogP
 const StoragePage            = lazy(() => import('@/presentation/pages/StoragePage'))
 const StoragePreviewPage     = lazy(() => import('@/presentation/pages/StoragePreviewPage'))
 const LoginPage              = lazy(() => import('@/presentation/pages/LoginPage'))
+const AdminLoginPage         = lazy(() => import('@/presentation/pages/AdminLoginPage'))
 const SiteManagementPage     = lazy(() => import('@/presentation/pages/SiteManagementPage'))
 const SiteCreatePage         = lazy(() => import('@/presentation/pages/SiteCreatePage'))
 const SiteDetailPage         = lazy(() => import('@/presentation/pages/SiteDetailPage'))
@@ -32,6 +33,7 @@ const Wrap = ({ children }: { children: React.ReactNode }) => (
 
 export const router = createBrowserRouter([
   { path: '/login',           element: <Wrap><LoginPage /></Wrap> },
+  { path: '/admin',           element: <Wrap><AdminLoginPage /></Wrap> },
   { path: '/storage/preview', element: <Wrap><StoragePreviewPage /></Wrap> },
   {
     path: '/',

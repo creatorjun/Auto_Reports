@@ -10,7 +10,8 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 
 | Page | Route | 역할 |
 |------|-------|------|
-| `LoginPage` | `/login` | Jira OAuth 로그인, 기존 관리자 입력, JWT 세션 자동 복원 |
+| `LoginPage` | `/login` | Jira OAuth 로그인, JWT 세션 자동 복원 |
+| `AdminLoginPage` | `/admin` | URL 직접 접속 전용 admin·superadmin 입력, JWT 세션 자동 복원. 일반 로그인과 메뉴에 링크를 표시하지 않음 |
 | `DashboardPage` | `/`, `/reports/:id`, `/reports/annual/:year` | 최신·선택·연간 보고서 dashboard, 기간별 생성·완료 card, 업무 유형별 열린 요청 card, PDF·Excel 내보내기 |
 | `SlaViolationPage` | `/sla-violations`, `/sla-violations/history/:id` | 기간별 생성·저장, 공통 필터, 4개 요약 카드·상태 분포·생성 추이·검색과 접힌 목록 |
 | `RedeploymentPage` | `/redeployments` | 원인·월별 현황, 카드·검색·교집합 선택과 수동 갱신 |

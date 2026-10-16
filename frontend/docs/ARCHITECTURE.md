@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+문서 기준: 2026-10-16.
 
 ## 의존성 규칙
 
@@ -42,7 +42,9 @@ main.tsx Composition Root
 
 `main.tsx`는 `AuthSessionPort`를 구현하는 Zustand store adapter로 HTTP client를 한 번 구성합니다. axios interceptor는 access token을 주입합니다. 동시 401은 하나의 refresh Promise를 공유하며, 실패한 요청을 영구 대기시키지 않고 인증 상태를 지운 뒤 로그인 화면으로 이동합니다.
 
-`LoginPage`와 `ProtectedRoute`는 `useAuthSession`으로 초기 세션을 복원합니다. 초기 복원도 interceptor와 같은 refresh Promise를 공유합니다. 인증 세대 번호로 이전 로그인 요청의 결과를 차단하며, 로그아웃은 진행 중인 갱신 완료 후 cookie를 제거합니다. Jira 인증은 `AuthGateway`를 통해 OAuth를 시작하고 callback은 백엔드에서 처리합니다.
+`LoginPage`, `AdminLoginPage`, `ProtectedRoute`는 `useAuthSession`으로 초기 세션을 복원합니다. 초기 복원도 interceptor와 같은 refresh Promise를 공유합니다. 인증 세대 번호로 이전 로그인 요청의 결과를 차단하며, 로그아웃은 진행 중인 갱신 완료 후 cookie를 제거합니다. `/login`은 Jira 로그인만 표시하고 기존 admin·superadmin 입력은 직접 접속하는 `/admin`에서만 제공합니다. `/admin` 링크는 일반 로그인 화면과 메뉴에 표시하지 않습니다. Jira 인증은 `AuthGateway`를 통해 OAuth를 시작하고 callback은 백엔드에서 처리합니다.
+
+운영 브라우저는 `https://10.1.43.100`에 접속하며 API도 같은 출처를 사용합니다. 서버가 발급한 refresh cookie는 `Secure`·HttpOnly로 전달하고 프런트엔드는 JWT를 영구 저장하지 않습니다. 내부 자체 서명 인증서의 클라이언트 신뢰와 OAuth callback 설정은 [Jira 로그인 운영 가이드](../../backend/docs/11_jira_login.md)에 따릅니다.
 
 axios 오류는 Infrastructure에서 `RequestError`로 정규화됩니다. Presentation은 axios response 구조를 알지 않고 상태 코드와 detail만 처리합니다.
 
@@ -69,6 +71,7 @@ axios 오류는 Infrastructure에서 `RequestError`로 정규화됩니다. Prese
 
 ```bash
 pnpm test:architecture
+pnpm test:auth
 pnpm build
 ```
 

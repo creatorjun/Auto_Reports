@@ -22,7 +22,32 @@ docker compose exec backend alembic heads
 
 `APP_PORT`를 바꾸면 health URL의 포트도 바꿉니다. Compose의 backend는 호스트 8000 포트를 공개하지 않으며 nginx의 `/api/`로 접근합니다. health 성공은 프로세스 응답 확인이며 Jira 인증·보고서 생성 성공까지 의미하지 않습니다.
 
-nginx는 HTTP 80으로 동작합니다. HTTPS는 별도 역방향 프록시나 TLS 구성을 통해 제공하고 그때 `COOKIE_SECURE=true`를 설정합니다. `DOMAIN`, `SSL_EMAIL` 값만 지정해도 인증서가 자동 발급되는 구성은 아닙니다.
+기본 nginx는 HTTP 80으로 동작합니다. 저장소의 `docker-compose.https.yml`과 `frontend/nginx.https.conf`를 선택하면 HTTP 요청을 HTTPS로 전환하고 443 포트에서 TLS를 제공합니다. `DOMAIN`, `SSL_EMAIL` 값만 지정해도 인증서가 자동 발급되는 구성은 아닙니다.
+
+## HTTPS 적용
+
+서버에서 사용할 인증서와 개인 키를 `.certs/fullchain.pem`, `.certs/privkey.pem`에 준비합니다. 접속 주소가 IP라면 인증서의 Subject Alternative Name에 그 IP가 있어야 합니다. 자체 서명 인증서는 클라이언트의 신뢰 저장소에 해당 인증서를 등록해야 브라우저 경고 없이 사용할 수 있습니다. 공개 CA 인증서와 동일한 신뢰 상태로 자동 적용되는 것은 아닙니다. 개인 키는 서버에서만 보관하고 파일 권한을 `600`으로 제한합니다.
+
+`.env`에 `COOKIE_SECURE=true`를 지정하고, Jira OAuth 콜백도 실제 HTTPS 주소의 `/api/v1/auth/jira/callback`으로 등록합니다. `TLS_CERTS_DIR`을 지정하면 기본 `.certs` 대신 해당 서버 디렉터리를 읽기 전용으로 마운트합니다.
+
+Uvicorn이 nginx에서 전달하는 HTTPS 프로토콜을 인식하도록 `FORWARDED_ALLOW_IPS`에 실제 Compose 네트워크의 CIDR 또는 고정 nginx 주소를 지정합니다. 임의의 외부 요청을 신뢰하는 `*`는 사용하지 않습니다. 네트워크 이름과 CIDR은 다음처럼 확인합니다.
+
+```bash
+docker inspect tac_frontend --format '{{range $name, $config := .NetworkSettings.Networks}}{{println $name}}{{end}}'
+docker network inspect NETWORK_NAME --format '{{range .IPAM.Config}}{{println .Subnet}}{{end}}'
+```
+
+확인한 신뢰 범위를 `.env`에 기록한 뒤 다음을 실행합니다. `.certs/`와 서버별 `docker-compose.override.yml`은 Git에서 제외됩니다. 기존 override가 있으면 먼저 보존하고 병합합니다.
+
+```bash
+cp docker-compose.https.yml docker-compose.override.yml
+docker compose config --quiet
+docker compose up -d --build --no-deps backend frontend
+docker compose exec frontend nginx -t
+curl --cacert .certs/fullchain.pem https://SERVER_ADDRESS/api/health
+```
+
+이후 기본 `docker compose` 명령은 override를 자동 적용합니다. HTTP health 확인은 308 리다이렉트 응답이므로 적용 후에는 HTTPS URL과 신뢰할 인증서를 사용합니다. 인증서 갱신 시 같은 경로의 인증서·키를 교체하고 `nginx -t` 확인 후 `docker compose exec frontend nginx -s reload`를 실행합니다. 만료일도 함께 점검합니다. 인증서·개인 키는 Git에 추가하지 않습니다.
 
 ## 갱신 종류
 
