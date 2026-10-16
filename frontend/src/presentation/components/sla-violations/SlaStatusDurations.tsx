@@ -31,8 +31,8 @@ export default function SlaStatusDurations({ durations, basis }: { durations: Sl
           className="mt-3 flex h-8 w-full overflow-hidden rounded-lg bg-apple-surface">
           {segments.filter(({ hours }) => hours > 0).map(({ status, hours, percentage }) => (
             <div key={status} title={`${status || '확인 불가'} · ${hours.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}시간 · ${percentageLabel(percentage)}`}
-              style={{ ...getStatusBadgeStyle(status), width: `${percentage}%` }}
-              className="flex min-w-0 shrink-0 items-center justify-center overflow-hidden border-r last:border-r-0" aria-hidden="true">
+              style={{ backgroundColor: getStatusBadgeStyle(status).color, width: `${percentage}%` }}
+              className="flex min-w-0 shrink-0 items-center justify-center overflow-hidden border-r border-apple-divider text-apple-dark last:border-r-0" aria-hidden="true">
               {percentage >= 8 && <span className="truncate px-1 text-caption font-semibold tabular-nums">{status || '확인 불가'} · {percentageLabel(percentage)}</span>}
             </div>
           ))}
