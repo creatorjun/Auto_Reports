@@ -15,6 +15,7 @@ import type {
 } from '@/domain/Dashboard'
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
+import { filterRecentIssuesByReportPeriod } from '@/domain/Issue'
 import { WIDGET_ID } from '@/domain/WidgetId'
 import {
   isDashboardDateInSemester,
@@ -577,7 +578,7 @@ export function buildFilteredDashboardData(
     }),
   )
   const w7Data = getData<{ issue_details: RecentIssue[] }>(w[WIDGET_ID.RECENT_ISSUES])
-  const recentIssues = filterIssues(
+  const openIssues = filterIssues(
     w7Data?.issue_details ?? [],
     selectedTypes,
     controlledTypes,
@@ -590,7 +591,8 @@ export function buildFilteredDashboardData(
     reporter: issue.reporter ?? '미지정',
     tac_team: issue.tac_team ?? '미지정',
   }))
-  const incompleteIssues: IncompleteIssue[] = recentIssues.map((issue) => ({
+  const recentIssues = filterRecentIssuesByReportPeriod(openIssues, report.week_start, report.week_end)
+  const incompleteIssues: IncompleteIssue[] = openIssues.map((issue) => ({
     key: issue.key,
     summary: issue.summary,
     type: issue.type,

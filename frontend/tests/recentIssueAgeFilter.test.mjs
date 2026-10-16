@@ -443,9 +443,13 @@ for (const { comparison, label, threshold, firstDay } of [
     assert.equal(details.at(-1).elapsed_days, 84)
   })
 
-  for (const format of ['pdf', 'xlsx']) test(`${format} dashboard export snapshots retain the applied ${comparison} threshold after the visible filter changes`, async (t) => {
+  for (const format of ['pdf', 'xlsx']) test(`${format} dashboard export snapshots retain the report period and applied ${comparison} threshold after the visible filter changes`, async (t) => {
     const DashboardContent = loadDashboardContent()
-    const details = Object.freeze(Array.from({ length: 85 }, (_, index) => Object.freeze(issue(index))))
+    const details = Object.freeze([
+      ...Array.from({ length: 85 }, (_, index) => Object.freeze(issue(index, { created: '2026-08-15 09:00' }))),
+      Object.freeze(issue(90, { key: 'BEFORE', created: '2026-07-31 23:59' })),
+      Object.freeze(issue(0, { key: 'AFTER', created: '2026-09-01 00:00' })),
+    ])
     const report = {
       id: 1, scope: 'standard', report_year: null,
       week_start: '2026-08-01', week_end: '2026-08-31', report_date: '2026-08-31 23:59',
@@ -478,7 +482,7 @@ for (const { comparison, label, threshold, firstDay } of [
     assert.equal(keys(view)[0], comparison === 'gte' ? 'TACEA-000' : 'TACEA-064')
     assert.deepEqual(keys(stage), expectedKeys)
     assert.ok(stage.props.metadata.filters.includes(`최근 이슈: 경과일 ${threshold}일 ${label}`))
-    assert.equal(details.length, 85)
+    assert.equal(details.length, 87)
   })
 }
 

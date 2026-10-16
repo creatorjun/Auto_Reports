@@ -196,6 +196,70 @@ function assertHiddenIssuesIncluded(data, expectedTypes, expectedIssueCount) {
   assert.deepEqual(Object.keys(data.resolutionByType).sort(), [...expectedTypes].sort())
 }
 
+for (const { period, start, end, before, after, scope } of [
+  { period: 'cross-year week', start: '2026-12-28', end: '2027-01-03', before: '2026-12-27', after: '2027-01-04', scope: 'standard' },
+  { period: 'leap-year month', start: '2028-02-01', end: '2028-02-29', before: '2028-01-31', after: '2028-03-01', scope: 'standard' },
+  { period: 'annual report', start: '2026-01-01', end: '2026-12-31', before: '2025-12-31', after: '2027-01-01', scope: 'annual' },
+]) {
+  test(`${period} recent issues include both creation-date boundaries without narrowing open-request cards`, () => {
+    const report = fixtureReport(scope)
+    report.week_start = start
+    report.week_end = end
+    report.report_year = scope === 'annual' ? Number(start.slice(0, 4)) : null
+    const template = report.widgets.w7.data.issue_details[0]
+    const details = [
+      { ...template, key: 'BEFORE', created: `${before} 23:59` },
+      { ...template, key: 'START', created: `${start} 00:00` },
+      { ...template, key: 'END', created: `${end} 23:59` },
+      { ...template, key: 'AFTER', created: `${after} 00:00` },
+      { ...template, key: 'NO-DATE', created: '' },
+    ]
+    report.widgets.w7 = widget({ issue_details: details }, details.length)
+    const original = structuredClone(report)
+
+    const data = buildDashboardData(report)
+
+    assert.deepEqual(data.recentAndIncomplete.recentIssues.map((issue) => issue.key), ['START', 'END'])
+    assert.deepEqual(data.recentAndIncomplete.incompleteIssues.map((issue) => issue.key), details.map((issue) => issue.key))
+    assert.equal(data.recentAndIncomplete.incompleteTotal, details.length)
+    const support = data.workTypeOpen.find((entry) => entry.key === 'support')
+    assert.equal(support.count, details.length)
+    assert.deepEqual(support.issues.map((issue) => issue.key), details.map((issue) => issue.key))
+    assert.deepEqual(report, original)
+  })
+}
+
+test('recent report dates intersect type status and semester filters while open cards retain earlier eligible issues', () => {
+  const report = fixtureReport()
+  report.week_start = '2026-06-22'
+  report.week_end = '2026-07-05'
+  const template = { ...report.widgets.w7.data.issue_details[0], type: '개선' }
+  const details = [
+    { ...template, key: 'EARLIER', created: '2026-06-21 23:59' },
+    { ...template, key: 'START', created: '2026-06-22 00:00' },
+    { ...template, key: 'JUNE-END', created: '2026-06-30 23:59' },
+    { ...template, key: 'JULY', created: '2026-07-01 00:00' },
+    { ...template, key: 'OTHER-TYPE', type: '서비스 요청', created: '2026-06-25 09:00' },
+    { ...template, key: 'OTHER-STATUS', status: '처리 중', created: '2026-06-26 09:00' },
+  ]
+  report.widgets.w7 = widget({ issue_details: details }, details.length)
+
+  const firstHalf = buildDashboardData(report, new Set(['개선']), 'h1', new Set(['할 일']))
+  assert.deepEqual(firstHalf.recentAndIncomplete.recentIssues.map((issue) => issue.key), ['START', 'JUNE-END'])
+  assert.deepEqual(firstHalf.recentAndIncomplete.incompleteIssues.map((issue) => issue.key), ['EARLIER', 'START', 'JUNE-END'])
+  assert.equal(firstHalf.recentAndIncomplete.incompleteTotal, 3)
+  assert.equal(firstHalf.workTypeOpen.find((entry) => entry.key === 'improvement').count, 3)
+  assert.equal(firstHalf.workTypeOpen.find((entry) => entry.key === 'support').count, 0)
+
+  const secondHalf = buildDashboardData(report, new Set(['개선']), 'h2', new Set(['할 일']))
+  assert.deepEqual(secondHalf.recentAndIncomplete.recentIssues.map((issue) => issue.key), ['JULY'])
+  assert.deepEqual(secondHalf.recentAndIncomplete.incompleteIssues.map((issue) => issue.key), ['JULY'])
+
+  const otherStatus = buildDashboardData(report, new Set(['개선']), 'h1', new Set(['처리 중']))
+  assert.deepEqual(otherStatus.recentAndIncomplete.recentIssues.map((issue) => issue.key), ['OTHER-STATUS'])
+  assert.deepEqual(otherStatus.recentAndIncomplete.incompleteIssues.map((issue) => issue.key), ['OTHER-STATUS'])
+})
+
 test('hidden filter choices remain eligible for dashboard statistics', () => {
   for (const type of HIDDEN_TYPES) {
     assert.equal(isDashboardIssueTypeFilterOption(type), false)
