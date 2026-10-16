@@ -46,7 +46,6 @@ export default function SlaViolationReportContent({ report }: { report: SlaViola
       <SlaViolationOverview report={report} tickets={tickets} scopedTickets={scopedTickets} scope={scope} status={status} bucket={bucket}
         onScopeChange={changeScope} onStatusChange={setStatus} onBucketChange={setBucket} />
       {options.unknownTypeCount > 0 && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-caption text-amber-800">요청 유형이 저장되지 않은 티켓 {options.unknownTypeCount.toLocaleString('ko-KR')}건은 ‘확인 불가’로 표시합니다. 보고서를 다시 생성하면 요청 유형을 수집합니다.</p>}
-      {report.warnings.length > 0 && <details className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-label text-amber-800"><summary className="cursor-pointer font-medium">일부 데이터 확인 필요 ({report.warnings.length})</summary><ul className="mt-2 space-y-1 text-caption">{report.warnings.map((warning, index) => <li key={index} className="break-words">{warning}</li>)}</ul></details>}
       <section aria-label="위반 티켓 검색" className="card space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-section-title font-semibold text-apple-dark">위반 티켓<span className="text-label tabular-nums text-brand-600">{visibleTickets.length.toLocaleString('ko-KR')}건</span></h2>
