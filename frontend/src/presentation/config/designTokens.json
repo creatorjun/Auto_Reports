@@ -289,24 +289,24 @@
       "sans-serif"
     ],
     "size": {
-      "caption": 14,
-      "label": 16,
-      "body": 16,
-      "control": 14,
-      "control-label": 14,
-      "page-title": 24,
-      "section-title": 16,
-      "section-label": 16,
-      "metric": 24,
-      "metric-hero": 24,
-      "metric-compact": 24,
-      "ui-xs": 14,
-      "ui-sm": 16,
-      "ui-base": 16,
-      "ui-md": 16,
-      "ui-lg": 24,
-      "ui-xl": 24,
-      "ui-2xl": 24
+      "caption": 16.666667,
+      "label": 18.666667,
+      "body": 18.666667,
+      "control": 16.666667,
+      "control-label": 16.666667,
+      "page-title": 26.666667,
+      "section-title": 18.666667,
+      "section-label": 18.666667,
+      "metric": 26.666667,
+      "metric-hero": 26.666667,
+      "metric-compact": 26.666667,
+      "ui-xs": 16.666667,
+      "ui-sm": 18.666667,
+      "ui-base": 18.666667,
+      "ui-md": 18.666667,
+      "ui-lg": 26.666667,
+      "ui-xl": 26.666667,
+      "ui-2xl": 26.666667
     },
     "lineHeight": {
       "caption": 1.5,
@@ -340,14 +340,14 @@
       "section-label"
     ],
     "chart": {
-      "tick": 14,
-      "legend": 14,
-      "label": 14,
-      "annotation": 14,
-      "export": 14
+      "tick": 16.666667,
+      "legend": 16.666667,
+      "label": 16.666667,
+      "annotation": 16.666667,
+      "export": 16.666667
     },
     "document": {
-      "body": 16,
+      "body": 18.666667,
       "lineHeight": 1.8
     }
   },
