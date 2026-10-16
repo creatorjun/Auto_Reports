@@ -24,6 +24,8 @@ access token 기본 수명은 30분입니다. Jira 세션은 최초 인증에서
 
 Distribution에서 개인정보 저장을 `Yes`로 선언하면 Personal Data Reporting API 구현 확인이 필요합니다. 현재 버전은 Jira 표시 이름을 JWT와 브라우저 표시 정보에 보관하지만 해당 보고 API는 구현하지 않았습니다. 공유 설정을 완료하기 전에 [Atlassian 개인정보 보고 요구사항](https://developer.atlassian.com/cloud/jira/platform/user-privacy-developer-guide/)에 맞춰 보고·정정·삭제 처리를 구현해야 하며, 구현 확인란을 미리 선택하면 안 됩니다. 콜백 URL 등록 성공과 직원 대상 공유 활성화는 별도 단계입니다.
 
+현재 운영 서비스의 `/privacy`와 `/terms`는 로그인 없이 열리는 실제 정책 페이지이며 지원 연락처는 `jh.han@seculayer.com`입니다. 2026-10-16 기준 운영 HTTPS와 앱 소유자의 Jira 로그인·자동 로그인·로그아웃·root 감사로그 조회를 확인했습니다. 기존 보고서 이력은 유지하며, 개인정보 보고 API 구현 전까지 Atlassian의 정책 URL 등록과 직원 대상 앱 공유는 보류 상태(`Not sharing`)입니다. 정책 페이지 배포를 Atlassian 등록 완료로 해석하면 안 됩니다.
+
 ```dotenv
 LOGIN=true
 JIRA_LOGIN_ENABLED=true
