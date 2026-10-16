@@ -32,7 +32,7 @@ export default function SlaStatusDurations({ durations, basis }: { durations: Sl
             <div key={status} title={`${status || '확인 불가'} · ${hours.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}시간 · ${percentageLabel(percentage)}`}
               style={{ backgroundColor: getStatusChartColor(status), width: `${percentage}%` }}
               className="flex min-w-0 shrink-0 items-center justify-center overflow-hidden border-r border-apple-surface text-apple-dark last:border-r-0" aria-hidden="true">
-              {percentage >= 8 && <span className="mx-1 truncate rounded-md bg-apple-surface px-1.5 py-0.5 text-caption font-medium tabular-nums">{status || '확인 불가'} · {percentageLabel(percentage)}</span>}
+              {percentage >= 8 && <span className="mx-1 hidden truncate rounded-md bg-apple-surface px-1.5 py-0.5 text-caption font-medium tabular-nums sm:block">{status || '확인 불가'} · {percentageLabel(percentage)}</span>}
             </div>
           ))}
         </div>
