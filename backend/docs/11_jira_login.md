@@ -24,7 +24,9 @@ access token 기본 수명은 30분입니다. Jira 세션은 최초 인증에서
 
 Distribution에서 개인정보 저장을 `Yes`로 선언하면 Personal Data Reporting API 구현 확인이 필요합니다. 이 버전에는 계정별 보유 데이터 보고와 정정·삭제 처리 기능을 포함합니다. 실제 소유자 연결, 과거 이력의 계정 식별자 연결, API 보고 성공을 확인한 뒤 구현 확인란을 선택합니다. 콜백 URL 등록 성공과 직원 대상 공유 활성화는 별도 단계입니다.
 
-현재 운영 서비스의 `/privacy`와 `/terms`는 로그인 없이 열리는 실제 정책 페이지이며 지원 연락처는 `jh.han@seculayer.com`입니다. 2026-10-16 기준 운영 HTTPS와 앱 소유자의 Jira 로그인·자동 로그인·로그아웃·root 감사로그 조회를 확인했습니다. 기존 보고서 이력을 유지하면서 직원 공유를 준비합니다. 실제 콘솔의 `Sharing` 저장을 확인하기 전에는 정책 페이지 배포나 코드 구현을 Atlassian 등록 완료로 해석하지 않습니다.
+현재 운영 서비스의 `/privacy`와 `/terms`는 로그인 없이 열리는 실제 정책 페이지이며 지원 연락처는 `jh.han@seculayer.com`입니다. 2026-10-16 운영 HTTPS, 앱 소유자의 Jira 로그인·자동 로그인·로그아웃·root 감사로그 조회를 확인했고, Atlassian Distribution의 `Sharing` 저장도 확인했습니다. 공급자명은 `SecuLayer`, 개인정보 저장 선언은 `Yes`이며 두 정책 URL과 지원 이메일이 실제 등록되었습니다. 직원용 Atlassian 동의 화면에서 회사 정책 링크와 두 읽기 권한 표시를 확인했습니다. 다른 직원 계정으로의 최종 로그인은 해당 직원의 직접 승인과 회사 Jira 프로젝트 접근 권한이 필요합니다.
+
+직원 공유 전 기존 보고서 29개(대시보드 9개, SLA 17개, 재배포 3개)의 사용자 필드 7,848개를 Jira 변경 이력에 근거해 계정 ID와 연결했습니다. 이력 행 삭제 없이 실제 개인정보 보고 API에 62개 계정을 보고했고 미보고·미연결·처리 대기와 오류가 없는 상태를 확인했습니다. 응답에서 폐쇄 1개·갱신 7개 계정이 확인되어 관련 보고서 16개의 사용자 이름만 삭제 표시로 정리했습니다. 티켓 번호·집계·보고서 행은 유지했습니다. 이 수치는 최초 검증 결과이며 이후 상태는 `/admin/jira-privacy`에서 확인합니다.
 
 ```dotenv
 LOGIN=true
@@ -70,7 +72,7 @@ Atlassian에 전달하는 항목은 계정 ID와 가장 오래된 조회 시각�
 
 state는 예측 불가능한 nonce, HttpOnly cookie, 서버의 10분 단일 사용 기록을 함께 검증합니다. 서버 재시작은 진행 중인 OAuth 요청을 무효화하므로 다시 로그인합니다. 현재 단일 worker 구성에서 동작하며 여러 worker·인스턴스로 확장하면 state 저장소를 공유하도록 변경해야 합니다.
 
-nginx와 Uvicorn access log는 OAuth callback의 code/state query를 기록하지 않습니다. 성공·실패 감사 이벤트에는 인증 결과와 계정 식별자만 남깁니다. callback 응답은 `no-store`와 `no-referrer`를 설정하며 JWT와 client secret을 redirect URL에 넣지 않습니다.
+nginx와 Uvicorn access log는 `/api` 및 그 하위 경로의 query를 기록하지 않습니다. OAuth callback의 code/state, 파일 미리보기의 `_t`, SSE의 `token`이 접근 로그에 남지 않으며 메서드·경로·상태는 유지합니다. 성공·실패 감사 이벤트에는 인증 결과와 계정 식별자만 남깁니다. callback 응답은 `no-store`와 `no-referrer`를 설정하며 JWT와 client secret을 redirect URL에 넣지 않습니다.
 
 회귀 검증은 로컬 관리자 로그인, superadmin 제한, 정상 OAuth와 state 변조·재사용·만료, 잘못된 사이트·계정·권한, 외부 API 실패, JWT 만료와 Jira 세션 최대 수명, 동시 갱신 및 로그아웃 경합을 포함합니다. 모의 API 테스트는 실제 Atlassian 앱 승인이나 조직 정책 통과를 증명하지 않습니다.
 
