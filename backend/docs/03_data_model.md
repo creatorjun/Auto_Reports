@@ -82,6 +82,12 @@ site_id 외래키와 hostname, role, CPU core/thread, memory/disk 용량, OS, IP
 
 같은 날짜 갱신은 upsert로 대체하고 이전 날짜 행은 유지합니다. API는 최신 조회와 갱신만 제공하며 날짜별 이력 조회·삭제 API는 없습니다.
 
+### 개인정보 보고 데이터
+
+`personal_data_accounts`는 Jira 계정 ID를 기본키로 서버 표시 이름, 가장 오래된 보유 데이터 조회 시각, 마지막·다음 보고 시각, 프로필 버전과 갱신·삭제 상태를 저장합니다. `personal_data_reporting_grants`는 앱 소유자의 암호화된 refresh token, 다음 재시도 시각과 마지막 보고 성공·오류를 저장합니다. 직원 OAuth 토큰은 이 테이블에 저장하지 않습니다.
+
+보고서 JSON에는 사용자 필드별 `*_account_id`와 `personal_data_retrieved_at`을 추가하며 기존 화면 집계는 유지합니다. Atlassian의 정정·삭제 응답은 해당 계정의 이름을 삭제 표시로 바꾸고 세션 버전을 올립니다. 자세한 처리 범위와 이력 보완은 [Jira 로그인](11_jira_login.md)을 참고하세요.
+
 ### DB 밖의 데이터
 
 파일 보관함은 `storage_data`, 감사로그는 `audit_logs` 볼륨에 저장합니다. 전체 이슈와 Jira 조회 캐시는 프로세스 메모리, 화면의 테마·열 너비·정렬은 브라우저 localStorage입니다. PostgreSQL 백업만으로 이 데이터가 함께 보존되지는 않습니다.
@@ -104,7 +110,7 @@ widget ID는 영속성 계약으로 유지합니다. `0013_reorder_dashboard_wid
 
 ## Migration
 
-마이그레이션은 `backend/alembic/versions`에 있으며 현재 head는 `0018`입니다. `0014`는 annual scope, `0017`은 SLA, `0018`은 재배포 테이블을 추가합니다. Docker backend entrypoint는 서버 시작 전에 head까지 적용합니다. 백업·배포 절차는 [운영 가이드](10_operations.md)를 참고하세요.
+마이그레이션은 `backend/alembic/versions`에 있으며 현재 head는 `0019`입니다. `0014`는 annual scope, `0017`은 SLA, `0018`은 재배포, `0019`는 개인정보 보고 계정·소유자 연결 테이블을 추가합니다. Docker backend entrypoint는 서버 시작 전에 head까지 적용합니다. 백업·배포 절차는 [운영 가이드](10_operations.md)를 참고하세요.
 
 `0016_remove_c_level_reports.py`는 제거된 C-Level 기능의 `c_level_comments`, `c_level_snapshots` 테이블과 저장된 데이터를 삭제합니다. 기존 DB의 revision을 인식할 수 있도록 `0015` 생성 이력은 유지합니다. `0016`을 downgrade하면 빈 테이블 구조만 복원되며 삭제된 데이터는 복구되지 않습니다. 기존 보고서·사이트·파일 데이터와 감사로그는 유지합니다.
 

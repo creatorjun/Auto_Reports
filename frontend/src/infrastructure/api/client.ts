@@ -119,12 +119,13 @@ client.interceptors.response.use(
     const original: SessionRequestConfig | undefined = err.config
     const status = err.response?.status
     const url = original?.url ?? ''
+    const isSessionEndpoint = url.includes('/auth/') && !url.startsWith('/auth/jira/privacy/')
 
     if (isLoggingOut || logoutPromise || (original && original._authGeneration !== authGeneration)) {
       throw await toRequestError(err)
     }
 
-    if (status === 401 && original && !original._retry && !url.includes('/auth/')) {
+    if (status === 401 && original && !original._retry && !isSessionEndpoint) {
       original._retry = true
       const generation = authGeneration
       try {

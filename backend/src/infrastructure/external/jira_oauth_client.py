@@ -5,7 +5,7 @@ from urllib.parse import urlencode, urlsplit
 
 import httpx
 
-from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable, JiraOAuthPort
+from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable, JiraOAuthPort, JiraReportingGrant
 from src.domain.entities.auth_identity import AuthIdentity
 
 _SCOPES = ("read:jira-user", "read:jira-work")
@@ -38,11 +38,11 @@ class JiraOAuthClient(JiraOAuthPort):
         self._project_key = project_key
         self._transport = transport
 
-    def authorization_url(self, state: str) -> str:
+    def authorization_url(self, state: str, include_offline: bool = False) -> str:
         return "https://auth.atlassian.com/authorize?" + urlencode({
             "audience": "api.atlassian.com",
             "client_id": self._client_id,
-            "scope": " ".join(_SCOPES),
+            "scope": " ".join((*_SCOPES, "offline_access") if include_offline else _SCOPES),
             "redirect_uri": self._redirect_uri,
             "state": state,
             "response_type": "code",
@@ -50,6 +50,16 @@ class JiraOAuthClient(JiraOAuthPort):
         })
 
     async def authenticate(self, code: str) -> AuthIdentity:
+        identity, _ = await self._exchange(code, False)
+        return identity
+
+    async def authenticate_reporting_owner(self, code: str) -> JiraReportingGrant:
+        identity, refresh_token = await self._exchange(code, True)
+        if not isinstance(refresh_token, str) or not refresh_token or len(refresh_token) > 32768:
+            raise JiraLoginDenied("Reporting authorization requires offline access")
+        return JiraReportingGrant(identity, refresh_token)
+
+    async def _exchange(self, code: str, include_offline: bool) -> tuple[AuthIdentity, str | None]:
         try:
             async with asyncio.timeout(30):
                 async with httpx.AsyncClient(
@@ -57,7 +67,7 @@ class JiraOAuthClient(JiraOAuthPort):
                     follow_redirects=False,
                     transport=self._transport,
                 ) as client:
-                    return await self._authenticate(client, code)
+                    return await self._authenticate(client, code, include_offline)
         except (httpx.HTTPError, TimeoutError):
             raise JiraLoginUnavailable("Jira login is temporarily unavailable") from None
         except (KeyError, TypeError, ValueError) as error:
@@ -65,7 +75,7 @@ class JiraOAuthClient(JiraOAuthPort):
                 raise
             raise JiraLoginDenied("Jira login could not be verified") from None
 
-    async def _authenticate(self, client: httpx.AsyncClient, code: str) -> AuthIdentity:
+    async def _authenticate(self, client: httpx.AsyncClient, code: str, include_offline: bool) -> tuple[AuthIdentity, str | None]:
         token = self._json(await client.post(
             "https://auth.atlassian.com/oauth/token",
             json={
@@ -115,7 +125,10 @@ class JiraOAuthClient(JiraOAuthPort):
         display_name = profile.get("displayName")
         if not isinstance(display_name, str) or not display_name.strip() or len(display_name) > 200:
             display_name = account_id
-        return AuthIdentity(f"jira:{cloud_id}:{account_id}", display_name.strip(), "jira")
+        return (
+            AuthIdentity(f"jira:{cloud_id}:{account_id}", display_name.strip(), "jira"),
+            token.get("refresh_token") if include_offline else None,
+        )
 
     @staticmethod
     def _json(response: httpx.Response):

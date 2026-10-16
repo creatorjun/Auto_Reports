@@ -110,6 +110,10 @@ class RecentIssueDetail:
     reporter: str = "미지정"
     tac_team: str = "미지정"
     tac_assignee: str | None = None
+    reporter_account_id: str | None = None
+    tac_team_account_id: str | None = None
+    tac_assignee_account_id: str | None = None
+    personal_data_retrieved_at: str | None = None
 
 
 @dataclass
@@ -265,6 +269,8 @@ class RedeploymentIssueDetail:
     cause: str
     assignee: str
     partners: list[str] = field(default_factory=list)
+    assignee_account_id: str | None = None
+    personal_data_retrieved_at: str | None = None
 
 
 @dataclass

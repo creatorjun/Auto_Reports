@@ -87,3 +87,16 @@ class IssueManagementUseCase:
         if self._task is not None and not self._task.done():
             self._task.cancel()
             await asyncio.gather(self._task, return_exceptions=True)
+
+    async def clear_personal_data_cache(self) -> None:
+        await self.aclose()
+        self._task = None
+        self._issues.clear()
+        self._details = ()
+        self._details_date = None
+        self._initialized = False
+        self._last_sync = 0.0
+        self._last_full_sync = 0.0
+        self._last_attempt = float("-inf")
+        self._synced_at = None
+        self._error = None

@@ -24,7 +24,7 @@ class StoragePreviewApiTest(unittest.IsolatedAsyncioTestCase):
         self.source.write_bytes(b"presentation-content")
         self.auth = Mock(spec=AuthService)
         self.auth.enabled = True
-        self.auth.decode_access_token.side_effect = self.decode_token
+        self.auth.resolve_access_identity.side_effect = self.decode_token
         self.use_case = Mock(spec=StorageUseCase)
         self.use_case.get_file_path = AsyncMock(return_value=str(self.source))
         self.use_case.get_mime_type.return_value = "application/octet-stream"
@@ -102,7 +102,7 @@ class StoragePreviewApiTest(unittest.IsolatedAsyncioTestCase):
             "/api/v1/storage/preview-converted", params={"name": self.source.name},
         )
         self.assertEqual(200, response.status_code)
-        self.auth.decode_access_token.assert_not_called()
+        self.auth.resolve_access_identity.assert_not_awaited()
 
     async def test_preserves_conversion_error_status_and_detail(self) -> None:
         for exception, status, detail in (

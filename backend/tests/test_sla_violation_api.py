@@ -34,7 +34,9 @@ class SlaViolationApiTest(unittest.IsolatedAsyncioTestCase):
         self.app.include_router(router)
         self.app.dependency_overrides[get_sla_violation_use_case] = lambda: self.use_case
         self.app.dependency_overrides[get_audit] = lambda: self.audit
-        self.app.dependency_overrides[get_auth] = lambda: SimpleNamespace(enabled=True, decode_access_token=lambda token: "tester")
+        self.app.dependency_overrides[get_auth] = lambda: SimpleNamespace(
+            enabled=True, resolve_access_identity=AsyncMock(return_value=SimpleNamespace(username="tester")),
+        )
         self.headers = {"Authorization": "Bearer test"}
         self.endpoint = "/api/v1/sla-violations"
 

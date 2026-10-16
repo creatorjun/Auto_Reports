@@ -29,6 +29,22 @@ export interface JiraLoginStartResponse {
   authorization_url: string
 }
 
+export interface JiraPrivacyStatus {
+  owner_authorized: boolean
+  registered_accounts: number
+  unreported_accounts?: number
+  due_accounts?: number
+  account_states: Record<string, number>
+  next_attempt_at: string | null
+  last_success_at: string | null
+  last_error: string | null
+  coverage: {
+    known_accounts: number
+    unmapped_personal_fields: number
+  }
+  reporting_ready?: boolean
+}
+
 export function canViewAuditLogs(me: MeResponse | undefined): boolean {
   return me?.login_required === true && me.is_superadmin === true
 }

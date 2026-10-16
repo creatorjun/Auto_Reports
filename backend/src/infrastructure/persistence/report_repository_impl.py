@@ -11,6 +11,7 @@ from src.domain.entities.report import NewReport, Report, ReportScope, ReportSum
 from src.application.ports.report_repository import ReportRepository
 from src.domain.value_objects.ai_analysis import AiAnalysis
 from src.infrastructure.persistence.models import ReportORM
+from src.infrastructure.persistence.personal_data_suppression import suppress_erased_people
 from src.infrastructure.persistence.widget_serializer import deserialize_widget, serialize_widget
 
 KST = ZoneInfo("Asia/Seoul")
@@ -22,6 +23,7 @@ class ReportRepositoryImpl(ReportRepository):
 
     async def save(self, report: NewReport) -> Report:
         widgets_dict = {k: serialize_widget(v) for k, v in report.widgets.items()}
+        redacted = await suppress_erased_people(self._session, widgets_dict)
         ai_dict = dataclasses.asdict(report.ai_analysis) if report.ai_analysis else None
         orm = ReportORM(
             week_start=report.week_start,
@@ -40,7 +42,7 @@ class ReportRepositoryImpl(ReportRepository):
             week_start=report.week_start,
             week_end=report.week_end,
             report_date=report.report_date,
-            widgets=report.widgets,
+            widgets={k: deserialize_widget(k, value) for k, value in widgets_dict.items()} if redacted else report.widgets,
             ai_analysis=report.ai_analysis,
             scope=report.scope,
             report_year=report.report_year,
@@ -137,6 +139,7 @@ class ReportRepositoryImpl(ReportRepository):
 
     async def update_widgets(self, report_id: int, report: NewReport) -> Report:
         widgets_dict = {k: serialize_widget(v) for k, v in report.widgets.items()}
+        await suppress_erased_people(self._session, widgets_dict)
         await self._session.execute(
             update(ReportORM)
             .where(ReportORM.id == report_id)

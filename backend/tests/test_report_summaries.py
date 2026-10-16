@@ -62,7 +62,9 @@ class ReportSummaryTest(unittest.IsolatedAsyncioTestCase):
         app = FastAPI()
         app.include_router(router)
         app.dependency_overrides[get_get_use_case] = lambda: self.use_case
-        app.dependency_overrides[get_auth] = lambda: SimpleNamespace(enabled=True, decode_access_token=lambda token: "tester")
+        app.dependency_overrides[get_auth] = lambda: SimpleNamespace(
+            enabled=True, resolve_access_identity=AsyncMock(return_value=SimpleNamespace(username="tester")),
+        )
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
             unauthenticated = await client.get("/api/v1/reports/")
             self.assertEqual(401, unauthenticated.status_code)

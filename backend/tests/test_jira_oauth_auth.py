@@ -12,7 +12,8 @@ import httpx
 from fastapi import Depends, FastAPI
 from jose import jwt
 
-from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable, JiraOAuthPort
+from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable, JiraOAuthPort, JiraReportingGrant
+from src.application.ports.personal_data_port import PersonalDataProfilePort, PersonalDataReportingPort
 from src.application.services.auth_service import AuthService
 from src.domain.entities.auth_identity import AuthIdentity
 from src.infrastructure.config.settings import Settings
@@ -52,7 +53,7 @@ class JiraOAuthClientTest(unittest.IsolatedAsyncioTestCase):
         if path in self.status:
             return httpx.Response(self.status[path], json={"error": "secret error details"})
         if path == "/oauth/token":
-            return httpx.Response(200, json={"access_token": "upstream-sensitive-token"})
+            return httpx.Response(200, json={"access_token": "upstream-sensitive-token", "refresh_token": "private-owner-refresh"})
         if path == "/oauth/token/accessible-resources":
             return httpx.Response(200, json=self.resources)
         if path.endswith("/myself"):
@@ -91,6 +92,15 @@ class JiraOAuthClientTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(["http://test/api/v1/auth/jira/callback"], query["redirect_uri"])
         self.assertNotIn("client-secret", url)
         self.assertNotIn("offline_access", url)
+
+    async def test_offline_access_is_requested_only_for_reporting_owner(self):
+        adapter = self.adapter()
+        query = parse_qs(urlsplit(adapter.authorization_url("owner-state", include_offline=True)).query)
+        self.assertEqual(["read:jira-user read:jira-work offline_access"], query["scope"])
+        grant = await adapter.authenticate_reporting_owner("code")
+        self.assertEqual("private-owner-refresh", grant.refresh_token)
+        self.assertNotIn("private-owner-refresh", repr(grant))
+        self.assertEqual("jira:cloud-123:account:123", grant.identity.username)
 
     async def test_other_site_or_missing_scope_is_denied_before_profile(self):
         for resources in (
@@ -161,12 +171,20 @@ class JiraOAuthAuthTest(unittest.IsolatedAsyncioTestCase):
         self.settings = settings()
         self.tokens = JwtService(self.settings)
         self.oauth = Mock(spec=JiraOAuthPort)
-        self.oauth.authorization_url.side_effect = lambda state: f"https://auth.atlassian.com/authorize?state={state}"
-        self.identity = AuthIdentity("jira:cloud-123:account:123", "superadmin", "jira")
+        self.oauth.authorization_url.side_effect = lambda state, **kwargs: f"https://auth.atlassian.com/authorize?state={state}"
+        self.identity = AuthIdentity("jira:cloud-123:account:123", "superadmin", "jira", profile_version=1)
         self.oauth.authenticate = AsyncMock(return_value=self.identity)
+        self.profiles = Mock(spec=PersonalDataProfilePort)
+        self.profiles.register_identity = AsyncMock(side_effect=lambda identity: replace(identity, profile_version=1))
+        self.profiles.resolve_identity = AsyncMock(side_effect=lambda identity: replace(identity, display_name="superadmin"))
+        self.reporting = Mock(spec=PersonalDataReportingPort)
+        self.reporting.save_reporting_grant = AsyncMock()
+        self.reporting.reporting_status = AsyncMock(return_value={"owner_authorized": False})
+        self.reporting.run_reporting = AsyncMock(return_value={"status": "ok"})
         self.auth = AuthService(
             self.tokens, True, "admin", "admin-password", "superadmin", "superadmin-password", 7, False,
-            jira_oauth=self.oauth,
+            jira_oauth=self.oauth, personal_data=self.profiles, reporting=self.reporting,
+            privacy_owner_account_id="account:123",
         )
         self.audit = Mock()
         self.app = FastAPI()
@@ -321,6 +339,89 @@ class JiraOAuthAuthTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual("/login?jira=denied", response.headers["location"])
             self.assertNotIn("refresh_token", client.cookies)
 
+    async def root_login(self, client):
+        response = await client.post("/api/v1/auth/login", json={
+            "username": "superadmin", "password": "superadmin-password",
+        })
+        return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+    async def test_owner_reporting_flow_keeps_root_session_and_stores_only_expected_owner_grant(self):
+        self.oauth.authenticate_reporting_owner = AsyncMock(return_value=JiraReportingGrant(self.identity, "private-grant"))
+        async with self.client() as client:
+            headers = await self.root_login(client)
+            old_cookie = client.cookies["refresh_token"]
+            self.assertEqual(200, (await client.get("/api/v1/auth/jira/privacy/status", headers=headers)).status_code)
+            started = await client.post("/api/v1/auth/jira/privacy/start", headers=headers)
+            state = parse_qs(urlsplit(started.json()["authorization_url"]).query)["state"][0]
+            self.oauth.authorization_url.assert_called_with(state, include_offline=True)
+            completed = await self.callback(client, state)
+            self.assertEqual("/admin/jira-privacy?jira_privacy=success", completed.headers["location"])
+            self.assertEqual(old_cookie, client.cookies["refresh_token"])
+            self.assertTrue((await client.get("/api/v1/auth/me")).json()["is_superadmin"])
+        self.reporting.save_reporting_grant.assert_awaited_once_with("account:123", "private-grant")
+        self.oauth.authenticate.assert_not_awaited()
+        self.assertNotIn("private-grant", str(self.audit.record.call_args_list))
+
+    async def test_owner_flow_rejects_other_atlassian_account(self):
+        other = replace(self.identity, username="jira:cloud-123:other-account")
+        self.oauth.authenticate_reporting_owner = AsyncMock(return_value=JiraReportingGrant(other, "private-grant"))
+        async with self.client() as client:
+            headers = await self.root_login(client)
+            started = await client.post("/api/v1/auth/jira/privacy/start", headers=headers)
+            state = parse_qs(urlsplit(started.json()["authorization_url"]).query)["state"][0]
+            completed = await self.callback(client, state)
+            self.assertEqual("/admin/jira-privacy?jira_privacy=denied", completed.headers["location"])
+        self.reporting.save_reporting_grant.assert_not_awaited()
+
+    async def test_owner_flow_cannot_finish_after_root_session_is_replaced(self):
+        async with self.client() as client:
+            headers = await self.root_login(client)
+            started = await client.post("/api/v1/auth/jira/privacy/start", headers=headers)
+            state = parse_qs(urlsplit(started.json()["authorization_url"]).query)["state"][0]
+            await self.root_login(client)
+            completed = await self.callback(client, state)
+            self.assertEqual("/admin/jira-privacy?jira_privacy=denied", completed.headers["location"])
+        self.oauth.authenticate_reporting_owner.assert_not_called()
+        self.reporting.save_reporting_grant.assert_not_awaited()
+
+    async def test_reporting_endpoints_require_root_and_same_origin(self):
+        async with self.client() as client:
+            for endpoint in ("status", "start", "run"):
+                method = client.get if endpoint == "status" else client.post
+                self.assertEqual(401, (await method(f"/api/v1/auth/jira/privacy/{endpoint}")).status_code)
+            login = await client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin-password"})
+            headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+            self.assertEqual(403, (await client.get("/api/v1/auth/jira/privacy/status", headers=headers)).status_code)
+            headers = await self.root_login(client)
+            for endpoint in ("start", "run"):
+                response = await client.post(f"/api/v1/auth/jira/privacy/{endpoint}", headers={**headers, "Origin": "https://attacker.test"})
+                self.assertEqual(403, response.status_code)
+        self.reporting.save_reporting_grant.assert_not_awaited()
+
+    async def test_owner_flow_rechecks_root_session_after_provider_response(self):
+        async def exchange(code):
+            self.auth.begin_superadmin_session()
+            return JiraReportingGrant(self.identity, "private-grant")
+        self.oauth.authenticate_reporting_owner = AsyncMock(side_effect=exchange)
+        async with self.client() as client:
+            headers = await self.root_login(client)
+            started = await client.post("/api/v1/auth/jira/privacy/start", headers=headers)
+            state = parse_qs(urlsplit(started.json()["authorization_url"]).query)["state"][0]
+            completed = await self.callback(client, state)
+            self.assertEqual("/admin/jira-privacy?jira_privacy=denied", completed.headers["location"])
+        self.reporting.save_reporting_grant.assert_not_awaited()
+
+    async def test_deleted_or_stale_profile_invalidates_access_and_refresh(self):
+        async with self.client() as client:
+            state = await self.start(client)
+            await self.callback(client, state)
+            data = (await client.post("/api/v1/auth/refresh")).json()
+            self.profiles.resolve_identity.side_effect = ValueError("Profile revoked")
+            headers = {"Authorization": f"Bearer {data['access_token']}"}
+            self.assertEqual(401, (await client.get("/ordinary", headers=headers)).status_code)
+            self.assertEqual(401, (await client.get("/api/v1/auth/me")).status_code)
+            self.assertEqual(401, (await client.post("/api/v1/auth/refresh")).status_code)
+
     def test_state_cache_is_bounded_and_expired_entries_are_reclaimed(self):
         with patch("src.application.services.auth_service.monotonic", return_value=1):
             self.auth._jira_states = {str(index): 1000 for index in range(1024)}
@@ -338,13 +439,16 @@ class JiraIdentityTokenTest(unittest.TestCase):
         self.identity = AuthIdentity(
             "jira:cloud-123:account:123", "김영준", "jira",
             int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp()),
+            1,
         )
 
     def test_identity_is_signed_and_round_trips_in_both_token_types(self):
         access = self.tokens.create_identity_access_token(self.identity)
         refresh = self.tokens.create_identity_refresh_token(self.identity)
-        self.assertEqual(self.identity, self.tokens.decode_access_identity(access))
-        self.assertEqual(self.identity, self.tokens.decode_refresh_identity(refresh))
+        decoded_identity = replace(self.identity, display_name=self.identity.username)
+        self.assertEqual(decoded_identity, self.tokens.decode_access_identity(access))
+        self.assertEqual(decoded_identity, self.tokens.decode_refresh_identity(refresh))
+        self.assertNotIn("display_name", jwt.decode(access, self.settings.jwt_secret, algorithms=["HS256"]))
         self.assertEqual(self.identity.username, self.tokens.decode_access_token(access))
         self.assertEqual(self.identity.username, self.tokens.decode_refresh_token(refresh))
         with self.assertRaises(ValueError):

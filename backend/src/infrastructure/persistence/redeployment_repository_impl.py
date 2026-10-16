@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from src.domain.constants import KST
 from src.domain.entities.redeployment_report import REDEPLOYMENT_START, RedeploymentReport, RedeploymentTicket
 from src.infrastructure.persistence.models import Base
+from src.infrastructure.persistence.personal_data_suppression import suppress_erased_people
 
 
 class RedeploymentReportORM(Base):
@@ -43,16 +44,18 @@ class RedeploymentRepositoryImpl:
         )
 
     async def save(self, report: RedeploymentReport) -> RedeploymentReport:
+        payload = {
+            "period_start": str(report.period_start), "source_jql": report.source_jql,
+            "tickets": [asdict(ticket) for ticket in report.tickets], "warnings": list(report.warnings),
+        }
+        redacted = await suppress_erased_people(self._session, payload)
         values = dict(
             snapshot_date=report.generated_at.astimezone(KST).date(), generated_at=report.generated_at,
-            generated_by=report.generated_by, payload={
-                "period_start": str(report.period_start), "source_jql": report.source_jql,
-                "tickets": [asdict(ticket) for ticket in report.tickets], "warnings": list(report.warnings),
-            },
+            generated_by=report.generated_by, payload=payload,
         )
         statement = insert(RedeploymentReportORM).values(**values)
         statement = statement.on_conflict_do_update(index_elements=["snapshot_date"], set_=values).returning(RedeploymentReportORM.id)
         result = await self._session.execute(statement)
-        saved = replace(report, id=result.scalar_one())
+        saved = replace(report, id=result.scalar_one(), tickets=tuple(RedeploymentTicket(**{**item, "partners": tuple(item["partners"])}) for item in payload["tickets"])) if redacted else replace(report, id=result.scalar_one())
         await self._session.flush()
         return saved

@@ -18,6 +18,7 @@ from src.domain.entities.sla_violation_report import (
     SlaViolationTicket,
 )
 from src.infrastructure.persistence.sla_violation_models import SlaViolationReportORM
+from src.infrastructure.persistence.personal_data_suppression import suppress_erased_people
 
 
 def _serialize_ticket(ticket: SlaViolationTicket) -> dict:
@@ -58,6 +59,10 @@ def _deserialize_ticket(payload: dict) -> SlaViolationTicket:
         reporter=payload["reporter"],
         assignee=payload["assignee"],
         tac_assignee=payload["tac_assignee"],
+        reporter_account_id=payload.get("reporter_account_id"),
+        assignee_account_id=payload.get("assignee_account_id"),
+        tac_assignee_account_id=payload.get("tac_assignee_account_id"),
+        personal_data_retrieved_at=payload.get("personal_data_retrieved_at"),
         current_status=payload["current_status"],
         status_durations=tuple(SlaStatusDuration(**duration) for duration in durations) if durations is not None else None,
         breaches=tuple(
@@ -94,17 +99,16 @@ class SlaViolationRepositoryImpl(SlaViolationRepository):
     async def save(self, report: SlaViolationReport) -> SlaViolationReport:
         metadata = {field.name: getattr(report, field.name) for field in fields(SlaViolationReportSummary) if field.name != "id"}
         metadata["generated_at"] = report.generated_at.astimezone(timezone.utc)
+        payload = {"tickets": [_serialize_ticket(ticket) for ticket in report.tickets], "warnings": list(report.warnings)}
+        redacted = await suppress_erased_people(self._session, payload)
         orm = SlaViolationReportORM(
             **metadata,
-            payload={
-                "tickets": [_serialize_ticket(ticket) for ticket in report.tickets],
-                "warnings": list(report.warnings),
-            },
+            payload=payload,
         )
         try:
             self._session.add(orm)
             await self._session.flush()
-            saved = replace(report, id=orm.id)
+            saved = replace(report, id=orm.id, tickets=tuple(_deserialize_ticket(ticket) for ticket in payload["tickets"])) if redacted else replace(report, id=orm.id)
             await self._session.commit()
             return saved
         except BaseException:

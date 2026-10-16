@@ -3,6 +3,7 @@ import pathlib
 import sys
 import unittest
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -37,7 +38,9 @@ class ReportChartApiTest(unittest.TestCase):
         app = FastAPI()
         app.include_router(router)
         app.dependency_overrides[get_report_chart_issues_use_case] = lambda: self.use_case
-        app.dependency_overrides[get_auth] = lambda: SimpleNamespace(enabled=True, decode_access_token=lambda token: "tester")
+        app.dependency_overrides[get_auth] = lambda: SimpleNamespace(
+            enabled=True, resolve_access_identity=AsyncMock(return_value=SimpleNamespace(username="tester")),
+        )
         self.client = TestClient(app)
         self.endpoint = "/api/v1/reports/7/chart-issues"
         self.headers = {"Authorization": "Bearer test"}

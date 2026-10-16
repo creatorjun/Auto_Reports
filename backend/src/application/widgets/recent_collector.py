@@ -52,6 +52,14 @@ class RecentCollector(AbstractWidgetCollector):
                     reporter=reporter,
                     tac_team=tac_team,
                     tac_assignee=issue.recent_tac_assignee or "미지정",
+                    reporter_account_id=issue.reporter_account_id,
+                    tac_team_account_id=(
+                        issue.tac_assignee_account_id if issue.tac_assignee
+                        else issue.qa_assignee_account_id if issue.qa_assignee
+                        else issue.assignee_account_id
+                    ),
+                    tac_assignee_account_id=issue.recent_tac_assignee_account_id,
+                    personal_data_retrieved_at=issue.personal_data_retrieved_at,
                 )
             )
         total = len(issue_details)

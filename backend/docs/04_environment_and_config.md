@@ -51,13 +51,14 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 | `ADMIN_PASSWORD` | 빈 값 | 빈 값이면 로그인 불가 |
 | `SUPERADMIN` | 빈 값 | 감사로그 조회 권한을 가진 관리자 계정 이름 |
 | `SUPERADMIN_PASSWORD` | 빈 값 | 관리자 계정 암호. 미설정 시 관리자 권한 비활성 |
-| `JWT_SECRET` | 개발용 placeholder | 강한 임의 값으로 변경 |
+| `JWT_SECRET` | 개발용 placeholder | 강한 임의 값으로 변경. 개인정보 보고용 소유자 토큰 암호화에는 최소 32바이트 필요 |
 | `JWT_ACCESS_EXPIRE_MINUTES` | `30` | access token 수명 |
 | `JWT_REFRESH_EXPIRE_DAYS` | `7` | refresh token 수명 |
 | `JIRA_LOGIN_ENABLED` | `false` | Jira OAuth 로그인 활성화. 기존 관리자 계정 유지 |
 | `JIRA_OAUTH_CLIENT_ID` | 빈 값 | Atlassian OAuth 앱 Client ID |
 | `JIRA_OAUTH_CLIENT_SECRET` | 빈 값 | 서버에서만 사용하는 앱 Secret |
 | `JIRA_OAUTH_REDIRECT_URI` | 빈 값 | 등록한 `/api/v1/auth/jira/callback` 절대 URL |
+| `JIRA_PRIVACY_OWNER_ACCOUNT_ID` | 빈 값 | 개인정보 정기 보고를 승인할 실제 Atlassian 앱 소유자의 계정 ID |
 | `COOKIE_SECURE` | `false` | HTTPS 운영에서는 true |
 | `CREDENTIAL_ENCRYPTION_KEY` | 빈 값 | 운영에서는 유효한 Fernet key 필수 |
 | `CORS_ORIGINS` | `["*"]` | 운영 frontend origin으로 제한 |

@@ -53,6 +53,10 @@ class SlaViolationIssue:
     clock_snapshot_before: datetime | None = None
     clock_snapshot_after: datetime | None = None
     clock_pause_statuses: tuple[str, ...] = ("결과 대기 중", "자료 요청 중", "보류 중")
+    reporter_account_id: str | None = None
+    assignee_account_id: str | None = None
+    tac_assignee_account_id: str | None = None
+    personal_data_retrieved_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -87,6 +91,10 @@ class SlaViolationTicket:
     sla_cycles: tuple[SlaViolationCycle, ...] | None = None
     status_durations_basis: Literal["wall_clock", "resolution_sla"] = "wall_clock"
     status_duration_calendar: str | None = None
+    reporter_account_id: str | None = None
+    assignee_account_id: str | None = None
+    tac_assignee_account_id: str | None = None
+    personal_data_retrieved_at: str | None = None
 
 
 @dataclass(frozen=True)

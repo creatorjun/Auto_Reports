@@ -6,6 +6,8 @@ class OAuthAccessFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.args, tuple) and len(record.args) == 5:
             client, method, target, protocol, status = record.args
-            if isinstance(target, str) and target.split("?", 1)[0] == "/api/v1/auth/jira/callback":
-                record.args = (client, method, target.split("?", 1)[0], protocol, status)
+            if isinstance(target, str):
+                route = target.split("?", 1)[0]
+                if route == "/api" or route.startswith("/api/"):
+                    record.args = (client, method, route, protocol, status)
         return True

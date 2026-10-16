@@ -35,6 +35,7 @@ from src.infrastructure.factories.ai_factory import AiFactory
 from src.infrastructure.factories.jira_factory import JiraFactory
 from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
 from src.infrastructure.persistence.database import Database
+from src.infrastructure.personal_data_runtime import PersonalDataRuntime
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
 from src.infrastructure.persistence.sla_violation_repository_impl import SlaViolationRepositoryImpl
@@ -89,6 +90,7 @@ class Container:
             issue_type_provider=lambda: self._jira.get_project_issue_types(settings.project_key),
         )
         self._analyzer = AiAnalyzer(ai=self._ai, enabled=settings.ai_enabled)
+        self.personal_data = PersonalDataRuntime(settings, database, self._clear_personal_data_caches)
         tokens = JwtService(settings)
         self.auth = AuthService(
             tokens=tokens,
@@ -99,6 +101,9 @@ class Container:
             superadmin_password=settings.superadmin_password,
             refresh_expire_days=settings.jwt_refresh_expire_days,
             cookie_secure=settings.cookie_secure,
+            personal_data=self.personal_data,
+            reporting=self.personal_data,
+            privacy_owner_account_id=settings.jira_privacy_owner_account_id,
             jira_oauth=JiraOAuthClient(
                 client_id=settings.jira_oauth_client_id,
                 client_secret=settings.jira_oauth_client_secret,
@@ -154,6 +159,11 @@ class Container:
     @property
     def jira_base_url(self) -> str:
         return self._settings.jira_base_url
+
+    async def _clear_personal_data_caches(self) -> None:
+        await self.issue_management.clear_personal_data_cache()
+        await self._jira.clear_personal_data_cache()
+        await self._cache.aclose()
 
     @asynccontextmanager
     async def get_report(self) -> AsyncIterator[GetReportUseCase]:

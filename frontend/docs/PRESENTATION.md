@@ -12,6 +12,7 @@ Presentation은 React UI, route 단위 page, TanStack Query hook, Zustand client
 |------|-------|------|
 | `LoginPage` | `/login` | Jira OAuth 로그인, JWT 세션 자동 복원 |
 | `AdminLoginPage` | `/admin` | URL 직접 접속 전용 admin·superadmin 입력, JWT 세션 자동 복원. 일반 로그인과 메뉴에 링크를 표시하지 않음 |
+| `AdminJiraPrivacyPage` | `/admin/jira-privacy` | 최고 관리자만 조회하는 개인정보 보고 연결 상태와 소유자 승인 시작. 일반 사용자에게 상태를 요청하거나 표시하지 않으며 메뉴 링크 없음 |
 | `PrivacyPage` | `/privacy` | 로그인 없이 개인정보 처리 범위·보관·문의 방법 안내 |
 | `TermsPage` | `/terms` | 로그인 없이 내부 서비스 이용 조건 안내 |
 | `DashboardPage` | `/`, `/reports/:id`, `/reports/annual/:year` | 최신·선택·연간 보고서 dashboard, 기간별 생성·완료 card, 업무 유형별 열린 요청 card, PDF·Excel 내보내기 |

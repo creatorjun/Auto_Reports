@@ -4,6 +4,7 @@ import logging
 import re
 from contextlib import contextmanager
 from contextvars import ContextVar
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from typing import Any, Iterator
 from urllib.parse import quote
@@ -27,6 +28,7 @@ from src.domain.constants import JIRA_MAX_RESULT
 from src.domain.entities.partner import PartnerMember, PartnerOrganization
 from src.domain.entities.search import SearchResult, SearchSource
 from src.infrastructure.cache.lru_cache import LruCache
+from src.infrastructure.external.jira_user_identity import jira_account_id
 
 logger = logging.getLogger(__name__)
 
@@ -313,6 +315,12 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
                 fields.get(_REDEPLOYMENT_CAUSE_FIELD)
             ),
             partner_references=partner_references,
+            reporter_account_id=jira_account_id(fields.get("reporter")),
+            assignee_account_id=jira_account_id(fields.get("assignee")),
+            tac_assignee_account_id=jira_account_id(fields.get(self._tac_assignee_fid)),
+            qa_assignee_account_id=jira_account_id(fields.get(self._qa_assignee_fid)),
+            recent_tac_assignee_account_id=jira_account_id(fields.get(self._recent_tac_assignee_fid)),
+            personal_data_retrieved_at=datetime.now(timezone.utc).isoformat(),
         )
 
     @staticmethod
@@ -829,6 +837,9 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         results.sort(key=lambda member: member.display_name)
         logger.info(f"[파트너] org_id={org_id} 멤버 {len(results)}명")
         return results
+
+    async def clear_personal_data_cache(self) -> None:
+        await self._issues_cache.aclose()
 
     async def aclose(self) -> None:
         await asyncio.gather(

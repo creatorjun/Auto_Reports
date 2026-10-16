@@ -28,7 +28,7 @@ async def require_auth(
     if token is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        username = auth.decode_access_token(token)
+        username = (await auth.resolve_access_identity(token)).username
         request.state.authenticated_username = username
         return username
     except ValueError:

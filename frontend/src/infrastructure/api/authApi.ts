@@ -1,6 +1,6 @@
 // frontend/src/infrastructure/api/authApi.ts
 import client, { endAuthSession, refreshAuthSession, startAuthSession } from './client'
-import type { AuthProviders, JiraLoginStartResponse, LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
+import type { AuthProviders, JiraLoginStartResponse, JiraPrivacyStatus, LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
 
 export const authApi = {
   login: async ({ username, password }: LoginRequest): Promise<TokenResponse> => {
@@ -33,5 +33,15 @@ export const authApi = {
       const res = await client.post<JiraLoginStartResponse>('/auth/jira/start')
       return res.data
     })
+  },
+
+  getJiraPrivacyStatus: async (): Promise<JiraPrivacyStatus> => {
+    const res = await client.get<JiraPrivacyStatus>('/auth/jira/privacy/status')
+    return res.data
+  },
+
+  startJiraPrivacy: async (): Promise<JiraLoginStartResponse> => {
+    const res = await client.post<JiraLoginStartResponse>('/auth/jira/privacy/start')
+    return res.data
   },
 }

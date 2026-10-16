@@ -6,10 +6,12 @@ from time import time
 from urllib.parse import urlsplit
 
 from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable
+from src.application.ports.personal_data_port import PersonalDataReportingFailure
 from src.application.services.auth_service import AuthService
 from src.application.ports.audit_port import AuditPort
 from src.domain.entities.auth_identity import AuthIdentity
 from src.presentation.api.deps import get_audit, get_auth
+from src.presentation.api.v1.deps import require_superadmin
 from src.presentation.http.client_ip import get_client_ip
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -65,8 +67,9 @@ def _require_same_origin(request: Request) -> None:
             raise HTTPException(status_code=403, detail="Cross-site authentication request rejected")
 
 
-def _jira_redirect(result: str, auth: AuthService) -> RedirectResponse:
-    response = RedirectResponse(f"/login?jira={result}", status_code=303)
+def _jira_redirect(result: str, auth: AuthService, privacy: bool = False) -> RedirectResponse:
+    target = f"/admin/jira-privacy?jira_privacy={result}" if privacy else f"/login?jira={result}"
+    response = RedirectResponse(target, status_code=303)
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.delete_cookie(
@@ -97,6 +100,52 @@ async def jira_start(request: Request, response: Response, auth: AuthService = D
     return {"authorization_url": authorization_url}
 
 
+@router.get("/jira/privacy/status")
+async def jira_privacy_status(
+    response: Response,
+    username: str = Depends(require_superadmin),
+    auth: AuthService = Depends(get_auth),
+):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return await auth.jira_privacy_status()
+    except JiraLoginUnavailable:
+        raise HTTPException(status_code=503, detail="Personal data reporting is not available") from None
+
+
+@router.post("/jira/privacy/start")
+async def jira_privacy_start(
+    request: Request, response: Response,
+    username: str = Depends(require_superadmin),
+    auth: AuthService = Depends(get_auth),
+):
+    _require_same_origin(request)
+    try:
+        state, authorization_url = auth.begin_jira_privacy()
+    except JiraLoginUnavailable:
+        raise HTTPException(status_code=503, detail="Personal data reporting is not available") from None
+    response.set_cookie(
+        JIRA_STATE_COOKIE, state, max_age=auth.jira_state_expire_seconds,
+        httponly=True, secure=auth.cookie_secure, samesite="lax", path=JIRA_COOKIE_PATH,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return {"authorization_url": authorization_url}
+
+
+@router.post("/jira/privacy/run")
+async def jira_privacy_run(
+    request: Request, response: Response,
+    username: str = Depends(require_superadmin),
+    auth: AuthService = Depends(get_auth),
+):
+    _require_same_origin(request)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return await auth.run_jira_privacy()
+    except JiraLoginUnavailable:
+        raise HTTPException(status_code=503, detail="Personal data reporting is not available") from None
+
+
 @router.get("/jira/callback")
 async def jira_callback(
     request: Request,
@@ -104,19 +153,25 @@ async def jira_callback(
     state: str | None = None,
     error: str | None = None,
     jira_state: str | None = Cookie(default=None, alias=JIRA_STATE_COOKIE),
+    refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE),
     auth: AuthService = Depends(get_auth),
     audit: AuditPort = Depends(get_audit),
 ):
+    privacy_generation = None
     try:
-        auth.consume_jira_state(state, jira_state)
+        privacy_generation = auth.consume_jira_state(state, jira_state)
         if error or not code:
             raise JiraLoginDenied("Jira authorization was denied")
+        if privacy_generation is not None:
+            await auth.connect_jira_privacy(code, refresh_token, privacy_generation)
+            audit.record("JIRA_PRIVACY_CONNECTED", ip=get_client_ip(request), username=auth.superadmin_username)
+            return _jira_redirect("success", auth, privacy=True)
         identity = await auth.authenticate_jira(code)
     except JiraLoginDenied:
         audit.record("LOGIN_FAILED", ip=get_client_ip(request), provider="jira")
-        return _jira_redirect("denied", auth)
-    except JiraLoginUnavailable:
-        return _jira_redirect("unavailable", auth)
+        return _jira_redirect("denied", auth, privacy=privacy_generation is not None)
+    except (JiraLoginUnavailable, PersonalDataReportingFailure):
+        return _jira_redirect("unavailable", auth, privacy=privacy_generation is not None)
     response = _jira_redirect("success", auth)
     _set_refresh_cookie(
         response, auth.create_identity_refresh_token(identity),
@@ -190,7 +245,7 @@ async def refresh(
         raise HTTPException(status_code=401, detail="No refresh token")
 
     try:
-        identity = auth.decode_refresh_identity(refresh_token)
+        identity = await auth.resolve_refresh_identity(refresh_token)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
@@ -242,7 +297,7 @@ async def me(
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
-        identity = auth.decode_refresh_identity(refresh_token)
+        identity = await auth.resolve_refresh_identity(refresh_token)
     except ValueError:
         raise HTTPException(status_code=401, detail="Token expired or invalid")
 

@@ -155,7 +155,9 @@ class RedeploymentApiTest(unittest.IsolatedAsyncioTestCase):
         audit = Mock()
         app.dependency_overrides[get_redeployment_use_case] = lambda: use_case
         app.dependency_overrides[get_audit] = lambda: audit
-        app.dependency_overrides[get_auth] = lambda: SimpleNamespace(enabled=True, decode_access_token=lambda token: "tester")
+        app.dependency_overrides[get_auth] = lambda: SimpleNamespace(
+            enabled=True, resolve_access_identity=AsyncMock(return_value=SimpleNamespace(username="tester")),
+        )
         headers = {"Authorization": "Bearer test"}
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
             for method, suffix in (("GET", "/latest"), ("POST", "")):

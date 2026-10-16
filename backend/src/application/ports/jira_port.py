@@ -45,6 +45,12 @@ class JiraIssue:
     redeployment_month: str = ""
     redeployment_cause: str = ""
     partner_references: tuple[JiraAssetReference, ...] = field(default_factory=tuple)
+    reporter_account_id: str | None = None
+    assignee_account_id: str | None = None
+    tac_assignee_account_id: str | None = None
+    qa_assignee_account_id: str | None = None
+    recent_tac_assignee_account_id: str | None = None
+    personal_data_retrieved_at: str | None = None
 
 
 @dataclass(frozen=True)

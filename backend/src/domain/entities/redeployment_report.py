@@ -30,6 +30,9 @@ class RedeploymentTicket:
     partners: tuple[str, ...]
     assignee: str | None
     reporter: str | None
+    assignee_account_id: str | None = None
+    reporter_account_id: str | None = None
+    personal_data_retrieved_at: str | None = None
 
 
 @dataclass(frozen=True)

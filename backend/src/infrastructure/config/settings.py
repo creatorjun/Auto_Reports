@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     jira_oauth_client_id: str = ""
     jira_oauth_client_secret: str = ""
     jira_oauth_redirect_uri: str = ""
+    jira_privacy_owner_account_id: str = ""
     gemini_api_key: str = ""
     ai_enabled: bool = True
     db_user: str = "postgres"

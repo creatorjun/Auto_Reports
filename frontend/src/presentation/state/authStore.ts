@@ -1,6 +1,5 @@
 // frontend/src/presentation/state/authStore.ts
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 
 interface AuthState {
   accessToken: string | null
@@ -12,20 +11,16 @@ interface AuthState {
   clearAuth: () => void
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      accessToken: null,
-      loginRequired: true,
-      username: null,
-      sessionReady: false,
-      setAuth: (token, username) => set({ accessToken: token, username, sessionReady: true }),
-      setLoginRequired: (v) => set(v ? { loginRequired: v } : { loginRequired: v, sessionReady: true }),
-      clearAuth: () => set({ accessToken: null, username: null, loginRequired: true, sessionReady: true }),
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (s) => ({ username: s.username }),
-    }
-  )
-)
+try {
+  globalThis.localStorage?.removeItem('auth-storage')
+} catch {}
+
+export const useAuthStore = create<AuthState>()((set) => ({
+  accessToken: null,
+  loginRequired: true,
+  username: null,
+  sessionReady: false,
+  setAuth: (token, username) => set({ accessToken: token, username, sessionReady: true }),
+  setLoginRequired: (value) => set(value ? { loginRequired: value } : { loginRequired: value, sessionReady: true }),
+  clearAuth: () => set({ accessToken: null, username: null, loginRequired: true, sessionReady: true }),
+}))

@@ -31,6 +31,7 @@ def create_scheduler(
     refresh_interval_minutes: int | None = None,
     refresh: Callable[[], Awaitable[None]] | None = None,
     refresh_redeployments: Callable[[], Awaitable[None]] | None = None,
+    report_personal_data: Callable[[], Awaitable[dict]] | None = None,
 ) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=timezone)
     scheduler.add_job(
@@ -56,4 +57,11 @@ def create_scheduler(
             misfire_grace_time=3600,
         )
         logger.info("스케줄러 등록 [재배포 이슈]: 매일 08:00 KST, 시작 시 누락된 보고서 갱신")
+    if report_personal_data:
+        scheduler.add_job(
+            report_personal_data, IntervalTrigger(minutes=5, jitter=30),
+            id="personal_data_reporting", name="Atlassian 개인정보 보고",
+            next_run_time=datetime.now(KST), coalesce=True, max_instances=1,
+            misfire_grace_time=3600,
+        )
     return scheduler

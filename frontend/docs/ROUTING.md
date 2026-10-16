@@ -16,6 +16,7 @@
 |---|---|---|---|
 | `/login` | LoginPage | 없음 | Jira 로그인 |
 | `/admin` | AdminLoginPage | 없음 | URL 직접 접속으로만 제공하는 기존 관리자 로그인 |
+| `/admin/jira-privacy` | AdminJiraPrivacyPage | 페이지 내부 세션·최고 관리자 확인 | 앱 소유자의 개인정보 정기 보고 연결·상태 확인 |
 | `/privacy` | PrivacyPage | 없음 | 로그인 없이 확인하는 개인정보처리방침 |
 | `/terms` | TermsPage | 없음 | 로그인 없이 확인하는 이용약관 |
 | `/storage/preview` | StoragePreviewPage | Layout 밖 | 파일별 API 인증을 적용하는 공유 preview |
@@ -37,9 +38,11 @@
 | `/audit-logs` | AuditLogPage | ProtectedRoute + SuperadminRoute | 관리자 감사로그 |
 | `*` | Navigate | — | `/login`으로 이동 |
 
-login·storage preview를 제외한 실제 페이지는 `ProtectedRoute → Layout → Outlet` 아래에 있습니다. 대시보드 버튼은 `/history`, SLA 버튼은 `/history#sla-violations`로 이동합니다. 메뉴명 변경 후에도 내부 `/sla-dashboard`, `/sla-violations` 등의 주소는 유지합니다. C-Level 경로는 없습니다.
+로그인·정책·관리자 연결·storage preview를 제외한 실제 페이지는 `ProtectedRoute → Layout → Outlet` 아래에 있습니다. 대시보드 버튼은 `/history`, SLA 버튼은 `/history#sla-violations`로 이동합니다. 메뉴명 변경 후에도 내부 `/sla-dashboard`, `/sla-violations` 등의 주소는 유지합니다. C-Level 경로는 없습니다.
 
 ## 인증과 로딩
+
+`/admin/jira-privacy`는 메뉴에 표시하지 않는 최고 관리자 전용 연결 화면입니다. 미인증 상태는 `/admin`으로 이동하고 일반 관리자·Jira 사용자는 권한 안내만 표시합니다. `/auth/me`에서 최고 관리자임을 확인한 뒤에만 개인정보 보고 상태를 요청합니다. 소유자 승인 시작은 기존 관리자 세션을 유지하며, callback은 이 화면으로 돌아옵니다. 서버에서도 상태·연결 API의 최고 관리자 권한을 검사합니다.
 
 `/privacy`와 `/terms`는 인증 경로 밖에 있으며 로그인·API 요청 없이 문서를 표시합니다. `/login` 하단에서 두 문서로 이동할 수 있고, 문서 페이지에는 상호 링크와 로그인 복귀 링크를 제공합니다. 관리자 로그인 링크는 표시하지 않습니다.
 

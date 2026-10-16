@@ -70,6 +70,7 @@ def create_app(settings: Settings) -> FastAPI:
                     timezone=settings.tz,
                     generate=job_runner.run_scheduled_job,
                     refresh_redeployments=container.refresh_redeployment_report,
+                    report_personal_data=container.personal_data.run_reporting,
                     refresh_interval_minutes=(
                         settings.refresh_report_interval_minutes
                         if settings.refresh_report_enabled

@@ -121,6 +121,8 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
             month=month,
             cause=issue.redeployment_cause or "\ubbf8\uc9c0\uc815",
             assignee=issue.assignee or "\ubbf8\uc9c0\uc815",
+            assignee_account_id=issue.assignee_account_id,
+            personal_data_retrieved_at=issue.personal_data_retrieved_at,
             partners=list(dict.fromkeys(partners)) or ["\uc2dc\ud050\ub808\uc774\uc5b4"],
         )
 

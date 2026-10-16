@@ -23,8 +23,8 @@ function deferred() {
   return { promise, resolve, reject }
 }
 
-function setup() {
-  const store = create((set) => ({
+function setup({ store: providedStore } = {}) {
+  const store = providedStore ?? create((set) => ({
     accessToken: null, username: 'cached-name', loginRequired: true, sessionReady: false,
     setAuth: (accessToken, username) => set({ accessToken, username, sessionReady: true }),
     setLoginRequired: (value) => set(value ? { loginRequired: value } : { loginRequired: value, sessionReady: true }),
@@ -72,6 +72,16 @@ function fail(config, status) {
   throw new axios.AxiosError('Request failed', 'ERR_BAD_RESPONSE', config, null, response(config, { detail: 'Not authenticated' }, status))
 }
 
+function loadAuthStore(browser) {
+  const filename = path.join(root, 'presentation/state/authStore.ts')
+  const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }, fileName: filename,
+  }).outputText
+  const module = { exports: {} }
+  new Function('require', 'module', 'exports', 'globalThis', source)(require, module, module.exports, browser)
+  return module.exports.useAuthStore
+}
+
 async function settle() {
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)) })
 }
@@ -83,6 +93,51 @@ async function until(predicate) {
     await settle()
   }
 }
+
+for (const provider of ['local', 'jira']) {
+  test(`${provider} identity stays in memory and refresh restores its name after legacy identity storage is removed`, async () => {
+    const entries = new Map([
+      ['auth-storage', JSON.stringify({ state: { username: 'Legacy Identity', accessToken: 'legacy-token' }, version: 0 })],
+      ['auto-reports-theme', JSON.stringify({ state: { theme: 'dark' } })],
+      ['auto-reports-table:sla', JSON.stringify({ widths: { summary: 400 } })],
+    ])
+    const storage = {
+      getItem: (key) => entries.get(key) ?? null,
+      setItem: (key, value) => entries.set(key, value),
+      removeItem: (key) => entries.delete(key),
+    }
+    const store = loadAuthStore({ localStorage: storage })
+    assert.equal(entries.has('auth-storage'), false)
+    assert.equal(store.getState().username, null)
+    assert.equal(store.getState().accessToken, null)
+    const preferences = [...entries]
+    const app = setup({ store })
+    app.client.defaults.adapter = async (config) => response(config, {
+      access_token: `${provider}-memory-token`, username: `${provider}-identity`, display_name: 'Verified Identity', auth_provider: provider,
+    })
+    await app.auth.refresh()
+    assert.equal(store.getState().username, 'Verified Identity')
+    assert.equal(store.getState().accessToken, `${provider}-memory-token`)
+    assert.equal(store.getState().sessionReady, true)
+    assert.deepEqual([...entries], preferences)
+    assert.doesNotMatch(JSON.stringify([...entries]), /Identity|identity|token/)
+    store.getState().clearAuth()
+    assert.equal(store.getState().username, null)
+    assert.equal(store.getState().accessToken, null)
+    assert.deepEqual([...entries], preferences)
+  })
+}
+
+test('unavailable browser storage does not prevent memory-only authentication', () => {
+  for (const browser of [{}, Object.defineProperty({}, 'localStorage', { get() { throw new Error('Storage blocked') } })]) {
+    const store = loadAuthStore(browser)
+    store.getState().setAuth('memory-token', 'Memory User')
+    assert.equal(store.getState().username, 'Memory User')
+    assert.equal(store.getState().accessToken, 'memory-token')
+    store.getState().clearAuth()
+    assert.equal(store.getState().accessToken, null)
+  }
+})
 
 test('startup, login page and expired requests share one refresh and trust server identity', async () => {
   const app = setup()
@@ -132,6 +187,33 @@ test('logout prevents late refresh resurrection and clears the cookie after refr
   await Promise.all([rejected, logout])
   assert.deepEqual(calls, ['/auth/refresh', '/auth/logout'])
   assert.equal(app.store.getState().accessToken, null)
+  assert.equal(app.redirects, 0)
+})
+
+test('protected owner reporting APIs refresh an expired root access token without starting a new login', async () => {
+  const app = setup()
+  app.store.getState().setAuth('expired-root-session', 'root')
+  let refreshes = 0
+  const operations = []
+  app.client.defaults.adapter = async (config) => {
+    if (config.url === '/auth/refresh') {
+      refreshes++
+      return response(config, { access_token: 'restored-root-session', username: 'root', display_name: 'root', auth_provider: 'local', is_superadmin: true })
+    }
+    if (config.headers.Authorization !== 'Bearer restored-root-session') fail(config, 401)
+    operations.push(config.url)
+    if (config.url === '/auth/jira/privacy/status') return response(config, { owner_authorized: true })
+    if (config.url === '/auth/jira/privacy/start') return response(config, { authorization_url: 'https://auth.atlassian.com/authorize?test=owner' })
+    throw new Error(`Unexpected owner request ${config.url}`)
+  }
+  const status = await app.auth.getJiraPrivacyStatus()
+  const started = await app.auth.startJiraPrivacy()
+  assert.equal(status.owner_authorized, true)
+  assert.equal(started.authorization_url, 'https://auth.atlassian.com/authorize?test=owner')
+  assert.equal(refreshes, 1)
+  assert.deepEqual(operations, ['/auth/jira/privacy/status', '/auth/jira/privacy/start'])
+  assert.equal(app.store.getState().accessToken, 'restored-root-session')
+  assert.equal(app.store.getState().username, 'root')
   assert.equal(app.redirects, 0)
 })
 
@@ -378,3 +460,83 @@ for (const username of ['admin', 'superadmin']) {
     assert.match(JSON.stringify(view.toJSON()), /Authenticated home/)
   })
 }
+
+for (const identity of [null, { username: 'admin', auth_provider: 'local' }, { username: 'jira:site:employee', auth_provider: 'jira' }]) {
+  test(`/admin/jira-privacy rejects ${identity?.auth_provider ?? 'unauthenticated'} access without requesting owner status`, async (t) => {
+    const app = setup()
+    if (identity) app.store.getState().setAuth('ordinary-session', identity.username)
+    else app.store.getState().clearAuth()
+    const { default: Page } = app.load('presentation/pages/AdminJiraPrivacyPage')
+    const { ApplicationServicesProvider } = app.load('presentation/context/ApplicationServicesContext')
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const requests = []
+    app.client.defaults.adapter = async (config) => {
+      requests.push(config.url)
+      if (config.url === '/auth/me') return response(config, { ...identity, login_required: true, is_superadmin: false })
+      throw new Error(`Unexpected owner request ${config.url}`)
+    }
+    let view
+    act(() => {
+      view = TestRenderer.create(React.createElement(ApplicationServicesProvider, { services: { auth: app.auth } },
+        React.createElement(QueryClientProvider, { client: queries },
+          React.createElement(MemoryRouter, { initialEntries: ['/admin/jira-privacy'], future: { v7_startTransition: true, v7_relativeSplatPath: true } },
+            React.createElement(Routes, null,
+              React.createElement(Route, { path: '/admin/jira-privacy', element: React.createElement(Page) }),
+              React.createElement(Route, { path: '/admin', element: React.createElement('div', null, 'Administrator sign-in') }))))))
+    })
+    t.after(() => { act(() => view.unmount()); queries.clear() })
+    await until(() => JSON.stringify(view.toJSON()).includes(identity ? '접근 권한이 없습니다' : 'Administrator sign-in'))
+    assert.deepEqual(requests, identity ? ['/auth/me'] : [])
+    assert.doesNotMatch(JSON.stringify(view.toJSON()), /등록 계정|개인정보 보고 연결|offline_access/)
+    assert.equal(view.root.findAllByType('button').length, 0)
+  })
+}
+
+test('root privacy setup loads protected status and starts owner authorization without replacing the root session', async (t) => {
+  const app = setup()
+  app.store.getState().setAuth('root-session', 'root')
+  const { default: Page } = app.load('presentation/pages/AdminJiraPrivacyPage')
+  const { ApplicationServicesProvider } = app.load('presentation/context/ApplicationServicesContext')
+  const queries = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+  const requests = []
+  const navigations = []
+  const previousWindow = globalThis.window
+  globalThis.window = { location: { assign: (url) => navigations.push(url) } }
+  app.client.defaults.adapter = async (config) => {
+    requests.push({ method: config.method, url: config.url, authorization: config.headers.Authorization })
+    if (config.url === '/auth/me') return response(config, { username: 'root', auth_provider: 'local', login_required: true, is_superadmin: true })
+    if (config.url === '/auth/jira/privacy/status') return response(config, {
+      owner_authorized: true, registered_accounts: 12, account_states: { active: 9, pending_updated: 2, pending_closed: 1 },
+      next_attempt_at: '2026-10-17T00:00:00Z', last_success_at: '2026-10-16T00:00:00Z', last_error: 'private-internal-error',
+      coverage: { known_accounts: 12, unmapped_personal_fields: 0 }, reporting_ready: true,
+    })
+    if (config.url === '/auth/jira/privacy/start') return response(config, { authorization_url: 'https://auth.atlassian.com/authorize?test=privacy' })
+    throw new Error(`Unexpected authentication request ${config.url}`)
+  }
+  let view
+  act(() => {
+    view = TestRenderer.create(React.createElement(ApplicationServicesProvider, { services: { auth: app.auth } },
+      React.createElement(QueryClientProvider, { client: queries },
+        React.createElement(MemoryRouter, { initialEntries: ['/admin/jira-privacy?jira_privacy=success'], future: { v7_startTransition: true, v7_relativeSplatPath: true } }, React.createElement(Page)))))
+  })
+  t.after(() => { act(() => view.unmount()); queries.clear(); globalThis.window = previousWindow })
+  await until(() => view.root.findAllByType('dd').some((item) => item.children.join('') === '12개'))
+  const rendered = JSON.stringify(view.toJSON())
+  assert.match(rendered, /연결됨/)
+  assert.ok(view.root.findAllByType('dd').some((item) => item.children.join('') === '3개'))
+  assert.match(rendered, /offline_access/)
+  assert.match(rendered, /암호화해 보관/)
+  assert.match(rendered, /개인정보 보고 연결이 완료/)
+  assert.doesNotMatch(rendered, /private-internal-error/)
+  const connect = view.root.findAllByType('button').find((button) => button.children.join('') === '개인정보 보고 연결')
+  act(() => connect.props.onClick())
+  await until(() => navigations.length === 1)
+  assert.deepEqual(navigations, ['https://auth.atlassian.com/authorize?test=privacy'])
+  assert.deepEqual(requests, [
+    { method: 'get', url: '/auth/me', authorization: 'Bearer root-session' },
+    { method: 'get', url: '/auth/jira/privacy/status', authorization: 'Bearer root-session' },
+    { method: 'post', url: '/auth/jira/privacy/start', authorization: 'Bearer root-session' },
+  ])
+  assert.equal(app.store.getState().accessToken, 'root-session')
+  assert.equal(app.store.getState().username, 'root')
+})

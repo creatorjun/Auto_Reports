@@ -13,6 +13,7 @@ import httpx
 from src.application.ports.sla_violation_port import SlaViolationSourcePort
 from src.domain.entities.sla_clock import SlaClockCalendar
 from src.infrastructure.external.jira_sla_calendar import calendar_ids_for_project, parse_clock_calendar
+from src.infrastructure.external.jira_user_identity import jira_account_id
 from src.domain.entities.sla_violation_report import (
     SlaViolationChange,
     SlaViolationCycle,
@@ -456,6 +457,10 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
             partners=partners, reporter=_text(fields.get("reporter")) or None,
             assignee=_text(fields.get("assignee")) or None,
             tac_assignee=_text(fields.get(self._tac_field)) or None,
+            reporter_account_id=jira_account_id(fields.get("reporter")),
+            assignee_account_id=jira_account_id(fields.get("assignee")),
+            tac_assignee_account_id=jira_account_id(fields.get(self._tac_field)),
+            personal_data_retrieved_at=raw["_sla_snapshot_after"].isoformat() if raw.get("_sla_snapshot_after") else None,
             cycles=cycles, changes=changes, history_complete=complete,
             warnings=tuple(dict.fromkeys(warnings)),
             issue_type=_text(fields.get("issuetype")) or None,

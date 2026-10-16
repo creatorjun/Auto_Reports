@@ -9,3 +9,4 @@ class AuthIdentity:
     display_name: str
     auth_provider: Literal["local", "jira"] = "local"
     session_expires_at: int | None = None
+    profile_version: int | None = None

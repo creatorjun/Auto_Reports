@@ -2,13 +2,14 @@
 import asyncio
 import math
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import quote
 
 import httpx
 
 from src.domain.constants import KST
 from src.domain.entities.redeployment_report import REDEPLOYMENT_START, RedeploymentTicket
+from src.infrastructure.external.jira_user_identity import jira_account_id
 
 REDEPLOYMENT_FIELDS = {
     "flag": "customfield_11819", "cause": "customfield_11885", "reason": "customfield_11852",
@@ -134,5 +135,8 @@ class RedeploymentJiraSource:
                 cause=_text(fields.get(REDEPLOYMENT_FIELDS["cause"])), reason=_text(fields.get(REDEPLOYMENT_FIELDS["reason"])),
                 repatch_count=int(count) if valid_count else None, customer=_text(fields.get(REDEPLOYMENT_FIELDS["customer"])),
                 partners=tuple(dict.fromkeys(partners)), assignee=_text(fields.get("assignee")), reporter=_text(fields.get("reporter")),
+                assignee_account_id=jira_account_id(fields.get("assignee")),
+                reporter_account_id=jira_account_id(fields.get("reporter")),
+                personal_data_retrieved_at=datetime.now(timezone.utc).isoformat(),
             ))
         return jql, tuple(tickets), tuple(sorted(warnings))

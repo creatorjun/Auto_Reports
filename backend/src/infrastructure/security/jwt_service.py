@@ -74,13 +74,17 @@ class JwtService(TokenServicePort):
             "sub": identity.username,
             "type": token_type,
             "exp": expire,
-            "display_name": identity.display_name,
             "auth_provider": identity.auth_provider,
         }
         if generation is not None:
             payload["gen"] = generation
         if identity.auth_provider == "jira":
+            if type(identity.profile_version) is not int or identity.profile_version < 1:
+                raise ValueError("Jira profile version required")
             payload["session_exp"] = identity.session_expires_at
+            payload["profile_ver"] = identity.profile_version
+        else:
+            payload["display_name"] = identity.display_name
         return jwt.encode(payload, self._settings.jwt_secret, algorithm="HS256")
 
     def _decode(self, token: str, expected_type: str) -> AuthIdentity:
@@ -101,9 +105,12 @@ class JwtService(TokenServicePort):
             if provider == "jira" and (not subject.startswith("jira:") or payload.get("gen") is not None):
                 raise ValueError("Invalid Jira identity")
             session_exp = payload.get("session_exp") if provider == "jira" else None
+            profile_version = payload.get("profile_ver") if provider == "jira" else None
             if provider == "jira" and (
                 type(session_exp) is not int or payload["exp"] > session_exp
                 or session_exp <= datetime.now(timezone.utc).timestamp()
+                or type(profile_version) is not int or profile_version < 1
+                or "display_name" in payload
             ):
                 raise ValueError("Invalid Jira session expiration")
             gen = payload.get("gen")
@@ -117,6 +124,6 @@ class JwtService(TokenServicePort):
                 raise ValueError("Superadmin session required")
             if gen is not None and gen != self._superadmin_generation:
                 raise ValueError("Superadmin session invalidated")
-            return AuthIdentity(subject, display_name, provider, session_exp)
+            return AuthIdentity(subject, display_name, provider, session_exp, profile_version)
         except (JWTError, ValueError, KeyError, TypeError) as e:
             raise ValueError("Invalid or expired token") from e

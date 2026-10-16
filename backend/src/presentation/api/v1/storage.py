@@ -74,7 +74,7 @@ def _decode(value: str) -> str:
     return urllib.parse.unquote(value)
 
 
-def _verify_preview_token(auth: AuthService, token: str | None, request: Request) -> None:
+async def _verify_preview_token(auth: AuthService, token: str | None, request: Request) -> None:
     if not auth.enabled:
         return
     scheme, _, credentials = request.headers.get("Authorization", "").partition(" ")
@@ -83,7 +83,7 @@ def _verify_preview_token(auth: AuthService, token: str | None, request: Request
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        auth.decode_access_token(token)
+        await auth.resolve_access_identity(token)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -391,7 +391,7 @@ async def preview_file(
     uc: StorageUseCase = Depends(get_storage_use_case),
     auth: AuthService = Depends(get_auth),
 ):
-    _verify_preview_token(auth, _t, request)
+    await _verify_preview_token(auth, _t, request)
     folder, name = _decode(folder), _decode(name)
     try:
         path = await uc.get_file_path(folder, name)
@@ -418,7 +418,7 @@ async def preview_converted(
     uc: StorageUseCase = Depends(get_storage_use_case),
     auth: AuthService = Depends(get_auth),
 ):
-    _verify_preview_token(auth, _t, request)
+    await _verify_preview_token(auth, _t, request)
     folder, name = _decode(folder), _decode(name)
     if not uc.is_convertible(name):
         raise HTTPException(status_code=400, detail="Unsupported format for conversion")
@@ -450,7 +450,7 @@ async def download_file(
     uc: StorageUseCase = Depends(get_storage_use_case),
     auth: AuthService = Depends(get_auth),
 ):
-    _verify_preview_token(auth, _t, request)
+    await _verify_preview_token(auth, _t, request)
     folder, name = _decode(folder), _decode(name)
     try:
         path = await uc.get_file_path(folder, name)

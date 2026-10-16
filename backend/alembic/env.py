@@ -11,6 +11,7 @@ from src.infrastructure.persistence.models import Base
 import src.infrastructure.persistence.site_models
 import src.infrastructure.persistence.sla_violation_models
 import src.infrastructure.persistence.redeployment_repository_impl
+import src.infrastructure.persistence.personal_data_models
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / ".env")
 

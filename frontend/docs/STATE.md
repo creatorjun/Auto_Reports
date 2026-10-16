@@ -5,7 +5,7 @@
 | 상태 | 소유 위치 | 지속 범위 |
 |---|---|---|
 | 서버 요청·캐시 | `presentation/hooks`, TanStack Query | query key·staleTime에 따름 |
-| 인증 | `state/authStore.ts`, Zustand persist | access token·복원 상태는 메모리, 표시 이름만 localStorage, refresh token은 HttpOnly cookie |
+| 인증 | `state/authStore.ts`, Zustand | access token·표시 이름·복원 상태는 메모리, refresh token은 HttpOnly cookie |
 | 현재·선택 보고서 | `state/reportStore.ts` | 앱 메모리의 선택 ID와 현재 보고서 참조 |
 | 일반 보고서 생성 | `context/ReportGenerationContext.tsx`, `state/uiStore.ts` | 인증된 Layout이 구독 소유, 메뉴 이동 중 유지 |
 | 테마 | `state/themeStore.ts` | `auto-reports-theme` localStorage |
@@ -13,7 +13,7 @@
 | 페이지 필터·검색·펼침·pagination | page/component React state | 해당 화면·보고서 수명 |
 | 서비스/Jira URL | `ApplicationServicesContext`, `JiraContext` | Provider 수명 |
 
-위 경로는 `src/presentation` 기준입니다. Infrastructure는 Zustand를 import하지 않고 `main.tsx`가 `AuthSessionPort`를 구성합니다. `useAuthSession`은 로그인 페이지와 보호 경로에서 cookie 기반 복원을 공유합니다. access token과 Jira 인증 정보는 localStorage에 저장하지 않습니다.
+위 경로는 `src/presentation` 기준입니다. Infrastructure는 Zustand를 import하지 않고 `main.tsx`가 `AuthSessionPort`를 구성합니다. `useAuthSession`은 로그인 페이지와 보호 경로에서 cookie 기반 복원을 공유하며 서버 응답의 표시 이름으로 메모리 상태를 복원합니다. 사용자 식별정보·access token·비밀번호는 localStorage에 저장하지 않습니다. 시작 시 기존 `auth-storage` 키만 제거하며 테마·표 정렬·너비 설정은 유지합니다. 브라우저 저장소 접근이 차단되어도 메모리 기반 인증과 cookie 복원은 계속 사용할 수 있습니다.
 
 ## Query 소유
 
