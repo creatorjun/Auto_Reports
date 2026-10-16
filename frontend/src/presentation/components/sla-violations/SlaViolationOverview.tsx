@@ -75,7 +75,7 @@ export default function SlaViolationOverview({ report, tickets, scopedTickets, s
         <section aria-label="위반 티켓 생성 추이" className="card min-w-0">
           <h2 className="text-section-title font-semibold text-apple-dark">{report.period === 'year' ? '생성월별' : '생성일별'} 위반 티켓</h2>
           <div className="mt-5 overflow-x-auto">
-            <div className="flex h-64 min-w-full items-end gap-2 border-b border-apple-divider" style={{ minWidth: Math.max(280, timeline.buckets.length * (report.period === 'year' ? 32 : 44)) }}>
+            <div className="flex h-64 min-w-full items-end gap-2 border-b border-apple-divider" style={{ minWidth: `max(280px, calc(var(--font-size-caption) * ${timeline.buckets.length * (report.period === 'year' ? 3 : 3.5)}))` }}>
               {timeline.buckets.map((item) => (
                 <button key={item.key} type="button" aria-label={`${item.key} 생성 위반 티켓 ${item.count.toLocaleString('ko-KR')}건 보기`} aria-pressed={bucket === item.key}
                   title={`${item.key} · ${item.count.toLocaleString('ko-KR')}건`} onClick={() => onBucketChange(bucket === item.key ? null : item.key)}

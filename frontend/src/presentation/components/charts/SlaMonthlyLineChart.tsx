@@ -162,7 +162,7 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color, monthOnly = fals
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis dataKey="month" tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={40} />
+          <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={Math.ceil(CHART_TICK_FONT_SIZE * 3.5)} />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine
             y={SLA_TARGET_RATE}
