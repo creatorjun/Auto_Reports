@@ -36,7 +36,7 @@ export default function MobileTabBar() {
       {expanded && <button type="button" aria-label="집중 관리 메뉴 닫기" onClick={() => setExpanded(false)} className="fixed inset-0 z-20 cursor-default bg-black/10" />}
       <nav
         aria-label="주 메뉴"
-        className="fixed bottom-0 left-0 right-0 z-30 xl:hidden bg-apple-surface/90 backdrop-blur-xl border-t border-apple-divider/80 flex items-center justify-around overflow-x-auto px-1 h-16 safe-area-inset-bottom"
+        className="fixed bottom-0 left-0 right-0 z-30 xl:hidden bg-apple-surface/90 backdrop-blur-xl border-t border-apple-divider/80 flex items-center justify-around overflow-x-auto px-1 h-20 safe-area-inset-bottom"
       >
         {visibleTabs.map(({ to, icon, label }) => (
           <div key={to} className="contents">
@@ -57,7 +57,7 @@ export default function MobileTabBar() {
         ))}
 
       </nav>
-      <nav ref={menu} id={menuId} hidden={!expanded} aria-label={FOCUS_MANAGEMENT_LABEL} className="fixed bottom-20 left-3 right-3 z-30 rounded-2xl border border-apple-divider bg-apple-surface p-3 shadow-xl">
+      <nav ref={menu} id={menuId} hidden={!expanded} aria-label={FOCUS_MANAGEMENT_LABEL} className="fixed bottom-24 left-3 right-3 z-30 rounded-2xl border border-apple-divider bg-apple-surface p-3 shadow-xl">
         <p className="px-3 pb-2 text-caption font-semibold text-apple-mid">{FOCUS_MANAGEMENT_LABEL}</p>
         {FOCUS_MANAGEMENT_LINKS.map(({ to, label }) => <NavLink key={to} to={to} onClick={() => setExpanded(false)} className={({ isActive }) => `nav-link px-3 py-3 text-label ${isActive ? 'nav-link-active' : ''}`}>{label}</NavLink>)}
       </nav>

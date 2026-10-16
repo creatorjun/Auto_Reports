@@ -26,15 +26,15 @@ export default function Header() {
         {triggerMessage && (
           <p className="text-center text-control-label text-green-700 pb-0.5 px-4 truncate">{triggerMessage}</p>
         )}
-        <div className="flex items-center gap-2 px-4 pb-2.5 pt-1 overflow-hidden">
+        <div className="flex flex-col gap-2 px-4 pb-3 pt-1 sm:flex-row sm:items-center">
           {currentReport && (
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <p className="text-control-label text-apple-light tabular-nums truncate max-w-[160px]">
+            <div className="min-w-0 shrink-0">
+              <p className="text-control-label text-apple-light tabular-nums">
                 {currentReport.week_start} – {currentReport.week_end}
               </p>
             </div>
           )}
-          <div className="ml-auto flex-shrink-0">
+          <div className="w-full min-w-0 sm:ml-auto sm:max-w-md">
             <SearchWidget />
           </div>
         </div>

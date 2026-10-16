@@ -103,11 +103,11 @@ function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: st
       onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
       className="flex flex-col items-center gap-2 px-4 py-3 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
     >
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex max-w-full flex-wrap items-center justify-center gap-2">
         <span className="font-mono text-caption text-blue-500 flex-shrink-0">{issue.key}</span>
         <StatusBadge status={issue.status} size="xs" />
       </div>
-      <p className="w-full text-body text-apple-dark leading-snug line-clamp-2">{issue.summary}</p>
+      <p className="w-full break-words text-body text-apple-dark leading-snug">{issue.summary}</p>
       <span className="text-caption text-apple-mid">티켓 타입 · <IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></span>
       <div className="flex flex-wrap items-center justify-center gap-2 text-caption text-apple-light">
         <span>{issue.reporter}</span>
@@ -208,8 +208,8 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
             <tr className="border-b-2 border-apple-divider text-label text-apple-mid">
               {headers.map(({ key, label, rightCol }) => (
                 <th key={key} data-pdf-header={label} onClick={() => handleSort(key)}
-                  className={['relative cursor-pointer select-none whitespace-nowrap border-r border-apple-divider/90 px-3 pb-2.5 pt-3 text-center font-semibold transition-colors last:border-r-0 hover:bg-apple-gray hover:text-apple-primary', sortKey === key ? 'text-apple-primary' : ''].join(' ')}>
-                  <span className="inline-flex items-center justify-center">
+                  className={['relative cursor-pointer select-none whitespace-normal break-words border-r border-apple-divider/90 px-3 pb-2.5 pt-3 text-center font-semibold transition-colors last:border-r-0 hover:bg-apple-gray hover:text-apple-primary', sortKey === key ? 'text-apple-primary' : ''].join(' ')}>
+                  <span className="inline-flex max-w-full flex-wrap items-center justify-center">
                     {label}<SortIcon dir={sortKey === key ? sortDir : null} />
                   </span>
                   {!exportMode && onColumnFilterChange && searchInput(key, label)}
@@ -226,19 +226,21 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
               return (
                 <tr key={issue.key} onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
                   className="cursor-pointer transition-colors hover:bg-gray-50">
-                  <td className="overflow-hidden px-3 py-2 text-center" data-pdf-link={jiraUrl}><span className="block truncate font-mono text-label text-blue-500">{issue.key}</span></td>
-                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-apple-primary" title={issue.summary}>{issue.summary}</span></td>
+                  <td className="px-3 py-2 text-center" data-pdf-link={jiraUrl}><span className="block break-all font-mono text-label text-blue-500">{issue.key}</span></td>
+                  <td className="px-3 py-2 text-center"><span className="block break-words text-apple-primary">{issue.summary}</span></td>
                   <td className="overflow-hidden px-3 py-2 text-center"><IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></td>
                   <td className="overflow-hidden px-3 py-2 text-center">
                     <StatusBadge status={issue.status} size="md" />
                   </td>
-                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-label text-apple-light">{issue.reporter}</span></td>
-                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-label text-apple-light">{issue.tac_team}</span></td>
-                  <td className="overflow-hidden px-3 py-2 text-center"><span className="block truncate text-label text-apple-light" title={issue.tac_assignee ?? undefined}>{issue.tac_assignee ?? '-'}</span></td>
-                  <td className="whitespace-nowrap px-3 py-2 text-center text-apple-light" data-pdf-value={`${createdDate}\n(${issue.elapsed_days}일 경과)`}>
-                    <span className="tabular-nums">{createdDate}</span>
-                    <span className="text-caption text-apple-divider mx-1">·</span>
-                    <span className="tabular-nums">{issue.elapsed_days}일</span>
+                  <td className="px-3 py-2 text-center"><span className="block break-words text-label text-apple-light">{issue.reporter}</span></td>
+                  <td className="px-3 py-2 text-center"><span className="block break-words text-label text-apple-light">{issue.tac_team}</span></td>
+                  <td className="px-3 py-2 text-center"><span className="block break-words text-label text-apple-light">{issue.tac_assignee ?? '-'}</span></td>
+                  <td className="px-3 py-2 text-center text-apple-light" data-pdf-value={`${createdDate}\n(${issue.elapsed_days}일 경과)`}>
+                    <div className="flex flex-wrap items-center justify-center gap-x-1">
+                      <span className="break-all tabular-nums">{createdDate}</span>
+                      <span className="text-caption text-apple-divider">·</span>
+                      <span className="break-all tabular-nums">{issue.elapsed_days}일</span>
+                    </div>
                   </td>
                 </tr>
               )

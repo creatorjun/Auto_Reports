@@ -66,13 +66,13 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
           setHoveredGroup(null)
           setCollapsed(!sidebarCollapsed)
         }}
-        className="flex items-center justify-center w-8 h-8 3xl:w-10 3xl:h-10 rounded-xl text-apple-light hover:bg-apple-gray hover:text-apple-dark transition-all duration-200 mb-2 self-end"
+        className="flex shrink-0 items-center justify-center w-8 h-8 3xl:w-10 3xl:h-10 rounded-xl text-apple-light hover:bg-apple-gray hover:text-apple-dark transition-all duration-200 mb-2 self-end"
         title={sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
       >
         {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
 
-      <div className="flex flex-col gap-0.5 flex-1">
+      <div className="flex min-h-0 flex-col gap-0.5 flex-1 overflow-y-auto">
         {reportLinks.map((item) => {
           if (item.children) {
             const expanded = expandedGroups.has(item.id) && !sidebarCollapsed
@@ -173,7 +173,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
         )}
       </div>
 
-      <div className={['mt-auto pt-4 border-t border-apple-divider/60 flex flex-col', sidebarCollapsed ? 'items-center' : ''].join(' ')}>
+      <div className={['mt-auto shrink-0 pt-4 border-t border-apple-divider/60 flex flex-col', sidebarCollapsed ? 'items-center' : ''].join(' ')}>
         <ThemeToggle collapsed={sidebarCollapsed} />
 
         {loginRequired && (

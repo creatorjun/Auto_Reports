@@ -80,7 +80,7 @@ export default function PartnerManagementPage() {
     : '이슈'
 
   return (
-    <div className="flex flex-col w-full h-full px-6 py-6 gap-4">
+    <div className="flex w-full min-w-0 flex-col gap-4 xl:h-full">
       <div className="flex-shrink-0">
         <div>
           <h1 className="text-page-title font-semibold text-apple-dark">파트너 관리</h1>
@@ -107,8 +107,8 @@ export default function PartnerManagementPage() {
           }}
         />
       )}
-      <div className="flex-1 grid grid-cols-[220px_220px_1fr] gap-3 min-h-0">
-        <div className="bg-apple-surface border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
+      <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:min-h-80 xl:flex-1 xl:grid-cols-[220px_220px_minmax(0,1fr)]">
+        <div className="h-80 min-w-0 overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface shadow-sm xl:h-auto">
           <PartnerOrgPanel
             selectedOrgId={selectedOrg?.id ?? null}
             searchQuery={organizationQuery}
@@ -116,7 +116,7 @@ export default function PartnerManagementPage() {
             onSelect={handleSelectOrg}
           />
         </div>
-        <div className="bg-apple-surface border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
+        <div className="h-80 min-w-0 overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface shadow-sm xl:h-auto">
           <PartnerMemberPanel
             orgId={selectedOrg?.id ?? null}
             orgName={selectedOrg?.name ?? ''}
@@ -126,7 +126,7 @@ export default function PartnerManagementPage() {
             onSelect={setSelectedMember}
           />
         </div>
-        <div className="bg-apple-surface border border-apple-divider rounded-2xl shadow-sm overflow-hidden">
+        <div className="h-96 min-w-0 overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface shadow-sm md:col-span-2 xl:col-span-1 xl:h-auto">
           <PartnerIssuePanel
             orgId={selectedOrg?.id ?? null}
             accountId={selectedMember?.account_id ?? null}

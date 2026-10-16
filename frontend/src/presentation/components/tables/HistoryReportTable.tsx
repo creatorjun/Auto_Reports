@@ -56,7 +56,7 @@ function MobileReportRow({ r, onDelete }: { r: ReportSummary; onDelete: (id: num
     [r.created_at]
   )
   return (
-    <div className="flex items-center justify-between px-4 py-4 hover:bg-apple-gray/60 transition-colors">
+    <div className="flex items-center justify-between gap-3 px-4 py-4 hover:bg-apple-gray/60 transition-colors">
       <Link to={`/reports/${r.id}`} className="flex flex-col gap-1 flex-1 min-w-0">
         <span className="text-body font-medium text-apple-dark">{r.week_start} – {r.week_end}</span>
         <span className="text-caption text-apple-light tabular-nums">#{r.id} · {formattedDate}</span>
@@ -88,8 +88,8 @@ export function HistoryReportTable({
 }) {
   return (
     <>
-      <div className="hidden md:block">
-        <table className="w-full">
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[800px]">
           <thead className="border-b border-apple-divider/60">
             <tr>
               {['ID', '데이터 범위', '생성 시각', 'AI 상태', ''].map((h, i) => (

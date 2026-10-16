@@ -546,7 +546,7 @@ test('dashboard issue modals share accessible Jira new-tab row behavior', () => 
   assert.match(commonModal, /w-full table-fixed border-collapse/)
   assert.match(commonModal, /size = 'lg'/)
   assert.match(commonModal, /width\?: 'wide' \| 'date'/)
-  assert.match(commonModal, /col\.width === 'date' \? 'w-48'/)
+  assert.match(commonModal, /col\.width === 'wide' \? '' : 'w-48'/)
   assert.match(commonModal, /w-48 min-w-48 whitespace-nowrap px-4 text-center align-middle/)
   assert.match(commonModal, /col\.width === 'date'[\s\S]*\? 'whitespace-nowrap text-center \[&>\*\]:pr-0'/)
   assert.match(commonModal, /<td[\s\S]*px-4 text-center align-middle/)

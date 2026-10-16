@@ -30,8 +30,8 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-6 max-w-5xl mx-auto w-full">
-      <div className="flex items-center justify-between">
+    <div className="flex min-w-0 flex-col gap-6 max-w-5xl mx-auto w-full">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-page-title font-semibold text-apple-dark">보고서 히스토리</h1>
         {isFetching && <LoadingSpinner />}
       </div>
@@ -49,7 +49,7 @@ export default function HistoryPage() {
       </div>
 
       {(hasPrev || hasNext) && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <button
             onClick={() => setPage(p => p - 1)}
             disabled={!hasPrev || isFetching}

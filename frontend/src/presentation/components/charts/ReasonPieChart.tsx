@@ -62,7 +62,7 @@ function ReasonPieChart({ byStatus, byStatusDetails, onSliceClick }: Props) {
   }
 
   return (
-    <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['지연 사유', '건수'], rows: data.map((row) => [row.name, row.value]) }) : undefined} className="card flex flex-col">
+    <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['지연 사유', '건수'], rows: data.map((row) => [row.name, row.value]) }) : undefined} className="card flex min-w-0 flex-col">
       <h3 className="text-section-title font-semibold text-apple-dark mb-3">🥧 SLA 지연 사유</h3>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <PieChart>
@@ -71,7 +71,7 @@ function ReasonPieChart({ byStatus, byStatusDetails, onSliceClick }: Props) {
             data={data}
             cx="50%"
             cy="45%"
-            outerRadius={125}
+            outerRadius={exportMode ? 125 : '75%'}
             dataKey="value"
             labelLine={false}
             label={CustomLabel}

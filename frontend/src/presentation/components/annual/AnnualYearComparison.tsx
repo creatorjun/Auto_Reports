@@ -42,7 +42,8 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
           <h2 id="annual-comparison-title" className="text-section-title font-semibold text-apple-dark">3개년 실적 비교</h2>
         </div>
       </div>
-      <table className="w-full table-fixed border-collapse text-body text-apple-dark">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[560px] table-fixed border-collapse text-body text-apple-dark">
         <caption className="sr-only">2024년부터 2026년까지 연간 생성 및 해결 건수. 2026년은 집계 기간까지의 누적 실적입니다.</caption>
         <thead className="text-label">
           <tr className="border-y border-apple-divider bg-apple-gray/60">
@@ -84,6 +85,7 @@ export default function AnnualYearComparison({ report }: { report: ReportDetail 
           ))}
         </tbody>
       </table>
+      </div>
       {failedColumns.length > 0 && <div className="space-y-2 border-t border-apple-divider px-4 py-3 text-caption leading-5 text-apple-mid md:px-6">
         {failedColumns.map(({ year, query, data }) => (
           <p key={year} className="flex flex-wrap items-center gap-2">

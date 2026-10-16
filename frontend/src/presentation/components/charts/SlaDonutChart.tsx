@@ -58,7 +58,7 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
   }
 
   return (
-    <div data-pdf-kind="chart" data-export-table={exportTable} className="card">
+    <div data-pdf-kind="chart" data-export-table={exportTable} className="card min-w-0">
       <h3 className="text-section-title font-semibold text-gray-700 mb-4">🎯 SLA 위반 분포</h3>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <PieChart>
@@ -67,7 +67,7 @@ function SlaDonutChart({ total, distribution, onSliceClick }: Props) {
             data={data}
             cx="50%"
             cy="45%"
-            outerRadius={125}
+            outerRadius={exportMode ? 125 : '75%'}
             dataKey="value"
             labelLine={false}
             label={CustomLabel}

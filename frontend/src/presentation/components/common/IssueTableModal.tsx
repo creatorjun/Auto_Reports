@@ -45,6 +45,7 @@ export default function IssueTableModal<T extends { key: string }>({
   const rows = paginate
     ? data.slice((page - 1) * TABLE_PAGE_SIZE, page * TABLE_PAGE_SIZE)
     : data
+  const minTableWidth = columns.reduce((width, column) => width + (column.width === 'wide' ? 320 : 192), 0)
 
   const openIssue = (key: string) => {
     window.open(`${jiraBrowse}/${key}`, '_blank', 'noopener,noreferrer')
@@ -69,14 +70,14 @@ export default function IssueTableModal<T extends { key: string }>({
     <IssueModalShell title={title} subtitle={subtitle} size={size} onClose={onClose}>
       {headerSlot && <div className="mb-4">{headerSlot}</div>}
 
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full table-fixed border-collapse">
+      <div className="hidden xl:block overflow-x-auto">
+        <table className="w-full table-fixed border-collapse" style={{ minWidth: minTableWidth }}>
           <thead className="bg-apple-gray/60">
             <tr className="border-b-2 border-apple-divider">
               {columns.map(col => (
                 <th
                   key={col.header}
-                  className={`${MODAL_CLS.thCell} ${col.width === 'wide' ? 'w-[40%]' : col.width === 'date' ? 'w-48' : ''}`}
+                  className={`${MODAL_CLS.thCell} ${col.width === 'wide' ? '' : 'w-48'}`}
                 >
                   {col.header}
                 </th>
@@ -103,6 +104,8 @@ export default function IssueTableModal<T extends { key: string }>({
                   >
                     <div className={col.width === 'date'
                       ? 'whitespace-nowrap text-center [&>*]:pr-0'
+                      : col.width === 'wide'
+                      ? 'min-w-0 whitespace-normal break-words text-center [&>*]:pr-0 [&>*]:whitespace-normal'
                       : 'min-w-0 truncate text-center [&>*]:pr-0'}
                     >
                       {col.renderCell(row)}
@@ -115,7 +118,7 @@ export default function IssueTableModal<T extends { key: string }>({
         </table>
       </div>
 
-      <div className="md:hidden">
+      <div className="xl:hidden">
         {rows.map(row => (
           <div
             key={row.key}
@@ -126,7 +129,7 @@ export default function IssueTableModal<T extends { key: string }>({
             onKeyDown={(event) => handleIssueKeyDown(event, row.key)}
             className="cursor-pointer flex flex-col gap-1 rounded-lg px-2 py-3 text-center transition-colors hover:bg-apple-gray/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
           >
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-3 flex-wrap">
               {primaryColumns.map(column => (
                 <div key={column.header} className="text-label font-mono font-medium text-brand-600 whitespace-nowrap">
                   {renderMobileColumn(column, row)}
@@ -139,7 +142,7 @@ export default function IssueTableModal<T extends { key: string }>({
               ))}
             </div>
             {summaryColumns.map(column => (
-              <div key={column.header} className="min-w-0 truncate text-label text-apple-dark/80">
+              <div key={column.header} className="min-w-0 break-words text-label text-apple-dark/80">
                 {renderMobileColumn(column, row)}
               </div>
             ))}
@@ -158,11 +161,11 @@ export default function IssueTableModal<T extends { key: string }>({
       </div>
 
       {paginate && totalPages > 1 && (
-        <div className="flex items-center justify-between pt-3 border-t border-apple-divider">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-apple-divider">
           <span className="text-label text-apple-light">
             {(page - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(page * TABLE_PAGE_SIZE, data.length)} / {data.length}건
           </span>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {Array.from({ length: totalPages }).map((_, i) => (
               <button
                 key={i}

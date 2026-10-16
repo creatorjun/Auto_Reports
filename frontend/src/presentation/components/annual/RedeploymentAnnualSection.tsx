@@ -121,7 +121,7 @@ function MonthlyRedeploymentChart({ data, onDetails }: { data: RedeploymentAnaly
         <BarChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis dataKey="month" tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} minTickGap={18} />
-          <YAxis allowDecimals={false} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={46} />
+          <YAxis allowDecimals={false} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={exportMode ? 46 : Math.ceil(REDEPLOYMENT_FONT_SIZE * 4)} />
           <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString('ko-KR')}건`, String(name)]} />
           <Legend iconType="circle" iconSize={REDEPLOYMENT_LEGEND_ICON_SIZE} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: REDEPLOYMENT_FONT_SIZE, fontWeight: designTokens.typography.weight.medium }}>{value}</span>} />
           {issueTypes.map((issueType, index) => (
@@ -134,7 +134,7 @@ function MonthlyRedeploymentChart({ data, onDetails }: { data: RedeploymentAnaly
       </ResponsiveContainer>
       {!exportMode && selectedMonth && (
         <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-apple-divider pt-4">
-          <div className="min-w-28 flex-1">
+          <div className="min-w-44 flex-1">
             <label htmlFor={`${controlId}-month`} className="mb-1 block text-control-label font-medium text-apple-mid">완료 월</label>
             <select id={`${controlId}-month`} value={monthIndex} onChange={(event) => setMonthIndex(Number(event.target.value))} className="min-h-11 w-full rounded-lg border border-apple-divider bg-apple-surface px-3 text-control text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
               {data.monthly.map((month, index) => <option key={`${month.year}-${month.month_num}`} value={index}>{month.year}년 {month.month}</option>)}
@@ -182,7 +182,7 @@ function CauseChart({ values, onDetails }: { values: Record<string, number>; onD
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: CATEGORICAL_CHART_COLORS[index % CATEGORICAL_CHART_COLORS.length] }} />
                   <span className="min-w-0 flex-1 break-words font-medium text-apple-dark">{entry.name}</span>
                   <span className="shrink-0 font-semibold tabular-nums text-apple-dark underline decoration-apple-divider underline-offset-4">{entry.value.toLocaleString('ko-KR')}건</span>
-                  <span className="w-14 shrink-0 text-right tabular-nums text-apple-mid">{total > 0 ? (entry.value / total * 100).toFixed(1) : '0.0'}%</span>
+                  <span className="min-w-16 shrink-0 text-right tabular-nums text-apple-mid">{total > 0 ? (entry.value / total * 100).toFixed(1) : '0.0'}%</span>
                 </button>
               </li>
             ))}
@@ -200,7 +200,7 @@ function AssigneeChart({ values, onDetails }: { values: Record<string, number>; 
   const [selectedAssignee, setSelectedAssignee] = useState('')
   const data = Object.entries(values).slice(0, 10).map(([name, value]) => ({ name, value }))
   const assignee = data.find((entry) => entry.name === selectedAssignee) ?? data[0]
-  const axisWidth = exportMode ? 156 : 120
+  const axisWidth = exportMode ? 156 : Math.max(120, Math.ceil(Math.max(0, ...data.map(({ name }) => Array.from(name).length)) * REDEPLOYMENT_FONT_SIZE + 16))
   const exportTickLimit = Math.floor((axisWidth - 16) / 14)
   const formatExportTick = (value: string) => {
     const characters = Array.from(value)
@@ -209,9 +209,11 @@ function AssigneeChart({ values, onDetails }: { values: Record<string, number>; 
       : value
   }
   return (
-    <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['담당자', '건수'], rows: data.map((row) => [row.name, row.value]) }) : undefined} className="card">
+    <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['담당자', '건수'], rows: data.map((row) => [row.name, row.value]) }) : undefined} className="card min-w-0">
       <h3 className="text-section-title font-semibold text-apple-dark">담당자별 재배포</h3>
       {data.length ? (
+        <div className={exportMode ? undefined : 'overflow-x-auto'}>
+        <div style={exportMode ? undefined : { minWidth: axisWidth + 240 }}>
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <BarChart data={data} layout="vertical" margin={{ top: 12, right: 44, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} horizontal={false} />
@@ -235,6 +237,8 @@ function AssigneeChart({ values, onDetails }: { values: Record<string, number>; 
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        </div>
+        </div>
       ) : <div className="flex items-center justify-center text-label text-apple-light" style={{ height: CHART_HEIGHT }}>데이터가 없습니다</div>}
       {!exportMode && (
         <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-apple-divider pt-4">

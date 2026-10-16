@@ -30,7 +30,7 @@ export default function SlaViolationHistory() {
           ))}</ul>
         ) : !history.isError && <p className="py-12 text-center text-label text-apple-mid">{page === 0 ? '아직 저장된 SLA 현황 보고서가 없습니다.' : '마지막 페이지입니다. 이전 페이지에서 보고서를 확인해 주세요.'}</p>}
       </div>
-      {(page > 0 || reports.length >= PAGE_SIZE) && <div className="mt-4 flex items-center justify-between text-caption text-apple-mid">
+      {(page > 0 || reports.length >= PAGE_SIZE) && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-caption text-apple-mid">
         <button type="button" onClick={() => setPage((value) => value - 1)} disabled={page === 0 || history.isFetching} className="flex items-center gap-1 rounded-xl bg-apple-gray px-3 py-2 disabled:opacity-40"><ChevronLeft size={14} />이전</button><span>SLA 현황 · {page + 1} 페이지</span><button type="button" onClick={() => setPage((value) => value + 1)} disabled={reports.length < PAGE_SIZE || history.isFetching} className="flex items-center gap-1 rounded-xl bg-apple-gray px-3 py-2 disabled:opacity-40">다음<ChevronRight size={14} /></button>
       </div>}
     </section>

@@ -130,9 +130,9 @@ export function CreateFolderRow({ onConfirm, onCancel }: { onConfirm: (name: str
           <input ref={inputRef} value={value} onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onCancel() }}
             placeholder="폴더 이름"
-            className="flex-1 text-control bg-transparent border-b border-brand-400 focus:outline-none text-apple-dark placeholder:text-apple-light/60 pb-0.5" />
-          <button onClick={handleSubmit} className="text-control font-medium text-brand-600 hover:text-brand-700 transition-colors px-2 py-1">만들기</button>
-          <button onClick={onCancel} className="text-control text-apple-light hover:text-apple-dark transition-colors px-2 py-1">취소</button>
+            className="min-w-0 flex-1 text-control bg-transparent border-b border-brand-400 focus:outline-none text-apple-dark placeholder:text-apple-light/60 pb-0.5" />
+          <button onClick={handleSubmit} className="shrink-0 whitespace-nowrap text-control font-medium text-brand-600 hover:text-brand-700 transition-colors px-2 py-1">만들기</button>
+          <button onClick={onCancel} className="shrink-0 whitespace-nowrap text-control text-apple-light hover:text-apple-dark transition-colors px-2 py-1">취소</button>
         </div>
       </td>
     </tr>
@@ -150,9 +150,9 @@ export function CreateFolderRowMobile({ onConfirm, onCancel }: { onConfirm: (nam
       <input ref={inputRef} value={value} onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onCancel() }}
         placeholder="폴더 이름"
-        className="flex-1 text-control bg-transparent border-b border-brand-400 focus:outline-none text-apple-dark placeholder:text-apple-light/60 pb-0.5" />
-      <button onClick={handleSubmit} className="text-control font-medium text-brand-600 px-2 py-1">만들기</button>
-      <button onClick={onCancel} className="text-control text-apple-light px-2 py-1">취소</button>
+        className="min-w-0 flex-1 text-control bg-transparent border-b border-brand-400 focus:outline-none text-apple-dark placeholder:text-apple-light/60 pb-0.5" />
+      <button onClick={handleSubmit} className="shrink-0 whitespace-nowrap text-control font-medium text-brand-600 px-2 py-1">만들기</button>
+      <button onClick={onCancel} className="shrink-0 whitespace-nowrap text-control text-apple-light px-2 py-1">취소</button>
     </div>
   )
 }

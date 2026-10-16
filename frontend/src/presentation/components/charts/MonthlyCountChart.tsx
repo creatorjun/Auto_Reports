@@ -73,7 +73,7 @@ function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis dataKey="month" tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
-          <YAxis allowDecimals={false} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={36} />
+          <YAxis allowDecimals={false} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={exportMode ? 36 : Math.ceil(CHART_TICK_FONT_SIZE * 4)} />
           <Tooltip content={<CustomTooltip />} />
           <Legend
             layout="horizontal" verticalAlign="bottom" align="center"

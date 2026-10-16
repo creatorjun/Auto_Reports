@@ -59,6 +59,8 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle,
   const hasData = rows.some((row) => row.created !== null || row.resolved !== null)
   const hasMissing = rows.some((row) => row.created === null || row.resolved === null)
   const allZero = hasData && rows.every((row) => row.created === 0 && row.resolved === 0)
+  const axisWidth = exportMode ? 56 : Math.ceil(designTokens.typography.chart.tick * 4)
+  const chartMinWidth = exportMode ? rows.length > 8 ? 560 : 300 : Math.max(300, rows.length * 56 + axisWidth + 12)
 
   return (
     <div className="card min-w-0">
@@ -71,12 +73,12 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle,
         </div>
         {hasData ? (
           <div className="overflow-x-auto pb-1">
-            <div className={rows.length > 8 ? 'min-w-[560px]' : 'min-w-[300px]'}>
+            <div style={{ minWidth: chartMinWidth }}>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart accessibilityLayer data={rows} margin={{ top: 12, right: 12, left: 0, bottom: 4 }} barGap={4}>
                   <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="month" interval={0} tick={{ fontSize: designTokens.typography.chart.tick, fill: 'rgb(var(--color-apple-dark))' }} tickMargin={10} axisLine={false} tickLine={false} height={38} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: designTokens.typography.chart.tick, fill: 'rgb(var(--color-apple-dark))' }} tickFormatter={(value: number) => value.toLocaleString('ko-KR')} width={56} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: designTokens.typography.chart.tick, fill: 'rgb(var(--color-apple-dark))' }} tickFormatter={(value: number) => value.toLocaleString('ko-KR')} width={axisWidth} axisLine={false} tickLine={false} />
                   <Tooltip filterNull={false} cursor={{ fill: 'rgb(var(--color-apple-gray))' }} content={<ComparisonTooltip />} />
                   <Legend iconType="square" iconSize={designTokens.chart.legendIconSize} wrapperStyle={{ paddingTop: 12 }} formatter={(value: string) => <span className="ml-1 font-medium text-apple-dark" style={{ fontSize: designTokens.typography.chart.legend }}>{value}</span>} />
                   {SERIES.map((series) => (
@@ -104,8 +106,8 @@ function AnnualMonthlyComparison({ created, resolved, year, periodEnd, subtitle,
             월별 상세 수치
             <span className="flex items-center gap-2 text-caption font-medium">단위: 건<ChevronDown size={16} className="transition-transform group-open:rotate-180" /></span>
           </summary>
-          <div data-pdf-kind="table" data-pdf-title={`${year}년 월별 등록 · 해결 건수`} className="mt-3 overflow-hidden rounded-xl border border-apple-divider">
-            <table className="w-full table-fixed text-body text-apple-dark">
+          <div data-pdf-kind="table" data-pdf-title={`${year}년 월별 등록 · 해결 건수`} className="mt-3 overflow-x-auto rounded-xl border border-apple-divider">
+            <table className="w-full min-w-[360px] table-fixed text-body text-apple-dark">
               <caption className="sr-only">{subtitle} 월별 등록 및 해결 건수</caption>
               <thead className="bg-apple-gray">
                 <tr>

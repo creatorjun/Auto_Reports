@@ -127,18 +127,18 @@ export default function SiteCreatePage() {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-6 py-10">
-      <div className="flex items-center gap-3 mb-8">
+    <div className="mx-auto w-full min-w-0 max-w-2xl">
+      <div className="mb-6 flex min-w-0 items-center gap-3">
         <button
           type="button"
           onClick={() => navigate(isEdit ? `/sites/${id}` : '/sites')}
-          className="text-apple-light hover:text-apple-dark transition-colors"
+          className="shrink-0 text-apple-light hover:text-apple-dark transition-colors"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="text-page-title font-semibold text-apple-dark">
+        <h1 className="min-w-0 break-words text-page-title font-semibold text-apple-dark">
           {isEdit ? '사이트 수정' : '새 사이트 등록'}
         </h1>
       </div>
@@ -146,8 +146,8 @@ export default function SiteCreatePage() {
       <form onSubmit={handleSubmit(v => mutateAsync(v))} className="flex flex-col gap-8" autoComplete="off">
         <section>
           <SectionTitle>기본 정보 <span className="text-red-400">*</span></SectionTitle>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="min-w-0 sm:col-span-2">
               <Field label="사이트명 *" error={errors.site_name?.message}>
                 <input {...register('site_name')} className={inputCls} placeholder="사이트명을 입력하세요" />
               </Field>
@@ -183,7 +183,7 @@ export default function SiteCreatePage() {
 
         <section>
           <SectionTitle>고객 정보</SectionTitle>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="담당자명">
               <input {...register('customer_name')} className={inputCls} placeholder="홍길동" />
             </Field>
@@ -198,7 +198,7 @@ export default function SiteCreatePage() {
 
         <section>
           <SectionTitle>유지보수 담당자</SectionTitle>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="담당자명">
               <input {...register('maintenance_name')} className={inputCls} placeholder="홍길동" />
             </Field>

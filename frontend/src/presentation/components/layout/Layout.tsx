@@ -12,13 +12,13 @@ export default function Layout() {
   return (
     <JiraProvider>
       <ReportGenerationProvider>
-      <div className="flex h-screen bg-apple-bg overflow-hidden">
+      <div className="relative flex h-screen bg-apple-bg overflow-hidden">
         <div className="hidden xl:flex">
           <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
         </div>
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex min-h-0 flex-col flex-1 min-w-0">
           <Header />
-          <main className="flex-1 overflow-y-auto px-4 md:px-6 3xl:px-8 py-4 md:py-6 3xl:py-8 pb-20 xl:pb-6 3xl:pb-8">
+          <main className="min-h-0 flex-1 overflow-y-auto px-4 md:px-6 3xl:px-8 py-4 md:py-6 3xl:py-8 pb-24 xl:pb-6 3xl:pb-8">
             <Outlet />
           </main>
         </div>

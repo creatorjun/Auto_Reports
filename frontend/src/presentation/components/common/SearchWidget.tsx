@@ -57,14 +57,14 @@ function DropdownItem({
       onMouseDown={(e) => { e.preventDefault(); onClick() }}
     >
       <TypeBadge type={item.type} isDirect={isDirect} />
-      <span className={`text-caption font-medium truncate flex-1 ${
+      <span className={`min-w-0 text-caption font-medium truncate flex-1 ${
         isDirect ? 'text-brand-700' : 'text-gray-800'
       }`}>
         {item.key && !isDirect && <span className="text-gray-400 mr-1">[{item.key}]</span>}
         {item.title}
       </span>
       {!isDirect && item.status && (
-        <span className="text-caption text-gray-400 flex-shrink-0">{item.status}</span>
+        <span className="max-w-[35%] break-words text-caption text-gray-400">{item.status}</span>
       )}
       {isDirect && (
         <svg className="w-3 h-3 text-brand-400 flex-shrink-0" fill="none" viewBox="0 0 16 16">
@@ -262,7 +262,7 @@ export default function SearchWidget() {
 
   return (
     <>
-      <div className="relative w-[28rem] 3xl:w-[32rem]">
+      <div className="relative w-full min-w-0 xl:w-[28rem] 3xl:w-[32rem]">
         <div className="relative flex items-center">
           <svg className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 16 16">
             <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />

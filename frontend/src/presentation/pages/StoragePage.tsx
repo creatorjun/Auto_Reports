@@ -485,8 +485,8 @@ export default function StoragePage() {
       <UploadProgressBar progressList={progressList} totalPercent={totalPercent} />
 
       <div className={`card overflow-hidden p-0 transition-opacity duration-200 ${isFetching ? 'opacity-70' : 'opacity-100'}`}>
-        <div className="hidden md:block">
-          <table className="w-full">
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[800px]">
             <thead className="border-b border-apple-divider/60">
               <tr>
                 <th className="px-6 py-3.5 text-left text-label font-semibold uppercase tracking-wider text-apple-light 3xl:px-8 3xl:py-4">

@@ -637,8 +637,8 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-apple-surface">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-apple-divider/60 flex-shrink-0 bg-apple-surface">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="flex flex-col gap-3 px-4 py-3 border-b border-apple-divider/60 flex-shrink-0 bg-apple-surface sm:flex-row sm:items-start sm:justify-between sm:px-5">
+        <div className="flex flex-wrap items-center gap-3 min-w-0 flex-1">
           {fileList.length > 1 && (
             <div className="flex items-center gap-1 flex-shrink-0">
               <button
@@ -662,8 +662,8 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
               </button>
             </div>
           )}
-          <div className="flex flex-col min-w-0">
-            <p className="text-section-title font-semibold text-apple-dark truncate">{name}</p>
+          <div className="flex flex-col min-w-0 flex-1 basis-48">
+            <p className="break-all text-section-title font-semibold text-apple-dark">{name}</p>
             <p className="text-caption text-apple-light capitalize">
               {type === 'unsupported' ? '미지원 형식'
                 : type === 'archive' ? '압축 파일'
@@ -672,7 +672,7 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-start">
           <button
             onClick={toggleFullscreen}
             className="w-8 h-8 rounded-xl flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors"
@@ -695,7 +695,7 @@ export default function FilePreviewModal({ name, folder, fileList = [], onNaviga
             </svg>
             다운로드
           </a>
-          <button onClick={onClose}
+          <button onClick={onClose} aria-label="미리보기 닫기"
             className="w-8 h-8 rounded-xl flex items-center justify-center text-apple-light hover:text-apple-dark hover:bg-apple-gray transition-colors">
             <CloseIcon />
           </button>

@@ -30,6 +30,9 @@ function TypeBarChart({ byType, title = '⏱️ 유형별 평균 처리일', sub
   const unitLabel = valueUnit === 'hours' ? '시간' : '일'
   const averageField = valueUnit === 'hours' ? 'avg_hours' : 'avg_days'
   const data = Object.entries(byType).map(([name, d]) => ({ name, avg_days: d.avg_days, avg_hours: d.avg_hours, count: d.count }))
+  const axisWidth = exportMode ? horizontal ? 120 : undefined : horizontal
+    ? Math.max(120, Math.ceil(Math.max(0, ...data.map(({ name }) => Array.from(name).length)) * CHART_TICK_FONT_SIZE + 16))
+    : Math.max(64, Math.ceil((String(Math.ceil(Math.max(0, ...data.map((row) => row[averageField])) * 1.2)).length * 0.7 + unitLabel.length) * CHART_TICK_FONT_SIZE + 16))
   const exportTable = exportMode ? JSON.stringify({ headers: ['분류', '처리 대상 건수', '평균 소요 일', '평균 소요 시간'], rows: data.map((row) => [row.name, row.count, row.avg_days, row.avg_hours]) }) : undefined
   if (!data.length) return emptyMessage ? (
     <div data-pdf-kind="text" data-export-table={exportTable} className="card">
@@ -46,14 +49,16 @@ function TypeBarChart({ byType, title = '⏱️ 유형별 평균 처리일', sub
       : value
   }
   return (
-    <div data-pdf-kind="chart" data-export-table={exportTable} className="card">
+    <div data-pdf-kind="chart" data-export-table={exportTable} className="card min-w-0">
       <h3 className="text-section-title font-semibold text-apple-dark mb-4">{title}</h3>
       {subtitle && <p className="text-caption text-apple-light mb-4">{subtitle}</p>}
+      <div className={horizontal && !exportMode ? 'overflow-x-auto' : undefined}>
+      <div style={horizontal && !exportMode ? { minWidth: (axisWidth ?? 120) + 280 } : undefined}>
       <ResponsiveContainer width="100%" height={horizontal ? Math.max(CHART_HEIGHT, data.length * 36) : CHART_HEIGHT} onResize={exportMode ? (width) => setChartWidth(width) : undefined}>
         <BarChart data={data} layout={horizontal ? 'vertical' : 'horizontal'} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
           <XAxis type={horizontal ? 'number' : 'category'} dataKey={horizontal ? undefined : 'name'} unit={horizontal ? unitLabel : undefined} tick={{ fontSize: CHART_TICK_FONT_SIZE }} tickFormatter={!horizontal && exportMode ? formatExportTick : undefined} />
-          <YAxis type={horizontal ? 'category' : 'number'} dataKey={horizontal ? 'name' : undefined} width={horizontal ? 120 : undefined} tick={{ fontSize: CHART_TICK_FONT_SIZE }} unit={horizontal ? undefined : unitLabel} />
+          <YAxis type={horizontal ? 'category' : 'number'} dataKey={horizontal ? 'name' : undefined} width={axisWidth} tick={{ fontSize: CHART_TICK_FONT_SIZE }} unit={horizontal ? undefined : unitLabel} />
           <Tooltip formatter={(v, _name, item) => [
             `${Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}${unitLabel}`,
             `평균 · ${item.payload.count}건`,
@@ -82,6 +87,8 @@ function TypeBarChart({ byType, title = '⏱️ 유형별 평균 처리일', sub
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+      </div>
+      </div>
       {interactive && (
         <details open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)} className="group mt-4 border-t border-apple-divider pt-3">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg py-2 text-body font-semibold text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">

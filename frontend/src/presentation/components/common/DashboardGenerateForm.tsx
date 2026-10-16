@@ -24,16 +24,16 @@ export default function DashboardGenerateForm({ report, loading = false }: { rep
   return (
     <form onSubmit={generate} className="rounded-2xl border border-apple-divider bg-apple-surface p-4 shadow-sm sm:p-5">
       <div className="flex flex-wrap items-end gap-4">
-        <fieldset disabled={generation.pending || loading} className="min-w-0">
+        <fieldset disabled={generation.pending || loading} className="w-full min-w-0 sm:w-auto">
           <legend className="mb-2 text-control-label font-medium text-apple-mid">집계 단위</legend>
-          <div className="inline-flex rounded-xl bg-apple-gray p-1" aria-label="집계 단위">
-            {(['week', 'month', 'year'] as const).map((value) => <button key={value} type="button" aria-pressed={selectedPeriod === value} onClick={() => setPeriod(value)} className={`rounded-lg px-5 py-2 text-control font-medium transition-colors disabled:opacity-50 ${selectedPeriod === value ? 'bg-apple-surface text-brand-600 shadow-sm' : 'text-apple-mid hover:text-apple-dark'}`}>{REPORT_PERIOD_LABELS[value]}</button>)}
+          <div className="grid grid-cols-3 rounded-xl bg-apple-gray p-1" aria-label="집계 단위">
+            {(['week', 'month', 'year'] as const).map((value) => <button key={value} type="button" aria-pressed={selectedPeriod === value} onClick={() => setPeriod(value)} className={`rounded-lg px-5 py-2 text-control font-medium whitespace-nowrap transition-colors disabled:opacity-50 ${selectedPeriod === value ? 'bg-apple-surface text-brand-600 shadow-sm' : 'text-apple-mid hover:text-apple-dark'}`}>{REPORT_PERIOD_LABELS[value]}</button>)}
           </div>
         </fieldset>
-        <label className="flex flex-col gap-2 text-control-label font-medium text-apple-mid">기준 날짜
+        <label className="flex w-full min-w-0 flex-col gap-2 text-control-label font-medium text-apple-mid sm:w-auto">기준 날짜
           <input type="date" required max={today} value={selectedDate} disabled={generation.pending || loading} onChange={(event) => setDate(event.target.value)} className="min-w-0 rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-control text-apple-dark focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 disabled:opacity-50" />
         </label>
-        <button type="submit" disabled={!valid || generation.pending || loading} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-control font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40 sm:ml-auto">
+        <button type="submit" disabled={!valid || generation.pending || loading} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-control font-medium text-white whitespace-nowrap transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40 sm:ml-auto sm:w-auto">
           {generation.pending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{generation.pending ? '집계 및 저장 중' : '보고서 생성'}
         </button>
       </div>

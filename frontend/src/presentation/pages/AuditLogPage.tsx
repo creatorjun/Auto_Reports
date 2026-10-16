@@ -130,7 +130,7 @@ export default function AuditLogPage() {
               </table>
             </div>
           )}
-          <div className="flex items-center justify-between gap-3 border-t border-apple-divider px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-apple-divider px-5 py-4">
             <button className={buttonClass} type="button" disabled={page === 0 || logs.isFetching} onClick={() => setPage((current) => current - 1)}><ChevronLeft size={16} />이전</button>
             <span className="text-caption tabular-nums text-apple-mid">{page + 1} / {data ? pageCount : '—'} 페이지</span>
             <button className={buttonClass} type="button" disabled={!data || page + 1 >= pageCount || logs.isFetching} onClick={() => setPage((current) => current + 1)}>다음<ChevronRight size={16} /></button>
