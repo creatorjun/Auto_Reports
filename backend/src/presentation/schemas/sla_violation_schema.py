@@ -61,6 +61,8 @@ class SlaViolationTicketSchema(BaseModel):
     warnings: tuple[str, ...] = ()
     issue_type: str | None = None
     sla_cycles: tuple[SlaViolationCycleSchema, ...] | None = None
+    status_durations_basis: Literal["wall_clock", "resolution_sla"] = "wall_clock"
+    status_duration_calendar: str | None = None
 
 
 class SlaViolationReportSummarySchema(BaseModel):

@@ -8,14 +8,16 @@ function percentageLabel(value: number): string {
   return value > 0 && value < 0.1 ? '<0.1%' : `${value.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}%`
 }
 
-export default function SlaStatusDurations({ durations }: { durations: SlaViolationTicket['status_durations'] }) {
+export default function SlaStatusDurations({ durations, basis }: { durations: SlaViolationTicket['status_durations']; basis: SlaViolationTicket['status_durations_basis'] }) {
+  if (basis !== 'resolution_sla') return <p className="text-caption text-apple-mid">이전 보고서입니다. 다시 생성하면 SLA 기준 시간이 표시됩니다.</p>
   const visible = slaVisibleStatusDurations(durations)
-  if (visible === null) return <p className="text-caption text-apple-mid">상태 변경 이력이 불완전하여 체류 기간을 확인할 수 없습니다.</p>
-  if (visible.length === 0) return <p className="text-caption text-apple-mid">표시할 체류 기간이 없습니다.</p>
+  if (visible === null) return <p className="text-caption text-apple-mid">상태별 SLA 시간을 확인할 수 없습니다.</p>
+  if (visible.length === 0) return <p className="text-caption text-apple-mid">표시할 상태별 SLA 시간이 없습니다.</p>
   const total = visible.reduce((sum, { hours }) => sum + hours, 0)
   const segments = visible.map(({ status, hours }) => ({ status, hours, percentage: total > 0 ? hours / total * 100 : 0 }))
   return (
     <div>
+      <p className="mb-2 text-caption font-medium text-apple-mid">해결시간 SLA 기준</p>
       <dl className="flex flex-wrap gap-2">
         {segments.map(({ status, hours, percentage }) => (
           <div key={status} className="flex items-center gap-2 rounded-lg bg-apple-surface px-3 py-2 text-caption">
@@ -25,7 +27,7 @@ export default function SlaStatusDurations({ durations }: { durations: SlaViolat
         ))}
       </dl>
       {total > 0 && (
-        <div role="img" aria-label={`상태별 체류 비율 (닫힘 제외): ${segments.map(({ status, percentage }) => `${status || '확인 불가'} ${percentageLabel(percentage)}`).join(', ')}`}
+        <div role="img" aria-label={`상태별 SLA 사용 비율: ${segments.map(({ status, percentage }) => `${status || '확인 불가'} ${percentageLabel(percentage)}`).join(', ')}`}
           className="mt-3 flex h-8 w-full overflow-hidden rounded-lg bg-apple-surface">
           {segments.filter(({ hours }) => hours > 0).map(({ status, hours, percentage }) => (
             <div key={status} title={`${status || '확인 불가'} · ${hours.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}시간 · ${percentageLabel(percentage)}`}

@@ -64,6 +64,8 @@ class SlaViolationApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(ticket["breaches"][1]["breached_at"])
         self.assertEqual("TAC 담당자", ticket["tac_assignee"])
         self.assertEqual("서비스 요청", ticket["issue_type"])
+        self.assertEqual("wall_clock", ticket["status_durations_basis"])
+        self.assertIsNone(ticket["status_duration_calendar"])
         self.audit.record.assert_called_once_with(
             "SLA_VIOLATION_REPORT_CREATE", report_id=5, period="month", selected_date="2026-10-14",
             ticket_count=1, initial_response_count=1, resolution_count=1,
@@ -93,6 +95,21 @@ class SlaViolationApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(("resolution", True, True, True, "할 일"), tuple(result[field] for field in ("metric", "breached", "ongoing", "paused", "status")))
         self.assertIsNone(result["started_at"])
         self.assertIsNone(result["stopped_at"])
+
+    async def test_status_duration_contract_exposes_resolution_basis_calendar_and_unknown_values(self) -> None:
+        for durations, calendar in ((self.report.tickets[0].status_durations, "계약 업무시간"), (None, None)):
+            ticket = replace(self.report.tickets[0], status_durations=durations, status_durations_basis="resolution_sla", status_duration_calendar=calendar)
+            snapshot = replace(self.report, tickets=(ticket,))
+            self.use_case.get_latest.return_value = snapshot
+            self.use_case.get_by_id.return_value = snapshot
+            for path in ("/latest", "/5"):
+                response = await self.client.get(self.endpoint + path, headers=self.headers)
+                self.assertEqual(200, response.status_code, response.text)
+                result = response.json()["tickets"][0]
+                self.assertEqual("resolution_sla", result["status_durations_basis"])
+                self.assertEqual(calendar, result["status_duration_calendar"])
+                expected = [{"status": duration.status, "hours": duration.hours} for duration in durations] if durations is not None else None
+                self.assertEqual(expected, result["status_durations"])
 
     async def test_history_excludes_ticket_payload_and_passes_pagination(self) -> None:
         response = await self.client.get(self.endpoint + "/history?limit=7&offset=3", headers=self.headers)

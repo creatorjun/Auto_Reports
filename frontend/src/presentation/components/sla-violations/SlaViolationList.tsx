@@ -44,11 +44,13 @@ function TicketRow({ ticket }: { ticket: SlaViolationTicket }) {
           <span className="row-start-5 text-label tabular-nums text-apple-mid lg:row-auto"><span className="mb-0.5 block lg:hidden">생성일</span>{slaCreatedDate(ticket.created_at)}</span>
           <span className="row-start-5 text-right text-label tabular-nums text-apple-mid lg:row-auto"><span className="mb-0.5 block lg:hidden">경과일</span>{ticket.elapsed_days.toLocaleString('ko-KR')}일</span>
         </a>
-        <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-controls={detailsId}
-          aria-label={`${ticket.key} 상세 ${expanded ? '접기' : '펼치기'}`}
-          className="my-2 flex w-12 shrink-0 flex-col items-center justify-center gap-1 rounded-xl text-apple-mid transition-colors hover:bg-apple-gray hover:text-apple-dark focus-visible:outline-brand-400">
-          <ChevronDown size={17} aria-hidden="true" className={`transition-transform ${expanded ? 'rotate-180' : ''}`} /><span className="text-control-label">{expanded ? '접기' : '펼치기'}</span>
-        </button>
+        <div className="flex w-12 shrink-0 items-start justify-center py-3">
+          <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-controls={detailsId}
+            aria-label={`${ticket.key} 상세 ${expanded ? '접기' : '펼치기'}`}
+            className="rounded-lg p-2 text-apple-mid hover:bg-apple-gray focus-visible:ring-2 focus-visible:ring-brand-500">
+            <ChevronDown size={18} aria-hidden="true" className={expanded ? 'rotate-180' : ''} />
+          </button>
+        </div>
       </div>
       {expanded && (
         <div id={detailsId} className="mx-4 mb-4 rounded-xl bg-apple-gray/70 p-4 sm:mx-6 sm:p-5">
@@ -71,7 +73,7 @@ function TicketRow({ ticket }: { ticket: SlaViolationTicket }) {
             ))}
           </dl>
           <div className="mt-5 border-t border-apple-divider pt-4">
-            <SlaStatusDurations durations={ticket.status_durations} />
+            <SlaStatusDurations durations={ticket.status_durations} basis={ticket.status_durations_basis} />
           </div>
           {ticket.warnings.length > 0 && <div className="mt-4 text-caption text-amber-700"><p className="font-medium">일부 상세 정보 확인 필요</p><ul className="mt-1 space-y-1">{ticket.warnings.map((warning, index) => <li key={index} className="break-words">{warning}</li>)}</ul></div>}
         </div>

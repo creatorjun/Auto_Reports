@@ -2,6 +2,10 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.domain.entities.sla_clock import SlaClockCalendar
 
 SlaViolationPeriod = Literal["week", "month", "year"]
 SlaViolationMetric = Literal["initial_response", "resolution"]
@@ -45,6 +49,10 @@ class SlaViolationIssue:
     history_complete: bool = True
     warnings: tuple[str, ...] = ()
     issue_type: str | None = None
+    clock_calendars: tuple["SlaClockCalendar", ...] = ()
+    clock_snapshot_before: datetime | None = None
+    clock_snapshot_after: datetime | None = None
+    clock_pause_statuses: tuple[str, ...] = ("결과 대기 중", "자료 요청 중")
 
 
 @dataclass(frozen=True)
@@ -77,6 +85,8 @@ class SlaViolationTicket:
     warnings: tuple[str, ...] = ()
     issue_type: str | None = None
     sla_cycles: tuple[SlaViolationCycle, ...] | None = None
+    status_durations_basis: Literal["wall_clock", "resolution_sla"] = "wall_clock"
+    status_duration_calendar: str | None = None
 
 
 @dataclass(frozen=True)

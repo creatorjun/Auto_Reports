@@ -60,6 +60,7 @@ class Container:
             sla_initial_response_field_id=settings.sla_initial_response_field_id,
             sla_resolution_field_id=settings.sla_resolution_field_id,
             tac_assignee_field_id=settings.jira_recent_tac_assignee_field_id,
+            resolution_pause_statuses=tuple(settings.sla_resolution_pause_statuses),
         )
         self._sla_violation_generation_lock = asyncio.Lock()
         self._redeployment_source = RedeploymentJiraSource(

@@ -70,6 +70,8 @@ def _deserialize_ticket(payload: dict) -> SlaViolationTicket:
         ),
         warnings=tuple(payload.get("warnings", ())),
         issue_type=payload.get("issue_type"),
+        status_durations_basis=payload.get("status_durations_basis", "wall_clock"),
+        status_duration_calendar=payload.get("status_duration_calendar"),
         sla_cycles=tuple(
             SlaViolationCycle(
                 **{

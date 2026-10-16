@@ -272,8 +272,9 @@ class SlaViolationJiraSourceTest(unittest.IsolatedAsyncioTestCase):
         report = build_sla_violation_report(issues, "month", date(2026, 10, 7), datetime(2026, 10, 14, tzinfo=_KST), "tester")
         self.assertTrue(issues[0].history_complete)
         self.assertEqual("연구소 검토 중", report.tickets[0].breaches[0].status)
-        self.assertEqual({"할 일": 24, "연구소 검토 중": 24, "닫힘": 264}, {duration.status: duration.hours for duration in report.tickets[0].status_durations})
-        self.assertFalse(report.tickets[0].warnings)
+        self.assertIsNone(report.tickets[0].status_durations)
+        self.assertEqual("resolution_sla", report.tickets[0].status_durations_basis)
+        self.assertTrue(report.tickets[0].warnings)
 
     async def test_missing_or_conflicting_status_ids_do_not_hide_history_gaps(self) -> None:
         for conflicting_ids in (False, True):

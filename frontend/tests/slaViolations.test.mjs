@@ -46,6 +46,7 @@ const ticket = {
   key: 'TACEA-1234', summary: '[서울 교통공사] MF2 컴포넌트 개선의 건', issue_type: '서비스 요청', created_at: '2026-05-05T16:00:00Z', elapsed_days: 123,
   customer: '서울교통공사', partners: [], reporter: '김영준 과장', assignee: '조장희 수석', tac_assignee: '한준희 선임', current_status: '결과 대기 중',
   status_durations: [{ status: '할일', hours: 3.25 }, { status: '연구소 검토 중', hours: 120.5 }],
+  status_durations_basis: 'resolution_sla',
   breaches: [{ metric: 'initial_response', breached_at: '2026-05-06T04:00:00Z', status: '할일' }, { metric: 'resolution', breached_at: '2026-05-08T06:00:00Z', status: '연구소 검토 중' }], warnings: [],
 }
 const report = { id: 10, period: 'month', selected_date: '2026-05-06', start_date: '2026-05-01', end_date: '2026-05-31', generated_at: '2026-10-14T03:00:00Z', generated_by: 'admin', ticket_count: 1, initial_response_count: 1, resolution_count: 1, tickets: [ticket], warnings: [] }
@@ -200,11 +201,15 @@ test('overview cards, charts and search filter one combined list while respectin
   assert.deepEqual(snapshot, original)
 })
 
-test('duration bars use visible elapsed hours, omit closed time, and retain tiny percentages', () => {
+test('duration bars omit closed and paused statuses from values and denominator while retaining tiny percentages', () => {
   const Durations = load('presentation/components/sla-violations/SlaStatusDurations').default
-  const values = [{ status: '할 일', hours: 25 }, { status: '구현 중', hours: 74.99 }, { status: '연구소 검토 중', hours: 0.01 }, { status: '닫힘', hours: 900 }]
+  const values = [
+    { status: '할 일', hours: 25 }, { status: '구현 중', hours: 74.99 }, { status: '연구소 검토 중', hours: 0.01 },
+    { status: '닫힘', hours: 900 }, { status: '결과 대기 중', hours: 100 }, { status: '자료 요청 중', hours: 200 },
+    { status: ' 결 과\u3000대기\t중 ', hours: 300 }, { status: ' 자 료\u00a0요청중 ', hours: 400 }, { status: ' ＣＬＯＳＥＤ ', hours: 500 },
+  ]
   const original = structuredClone(values)
-  const view = TestRenderer.create(React.createElement(Durations, { durations: values }))
+  const view = TestRenderer.create(React.createElement(Durations, { durations: values, basis: 'resolution_sla' }))
   const chart = view.root.findByProps({ role: 'img' })
   assert.deepEqual(chart.children.map((child) => child.props.style.width), ['25%', '74.99%', '0.01%'])
   assert.match(textOf(chart.children[0]), /할 일.*25%/)
@@ -212,21 +217,45 @@ test('duration bars use visible elapsed hours, omit closed time, and retain tiny
   assert.equal(chart.children[2].props.title, '연구소 검토 중 · 0.01시간 · <0.1%')
   assert.match(chart.props['aria-label'], /연구소 검토 중 <0.1%/)
   assert.match(textOf(view.toJSON()), /25\s*시간/)
-  assert.doesNotMatch(textOf(view.toJSON()), /900|각 상태별 체류 기간|보고서 생성 시점까지/)
+  assert.match(textOf(view.toJSON()), /해결시간 SLA 기준/)
+  assert.match(chart.props['aria-label'], /상태별 SLA 사용 비율/)
+  assert.doesNotMatch(textOf(view.toJSON()), /900|결과 대기 중|자료 요청 중|각 상태별 체류 기간|보고서 생성 시점까지/)
   assert.deepEqual(values, original)
   view.unmount()
 })
 
-test('duration bars do not fabricate proportions for zero, empty, or incomplete histories', () => {
+test('duration bars do not fabricate proportions for zero, empty, or unavailable SLA clocks', () => {
   const Durations = load('presentation/components/sla-violations/SlaStatusDurations').default
-  for (const durations of [null, [], [{ status: 'Closed', hours: 10 }], [{ status: '할 일', hours: 0 }]]) {
-    const view = TestRenderer.create(React.createElement(Durations, { durations }))
+  for (const durations of [null, [], [{ status: 'Closed', hours: 10 }], [{ status: '결과대기중', hours: 5 }, { status: '자료 요청중', hours: 3 }], [{ status: '할 일', hours: 0 }]]) {
+    const view = TestRenderer.create(React.createElement(Durations, { durations, basis: 'resolution_sla' }))
     assert.equal(view.root.findAllByProps({ role: 'img' }).length, 0)
     assert.doesNotMatch(textOf(view.toJSON()), /NaN|Infinity/)
-    if (durations === null) assert.match(textOf(view.toJSON()), /이력이 불완전/)
+    if (durations === null) assert.match(textOf(view.toJSON()), /상태별 SLA 시간을 확인할 수 없습니다/)
     if (durations?.[0]?.hours === 0) assert.match(textOf(view.toJSON()), /0%/)
     view.unmount()
   }
+})
+
+test('legacy duration values never appear as SLA values or proportions', () => {
+  const Durations = load('presentation/components/sla-violations/SlaStatusDurations').default
+  for (const basis of [undefined, 'wall_clock']) {
+    const view = TestRenderer.create(React.createElement(Durations, { durations: [{ status: '이슈 리뷰 중', hours: 173.32 }], basis }))
+    assert.match(textOf(view.toJSON()), /이전 보고서입니다\. 다시 생성하면 SLA 기준 시간이 표시됩니다\./)
+    assert.doesNotMatch(textOf(view.toJSON()), /173\.32|해결시간 SLA 기준|%/)
+    assert.equal(view.root.findAllByProps({ role: 'img' }).length, 0)
+    view.unmount()
+  }
+})
+
+test('SLA percentages retain source precision while displayed hours round to two decimals', () => {
+  const Durations = load('presentation/components/sla-violations/SlaStatusDurations').default
+  const view = TestRenderer.create(React.createElement(Durations, {
+    durations: [{ status: '할 일', hours: 0.004 }, { status: '이슈 리뷰 중', hours: 0.012 }], basis: 'resolution_sla',
+  }))
+  const chart = view.root.findByProps({ role: 'img' })
+  assert.deepEqual(chart.children.map((child) => child.props.style.width), ['25%', '75%'])
+  assert.equal(chart.children[1].props.title, '이슈 리뷰 중 · 0.01시간 · 75%')
+  view.unmount()
 })
 
 function hookSetup(t, gateway) {
@@ -505,6 +534,70 @@ test('ticket rows start folded, show each violated metric once, and disclose all
   act(() => view.update(React.createElement(List, { tickets: [{ ...ticket, issue_type: null }] })))
   assert.match(textOf(view.root.findByType('a')), /확인 불가/)
   assert.equal(disclosure().props['aria-expanded'], false)
+})
+
+test('SLA and redeployment details use matching icon-only controls with accessible inline toggles', (t) => {
+  const instance = sourceLoader({ 'presentation/context/JiraContext': { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) } })
+  const SlaList = instance('presentation/components/sla-violations/SlaViolationList').default
+  const RedeploymentList = instance('presentation/components/redeployments/RedeploymentTickets').default
+  const redeployment = { ...ticket, status: ticket.current_status, closed: false, resolved_at: null, completion_month: null, cause: '개발오류', reason: '파일 누락', repatch_count: 1 }
+  let slaView
+  let redeploymentView
+  act(() => {
+    slaView = TestRenderer.create(React.createElement(SlaList, { tickets: [ticket] }))
+    redeploymentView = TestRenderer.create(React.createElement(RedeploymentList, { tickets: [redeployment] }))
+  })
+  t.after(() => act(() => { slaView.unmount(); redeploymentView.unmount() }))
+  const disclosure = (view) => view.root.findAllByType('button').find((button) => button.props['aria-controls'])
+  for (const expanded of [false, true, false]) {
+    const sla = disclosure(slaView)
+    const reference = disclosure(redeploymentView)
+    assert.equal(sla.props.className, reference.props.className)
+    assert.equal(sla.props['aria-label'], reference.props['aria-label'])
+    for (const [view, control] of [[slaView, sla], [redeploymentView, reference]]) {
+      assert.equal(control.props.type, 'button')
+      assert.equal(control.props['aria-expanded'], expanded)
+      assert.equal(textOf(control), '')
+      assert.equal(control.findByType('svg').props.width, 18)
+      assert.equal(control.findByType('svg').props.className.includes('rotate-180'), expanded)
+      assert.equal(view.root.findAllByProps({ id: control.props['aria-controls'] }).length, expanded ? 1 : 0)
+    }
+    act(() => { sla.props.onClick(); reference.props.onClick() })
+  }
+  assert.equal(slaView.root.findByType('a').props.target, '_blank')
+})
+
+test('paused statuses stay visible as current and breach states but are excluded from SLA duration details', (t) => {
+  const instance = sourceLoader({ 'presentation/context/JiraContext': { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) } })
+  const List = instance('presentation/components/sla-violations/SlaViolationList').default
+  const Durations = instance('presentation/components/sla-violations/SlaStatusDurations').default
+  const sample = {
+    ...ticket, current_status: '결과 대기 중', breaches: [{ ...ticket.breaches[0], status: '자료 요청 중' }],
+    status_durations: [{ status: '할 일', hours: 5 }, { status: '결과 대기 중', hours: 10 }, { status: '자료 요청 중', hours: 20 }],
+  }
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(List, { tickets: [sample] })) })
+  t.after(() => act(() => view.unmount()))
+  act(() => view.root.findByProps({ 'aria-label': `${sample.key} 상세 펼치기` }).props.onClick())
+  assert.match(textOf(view.toJSON()), /결과 대기 중/)
+  assert.match(textOf(view.toJSON()), /자료 요청 중/)
+  const durations = view.root.findByType(Durations)
+  assert.doesNotMatch(textOf(durations), /결과 대기 중|자료 요청 중/)
+  assert.deepEqual(durations.findByProps({ role: 'img' }).children.map((child) => child.props.style.width), ['100%'])
+})
+
+test('expanded legacy ticket does not expose wall-clock durations as SLA time', (t) => {
+  const instance = sourceLoader({ 'presentation/context/JiraContext': { useJira: () => ({ jiraBrowse: 'https://jira.example/browse' }) } })
+  const List = instance('presentation/components/sla-violations/SlaViolationList').default
+  const legacy = { ...ticket, status_durations: [{ status: '이슈 리뷰 중', hours: 173.32 }] }
+  delete legacy.status_durations_basis
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(List, { tickets: [legacy] })) })
+  t.after(() => act(() => view.unmount()))
+  act(() => view.root.findByProps({ 'aria-label': `${legacy.key} 상세 펼치기` }).props.onClick())
+  assert.match(textOf(view.toJSON()), /이전 보고서입니다\. 다시 생성하면 SLA 기준 시간이 표시됩니다\./)
+  assert.doesNotMatch(textOf(view.toJSON()), /173\.32/)
+  assert.equal(view.root.findAllByProps({ role: 'img' }).length, 0)
 })
 
 test('combined SLA list keeps sorting and widths through filtering and same-report refresh', (t) => {

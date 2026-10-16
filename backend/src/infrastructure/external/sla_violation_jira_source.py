@@ -3,12 +3,16 @@ import asyncio
 import math
 import re
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
+from time import monotonic_ns
 from typing import Any
 from urllib.parse import quote
 
 import httpx
 
 from src.application.ports.sla_violation_port import SlaViolationSourcePort
+from src.domain.entities.sla_clock import SlaClockCalendar
+from src.infrastructure.external.jira_sla_calendar import calendar_ids_for_project, parse_clock_calendar
 from src.domain.entities.sla_violation_report import (
     SlaViolationChange,
     SlaViolationCycle,
@@ -20,6 +24,29 @@ from src.domain.entities.sla_violation_report import (
 _CUSTOMER_NAME_FIELD = "customfield_11022"
 _CUSTOMER_ASSET_FIELD = "customfield_10854"
 _PARTNER_FIELD = "customfield_10859"
+
+
+def _snapshot_window(
+    server_date: str | None,
+    local_before: datetime,
+    local_after: datetime,
+    request_duration: timedelta,
+) -> tuple[datetime, datetime]:
+    if not isinstance(server_date, str):
+        return local_before, local_after
+    server_date = server_date.strip()
+    if not re.fullmatch(r"(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT", server_date):
+        return local_before, local_after
+    try:
+        parsed = parsedate_to_datetime(server_date)
+    except (TypeError, ValueError, OverflowError):
+        return local_before, local_after
+    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0) or ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")[parsed.weekday()] != server_date[:3]:
+        return local_before, local_after
+    try:
+        return parsed - request_duration, parsed + timedelta(seconds=1) + request_duration
+    except OverflowError:
+        return local_before, local_after
 
 
 def _text(value: object) -> str:
@@ -92,6 +119,7 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
         sla_resolution_field_id: str = "customfield_12151",
         tac_assignee_field_id: str = "customfield_12522",
         client: httpx.AsyncClient | None = None,
+        resolution_pause_statuses: tuple[str, ...] = ("결과 대기 중", "자료 요청 중"),
     ) -> None:
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", project_key):
             raise ValueError("Invalid Jira project key")
@@ -107,6 +135,7 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
             (sla_resolution_field_id, "resolution"),
         )
         self._tac_field = tac_assignee_field_id
+        self._pause_statuses = resolution_pause_statuses
         self._owns_client = client is None
         self._client = client or httpx.AsyncClient(
             auth=(email, api_token),
@@ -143,13 +172,25 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
         if self._closed:
             raise RuntimeError("SLA violation Jira source is closed")
 
-    async def _request(self, method: str, path: str, **kwargs: Any) -> object:
+    async def _request(
+        self, method: str, path: str,
+        snapshot: list[tuple[datetime, datetime]] | None = None,
+        **kwargs: Any,
+    ) -> object:
         self._ensure_open()
         async with self._limit:
             self._ensure_open()
             try:
+                if snapshot is not None:
+                    local_before = datetime.now(timezone.utc)
+                    request_started_ns = monotonic_ns()
                 response = await self._client.request(method, f"{self._base_url}{path}", **kwargs)
+                if snapshot is not None:
+                    request_duration = timedelta(microseconds=(monotonic_ns() - request_started_ns + 999) // 1000)
+                    local_after = datetime.now(timezone.utc)
                 response.raise_for_status()
+                if snapshot is not None:
+                    snapshot.append(_snapshot_window(response.headers.get("Date"), local_before, local_after, request_duration))
                 return response.json()
             except (httpx.HTTPError, ValueError) as error:
                 raise RuntimeError("Jira SLA violation request failed") from error
@@ -189,9 +230,15 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
             if any(cycle.breached for cycle in cycles):
                 selected.append((raw, created, cycles, warnings))
         assets: dict[tuple[str, str], str | None] = {}
+        project_ids = {
+            str(project["id"])
+            for raw, _, _, _ in selected
+            if isinstance(project := raw["fields"].get("project"), dict) and project.get("id")
+        }
+        calendars = await self._calendars(next(iter(project_ids))) if len(project_ids) == 1 else ()
         result = []
         for index in range(0, len(selected), 5):
-            tasks = [asyncio.create_task(self._issue(*item, assets)) for item in selected[index:index + 5]]
+            tasks = [asyncio.create_task(self._issue(*item, assets, calendars)) for item in selected[index:index + 5]]
             try:
                 result.extend(await asyncio.gather(*tasks))
             except BaseException:
@@ -201,9 +248,26 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
                 raise
         return tuple(result)
 
+    async def _calendars(self, project_id: str) -> tuple[SlaClockCalendar, ...]:
+        try:
+            listing = await self._request("GET", "/rest/workinghours/1/api/calendar")
+            identifiers = calendar_ids_for_project(listing, project_id)
+            calendars = []
+            for identifier in identifiers:
+                payload = await self._request("GET", f"/rest/workinghours/1/api/calendar/{identifier}")
+                calendars.append(parse_clock_calendar(payload, identifier))
+            return tuple(calendars)
+        except ValueError:
+            return ()
+        except RuntimeError as error:
+            cause = error.__cause__
+            if isinstance(cause, httpx.HTTPStatusError) and cause.response.status_code in (403, 404):
+                return ()
+            raise
+
     async def _search(self, jql: str) -> list[dict]:
         fields = list(dict.fromkeys((
-            "summary", "created", "status", "reporter", "assignee", "issuetype",
+            "summary", "created", "status", "reporter", "assignee", "issuetype", "project",
             _CUSTOMER_NAME_FIELD, _CUSTOMER_ASSET_FIELD, _PARTNER_FIELD,
             self._tac_field, *(field for field, _ in self._sla_fields),
         )))
@@ -215,7 +279,9 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
             payload: dict[str, Any] = {"jql": jql, "fields": fields, "maxResults": 100}
             if token is not None:
                 payload["nextPageToken"] = token
-            data = await self._request("POST", "/rest/api/3/search/jql", json=payload)
+            snapshot: list[tuple[datetime, datetime]] = []
+            data = await self._request("POST", "/rest/api/3/search/jql", snapshot=snapshot, json=payload)
+            snapshot_before, snapshot_after = snapshot[0]
             if not isinstance(data, dict) or not isinstance(data.get("issues"), list):
                 raise RuntimeError("Jira SLA violation search page is invalid")
             for issue in data["issues"]:
@@ -224,6 +290,8 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
                 if issue["key"] in keys:
                     raise RuntimeError("Jira SLA violation search returned duplicate issues")
                 keys.add(issue["key"])
+                issue["_sla_snapshot_before"] = snapshot_before
+                issue["_sla_snapshot_after"] = snapshot_after
                 issues.append(issue)
             next_token = data.get("nextPageToken")
             if data.get("isLast") is True:
@@ -368,6 +436,7 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
     async def _issue(
         self, raw: dict, created: datetime, cycles: tuple[SlaViolationCycle, ...],
         warnings: list[str], assets: dict[tuple[str, str], str | None],
+        calendars: tuple[SlaClockCalendar, ...],
     ) -> SlaViolationIssue:
         key = raw["key"]
         fields = raw["fields"]
@@ -390,4 +459,8 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
             cycles=cycles, changes=changes, history_complete=complete,
             warnings=tuple(dict.fromkeys(warnings)),
             issue_type=_text(fields.get("issuetype")) or None,
+            clock_calendars=calendars,
+            clock_snapshot_before=raw.get("_sla_snapshot_before"),
+            clock_snapshot_after=raw.get("_sla_snapshot_after"),
+            clock_pause_statuses=self._pause_statuses,
         )

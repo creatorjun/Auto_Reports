@@ -112,7 +112,7 @@ test('shared type and status badge components display the same category colors w
   }
 })
 
-test('visible SLA durations exclude only closed aliases while preserving source data, order, and uncertainty', () => {
+test('visible SLA durations exclude closed aliases while preserving source data, order, and uncertainty', () => {
   const durations = [
     { status: '할 일', hours: 3.25 }, { status: '닫힘', hours: 100 },
     { status: '닫혀', hours: 2 }, { status: ' CLOSED ', hours: 4 }, { status: 'Ｃｌｏｓｅｄ', hours: 5 },
@@ -138,6 +138,7 @@ test('combined SLA list hides closed dwell time while retaining current status a
     key: 'TACEA-42', summary: '닫힌 티켓', issue_type: '개선', created_at: '2026-01-01T00:00:00Z', elapsed_days: 10,
     customer: '고객사', partners: [], reporter: '보고자', assignee: '담당자', tac_assignee: 'TAC 담당자', current_status: '닫힘',
     status_durations: [{ status: '할 일', hours: 3.25 }, { status: 'Closed', hours: 8765 }, { status: '닫힘', hours: 9876 }, { status: '취소됨', hours: 6 }],
+    status_durations_basis: 'resolution_sla',
     breaches: [{ metric: 'initial_response', status: 'Closed', breached_at: '2026-01-02T00:00:00Z' }, { metric: 'resolution', status: '닫힘', breached_at: '2026-01-03T00:00:00Z' }], warnings: [],
   }
   const original = structuredClone(ticket)
@@ -158,6 +159,6 @@ test('combined SLA list hides closed dwell time while retaining current status a
   assert.equal(jira.props.href, 'https://jira.example/browse/TACEA-42')
   assert.equal(jira.props.target, '_blank')
   act(() => view.update(React.createElement(SlaViolationList, { tickets: [{ ...ticket, status_durations: null }] })))
-  assert.match(textOf(view.toJSON()), /상태 변경 이력이 불완전하여 체류 기간을 확인할 수 없습니다/)
+  assert.match(textOf(view.toJSON()), /상태별 SLA 시간을 확인할 수 없습니다/)
   assert.deepEqual(ticket, original)
 })

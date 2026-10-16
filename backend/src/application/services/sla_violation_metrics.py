@@ -3,8 +3,8 @@ from dataclasses import replace
 from datetime import date, datetime, time, timedelta
 
 from src.domain.constants import KST
+from src.application.services.sla_status_clock import calculate_sla_status_durations
 from src.domain.entities.sla_violation_report import (
-    SlaStatusDuration,
     SlaViolationBreach,
     SlaViolationIssue,
     SlaViolationPeriod,
@@ -58,12 +58,19 @@ def _ticket(issue: SlaViolationIssue, generated_at: datetime) -> SlaViolationTic
     warnings = list(issue.warnings)
     intervals = None
     durations = None
+    calendar_name = None
     try:
-        intervals = _timeline(issue, generated_at)
-        hours: dict[str, float] = {}
-        for start, end, status in intervals:
-            hours[status] = hours.get(status, 0.0) + (end - start).total_seconds() / 3600
-        durations = tuple(SlaStatusDuration(status, round(value, 2)) for status, value in hours.items())
+        clock_end = max(generated_at, _local(issue.clock_snapshot_after)) if issue.clock_snapshot_after is not None else generated_at
+        intervals = _timeline(issue, clock_end)
+        allocation = calculate_sla_status_durations(
+            intervals=tuple(intervals), cycles=issue.cycles, calendars=issue.clock_calendars,
+            snapshot_before=issue.clock_snapshot_before, snapshot_after=issue.clock_snapshot_after,
+            pause_statuses=issue.clock_pause_statuses,
+        )
+        durations = allocation.durations
+        calendar_name = ", ".join(allocation.calendar_names) or None
+        if allocation.warning:
+            warnings.append(allocation.warning)
     except ValueError as error:
         warnings.append(str(error))
     breaches: list[SlaViolationBreach] = []
@@ -96,6 +103,8 @@ def _ticket(issue: SlaViolationIssue, generated_at: datetime) -> SlaViolationTic
         warnings=tuple(dict.fromkeys(warnings)),
         issue_type=issue.issue_type,
         sla_cycles=tuple(cycles),
+        status_durations_basis="resolution_sla",
+        status_duration_calendar=calendar_name,
     )
 
 

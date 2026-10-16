@@ -101,7 +101,9 @@ class SlaViolationUseCaseTest(unittest.IsolatedAsyncioTestCase):
         use_case = SlaViolationReportUseCase(self.source, self.repository, self.lock, clock=clock)
         report = await use_case.generate("month", date(2026, 10, 14), "tester")
         self.assertEqual(finished, report.generated_at)
-        self.assertEqual(26, report.tickets[0].status_durations[0].hours)
+        self.assertEqual(1, report.tickets[0].elapsed_days)
+        self.assertIsNone(report.tickets[0].status_durations)
+        self.assertEqual("resolution_sla", report.tickets[0].status_durations_basis)
 
     async def test_upstream_failure_never_saves_or_leaves_lock_held(self) -> None:
         self.source.fetch_issues.side_effect = RuntimeError("private Jira failure")
@@ -198,6 +200,36 @@ class SlaViolationRepositoryTest(unittest.IsolatedAsyncioTestCase):
         expected = replace(saved, tickets=(replace(saved.tickets[0], issue_type=None),))
         self.assertEqual(expected, await self.repository.get_latest())
         self.assertEqual(expected, await self.repository.get_by_id(saved.id))
+        self.assertEqual(original_payload, row.payload)
+        self.session.commit.assert_not_awaited()
+
+    async def test_resolution_sla_basis_and_calendar_round_trip_without_recomputing_hours(self) -> None:
+        report = sample_report()
+        ticket = replace(
+            report.tickets[0], status_durations=(SlaStatusDuration("할 일", 0.5000001), SlaStatusDuration("이슈 리뷰 중", 11.25)),
+            status_durations_basis="resolution_sla", status_duration_calendar="계약 업무시간",
+        )
+        saved = await self.repository.save(replace(report, tickets=(ticket,)))
+        row = self.rows[-1]
+        self.assertEqual(saved, self.repository._to_report(row))
+        stored = row.payload["tickets"][0]
+        self.assertEqual("resolution_sla", stored["status_durations_basis"])
+        self.assertEqual("계약 업무시간", stored["status_duration_calendar"])
+        self.assertEqual(0.5000001, stored["status_durations"][0]["hours"])
+
+    async def test_legacy_status_hours_keep_wall_clock_basis_without_mutating_history(self) -> None:
+        saved = await self.repository.save(sample_report())
+        row = self.rows[-1]
+        for field in ("status_durations_basis", "status_duration_calendar"):
+            row.payload["tickets"][0].pop(field)
+        original_payload = deepcopy(row.payload)
+        self.session.commit.reset_mock()
+        self.session.execute.return_value = Mock(scalar_one_or_none=lambda: row)
+        for stored in (await self.repository.get_latest(), await self.repository.get_by_id(saved.id)):
+            ticket = stored.tickets[0]
+            self.assertEqual("wall_clock", ticket.status_durations_basis)
+            self.assertIsNone(ticket.status_duration_calendar)
+            self.assertEqual(saved.tickets[0].status_durations, ticket.status_durations)
         self.assertEqual(original_payload, row.payload)
         self.session.commit.assert_not_awaited()
 

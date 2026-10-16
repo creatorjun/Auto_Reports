@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     sla_threshold_days: int = 30
     sla_initial_response_field_id: str = "customfield_12152"
     sla_resolution_field_id: str = "customfield_12151"
+    sla_resolution_pause_statuses: list[str] = ["결과 대기 중", "자료 요청 중"]
     jira_tac_assignee_field_id: str = "customfield_10859"
     jira_qa_assignee_field_id: str = "customfield_12222"
     jira_recent_tac_assignee_field_id: str = "customfield_12522"

@@ -6,6 +6,7 @@ import unittest
 from src.application.services.sla_violation_metrics import build_sla_violation_report, sla_violation_window
 from src.application.services.report_period import report_period_dates
 from src.domain.constants import KST
+from src.domain.entities.sla_clock import SlaClockCalendar, SlaClockHoliday, SlaClockWorkingTime
 from src.domain.entities.sla_violation_report import SlaViolationChange, SlaViolationCycle, SlaViolationIssue
 
 
@@ -77,7 +78,8 @@ class SlaViolationMetricsTest(unittest.TestCase):
         self.assertEqual((1, 1, 1), (report.ticket_count, report.initial_response_count, report.resolution_count))
         row = report.tickets[0]
         self.assertEqual(["할 일", "연구소 검토 중", "결과 대기 중"], [breach.status for breach in row.breaches])
-        self.assertEqual({"할 일": 24, "연구소 검토 중": 48, "결과 대기 중": 144}, {part.status: part.hours for part in row.status_durations})
+        self.assertIsNone(row.status_durations)
+        self.assertEqual("resolution_sla", row.status_durations_basis)
         self.assertEqual(9, row.elapsed_days)
 
     def test_nonbreached_and_repeated_cycles_keep_separate_timing_and_only_breaches_are_counted(self):
@@ -96,11 +98,11 @@ class SlaViolationMetricsTest(unittest.TestCase):
         self.assertEqual([14400000, 144000000, 432000000], [cycle.goal_ms for cycle in row.sla_cycles])
         self.assertTrue(row.sla_cycles[-1].paused)
 
-    def test_transition_boundary_uses_new_status_and_reentry_is_summed(self):
+    def test_transition_boundary_uses_new_status_without_fabricating_missing_clock(self):
         sample = issue(current_status="할 일", changes=(SlaViolationChange(timestamp(6), "할 일", "검토 중"), SlaViolationChange(timestamp(7), "검토 중", "할 일")), cycles=(SlaViolationCycle("initial_response", timestamp(6)),))
         row = self.build([sample], now=timestamp(8)).tickets[0]
         self.assertEqual("검토 중", row.breaches[0].status)
-        self.assertEqual({"할 일": 48, "검토 중": 24}, {part.status: part.hours for part in row.status_durations})
+        self.assertIsNone(row.status_durations)
 
     def test_incomplete_history_retains_violation_but_never_invents_status_or_duration(self):
         for sample in (
@@ -118,7 +120,7 @@ class SlaViolationMetricsTest(unittest.TestCase):
         row = self.build([issue(cycles=(SlaViolationCycle("resolution", None),))]).tickets[0]
         self.assertIsNone(row.breaches[0].breached_at)
         self.assertIsNone(row.breaches[0].status)
-        self.assertIsNotNone(row.status_durations)
+        self.assertIsNone(row.status_durations)
         self.assertTrue(row.warnings)
 
     def test_out_of_range_breach_has_unknown_status(self):
@@ -141,7 +143,41 @@ class SlaViolationMetricsTest(unittest.TestCase):
         sample = issue(created_at=timestamp(7, 12), current_status="할 일", changes=(), cycles=(SlaViolationCycle("resolution", timestamp(7, 13)),))
         row = self.build([sample], now=timestamp(7, 14)).tickets[0]
         self.assertEqual(0, row.elapsed_days)
-        self.assertEqual(2, row.status_durations[0].hours)
+        self.assertIsNone(row.status_durations)
+
+    def test_status_hours_use_verified_resolution_clock_with_configured_holiday_and_pause(self):
+        hour_ms = 3_600_000
+        calendar = SlaClockCalendar(
+            id="calendar-test", name="계약 업무시간", timezone="Asia/Seoul",
+            working_times=tuple(SlaClockWorkingTime(day, start * hour_ms, end * hour_ms) for day in range(5) for start, end in ((9, 12), (13, 18))),
+            holidays=(SlaClockHoliday(date(2026, 10, 9)),),
+        )
+        cycle = SlaViolationCycle(
+            "resolution", timestamp(12, 11), goal_ms=10 * hour_ms, elapsed_ms=13 * hour_ms,
+            exceeded_ms=3 * hour_ms, started_at=timestamp(8, 9), stopped_at=timestamp(12, 18),
+        )
+        sample = issue(
+            created_at=timestamp(8, 9),
+            changes=(SlaViolationChange(timestamp(8, 11), "할 일", "이슈 리뷰 중"), SlaViolationChange(timestamp(12, 15), "이슈 리뷰 중", "결과 대기 중")),
+            cycles=(cycle,), clock_calendars=(calendar,),
+        )
+        row = self.build([sample], period="month", selected=date(2026, 10, 8), now=timestamp(14)).tickets[0]
+        hours = {part.status: part.hours for part in row.status_durations}
+        self.assertEqual({"할 일": 2, "이슈 리뷰 중": 11, "결과 대기 중": 0}, hours)
+        self.assertAlmostEqual(cycle.elapsed_ms, sum(hours.values()) * hour_ms)
+        self.assertAlmostEqual(11 / 13, hours["이슈 리뷰 중"] / sum(hours.values()))
+        self.assertEqual(("resolution_sla", calendar.name), (row.status_durations_basis, row.status_duration_calendar))
+        self.assertEqual("이슈 리뷰 중", row.breaches[0].status)
+        self.assertEqual(6, row.elapsed_days)
+        self.assertFalse(row.warnings)
+
+        mismatched = replace(sample, cycles=(replace(cycle, elapsed_ms=12 * hour_ms),))
+        unknown = self.build([mismatched], period="month", selected=date(2026, 10, 8), now=timestamp(14)).tickets[0]
+        self.assertIsNone(unknown.status_durations)
+        self.assertIsNone(unknown.status_duration_calendar)
+        self.assertEqual("resolution_sla", unknown.status_durations_basis)
+        self.assertTrue(unknown.warnings)
+        self.assertEqual(row.breaches, unknown.breaches)
 
     def test_future_date_invalid_period_and_duplicate_ticket_are_rejected(self):
         with self.assertRaises(ValueError):

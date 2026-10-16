@@ -68,6 +68,8 @@ site_id 외래키와 hostname, role, CPU core/thread, memory/disk 용량, OS, IP
 
 초과 시간은 동일 주기의 Jira 목표·경과·잔여 시간으로 검증하며 상태별 체류시간이나 보고서 생성 시각으로 대신 계산하지 않습니다. 주기의 목표는 해당 티켓에 Jira가 적용한 값이며 고객사 계약 등급을 별도로 추정하지 않습니다. 저장하지 않았던 과거 `sla_cycles`는 null로 읽습니다. 새로 보고서를 생성해야 시간이 수집되며 기존 이력을 갱신하지 않습니다. 이 JSONB 확장은 별도의 Alembic 마이그레이션을 요구하지 않습니다.
 
+상태별 시간의 `status_durations_basis`는 `resolution_sla` 또는 `wall_clock`입니다. 새 보고서는 Jira 캘린더·정지 상태를 적용하고 SLA 사용 시간과 검증한 `status_durations`를 저장하며, 검증 불가이면 null입니다. `status_duration_calendar`는 같은 배분으로 검증된 캘린더 이름입니다. 필드가 없는 과거 보고서는 `wall_clock`으로 읽고 UI에서 SLA 시간으로 표시하지 않습니다. 재생성으로 새 이력을 만들며 기존 JSONB는 수정하지 않습니다.
+
 ### redeployment_reports
 
 | Column | Type | 설명 |

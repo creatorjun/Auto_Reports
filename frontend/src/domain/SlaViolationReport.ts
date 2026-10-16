@@ -42,6 +42,7 @@ export interface SlaViolationTicket {
   tac_assignee: string | null
   current_status: string
   status_durations: { status: string; hours: number }[] | null
+  status_durations_basis?: 'wall_clock' | 'resolution_sla'
   breaches: SlaViolationBreach[]
   sla_cycles?: SlaViolationCycle[] | null
   warnings: string[]
