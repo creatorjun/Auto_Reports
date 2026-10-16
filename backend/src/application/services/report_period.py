@@ -18,7 +18,7 @@ def report_period_dates(
         raise ValueError("기준일은 오늘 이후로 선택할 수 없습니다.")
     if period == "week":
         start = selected_date - timedelta(days=selected_date.weekday())
-        end = start + timedelta(days=6)
+        end = selected_date
     elif period == "month":
         start = selected_date.replace(day=1)
         end = selected_date.replace(day=monthrange(selected_date.year, selected_date.month)[1])

@@ -30,8 +30,14 @@ from src.presentation.api.v1.trigger import router
 class ReportPeriodTest(unittest.TestCase):
     def test_calendar_boundaries_include_leap_day_and_cross_year_week(self) -> None:
         for period, selected, expected in (
-            ("week", date(2026, 1, 1), (date(2025, 12, 29), date(2026, 1, 4))),
+            ("week", date(2026, 1, 1), (date(2025, 12, 29), date(2026, 1, 1))),
+            ("week", date(2026, 10, 5), (date(2026, 10, 5), date(2026, 10, 5))),
+            ("week", date(2026, 10, 9), (date(2026, 10, 5), date(2026, 10, 9))),
+            ("week", date(2026, 10, 10), (date(2026, 10, 5), date(2026, 10, 10))),
+            ("week", date(2026, 10, 11), (date(2026, 10, 5), date(2026, 10, 11))),
             ("month", date(2024, 2, 13), (date(2024, 2, 1), date(2024, 2, 29))),
+            ("month", date(2026, 10, 9), (date(2026, 10, 1), date(2026, 10, 31))),
+            ("year", date(2026, 10, 9), (date(2026, 1, 1), date(2026, 12, 31))),
             ("year", date(2025, 7, 4), (date(2025, 1, 1), date(2025, 12, 31))),
         ):
             with self.subTest(period=period):
@@ -68,14 +74,14 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
     async def test_calendar_requests_pass_standard_scope_and_fresh_jira_queries(self) -> None:
         now = datetime(2026, 10, 13, 15, 15, tzinfo=timezone.utc).astimezone(KST)
         for period, expected in (
-            ("week", (date(2026, 10, 12), date(2026, 10, 18))),
+            ("week", (date(2026, 10, 5), date(2026, 10, 9))),
             ("month", (date(2026, 10, 1), date(2026, 10, 31))),
             ("year", (date(2026, 1, 1), date(2026, 12, 31))),
         ):
             with self.subTest(period=period):
                 with patch("src.presentation.api.v1.trigger.datetime", wraps=datetime) as clock:
                     clock.now.return_value = now
-                    response = await self.client.post("/api/v1/trigger/", json={"period": period, "date": "2026-10-14"})
+                    response = await self.client.post("/api/v1/trigger/", json={"period": period, "date": "2026-10-09"})
                 self.assertEqual(202, response.status_code, response.text)
                 clock.now.assert_called_once_with(KST)
                 args, kwargs = self.runner.submit.await_args

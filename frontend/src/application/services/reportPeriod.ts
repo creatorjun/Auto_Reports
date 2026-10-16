@@ -25,3 +25,8 @@ export function reportDateRange(period: ReportPeriod, selectedDate: string): { s
   }
   return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }
 }
+
+export function dashboardReportDateRange(period: ReportPeriod, selectedDate: string): { start: string; end: string } | null {
+  const range = reportDateRange(period, selectedDate)
+  return range && period === 'week' ? { ...range, end: selectedDate } : range
+}

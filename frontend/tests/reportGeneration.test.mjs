@@ -95,16 +95,47 @@ function setup(t, gateway = {}) {
   }
 }
 
-test('dashboard and SLA use identical calendar periods and Korean local dates', () => {
+test('dashboard weeks end on the reference date while SLA keeps full calendar weeks', () => {
   const load = sourceLoader()
   const period = load('application/services/reportPeriod')
   const sla = load('application/services/slaViolationReport')
   assert.equal(sla.slaDateRange, period.reportDateRange)
   assert.equal(sla.slaToday, period.reportToday)
-  assert.deepEqual(period.reportDateRange('week', '2026-01-04'), { start: '2025-12-29', end: '2026-01-04' })
-  assert.deepEqual(period.reportDateRange('month', '2024-02-29'), { start: '2024-02-01', end: '2024-02-29' })
-  assert.deepEqual(period.reportDateRange('year', '2026-10-14'), { start: '2026-01-01', end: '2026-12-31' })
+  for (const [date, start, end] of [
+    ['2026-10-09', '2026-10-05', '2026-10-09'],
+    ['2026-10-05', '2026-10-05', '2026-10-05'],
+    ['2026-10-11', '2026-10-05', '2026-10-11'],
+    ['2026-01-01', '2025-12-29', '2026-01-01'],
+  ]) assert.deepEqual(period.dashboardReportDateRange('week', date), { start, end })
+  assert.deepEqual(sla.slaDateRange('week', '2026-10-09'), { start: '2026-10-05', end: '2026-10-11' })
+  assert.deepEqual(sla.slaDateRange('week', '2026-01-01'), { start: '2025-12-29', end: '2026-01-04' })
   assert.equal(period.reportToday(new Date('2026-10-13T15:00:00Z')), '2026-10-14')
+})
+
+test('dashboard month and year cover the complete calendar period and reject invalid dates', () => {
+  const { dashboardReportDateRange } = sourceLoader()('application/services/reportPeriod')
+  assert.deepEqual(dashboardReportDateRange('month', '2026-10-09'), { start: '2026-10-01', end: '2026-10-31' })
+  assert.deepEqual(dashboardReportDateRange('year', '2026-10-09'), { start: '2026-01-01', end: '2026-12-31' })
+  assert.deepEqual(dashboardReportDateRange('month', '2024-02-29'), { start: '2024-02-01', end: '2024-02-29' })
+  for (const period of ['week', 'month', 'year']) {
+    for (const date of ['', '2026-2-01', '2026-02-29', '2026-13-01', '0000-01-01']) {
+      assert.equal(dashboardReportDateRange(period, date), null)
+    }
+  }
+})
+
+test('dashboard form compares the displayed report against the reference-date weekly cutoff', (t) => {
+  const generation = { generate() {}, pending: false, error: null, lastRequest: { period: 'week', date: '2026-10-09' } }
+  const Form = sourceLoader({ 'presentation/context/ReportGenerationContext': { useReportGeneration: () => generation } })('presentation/components/common/DashboardGenerateForm').default
+  const report = { ...previous, week_start: '2026-10-05', week_end: '2026-10-09' }
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(Form, { report })) })
+  t.after(() => act(() => view.unmount()))
+  assert.doesNotMatch(textOf(view.toJSON()), /선택한 기간과 현재 보고서의 기간이 다릅니다/)
+  act(() => view.update(React.createElement(Form, { report: { ...report, week_end: '2026-10-11' } })))
+  assert.match(textOf(view.toJSON()), /선택한 기간과 현재 보고서의 기간이 다릅니다/)
+  act(() => view.root.findByType('input').props.onChange({ target: { value: '2026-10-11' } }))
+  assert.doesNotMatch(textOf(view.toJSON()), /선택한 기간과 현재 보고서의 기간이 다릅니다/)
 })
 
 test('API forwards explicit period and selected date without legacy date range inference', async () => {
