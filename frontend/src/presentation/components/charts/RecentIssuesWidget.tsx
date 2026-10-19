@@ -16,13 +16,14 @@ interface Props {
   paginationResetKey?: string
   columnFilters?: IssueColumnFilters
   onColumnFilterChange?: (column: IssueColumn, value: string) => void
+  onColumnFiltersReset?: () => void
   details: RecentIssue[]
   elapsedDaysThreshold: number | null
   elapsedDaysComparison: ElapsedDaysComparison
   onElapsedDaysFilterChange?: (value: number | null, comparison: ElapsedDaysComparison) => void
 }
 
-export default function RecentIssuesWidget({ title = '최근 이슈 현황', tablePreferenceKey, paginationResetKey, columnFilters: providedColumnFilters, onColumnFilterChange: providedColumnFilterChange, details, elapsedDaysThreshold, elapsedDaysComparison, onElapsedDaysFilterChange }: Props) {
+export default function RecentIssuesWidget({ title = '최근 이슈 현황', tablePreferenceKey, paginationResetKey, columnFilters: providedColumnFilters, onColumnFilterChange: providedColumnFilterChange, onColumnFiltersReset, details, elapsedDaysThreshold, elapsedDaysComparison, onElapsedDaysFilterChange }: Props) {
   const exportMode = useDashboardExportMode()
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -38,6 +39,7 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', tab
   const { columnFilters, onColumnFilterChange, filteredIssues } = useIssueColumnSearch(
     elapsedIssues, providedColumnFilters, providedColumnFilterChange,
   )
+  const hasResettableColumnFilters = Boolean(onColumnFiltersReset && Object.values(columnFilters).some(Boolean))
 
   useEffect(() => {
     setDraft(elapsedDaysThreshold === null ? '' : String(elapsedDaysThreshold))
@@ -64,6 +66,7 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', tab
     setBadInput(false)
     setError('')
     onElapsedDaysFilterChange?.(null, 'gte')
+    onColumnFiltersReset?.()
   }
 
   return (
@@ -108,7 +111,7 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', tab
               <Search size={14} aria-hidden="true" />
               검색
             </button>
-            <button type="button" onClick={reset} disabled={elapsedDaysThreshold === null && draft === '' && elapsedDaysComparison === 'gte' && draftComparison === 'gte' && !badInput} className="min-h-10 rounded-lg px-3 text-control font-medium text-apple-mid transition-colors hover:bg-apple-gray disabled:cursor-default disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
+            <button type="button" onClick={reset} disabled={elapsedDaysThreshold === null && draft === '' && elapsedDaysComparison === 'gte' && draftComparison === 'gte' && !badInput && !hasResettableColumnFilters} className="min-h-10 rounded-lg px-3 text-control font-medium text-apple-mid transition-colors hover:bg-apple-gray disabled:cursor-default disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
               초기화
             </button>
             {error && <p id={`${inputId}-error`} role="alert" className="w-full text-label text-red-600">{error}</p>}
