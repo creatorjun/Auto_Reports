@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/RedeploymentPage.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Loader2, RotateCcw } from 'lucide-react'
-import type { RedeploymentScope } from '@/domain/RedeploymentReport'
+import type { RedeploymentColumn, RedeploymentColumnFilters, RedeploymentScope } from '@/domain/RedeploymentReport'
 import { filterRedeployments, redeploymentIsStale, redeploymentMonths, redeploymentSummary } from '@/application/services/redeploymentReport'
 import { RequestError } from '@/application/errors/RequestError'
 import { useRedeployments, useRefreshRedeployments } from '@/presentation/hooks/useRedeployments'
@@ -19,6 +19,7 @@ export default function RedeploymentPage() {
   const [scope, setScope] = useState<RedeploymentScope>('all')
   const [cause, setCause] = useState('')
   const [search, setSearch] = useState('')
+  const [columnFilters, setColumnFilters] = useState<RedeploymentColumnFilters>({})
   const [month, setMonth] = useState('')
   const selectedScope = month ? 'closed' : scope
   const setCurrentReport = useReportStore((state) => state.setCurrentReport)
@@ -26,11 +27,14 @@ export default function RedeploymentPage() {
   const summary = useMemo(() => redeploymentSummary(report?.tickets ?? []), [report])
   const scoped = useMemo(() => filterRedeployments(report?.tickets ?? [], selectedScope, '', ''), [report, selectedScope])
   const causes = useMemo(() => redeploymentSummary(scoped).causes, [scoped])
-  const tickets = useMemo(() => filterRedeployments(scoped, 'all', cause, search, month), [scoped, cause, search, month])
+  const tickets = useMemo(() => filterRedeployments(scoped, 'all', cause, search, month, columnFilters), [scoped, cause, search, month, columnFilters])
   const monthly = useMemo(() => report ? redeploymentMonths(report) : { months: [], unassigned: 0 }, [report])
   const maximum = Math.max(1, ...monthly.months.map((item) => item.count))
   const error = refresh.error ?? query.error
   const changeScope = (value: RedeploymentScope) => { setScope(value); setCause(''); setMonth('') }
+  const changeColumnFilter = (column: RedeploymentColumn, value: string) => setColumnFilters((current) => ({ ...current, [column]: value }))
+  const hasDetailFilters = Boolean(search || month || cause || Object.values(columnFilters).some(Boolean))
+  const resetDetailFilters = () => { setSearch(''); setColumnFilters({}); setMonth(''); setCause('') }
 
   return <div className="mx-auto flex w-full max-w-content flex-col gap-5 break-keep 3xl:max-w-none">
     <header className="flex flex-wrap items-start justify-between gap-4">
@@ -65,8 +69,8 @@ export default function RedeploymentPage() {
       </div>
       <section className="card">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-section-title font-semibold text-apple-dark">재배포 티켓 <span className="ml-1 text-label text-brand-600">{tickets.length}건</span></h2><div className="flex rounded-xl bg-apple-gray p-1">{(['all', 'active', 'closed'] as const).map((value) => <button key={value} aria-pressed={selectedScope === value} onClick={() => changeScope(value)} className={`rounded-lg px-4 py-2 text-control font-medium ${selectedScope === value ? 'bg-apple-surface text-brand-600 shadow-sm' : 'text-apple-mid'}`}>{scopeLabels[value]}</button>)}</div></div>
-        <div className="my-4 flex flex-wrap items-center gap-3"><label className="min-w-0 flex-1"><span className="sr-only">재배포 티켓 검색</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="번호, 제목, 고객사, 원인 또는 사유 검색" className="w-full rounded-xl border border-apple-divider bg-apple-surface px-4 py-2.5 text-control text-apple-dark focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30" /></label>{month && <button onClick={() => setMonth('')} className="rounded-xl bg-brand-50 px-3 py-2 text-control text-brand-700">{month} · 해제 ×</button>}{cause && <button onClick={() => setCause('')} className="rounded-xl bg-brand-50 px-3 py-2 text-control text-brand-700">{cause} · 해제 ×</button>}</div>
-        <RedeploymentTickets key={`${selectedScope}:${month}:${cause}:${search}`} tickets={tickets} />
+        <div className="my-4 flex flex-wrap items-center gap-3"><label className="min-w-0 flex-1"><span className="sr-only">재배포 티켓 검색</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="번호, 제목, 고객사, 원인 또는 사유 검색" className="w-full rounded-xl border border-apple-divider bg-apple-surface px-4 py-2.5 text-control text-apple-dark focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30" /></label>{month && <button onClick={() => setMonth('')} className="rounded-xl bg-brand-50 px-3 py-2 text-control text-brand-700">{month} · 해제 ×</button>}{cause && <button onClick={() => setCause('')} className="rounded-xl bg-brand-50 px-3 py-2 text-control text-brand-700">{cause} · 해제 ×</button>}<button type="button" disabled={!hasDetailFilters} onClick={resetDetailFilters} className="min-h-11 rounded-xl px-3 py-2 text-control font-medium text-apple-mid hover:bg-apple-gray focus-visible:outline-brand-400 disabled:opacity-40">초기화</button></div>
+        <RedeploymentTickets tickets={tickets} columnFilters={columnFilters} onColumnFilterChange={changeColumnFilter} paginationResetKey={JSON.stringify([selectedScope, month, cause, search, columnFilters])} />
         {summary.missingReason > 0 && <p className="mt-4 text-caption text-apple-mid">상세 사유 미입력 {summary.missingReason}건</p>}
       </section>
       {report.warnings.length > 0 && <details className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-caption text-amber-800"><summary className="cursor-pointer font-medium">일부 데이터 확인 필요 ({report.warnings.length})</summary><ul className="mt-3 space-y-2 leading-relaxed">{report.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></details>}

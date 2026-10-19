@@ -28,3 +28,6 @@ export interface RedeploymentReport {
 }
 
 export type RedeploymentScope = 'all' | 'active' | 'closed'
+
+export type RedeploymentColumn = 'ticket' | 'issue_type' | 'status' | 'cause' | 'repatch_count' | 'completion_month'
+export type RedeploymentColumnFilters = Partial<Record<RedeploymentColumn, string>>

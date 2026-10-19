@@ -516,6 +516,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
           onColumnFilterChange={!exportSelection ? (column, value) => {
             setRecentColumnFilters((current) => ({ ...current, [column]: value }))
           } : undefined}
+          onColumnFiltersReset={!exportSelection ? () => setRecentColumnFilters({}) : undefined}
           onElapsedDaysFilterChange={!exportSelection ? (value, comparison) => {
             setRecentElapsedDaysThreshold(value)
             setRecentElapsedDaysComparison(comparison)

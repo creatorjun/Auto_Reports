@@ -1,20 +1,38 @@
 // frontend/src/presentation/components/redeployments/RedeploymentTickets.tsx
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { ChevronDown, ExternalLink } from 'lucide-react'
-import type { RedeploymentTicket } from '@/domain/RedeploymentReport'
+import type { RedeploymentColumn, RedeploymentColumnFilters, RedeploymentTicket } from '@/domain/RedeploymentReport'
+import ColumnSearchInput from '@/presentation/components/common/ColumnSearchInput'
 import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import { useJira } from '@/presentation/context/JiraContext'
+
+const columns: { key: RedeploymentColumn; label: string }[] = [
+  { key: 'ticket', label: '번호 / 제목' },
+  { key: 'issue_type', label: '유형' },
+  { key: 'status', label: '현재 상태' },
+  { key: 'cause', label: '재배포 원인' },
+  { key: 'repatch_count', label: '재패치' },
+  { key: 'completion_month', label: '완료 월' },
+]
+
+interface Props {
+  tickets: RedeploymentTicket[]
+  columnFilters?: RedeploymentColumnFilters
+  onColumnFilterChange?: (column: RedeploymentColumn, value: string) => void
+  paginationResetKey?: string
+}
 
 function dateLabel(value: string | null) {
   if (!value) return '미입력'
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date(value))
 }
 
-export default function RedeploymentTickets({ tickets }: { tickets: RedeploymentTicket[] }) {
+export default function RedeploymentTickets({ tickets, columnFilters = {}, onColumnFilterChange, paginationResetKey }: Props) {
   const { jiraBrowse } = useJira()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(0)
+  useEffect(() => { setPage(0) }, [paginationResetKey])
   const pages = Math.max(1, Math.ceil(tickets.length / 25))
   const activePage = Math.min(page, pages - 1)
   const toggle = (key: string) => setExpanded((current) => {
@@ -24,10 +42,18 @@ export default function RedeploymentTickets({ tickets }: { tickets: Redeployment
     return next
   })
   return <>
+    {onColumnFilterChange && <div className="mb-4 grid grid-cols-2 gap-3 lg:hidden">
+      {columns.map(({ key, label }) => <label key={key} className="min-w-0 text-caption font-medium text-apple-mid">{label}
+        <ColumnSearchInput label={label} value={columnFilters[key] ?? ''} mobile onChange={(value) => onColumnFilterChange(key, value)} />
+      </label>)}
+    </div>}
     <div className="overflow-x-auto rounded-xl border border-apple-divider">
       <table className="w-full min-w-[1040px] text-left">
         <thead className="bg-apple-gray text-caption font-semibold text-apple-mid"><tr>
-          {['번호 / 제목', '유형', '현재 상태', '재배포 원인', '재패치', '완료 월', '상세'].map((label) => <th scope="col" key={label} className="px-4 py-3 whitespace-nowrap">{label}</th>)}
+          {columns.map(({ key, label }) => <th scope="col" key={key} className="px-4 py-3 whitespace-nowrap">{label}
+            {onColumnFilterChange && <div className="hidden lg:block"><ColumnSearchInput label={label} value={columnFilters[key] ?? ''} onChange={(value) => onColumnFilterChange(key, value)} /></div>}
+          </th>)}
+          <th scope="col" className="px-4 py-3 whitespace-nowrap">상세</th>
         </tr></thead>
         <tbody className="divide-y divide-apple-divider">
           {tickets.slice(activePage * 25, (activePage + 1) * 25).map((ticket) => <Fragment key={ticket.key}>

@@ -1,5 +1,6 @@
 // frontend/src/application/services/redeploymentReport.ts
-import type { RedeploymentReport, RedeploymentScope, RedeploymentTicket } from '@/domain/RedeploymentReport'
+import type { RedeploymentColumn, RedeploymentColumnFilters, RedeploymentReport, RedeploymentScope, RedeploymentTicket } from '@/domain/RedeploymentReport'
+import { normalizeSearchText } from '@/domain/Search'
 
 export function redeploymentSummary(tickets: RedeploymentTicket[]) {
   const closed = tickets.filter((ticket) => ticket.closed).length
@@ -30,13 +31,31 @@ export function redeploymentMonths(report: RedeploymentReport) {
   return { months: [...counts].map(([month, count]) => ({ month, count })), unassigned }
 }
 
-export function filterRedeployments(tickets: RedeploymentTicket[], scope: RedeploymentScope, cause: string, query: string, month = '') {
-  const term = query.trim().toLocaleLowerCase('ko-KR')
+function columnSearchValue(ticket: RedeploymentTicket, column: RedeploymentColumn): string {
+  switch (column) {
+    case 'ticket': return [ticket.key, ticket.summary, ticket.customer || '고객사 미입력'].join(' ')
+    case 'issue_type': return ticket.issue_type
+    case 'status': return ticket.status
+    case 'cause': return [ticket.cause || '원인 미입력', ticket.reason || '상세 사유 미입력'].join(' ')
+    case 'repatch_count': return ticket.repatch_count === null ? '미입력' : `${ticket.repatch_count}회`
+    case 'completion_month': return ticket.closed ? ticket.completion_month || '미입력' : '진행 중'
+  }
+}
+
+export function filterRedeployments(tickets: RedeploymentTicket[], scope: RedeploymentScope, cause: string, query: string, month = '', columnFilters: RedeploymentColumnFilters = {}) {
+  const term = normalizeSearchText(query)
+  const activeColumns = (Object.entries(columnFilters) as [RedeploymentColumn, string | undefined][])
+    .map(([column, value]) => [column, normalizeSearchText(value ?? '')] as const)
+    .filter(([, value]) => value)
   return tickets.filter((ticket) =>
     (scope === 'all' || ticket.closed === (scope === 'closed')) &&
     (!month || (ticket.closed && ticket.completion_month === month)) &&
     (!cause || (ticket.cause || '원인 미입력') === cause) &&
-    (!term || [ticket.key, ticket.summary, ticket.customer, ticket.cause, ticket.reason, ticket.assignee, ...ticket.partners].filter(Boolean).join(' ').toLocaleLowerCase('ko-KR').includes(term)),
+    (!term || normalizeSearchText([ticket.key, ticket.summary, ticket.customer, ticket.cause, ticket.reason, ticket.assignee, ...ticket.partners].filter(Boolean).join(' ')).includes(term)) &&
+    activeColumns.every(([column, value]) => {
+      const text = normalizeSearchText(columnSearchValue(ticket, column))
+      return column === 'issue_type' ? text.replace(/\s/g, '').includes(value.replace(/\s/g, '')) : text.includes(value)
+    }),
   ).sort((a, b) => Number(a.closed) - Number(b.closed) || b.key.localeCompare(a.key, 'en', { numeric: true }))
 }
 
