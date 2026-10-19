@@ -10,6 +10,7 @@ from src.application.ports.personal_data_port import PersonalDataSnapshotPort
 from src.application.services.snapshot_personal_data import aggregate_gaps, erase_snapshot_people, snapshot_people
 from src.domain.entities.personal_data import PersonalDataAccount
 from src.infrastructure.persistence.models import ReportORM
+from src.infrastructure.persistence.issue_management_snapshot_repository import IssueManagementSnapshotORM
 from src.infrastructure.persistence.personal_data_suppression import lock_personal_data_writes
 from src.infrastructure.persistence.redeployment_repository_impl import RedeploymentReportORM
 from src.infrastructure.persistence.sla_violation_models import SlaViolationReportORM
@@ -36,6 +37,7 @@ class PersonalDataSnapshotStore(PersonalDataSnapshotPort):
             (ReportORM, "dashboard", "widgets", "created_at"),
             (SlaViolationReportORM, "sla", "payload", "generated_at"),
             (RedeploymentReportORM, "redeployment", "payload", "generated_at"),
+            (IssueManagementSnapshotORM, "issue_management", "payload", "synced_at"),
         ):
             statement = select(model).order_by(model.id)
             if lock:

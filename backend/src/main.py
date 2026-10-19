@@ -40,6 +40,7 @@ def create_app(settings: Settings) -> FastAPI:
                 stack.push_async_callback(database.aclose)
                 container = Container(settings, database)
                 stack.push_async_callback(container.aclose)
+                await container.issue_management.initialize()
                 audit = AuditLogger(settings.audit_log_dir)
                 stack.callback(audit.close)
                 job_repository = SqlJobRepository(database.session_factory)

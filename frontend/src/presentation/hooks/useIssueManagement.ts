@@ -8,6 +8,7 @@ export function useIssueManagement() {
     queryKey: ['issue-management', 'TACEA'],
     queryFn: issueManagement.getIssues,
     staleTime: 0,
+    gcTime: 60 * 60 * 1000,
     refetchInterval: (query) => query.state.data?.refreshing ? 2000 : 30000,
     refetchOnWindowFocus: true,
   })

@@ -35,6 +35,7 @@ from src.infrastructure.factories.ai_factory import AiFactory
 from src.infrastructure.factories.jira_factory import JiraFactory
 from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
 from src.infrastructure.persistence.database import Database
+from src.infrastructure.persistence.issue_management_snapshot_repository import IssueManagementSnapshotRepository
 from src.infrastructure.personal_data_runtime import PersonalDataRuntime
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
@@ -126,7 +127,7 @@ class Container:
             project_key=settings.project_key,
         )
         self.search = SearchUseCase(self._jira)
-        self.issue_management = IssueManagementUseCase(self._jira, "TACEA")
+        self.issue_management = IssueManagementUseCase(self._jira, "TACEA", IssueManagementSnapshotRepository(database))
         self._credential_encryptor = (
             CredentialEncryptor(settings.credential_encryption_key)
             if settings.credential_encryption_key

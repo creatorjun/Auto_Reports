@@ -86,7 +86,7 @@ docker compose exec -T db pg_restore --list < "$backup_file" > /dev/null
 
 백업 파일에는 사이트 접속 정보 등 민감 데이터가 포함될 수 있으므로 접근을 제한하고 Git에 추가하지 않습니다. 파일/감사로그 볼륨은 별도 스냅샷 또는 백업 도구로 보관하고 DB와 파일 사이의 일관성이 필요하면 쓰기 작업을 중지한 시점에 백업합니다. `.env`와 `CREDENTIAL_ENCRYPTION_KEY`는 데이터와 함께 복구 가능한 보안 저장소에 별도로 보관합니다. 암호화 키 없이 ciphertext를 복구해도 원문을 읽을 수 없습니다.
 
-백엔드 entrypoint는 `alembic upgrade head` 성공 후에만 서버를 실행합니다. 현재 head는 `0019`이며 개인정보 보고 계정·암호화된 소유자 토큰 테이블을 추가합니다. 마이그레이션 세부 사항은 [데이터 모델](03_data_model.md)에 있습니다. `0016`은 C-Level 테이블과 데이터를 삭제하며 downgrade는 빈 테이블만 복원합니다. 마이그레이션 전 백업이 없으면 삭제된 데이터를 되돌릴 수 없습니다.
+백엔드 entrypoint는 `alembic upgrade head` 성공 후에만 서버를 실행합니다. 현재 head는 `0020`이며 전체 이슈의 마지막 저장본 테이블을 추가합니다. 마이그레이션 세부 사항은 [데이터 모델](03_data_model.md)에 있습니다. `0016`은 C-Level 테이블과 데이터를 삭제하며 downgrade는 빈 테이블만 복원합니다. 마이그레이션 전 백업이 없으면 삭제된 데이터를 되돌릴 수 없습니다.
 
 직원 Jira 로그인 공유 전 개인정보 보고 연결·과거 이력 보완 절차는 [Jira 로그인](11_jira_login.md)을 따릅니다. `docker compose exec backend python scripts/backfill_personal_data.py`는 이름이나 집계를 변경하지 않는 조회 전용 진단입니다. DB 백업 후 `--apply`를 붙이면 Jira 이력으로 확인된 계정 ID만 저장합니다. `/admin/jira-privacy`에서 미연결 항목과 보고 실패를 확인합니다. 보완 작업 중에는 해당 보고서 저장이 잠시 대기할 수 있습니다.
 
@@ -140,7 +140,7 @@ SLA 생성 검증에서는 생성 응답의 ID·고유 티켓 수·각 SLA 수�
 - 409: 같은 보고서 수집이 진행 중인지 확인합니다. 재배포는 다른 프로세스의 DB lock도 검사합니다.
 - 502/수집 실패: backend 로그에서 Jira 인증·권한, 페이지 누락과 데이터 필드 문제를 확인합니다. SLA/재배포의 실패 응답을 정상 빈 보고서로 처리하지 않습니다.
 - 일반 보고서 단계별 평균 일부 누락: `[w14-단계별시간]` 로그에서 해당 이슈의 잘못된 상태 이력을 확인합니다. 통신 오류와 티켓별 이력 검증 실패는 다른 처리 경로입니다.
-- 전체 이슈가 비어 있음: `initialized`, `refreshing`, `error`, `synced_at`을 확인합니다. backend 재시작 후 메모리 캐시를 다시 수집합니다.
+- 전체 이슈가 비어 있음: `initialized`, `refreshing`, `error`, `synced_at`을 확인합니다. backend 재시작 시 `issue_management_snapshots`의 마지막 목록을 복원하고 백그라운드에서 갱신합니다. 저장본이 없는 최초 실행은 전체 수집이 필요합니다. 복원 실패는 `Issue snapshot restore failed`, 갱신·저장 실패는 `Issue synchronization failed` 로그로 확인합니다.
 - 파일 변환 오류: LibreOffice 설치, 임시 디렉터리 권한과 서버 120초 제한을 확인합니다. 프런트엔드 변환 요청 제한은 150초입니다.
 - 구버전 화면/asset 404: HTML은 no-store, 해시 assets는 장기 캐시입니다. 새로고침 후 버전과 frontend 이미지 반영 여부를 확인합니다.
 

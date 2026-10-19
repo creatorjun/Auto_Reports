@@ -3,7 +3,8 @@ import asyncio
 import pathlib
 import sys
 import unittest
-from datetime import datetime
+from dataclasses import replace
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -13,8 +14,10 @@ from types import SimpleNamespace
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.ports.jira_port import JiraChartIssuePage, JiraIssue, JiraIssueField
+from src.application.ports.issue_management_snapshot_port import IssueManagementSnapshot, IssueManagementSnapshotPort
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.domain.constants import KST
+from src.domain.entities.widget_data import RecentIssueDetail
 from src.presentation.api.v1.router import router
 
 
@@ -190,3 +193,142 @@ class IssueManagementTest(unittest.IsolatedAsyncioTestCase):
             response = await client.get("/api/v1/issue-management/issues")
         self.assertEqual(401, response.status_code)
         self.jira.get_report_chart_issues.assert_not_called()
+
+
+class IssueManagementPersistenceTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.jira = AsyncMock()
+        self.snapshots = AsyncMock(spec=IssueManagementSnapshotPort)
+        now = datetime.now(KST)
+        self.saved = IssueManagementSnapshot(
+            (RecentIssueDetail("TACEA-1", "저장된 이슈", "개선", "처리 중", 4,
+                               "2026-01-01T23:59:00+09:00", 0, reporter="보고자",
+                               reporter_account_id="reporter-1"),),
+            synced_at=now - timedelta(minutes=7), full_synced_at=now - timedelta(minutes=20),
+        )
+        self.snapshots.load.return_value = self.saved
+        self.snapshots.save.side_effect = lambda project, snapshot: snapshot
+        self.use_case = IssueManagementUseCase(self.jira, snapshots=self.snapshots)
+        self.jira.get_report_chart_issues.return_value = JiraChartIssuePage([], False)
+
+    async def asyncTearDown(self):
+        await self.use_case.aclose()
+
+    async def test_startup_restores_without_contacting_jira(self):
+        await self.use_case.initialize()
+        self.assertTrue(self.use_case._initialized)
+        self.assertIsNone(self.use_case._task)
+        self.jira.get_report_chart_issues.assert_not_called()
+        self.snapshots.load.assert_awaited_once_with("TACEA")
+
+    async def test_first_response_has_saved_rows_while_jira_is_blocked(self):
+        blocked = asyncio.Event()
+        async def fetch(*args):
+            await blocked.wait()
+            return JiraChartIssuePage([], False)
+
+        self.jira.get_report_chart_issues.side_effect = fetch
+        result = await asyncio.wait_for(self.use_case.list_issues(), 0.5)
+        self.assertTrue(result["initialized"])
+        self.assertTrue(result["refreshing"])
+        self.assertEqual("저장된 이슈", result["issues"][0].summary)
+        self.assertEqual(self.saved.synced_at.isoformat(), result["synced_at"])
+        self.assertEqual("2026-01-01 23:59", result["issues"][0].created)
+        self.assertGreater(result["issues"][0].elapsed_days, 0)
+
+    async def test_concurrent_first_requests_restore_once(self):
+        results = await asyncio.gather(*(self.use_case.list_issues() for _ in range(10)))
+        await self.use_case._task
+        self.snapshots.load.assert_awaited_once_with("TACEA")
+        self.jira.get_report_chart_issues.assert_awaited_once()
+        self.assertTrue(all(result["initialized"] for result in results))
+
+    async def test_incremental_after_restart_covers_downtime_and_preserves_existing(self):
+        self.jira.get_report_chart_issues.return_value = JiraChartIssuePage([
+            JiraIssue(key="TACEA-2", qa_assignee="QA", qa_assignee_account_id="qa-2",
+                      recent_tac_assignee="TAC", recent_tac_assignee_account_id="tac-2",
+                      personal_data_retrieved_at="2026-10-19T01:00:00Z"),
+        ], False)
+        await self.use_case.list_issues()
+        await self.use_case._task
+        result = await self.use_case.list_issues()
+        jql = self.jira.get_report_chart_issues.call_args.args[0]
+        minutes = int(jql.split('updated >= "-')[1].split('m"')[0])
+        self.assertGreaterEqual(minutes, 9)
+        self.assertLessEqual(minutes, 10)
+        saved = self.snapshots.save.call_args.args[1]
+        self.assertEqual(self.saved.full_synced_at, saved.full_synced_at)
+        self.assertEqual({"TACEA-1", "TACEA-2"}, {row.key for row in result["issues"]})
+        added = next(row for row in saved.issues if row.key == "TACEA-2")
+        self.assertEqual(("QA", "qa-2", "TAC", "tac-2"),
+                         (added.tac_team, added.tac_team_account_id, added.tac_assignee, added.tac_assignee_account_id))
+        self.assertEqual("2026-10-19T01:00:00Z", added.personal_data_retrieved_at)
+
+    async def test_old_full_snapshot_is_visible_until_reconciliation_finishes(self):
+        self.snapshots.load.return_value = replace(self.saved, full_synced_at=datetime.now(KST) - timedelta(hours=2))
+        self.jira.get_report_chart_issues.return_value = JiraChartIssuePage([JiraIssue(key="TACEA-2")], False)
+        initial = await self.use_case.list_issues()
+        self.assertEqual("TACEA-1", initial["issues"][0].key)
+        await self.use_case._task
+        self.assertNotIn("updated >=", self.jira.get_report_chart_issues.call_args.args[0])
+        result = await self.use_case.list_issues()
+        self.assertEqual(["TACEA-2"], [row.key for row in result["issues"]])
+
+    async def test_valid_empty_snapshot_is_initialized(self):
+        self.snapshots.load.return_value = replace(self.saved, issues=())
+        result = await self.use_case.list_issues()
+        self.assertTrue(result["initialized"])
+        self.assertEqual([], result["issues"])
+
+    async def test_failed_save_keeps_last_snapshot_and_cursor(self):
+        self.snapshots.save.side_effect = RuntimeError("unavailable")
+        self.jira.get_report_chart_issues.return_value = JiraChartIssuePage([JiraIssue(key="TACEA-2")], False)
+        initial = await self.use_case.list_issues()
+        cursor = self.use_case._last_sync
+        await self.use_case._task
+        failed = await self.use_case.list_issues()
+        self.assertEqual(initial["issues"], failed["issues"])
+        self.assertEqual(initial["synced_at"], failed["synced_at"])
+        self.assertEqual(cursor, self.use_case._last_sync)
+        self.assertIsNotNone(failed["error"])
+
+    async def test_publishes_suppressed_repository_result(self):
+        def save(project, snapshot):
+            return replace(snapshot, issues=tuple(replace(row, reporter="개인정보 삭제") for row in snapshot.issues))
+
+        self.snapshots.save.side_effect = save
+        await self.use_case.list_issues()
+        await self.use_case._task
+        result = await self.use_case.list_issues()
+        self.assertEqual("개인정보 삭제", result["issues"][0].reporter)
+
+    async def test_cache_clear_cancels_refresh_and_restores_redacted_snapshot(self):
+        started = asyncio.Event()
+
+        async def blocked(*args):
+            started.set()
+            await asyncio.Event().wait()
+
+        self.jira.get_report_chart_issues.side_effect = blocked
+        await self.use_case.list_issues()
+        await started.wait()
+        pending = self.use_case._task
+        await self.use_case.clear_personal_data_cache()
+        self.assertTrue(pending.cancelled())
+        self.snapshots.load.return_value = replace(self.saved, issues=(replace(self.saved.issues[0], reporter="개인정보 삭제"),))
+        result = await self.use_case.list_issues()
+        self.assertTrue(result["initialized"])
+        self.assertEqual("개인정보 삭제", result["issues"][0].reporter)
+        self.assertEqual(2, self.snapshots.load.await_count)
+        self.snapshots.save.assert_not_awaited()
+
+    async def test_unavailable_restore_can_recover_through_background_full_fetch(self):
+        self.snapshots.load.side_effect = RuntimeError("temporary")
+        self.jira.get_report_chart_issues.return_value = JiraChartIssuePage([JiraIssue(key="TACEA-2")], False)
+        initial = await self.use_case.list_issues()
+        self.assertFalse(initial["initialized"])
+        await self.use_case._task
+        result = await self.use_case.list_issues()
+        self.assertTrue(result["initialized"])
+        self.assertEqual("TACEA-2", result["issues"][0].key)
+        self.assertNotIn("updated >=", self.jira.get_report_chart_issues.call_args.args[0])

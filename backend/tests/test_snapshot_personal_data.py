@@ -135,18 +135,20 @@ class SnapshotBackfillTest(unittest.IsolatedAsyncioTestCase):
     async def test_snapshot_store_coverage_oldest_retrieval_and_exact_row_erasure(self):
         rows = [SimpleNamespace(id=1, created_at=NOW, widgets={"w7": {"data": {"issue_details": [{"key": "TACEA-1", "reporter": "A", "reporter_account_id": "account-a", "personal_data_retrieved_at": (NOW - timedelta(days=1)).isoformat()}]}}})]
         sla_rows = [SimpleNamespace(id=2, generated_at=NOW, payload={"tickets": [{"key": "TACEA-2", "reporter": "A", "reporter_account_id": "account-a", "assignee": "unmapped"}], "count": 1})]
+        issue_rows = [SimpleNamespace(id=3, synced_at=NOW, payload={"issues": [{"key": "TACEA-3", "reporter": "A", "reporter_account_id": "account-a", "personal_data_retrieved_at": (NOW - timedelta(days=2)).isoformat()}]})]
         session = SimpleNamespace(execute=AsyncMock(), flush=AsyncMock(), get_bind=lambda: SimpleNamespace(dialect=SimpleNamespace(name="sqlite")))
         def result(statement):
             table = str(statement)
-            values = sla_rows if "sla_violation_reports" in table else [] if "redeployment_reports" in table else rows
+            values = sla_rows if "sla_violation_reports" in table else issue_rows if "issue_management_snapshots" in table else [] if "redeployment_reports" in table else rows
             return Mock(scalars=lambda: Mock(all=lambda: values))
         session.execute.side_effect = result
         store = PersonalDataSnapshotStore(session)
         self.assertEqual({"known_accounts": 1, "unmapped_personal_fields": 1}, await store.coverage())
         accounts = await store.collect_accounts()
-        self.assertEqual(NOW - timedelta(days=1), accounts[0].updated_at)
-        self.assertEqual(2, await store.erase_personal_data(("account-a",)))
+        self.assertEqual(NOW - timedelta(days=2), accounts[0].updated_at)
+        self.assertEqual(3, await store.erase_personal_data(("account-a",)))
         self.assertEqual((1,), store.erased_report_ids)
+        self.assertEqual(REDACTED_PERSON, issue_rows[0].payload["issues"][0]["reporter"])
         self.assertEqual((1, "unmapped"), (sla_rows[0].payload["count"], sla_rows[0].payload["tickets"][0]["assignee"]))
         self.assertEqual((), await store.collect_accounts())
 

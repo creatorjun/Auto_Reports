@@ -20,7 +20,7 @@ Page/Component → Presentation hook → Application gateway
 | 연간 전용 | 연도 생성 버튼 → start_date/end_date → 같은 job 흐름 → annual query 갱신 |
 | SLA 현황 | period/date → SlaViolationGateway.generate → 수집·DB 저장이 완료된 응답 → 최신·ID 캐시 설정 및 이력 무효화 |
 | 재배포 현황 | 서버 08시 작업 또는 generate → 당일 DB upsert → 최신 응답; 화면은 60초마다 최신 저장본 조회 |
-| 전체 이슈 | getIssues → 서버 캐시 즉시 반환 및 필요 시 백그라운드 갱신 → 화면 2초/30초 polling |
+| 전체 이슈 | 서버 시작 시 DB 마지막 목록 복원 → getIssues로 즉시 반환 및 필요 시 백그라운드 갱신 → 기존 목록을 유지하며 화면 2초/30초 polling; 페이지 이탈 후 메모리 캐시는 1시간 유지 |
 
 일반 job 구독은 Layout이 소유합니다. SSE 연결 실패 시 adapter가 backoff polling으로 전환하고 종료 시 연결·타이머를 회수합니다. SLA·재배포는 SSE가 아닌 장기 HTTP 요청이며 최신 조회만으로 Jira 수집을 시작하지 않습니다.
 

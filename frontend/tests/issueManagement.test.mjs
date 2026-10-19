@@ -10,6 +10,7 @@ import TestRenderer, { act } from 'react-test-renderer'
 import ts from 'typescript'
 
 const require = createRequire(import.meta.url)
+const { QueryClient, QueryClientProvider } = require('@tanstack/react-query')
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src')
 const modules = new Map()
 let managementQuery
@@ -51,6 +52,8 @@ const { TABLE_PAGE_SIZE } = loadSource('presentation/config/constants')
 const { normalizeSearchText } = loadSource('domain/Search')
 const { DashboardExportProvider } = loadSource('presentation/context/DashboardExportContext')
 const { default: IssueManagementPage } = loadSource('presentation/pages/IssueManagementPage')
+const { ApplicationServicesProvider } = loadSource('presentation/context/ApplicationServicesContext')
+const { useIssueManagement } = loadSource('presentation/hooks/useIssueManagement')
 
 test('inactive filters preserve the source list and active filters keep empty-selection semantics', () => {
   const rows = [issue('T-1'), issue('T-2')]
@@ -327,6 +330,82 @@ const searchableRows = [
   issue('TACEA-TARGET', { summary: '서울 ABC 요청', status: '처리 중', reporter: '홍길동', tac_team: '지원팀', tac_assignee: '박담당', created: '2026-09-10 09:00', elapsed_days: 7 }),
   issue('OTHER-ROW', { summary: '부산 요청', status: 'Closed', reporter: '김지원', tac_team: '개발팀', tac_assignee: '이담당', created: '2025-01-01 09:00', elapsed_days: 300 }),
 ]
+
+test('the last issue snapshot remains visible during refresh and failures without losing filters, sort or page', (t) => {
+  const rows = Array.from({ length: TABLE_PAGE_SIZE * 2 + 10 }, (_, index) => issue(`T-${String(index).padStart(3, '0')}`, { summary: '서울 기존 요청' }))
+  const { view, column } = managementPage(t, rows, {
+    data: { issues: rows, initialized: true, refreshing: true, synced_at: '2026-10-06T00:00:00Z', error: null },
+  })
+  assert.match(textOf(view.root), /마지막 목록 표시 중 · 동기화 중/)
+  assert.doesNotMatch(textOf(view.root), /TACEA 전체 이슈 수집 중/)
+  column('제목', '서울')
+  const header = () => view.root.findByType('thead').findAllByType('th')[0]
+  click(header())
+  click(pageButton(view.root, 2))
+  const expectedKeys = rows.slice(TABLE_PAGE_SIZE, TABLE_PAGE_SIZE * 2).map((row) => row.key)
+  assert.deepEqual(tableKeys(view.root), expectedKeys)
+  for (const error of ['동기화 실패', null]) {
+    managementQuery = { ...managementQuery, isFetching: false, isError: error === null, data: { ...managementQuery.data, refreshing: false, error } }
+    act(() => view.update(React.createElement(IssueManagementPage)))
+    assert.equal(view.root.findByProps({ 'aria-label': '제목 컬럼 검색' }).props.value, '서울')
+    assert.deepEqual(tableKeys(view.root), expectedKeys)
+    assert.match(textOf(header()), /↑/)
+    assert.equal(view.root.findAllByProps({ role: 'alert' }).length, 1)
+  }
+  const updated = rows.map((row) => ({ ...row, summary: '서울 최신 요청', status: '처리 중' }))
+  managementQuery = { ...managementQuery, isError: false, data: { issues: [...updated, issue('T-999', { summary: '서울 추가 요청' })], initialized: true, refreshing: false, synced_at: '2026-10-06T00:01:00Z', error: null } }
+  act(() => view.update(React.createElement(IssueManagementPage)))
+  assert.deepEqual(tableKeys(view.root), expectedKeys)
+  assert.match(textOf(view.root.findByType('tbody')), /서울 최신 요청/)
+  assert.doesNotMatch(textOf(view.root.findByType('tbody')), /서울 기존 요청/)
+  assert.equal(view.root.findByProps({ 'aria-label': '제목 컬럼 검색' }).props.value, '서울')
+  assert.match(textOf(header()), /↑/)
+  assert.equal(view.root.findAllByProps({ role: 'alert' }).length, 0)
+  assert.doesNotMatch(textOf(view.root), /동기화 중/)
+})
+
+test('an initialized empty snapshot shows the empty list while refreshing instead of initial collection', (t) => {
+  const { view } = managementPage(t, [], { data: { issues: [], initialized: true, refreshing: true, synced_at: '2026-10-06T00:00:00Z', error: null } })
+  assert.match(textOf(view.root), /전체 0건/)
+  assert.match(textOf(view.root), /마지막 목록 표시 중 · 동기화 중/)
+  assert.doesNotMatch(textOf(view.root), /TACEA 전체 이슈 수집 중/)
+})
+
+test('returning after six minutes shows the last snapshot before the new request completes and retains it on failure', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+  const snapshot = { issues: searchableRows, initialized: true, refreshing: false, synced_at: '2026-10-06T00:00:00Z', error: null }
+  let resolveRequest
+  let rejectRequest
+  let requestCount = 0
+  const issueManagement = { getIssues: () => {
+    requestCount += 1
+    return new Promise((resolve, reject) => { resolveRequest = resolve; rejectRequest = reject })
+  } }
+  let query
+  function Probe() { query = useIssueManagement(); return null }
+  const element = React.createElement(ApplicationServicesProvider, { services: { issueManagement } }, React.createElement(QueryClientProvider, { client }, React.createElement(Probe)))
+  let view
+  act(() => { view = TestRenderer.create(element) })
+  t.after(() => { act(() => view.unmount()); client.clear() })
+  assert.equal(requestCount, 1)
+  await act(async () => { resolveRequest(snapshot); await Promise.resolve() })
+  act(() => t.mock.timers.tick(1))
+  assert.deepEqual(query.data, snapshot)
+  act(() => view.unmount())
+  act(() => t.mock.timers.tick(6 * 60 * 1000))
+  act(() => { view = TestRenderer.create(element) })
+  assert.equal(requestCount, 2)
+  assert.equal(query.isFetching, true)
+  assert.equal(query.isPending, false)
+  assert.deepEqual(query.data, snapshot)
+  await act(async () => { rejectRequest(new Error('network unavailable')); await Promise.resolve() })
+  act(() => t.mock.timers.tick(1))
+  assert.equal(query.isError, true)
+  assert.deepEqual(query.data, snapshot)
+  client.clear()
+  assert.equal(client.getQueryData(['issue-management', 'TACEA']), undefined)
+})
 
 test('issue-management bulk selection toggles all groups while retaining semester and title searches', (t) => {
   const { view, column } = managementPage(t, searchableRows)
