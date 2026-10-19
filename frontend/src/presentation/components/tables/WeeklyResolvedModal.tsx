@@ -13,16 +13,16 @@ interface Props {
 }
 
 const COLUMNS: ColumnDef<ResolvedIssue>[] = [
-  { header: '이슈 번호',  renderCell: d => <span className={MODAL_CLS.keyCell}>{d.key}</span>, mobile: { slot: 'primary', render: d => d.key } },
-  { header: '제목', width: 'wide', renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span>, mobile: { slot: 'summary', render: d => d.summary } },
-  { header: '유형',      renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><IssueTypeBadge type={d.type} /></div>, mobile: { slot: 'detail', render: d => <IssueTypeBadge type={d.type} /> } },
-  { header: '해결일시', width: 'date', renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.resolved}</span>, mobile: { slot: 'secondary', render: d => d.resolved } },
+  { header: '이슈 번호', sortValue: d => d.key,  renderCell: d => <span className={MODAL_CLS.keyCell}>{d.key}</span>, mobile: { slot: 'primary', render: d => d.key } },
+  { header: '제목', width: 'wide', sortValue: d => d.summary, renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span>, mobile: { slot: 'summary', render: d => d.summary } },
+  { header: '유형', sortValue: d => d.type,      renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><IssueTypeBadge type={d.type} /></div>, mobile: { slot: 'detail', render: d => <IssueTypeBadge type={d.type} /> } },
+  { header: '해결일시', width: 'date', sortValue: d => d.resolved, sortType: 'date', renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.resolved}</span>, mobile: { slot: 'secondary', render: d => d.resolved } },
 ]
 
 export default function WeeklyResolvedModal({ issues, total, title = '완료 이슈', dateRange, onClose }: Props) {
   const subtitle = dateRange
-    ? `${dateRange.start} – ${dateRange.end} · 전체 ${total}건 (해결일 최신순)`
-    : `전체 ${total}건 (해결일 최신순)`
+    ? `${dateRange.start} – ${dateRange.end} · 전체 ${total}건`
+    : `전체 ${total}건`
 
   return (
     <IssueTableModal

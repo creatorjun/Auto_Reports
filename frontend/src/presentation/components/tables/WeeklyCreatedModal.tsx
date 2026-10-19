@@ -14,17 +14,17 @@ interface Props {
 }
 
 const COLUMNS: ColumnDef<CreatedIssue>[] = [
-  { header: '이슈 번호',  renderCell: d => <span className={MODAL_CLS.keyCell}>{d.key}</span>, mobile: { slot: 'primary', render: d => d.key } },
-  { header: '제목', width: 'wide', renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span>, mobile: { slot: 'summary', render: d => d.summary } },
-  { header: '유형',      renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><IssueTypeBadge type={d.type} /></div>, mobile: { slot: 'detail', render: d => <IssueTypeBadge type={d.type} /> } },
-  { header: '현재 상태',  renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><StatusBadge status={d.status} /></div>, mobile: { slot: 'detail', render: d => <StatusBadge status={d.status} /> } },
-  { header: '생성일시', width: 'date', renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.created}</span>, mobile: { slot: 'secondary', render: d => d.created } },
+  { header: '이슈 번호', sortValue: d => d.key,  renderCell: d => <span className={MODAL_CLS.keyCell}>{d.key}</span>, mobile: { slot: 'primary', render: d => d.key } },
+  { header: '제목', width: 'wide', sortValue: d => d.summary, renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span>, mobile: { slot: 'summary', render: d => d.summary } },
+  { header: '유형', sortValue: d => d.type,      renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><IssueTypeBadge type={d.type} /></div>, mobile: { slot: 'detail', render: d => <IssueTypeBadge type={d.type} /> } },
+  { header: '현재 상태', sortValue: d => d.status,  renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><StatusBadge status={d.status} /></div>, mobile: { slot: 'detail', render: d => <StatusBadge status={d.status} /> } },
+  { header: '생성일시', width: 'date', sortValue: d => d.created, sortType: 'date', renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.created}</span>, mobile: { slot: 'secondary', render: d => d.created } },
 ]
 
 export default function WeeklyCreatedModal({ issues, total, title = '생성 이슈', dateRange, onClose }: Props) {
   const subtitle = dateRange
-    ? `${dateRange.start} – ${dateRange.end} · 전체 ${total}건 (생성일 최신순)`
-    : `전체 ${total}건 (생성일 최신순)`
+    ? `${dateRange.start} – ${dateRange.end} · 전체 ${total}건`
+    : `전체 ${total}건`
 
   return (
     <IssueTableModal

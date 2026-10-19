@@ -13,7 +13,7 @@
     "test:pdf": "node --test tests/dashboardPdf.test.mjs",
     "test:excel": "node --test tests/dashboardExcel.test.mjs",
     "test:storage": "node --test tests/storagePreview.test.mjs tests/filePreviewModal.test.mjs",
-    "test:dashboard": "node --test tests/dashboardIssueTypeFilters.test.mjs tests/slaComments.test.mjs tests/slaIssueSorting.test.mjs tests/recentIssueAgeFilter.test.mjs tests/annualMonthlyComparison.test.mjs tests/annualChartInteractions.test.mjs tests/annualIssueDetails.test.mjs tests/annualChartApi.test.mjs tests/reportGeneration.test.mjs",
+    "test:dashboard": "node --test tests/dashboardIssueTypeFilters.test.mjs tests/issueTableSorting.test.mjs tests/slaComments.test.mjs tests/slaIssueSorting.test.mjs tests/recentIssueAgeFilter.test.mjs tests/annualMonthlyComparison.test.mjs tests/annualChartInteractions.test.mjs tests/annualIssueDetails.test.mjs tests/annualChartApi.test.mjs tests/reportGeneration.test.mjs",
     "test:partner": "node --test tests/partnerOrganizations.test.mjs",
     "test:issues": "node --test tests/issueManagement.test.mjs",
     "test:audit": "node --test tests/auditLogs.test.mjs",

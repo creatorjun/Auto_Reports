@@ -15,7 +15,7 @@ import type {
 } from '@/domain/Dashboard'
 import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
-import { filterRecentIssuesByReportPeriod } from '@/domain/Issue'
+import { filterIssuesByReportPeriod } from '@/domain/Issue'
 import { WIDGET_ID } from '@/domain/WidgetId'
 import {
   isDashboardDateInSemester,
@@ -591,7 +591,7 @@ export function buildFilteredDashboardData(
     reporter: issue.reporter ?? '미지정',
     tac_team: issue.tac_team ?? '미지정',
   }))
-  const recentIssues = filterRecentIssuesByReportPeriod(openIssues, report.week_start, report.week_end)
+  const recentIssues = filterIssuesByReportPeriod(openIssues, report.week_start, report.week_end)
   const incompleteIssues: IncompleteIssue[] = openIssues.map((issue) => ({
     key: issue.key,
     summary: issue.summary,
@@ -615,7 +615,7 @@ export function buildFilteredDashboardData(
   const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w[WIDGET_ID.DATA_REQUEST])
   const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w[WIDGET_ID.RESULT_PENDING])
   const reviewIssues = filterIssues(
-    w4Data?.issue_details ?? [],
+    filterIssuesByReportPeriod(w4Data?.issue_details ?? [], report.week_start, report.week_end),
     selectedTypes,
     controlledTypes,
     selectedStatuses,
@@ -624,7 +624,7 @@ export function buildFilteredDashboardData(
     (issue) => issue.created,
   )
   const dataRequestIssues = filterIssues(
-    w5Data?.issue_details ?? [],
+    filterIssuesByReportPeriod(w5Data?.issue_details ?? [], report.week_start, report.week_end),
     selectedTypes,
     controlledTypes,
     selectedStatuses,
@@ -633,7 +633,7 @@ export function buildFilteredDashboardData(
     (issue) => issue.created,
   )
   const resultPendingIssues = filterIssues(
-    w6Data?.issue_details ?? [],
+    filterIssuesByReportPeriod(w6Data?.issue_details ?? [], report.week_start, report.week_end),
     selectedTypes,
     controlledTypes,
     selectedStatuses,

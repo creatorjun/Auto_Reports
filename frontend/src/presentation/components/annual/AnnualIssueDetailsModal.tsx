@@ -5,6 +5,7 @@ import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import type { ChartIssue } from '@/domain/ReportChartDetails'
 import { normalizeSearchText } from '@/domain/Search'
+import { sortIssueTableRows, type IssueTableSort } from '@/presentation/utils/issueTableSorting'
 
 export type AnnualDetailIssue = ChartIssue
 
@@ -23,6 +24,7 @@ const PAGE_SIZE = 20
 export default function AnnualIssueDetailsModal({ title, total, issues, description, dateField, headerSlot, onClose }: Props) {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [sort, setSort] = useState<IssueTableSort | null>(null)
   const filtered = useMemo(() => {
     const keyword = normalizeSearchText(search)
     if (!keyword) return issues
@@ -31,23 +33,25 @@ export default function AnnualIssueDetailsModal({ title, total, issues, descript
   }, [issues, search])
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, pages)
-  const rows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   const hasResolved = dateField ? dateField === 'resolved' : issues.some((issue) => Boolean(issue.resolved))
   const columns: ColumnDef<AnnualDetailIssue>[] = [
-    { header: '티켓', renderCell: (issue) => <span className="font-mono text-label font-semibold text-brand-600">{issue.key}</span>, mobile: { slot: 'primary' } },
-    { header: '제목', width: 'wide', renderCell: (issue) => <div className="py-3 text-left text-body whitespace-normal break-words" title={issue.summary}>{issue.summary}{(issue.cause || issue.assignee || issue.partners?.length) && <p className="mt-1 text-label text-apple-mid">{[issue.cause, issue.assignee, issue.partners?.join(', ')].filter(Boolean).join(' · ')}</p>}</div>, mobile: { slot: 'summary' } },
-    { header: '유형', renderCell: (issue) => <IssueTypeBadge type={issue.type} />, mobile: { slot: 'detail' } },
+    { header: '티켓', sortValue: (issue) => issue.key, renderCell: (issue) => <span className="font-mono text-label font-semibold text-brand-600">{issue.key}</span>, mobile: { slot: 'primary' } },
+    { header: '제목', sortValue: (issue) => issue.summary, width: 'wide', renderCell: (issue) => <div className="py-3 text-left text-body whitespace-normal break-words" title={issue.summary}>{issue.summary}{(issue.cause || issue.assignee || issue.partners?.length) && <p className="mt-1 text-label text-apple-mid">{[issue.cause, issue.assignee, issue.partners?.join(', ')].filter(Boolean).join(' · ')}</p>}</div>, mobile: { slot: 'summary' } },
+    { header: '유형', sortValue: (issue) => issue.type, renderCell: (issue) => <IssueTypeBadge type={issue.type} />, mobile: { slot: 'detail' } },
   ]
   if (issues.some((issue) => Boolean(issue.status))) {
-    columns.push({ header: '상태', renderCell: (issue) => issue.status ? <StatusBadge status={issue.status} /> : '—', mobile: { slot: 'detail' } })
+    columns.push({ header: '상태', sortValue: (issue) => issue.status, renderCell: (issue) => issue.status ? <StatusBadge status={issue.status} /> : '—', mobile: { slot: 'detail' } })
   }
   if (issues.some((issue) => typeof issue.sla_met === 'boolean')) {
-    columns.push({ header: 'SLA', renderCell: (issue) => <span className="text-label font-semibold">{issue.sla_met === true ? '준수' : issue.sla_met === false ? '위반' : '미확인'}</span>, mobile: { slot: 'detail' } })
+    columns.push({ header: 'SLA', sortValue: (issue) => issue.sla_met, sortType: 'number', renderCell: (issue) => <span className="text-label font-semibold">{issue.sla_met === true ? '준수' : issue.sla_met === false ? '위반' : '미확인'}</span>, mobile: { slot: 'detail' } })
   }
   if (issues.some((issue) => issue.elapsed_hours != null)) {
-    columns.push({ header: '처리시간', renderCell: (issue) => <span className="text-label tabular-nums">{issue.elapsed_hours == null ? '—' : `${issue.elapsed_hours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}시간`}</span>, mobile: { slot: 'detail' } })
+    columns.push({ header: '처리시간', sortValue: (issue) => issue.elapsed_hours, sortType: 'number', renderCell: (issue) => <span className="text-label tabular-nums">{issue.elapsed_hours == null ? '—' : `${issue.elapsed_hours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}시간`}</span>, mobile: { slot: 'detail' } })
   }
-  columns.push({ header: hasResolved ? '해결일시' : '생성일시', width: 'date', renderCell: (issue) => <span className="text-label tabular-nums">{(hasResolved ? issue.resolved : issue.created)?.replace('T', ' ').slice(0, 16) || '—'}</span>, mobile: { slot: 'secondary' } })
+  columns.push({ header: hasResolved ? '해결일시' : '생성일시', sortValue: (issue) => hasResolved ? issue.resolved : issue.created, sortType: 'date', width: 'date', renderCell: (issue) => <span className="text-label tabular-nums">{(hasResolved ? issue.resolved : issue.created)?.replace('T', ' ').slice(0, 16) || '—'}</span>, mobile: { slot: 'secondary' } })
+
+  const sorted = sortIssueTableRows(filtered, columns, sort)
+  const rows = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
     <div className="annual-issue-details">
@@ -57,6 +61,8 @@ export default function AnnualIssueDetailsModal({ title, total, issues, descript
       size="lg"
       data={rows}
       columns={columns}
+      sort={sort}
+      onSortChange={(next) => { setSort(next); setPage(1) }}
       onClose={onClose}
       headerSlot={
         <div className="space-y-3 text-label text-apple-dark">

@@ -14,6 +14,7 @@ from src.application.services.query_config import QueryConfig
 from src.application.widgets.created_vs_resolved_collector import CreatedVsResolvedCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
 from src.domain.value_objects.widget_id import WidgetId
+from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
 
 
 class WidgetQueryBuilderTest(unittest.TestCase):
@@ -62,11 +63,14 @@ class WidgetQueryBuilderTest(unittest.TestCase):
 
     def test_report_period_includes_the_full_end_date(self) -> None:
         periods = [
+            ("2026-08-12", "2026-08-18", "2026-08-19"),
             ("2026-01-01", "2026-09-10", "2026-09-11"),
             ("2026-09-10", "2026-09-10", "2026-09-11"),
             ("2026-08-01", "2026-08-31", "2026-09-01"),
             ("2024-01-01", "2024-12-31", "2025-01-01"),
             ("2024-02-01", "2024-02-29", "2024-03-01"),
+            ("2026-01-01", "2026-06-30", "2026-07-01"),
+            ("2026-07-01", "2026-12-31", "2027-01-01"),
         ]
         for start, end, exclusive_end in periods:
             with self.subTest(start=start, end=end):
@@ -84,6 +88,24 @@ class WidgetQueryBuilderTest(unittest.TestCase):
                 )
                 self.assertEqual(end, queries.date_end)
                 self.assertEqual(end, queries.week_end.date().isoformat())
+                for status, query in (
+                    ("이슈 리뷰 중", queries.w4_issue_review()),
+                    ("자료 요청 중", queries.w5_data_request()),
+                    ("결과 대기 중", queries.w6_result_pending()),
+                ):
+                    self.assertIn(f'status = "{status}"', query)
+                    self.assertIn(f'created >= "{start}" AND created < "{exclusive_end}"', query)
+                    self.assertNotIn(" WAS ", query)
+                    self.assertNotIn(" CHANGED ", query)
+                    self.assertNotIn("resolved", query)
+
+    def test_status_widgets_use_the_default_report_week(self) -> None:
+        for query in (
+            self.queries.w4_issue_review(),
+            self.queries.w5_data_request(),
+            self.queries.w6_result_pending(),
+        ):
+            self.assertIn('created >= "2026-08-12" AND created < "2026-08-19"', query)
 
     def test_full_year_detail_queries_match_yearly_totals(self) -> None:
         queries = WidgetQueryBuilder(self.config).build(
@@ -287,3 +309,56 @@ class ReportPeriodCollectorsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(3, result.total)
         self.assertEqual(3, result.data.by_type["개선"].count)
         self.assertEqual(2, result.data.by_semester["h2"]["개선"].count)
+
+
+class CurrentStatusPeriodJira(PeriodJira):
+    def __init__(self, start: datetime.datetime, end: datetime.datetime):
+        self.issues = [
+            JiraIssue(
+                key=f"{status_index}-{boundary}", summary=boundary, issue_type="개선",
+                status=status, created=created.isoformat(),
+            )
+            for status_index, status in enumerate(("이슈 리뷰 중", "자료 요청 중", "결과 대기 중", "Closed"))
+            for boundary, created in (
+                ("BEFORE", start - datetime.timedelta(seconds=1)),
+                ("START", start),
+                ("END-LATE", end),
+                ("AFTER", end + datetime.timedelta(seconds=1)),
+            )
+        ]
+
+    async def get_issues(self, jql, max_results, fields):
+        if max_results is not None:
+            raise AssertionError("Status widget collection must not be capped")
+        status = re.search(r'status = "([^"]+)"', jql).group(1)
+        issues = await super().get_issues(jql, max_results, fields)
+        return [issue for issue in issues if issue.status == status]
+
+
+class CurrentStatusPeriodCollectorsTest(unittest.IsolatedAsyncioTestCase):
+    async def test_all_status_widgets_include_only_created_period_issues_in_current_stage(self) -> None:
+        config = QueryConfig("TACEA", ["개선"], [], ["Closed"], 30, 2026)
+        widget_ids = (WidgetId.ISSUE_REVIEW, WidgetId.DATA_REQUEST, WidgetId.RESULT_PENDING)
+        for start_date, end_date in (
+            ("2026-08-12", "2026-08-18"),
+            ("2026-08-01", "2026-08-31"),
+            ("2026-01-01", "2026-06-30"),
+            ("2026-07-01", "2026-12-31"),
+            ("2024-01-01", "2024-12-31"),
+        ):
+            with self.subTest(start=start_date, end=end_date):
+                start = datetime.datetime.fromisoformat(f"{start_date}T00:00:00+09:00")
+                end = datetime.datetime.fromisoformat(f"{end_date}T23:59:59+09:00")
+                queries = WidgetQueryBuilder(config).build(end, week_start_override=start)
+                factory = WidgetCollectorFactory(CurrentStatusPeriodJira(start, end))
+                entries = factory.base_collectors(queries, end + datetime.timedelta(days=30))
+                for entry in entries:
+                    if entry.widget_id not in widget_ids:
+                        continue
+                    result = await entry.collector.collect()
+                    status_index = widget_ids.index(entry.widget_id)
+                    self.assertEqual(2, result.total)
+                    self.assertEqual(
+                        [f"{status_index}-START", f"{status_index}-END-LATE"],
+                        [issue.key for issue in result.data.issue_details],
+                    )

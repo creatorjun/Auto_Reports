@@ -227,7 +227,76 @@ for (const { period, start, end, before, after, scope } of [
     assert.deepEqual(support.issues.map((issue) => issue.key), details.map((issue) => issue.key))
     assert.deepEqual(report, original)
   })
+
+  test(`${period} stage cards and details exclude out-of-period creation dates from saved reports`, () => {
+    const report = fixtureReport(scope)
+    report.week_start = start
+    report.week_end = end
+    const stages = [
+      ['w4', '이슈 리뷰 중', 'reviewIssues', 'reviewTotal'],
+      ['w5', '자료 요청 중', 'dataRequestIssues', 'dataRequestTotal'],
+      ['w6', '결과 대기 중', 'resultPendingIssues', 'resultPendingTotal'],
+    ]
+    for (const [id, status] of stages) {
+      const template = { ...report.widgets[id].data.issue_details[0], status }
+      const details = [
+        { ...template, key: `${id}-BEFORE`, created: `${before} 23:59` },
+        { ...template, key: `${id}-START`, created: `${start} 00:00` },
+        { ...template, key: `${id}-END`, created: `${end} 23:59` },
+        { ...template, key: `${id}-AFTER`, created: `${after} 00:00` },
+        { ...template, key: `${id}-NO-DATE`, created: '' },
+      ]
+      report.widgets[id] = widget({ issue_details: details }, details.length)
+    }
+    const original = structuredClone(report)
+    const data = buildDashboardData(report)
+
+    for (const [id, status, listKey, totalKey] of stages) {
+      assert.deepEqual(data.statusIssues[listKey].map((issue) => issue.key), [`${id}-START`, `${id}-END`])
+      assert.equal(data.statusIssues[totalKey], 2)
+      assert.ok(data.statusIssues[listKey].every((issue) => issue.status === status))
+    }
+    assert.deepEqual(report, original)
+  })
 }
+
+test('stage report dates intersect type current-status and semester filters with matching counts', () => {
+  const report = fixtureReport()
+  report.week_start = '2026-06-22'
+  report.week_end = '2026-07-05'
+  const stages = [
+    ['w4', '이슈 리뷰 중', 'reviewIssues', 'reviewTotal'],
+    ['w5', '자료 요청 중', 'dataRequestIssues', 'dataRequestTotal'],
+    ['w6', '결과 대기 중', 'resultPendingIssues', 'resultPendingTotal'],
+  ]
+  for (const [id, status] of stages) {
+    const template = { ...report.widgets[id].data.issue_details[0], type: '개선', status }
+    report.widgets[id] = widget({ issue_details: [
+      { ...template, key: `${id}-EARLIER`, created: '2026-06-21 23:59' },
+      { ...template, key: `${id}-START`, created: '2026-06-22 00:00' },
+      { ...template, key: `${id}-JUNE-END`, created: '2026-06-30 23:59' },
+      { ...template, key: `${id}-JULY`, created: '2026-07-01 00:00' },
+      { ...template, key: `${id}-OTHER-TYPE`, type: '서비스 요청', created: '2026-06-25 09:00' },
+    ] }, 5)
+  }
+
+  for (const [id, status, listKey, totalKey] of stages) {
+    const firstHalf = buildDashboardData(report, new Set(['개선']), 'h1', new Set([status]))
+    assert.deepEqual(firstHalf.statusIssues[listKey].map((issue) => issue.key), [`${id}-START`, `${id}-JUNE-END`])
+    assert.equal(firstHalf.statusIssues[totalKey], 2)
+    for (const [otherId, , otherListKey, otherTotalKey] of stages) {
+      if (otherId === id) continue
+      assert.deepEqual(firstHalf.statusIssues[otherListKey], [])
+      assert.equal(firstHalf.statusIssues[otherTotalKey], 0)
+    }
+    const secondHalf = buildDashboardData(report, new Set(['개선']), 'h2', new Set([status]))
+    assert.deepEqual(secondHalf.statusIssues[listKey].map((issue) => issue.key), [`${id}-JULY`])
+    assert.equal(secondHalf.statusIssues[totalKey], 1)
+    const cleared = buildDashboardData(report, new Set(['개선']), null, new Set())
+    assert.deepEqual(cleared.statusIssues[listKey], [])
+    assert.equal(cleared.statusIssues[totalKey], 0)
+  }
+})
 
 test('recent report dates intersect type status and semester filters while open cards retain earlier eligible issues', () => {
   const report = fixtureReport()

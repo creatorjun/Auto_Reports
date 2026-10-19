@@ -12,19 +12,19 @@ interface Props {
 }
 
 const COLUMNS: ColumnDef<ReviewIssue>[] = [
-  { header: '이슈 번호',  renderCell: d => <span className={MODAL_CLS.keyCell}>{d.key}</span>, mobile: { slot: 'primary', render: d => d.key } },
-  { header: '제목', width: 'wide', renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span>, mobile: { slot: 'summary', render: d => d.summary } },
-  { header: '유형',      renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><IssueTypeBadge type={d.type} /></div>, mobile: { slot: 'detail', render: d => <IssueTypeBadge type={d.type} /> } },
-  { header: '현재 상태',  renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><StatusBadge status={d.status} /></div>, mobile: { slot: 'detail', render: d => <StatusBadge status={d.status} /> } },
-  { header: '생성일시', width: 'date', renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.created}</span>, mobile: { slot: 'detail', render: d => d.created } },
-  { header: '경과일',    renderCell: d => <div className="py-2.5 whitespace-nowrap"><span className={MODAL_CLS.elapsedCell}>{d.elapsed_days}일</span></div>, mobile: { slot: 'secondary', render: d => <span className={MODAL_CLS.elapsedCell}>{d.elapsed_days}일 경과</span> } },
+  { header: '이슈 번호', sortValue: d => d.key,  renderCell: d => <span className={MODAL_CLS.keyCell}>{d.key}</span>, mobile: { slot: 'primary', render: d => d.key } },
+  { header: '제목', width: 'wide', sortValue: d => d.summary, renderCell: d => <span className={MODAL_CLS.bodyCell}>{d.summary}</span>, mobile: { slot: 'summary', render: d => d.summary } },
+  { header: '유형', sortValue: d => d.type,      renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><IssueTypeBadge type={d.type} /></div>, mobile: { slot: 'detail', render: d => <IssueTypeBadge type={d.type} /> } },
+  { header: '현재 상태', sortValue: d => d.status,  renderCell: d => <div className="py-2.5 whitespace-nowrap pr-4"><StatusBadge status={d.status} /></div>, mobile: { slot: 'detail', render: d => <StatusBadge status={d.status} /> } },
+  { header: '생성일시', width: 'date', sortValue: d => d.created, sortType: 'date', renderCell: d => <span className={MODAL_CLS.metaCell + ' tabular-nums'}>{d.created}</span>, mobile: { slot: 'detail', render: d => d.created } },
+  { header: '경과일', sortValue: d => d.elapsed_days, sortType: 'number',    renderCell: d => <div className="py-2.5 whitespace-nowrap"><span className={MODAL_CLS.elapsedCell}>{d.elapsed_days}일</span></div>, mobile: { slot: 'secondary', render: d => <span className={MODAL_CLS.elapsedCell}>{d.elapsed_days}일 경과</span> } },
 ]
 
 export default function IssueReviewModal({ issues, total, onClose }: Props) {
   return (
     <IssueTableModal
       title="이슈 리뷰 중"
-      subtitle={`SLA 초과 후 리뷰 대기 · 전체 ${total}건 (오래된 순)`}
+      subtitle={`보고서 기간에 생성된 이슈 · 전체 ${total}건`}
       data={issues}
       columns={COLUMNS}
       onClose={onClose}

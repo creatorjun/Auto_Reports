@@ -22,11 +22,11 @@ export function issueTypeLabel(type: string | null | undefined): string {
 
 export type ElapsedDaysComparison = 'gte' | 'lte'
 
-export function filterRecentIssuesByReportPeriod(
-  issues: RecentIssue[],
+export function filterIssuesByReportPeriod<T extends { created: string }>(
+  issues: T[],
   periodStart: string,
   periodEnd: string,
-): RecentIssue[] {
+): T[] {
   return issues.filter((issue) => {
     const createdDate = issue.created.slice(0, 10)
     return /^\d{4}-\d{2}-\d{2}$/.test(createdDate)
