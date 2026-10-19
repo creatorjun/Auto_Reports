@@ -179,18 +179,19 @@ function fixtureReport(scope = 'standard') {
   }
 }
 
-function assertHiddenIssuesIncluded(data, expectedTypes, expectedIssueCount) {
+function assertHiddenIssuesIncluded(data, expectedTypes, expectedIssueCount, expectedStageIssueCount = expectedIssueCount) {
   for (const issues of [
     data.weekly.weeklyCreated,
     data.weekly.weeklyResolved,
     data.recentAndIncomplete.recentIssues,
-    data.statusIssues.reviewIssues,
-    data.statusIssues.dataRequestIssues,
-    data.statusIssues.resultPendingIssues,
     data.slaDonut.w12Distribution[0].issue_details,
     data.slaDelay.w13ByStatusDetails['자료 요청'],
   ]) {
     assert.equal(issues.length, expectedIssueCount)
+    assert.deepEqual([...new Set(issues.map((issue) => issue.type))].sort(), [...expectedTypes].sort())
+  }
+  for (const issues of [data.statusIssues.reviewIssues, data.statusIssues.dataRequestIssues, data.statusIssues.resultPendingIssues]) {
+    assert.equal(issues.length, expectedStageIssueCount)
     assert.deepEqual([...new Set(issues.map((issue) => issue.type))].sort(), [...expectedTypes].sort())
   }
   assert.deepEqual(Object.keys(data.resolutionByType).sort(), [...expectedTypes].sort())
@@ -228,7 +229,7 @@ for (const { period, start, end, before, after, scope } of [
     assert.deepEqual(report, original)
   })
 
-  test(`${period} stage cards and details exclude out-of-period creation dates from saved reports`, () => {
+  test(`${period} stage cards and details include all current-stage issues regardless of creation dates`, () => {
     const report = fixtureReport(scope)
     report.week_start = start
     report.week_end = end
@@ -252,15 +253,15 @@ for (const { period, start, end, before, after, scope } of [
     const data = buildDashboardData(report)
 
     for (const [id, status, listKey, totalKey] of stages) {
-      assert.deepEqual(data.statusIssues[listKey].map((issue) => issue.key), [`${id}-START`, `${id}-END`])
-      assert.equal(data.statusIssues[totalKey], 2)
+      assert.deepEqual(data.statusIssues[listKey].map((issue) => issue.key), [`${id}-BEFORE`, `${id}-START`, `${id}-END`, `${id}-AFTER`, `${id}-NO-DATE`])
+      assert.equal(data.statusIssues[totalKey], 5)
       assert.ok(data.statusIssues[listKey].every((issue) => issue.status === status))
     }
     assert.deepEqual(report, original)
   })
 }
 
-test('stage report dates intersect type current-status and semester filters with matching counts', () => {
+test('current-stage cards retain type and current-status filters without report or semester date restrictions', () => {
   const report = fixtureReport()
   report.week_start = '2026-06-22'
   report.week_end = '2026-07-05'
@@ -282,16 +283,16 @@ test('stage report dates intersect type current-status and semester filters with
 
   for (const [id, status, listKey, totalKey] of stages) {
     const firstHalf = buildDashboardData(report, new Set(['개선']), 'h1', new Set([status]))
-    assert.deepEqual(firstHalf.statusIssues[listKey].map((issue) => issue.key), [`${id}-START`, `${id}-JUNE-END`])
-    assert.equal(firstHalf.statusIssues[totalKey], 2)
+    assert.deepEqual(firstHalf.statusIssues[listKey].map((issue) => issue.key), [`${id}-EARLIER`, `${id}-START`, `${id}-JUNE-END`, `${id}-JULY`])
+    assert.equal(firstHalf.statusIssues[totalKey], 4)
     for (const [otherId, , otherListKey, otherTotalKey] of stages) {
       if (otherId === id) continue
       assert.deepEqual(firstHalf.statusIssues[otherListKey], [])
       assert.equal(firstHalf.statusIssues[otherTotalKey], 0)
     }
     const secondHalf = buildDashboardData(report, new Set(['개선']), 'h2', new Set([status]))
-    assert.deepEqual(secondHalf.statusIssues[listKey].map((issue) => issue.key), [`${id}-JULY`])
-    assert.equal(secondHalf.statusIssues[totalKey], 1)
+    assert.deepEqual(secondHalf.statusIssues[listKey], firstHalf.statusIssues[listKey])
+    assert.equal(secondHalf.statusIssues[totalKey], 4)
     const cleared = buildDashboardData(report, new Set(['개선']), null, new Set())
     assert.deepEqual(cleared.statusIssues[listKey], [])
     assert.equal(cleared.statusIssues[totalKey], 0)
@@ -506,7 +507,7 @@ for (const scope of ['standard', 'annual']) {
     assert.equal(data.slaMonthly.w10Monthly[0].met, 12)
     assert.equal(data.slaMonthly.w10Monthly[0].total, 15)
     assert.equal(data.slaMonthly.w10Monthly[0].rate, 80)
-    assertHiddenIssuesIncluded(data, [...HIDDEN_TYPES, '기타'], 3)
+    assertHiddenIssuesIncluded(data, [...HIDDEN_TYPES, '기타'], 3, 6)
     for (const issue of data.recentAndIncomplete.recentIssues) assert.ok(issue.created.startsWith('2026-02'))
   })
 

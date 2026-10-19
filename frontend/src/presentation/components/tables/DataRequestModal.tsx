@@ -23,7 +23,7 @@ export default function DataRequestModal({ issues, total, onClose }: Props) {
   return (
     <IssueTableModal
       title="자료 요청 중"
-      subtitle={`보고서 기간에 생성된 이슈 · 전체 ${total}건`}
+      subtitle={`현재 미완료 이슈 · 전체 ${total}건`}
       data={issues}
       columns={COLUMNS}
       onClose={onClose}

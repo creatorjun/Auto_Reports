@@ -615,31 +615,22 @@ export function buildFilteredDashboardData(
   const w5Data = getData<{ issue_details: DataRequestIssue[] }>(w[WIDGET_ID.DATA_REQUEST])
   const w6Data = getData<{ issue_details: ResultPendingIssue[] }>(w[WIDGET_ID.RESULT_PENDING])
   const reviewIssues = filterIssues(
-    filterIssuesByReportPeriod(w4Data?.issue_details ?? [], report.week_start, report.week_end),
+    w4Data?.issue_details ?? [],
     selectedTypes,
     controlledTypes,
     selectedStatuses,
-    selectedSemester,
-    reportYear,
-    (issue) => issue.created,
   )
   const dataRequestIssues = filterIssues(
-    filterIssuesByReportPeriod(w5Data?.issue_details ?? [], report.week_start, report.week_end),
+    w5Data?.issue_details ?? [],
     selectedTypes,
     controlledTypes,
     selectedStatuses,
-    selectedSemester,
-    reportYear,
-    (issue) => issue.created,
   )
   const resultPendingIssues = filterIssues(
-    filterIssuesByReportPeriod(w6Data?.issue_details ?? [], report.week_start, report.week_end),
+    w6Data?.issue_details ?? [],
     selectedTypes,
     controlledTypes,
     selectedStatuses,
-    selectedSemester,
-    reportYear,
-    (issue) => issue.created,
   )
   const statusIssues = {
     reviewIssues,

@@ -94,18 +94,22 @@ class WidgetQueryBuilderTest(unittest.TestCase):
                     ("결과 대기 중", queries.w6_result_pending()),
                 ):
                     self.assertIn(f'status = "{status}"', query)
-                    self.assertIn(f'created >= "{start}" AND created < "{exclusive_end}"', query)
+                    self.assertNotIn("created", query)
                     self.assertNotIn(" WAS ", query)
                     self.assertNotIn(" CHANGED ", query)
                     self.assertNotIn("resolved", query)
 
-    def test_status_widgets_use_the_default_report_week(self) -> None:
-        for query in (
-            self.queries.w4_issue_review(),
-            self.queries.w5_data_request(),
-            self.queries.w6_result_pending(),
+    def test_status_widgets_only_filter_by_current_incomplete_stage(self) -> None:
+        for status, query in (
+            ("이슈 리뷰 중", self.queries.w4_issue_review()),
+            ("자료 요청 중", self.queries.w5_data_request()),
+            ("결과 대기 중", self.queries.w6_result_pending()),
         ):
-            self.assertIn('created >= "2026-08-12" AND created < "2026-08-19"', query)
+            self.assertEqual(
+                f'project = TACEA AND status = "{status}" '
+                'AND status NOT IN ("Closed", "반려됨", "중복 이슈", "취소됨")',
+                query,
+            )
 
     def test_full_year_detail_queries_match_yearly_totals(self) -> None:
         queries = WidgetQueryBuilder(self.config).build(
@@ -318,8 +322,12 @@ class CurrentStatusPeriodJira(PeriodJira):
                 key=f"{status_index}-{boundary}", summary=boundary, issue_type="개선",
                 status=status, created=created.isoformat(),
             )
-            for status_index, status in enumerate(("이슈 리뷰 중", "자료 요청 중", "결과 대기 중", "Closed"))
+            for status_index, status in enumerate((
+                "이슈 리뷰 중", "자료 요청 중", "결과 대기 중", "처리 중",
+                "Closed", "반려됨", "중복 이슈", "취소됨",
+            ))
             for boundary, created in (
+                ("OLD", start - datetime.timedelta(days=365)),
                 ("BEFORE", start - datetime.timedelta(seconds=1)),
                 ("START", start),
                 ("END-LATE", end),
@@ -331,13 +339,15 @@ class CurrentStatusPeriodJira(PeriodJira):
         if max_results is not None:
             raise AssertionError("Status widget collection must not be capped")
         status = re.search(r'status = "([^"]+)"', jql).group(1)
+        excluded = re.search(r'status NOT IN \(([^)]+)\)', jql).group(1)
+        closed_statuses = re.findall(r'"([^"]+)"', excluded)
         issues = await super().get_issues(jql, max_results, fields)
-        return [issue for issue in issues if issue.status == status]
+        return [issue for issue in issues if issue.status == status and issue.status not in closed_statuses]
 
 
 class CurrentStatusPeriodCollectorsTest(unittest.IsolatedAsyncioTestCase):
-    async def test_all_status_widgets_include_only_created_period_issues_in_current_stage(self) -> None:
-        config = QueryConfig("TACEA", ["개선"], [], ["Closed"], 30, 2026)
+    async def test_all_status_widgets_include_current_stage_without_period_or_age_limit(self) -> None:
+        config = QueryConfig("TACEA", ["개선"], [], ["Closed", "반려됨", "중복 이슈", "취소됨"], 30, 2026)
         widget_ids = (WidgetId.ISSUE_REVIEW, WidgetId.DATA_REQUEST, WidgetId.RESULT_PENDING)
         for start_date, end_date in (
             ("2026-08-12", "2026-08-18"),
@@ -357,8 +367,8 @@ class CurrentStatusPeriodCollectorsTest(unittest.IsolatedAsyncioTestCase):
                         continue
                     result = await entry.collector.collect()
                     status_index = widget_ids.index(entry.widget_id)
-                    self.assertEqual(2, result.total)
+                    self.assertEqual(5, result.total)
                     self.assertEqual(
-                        [f"{status_index}-START", f"{status_index}-END-LATE"],
+                        [f"{status_index}-{boundary}" for boundary in ("OLD", "BEFORE", "START", "END-LATE", "AFTER")],
                         [issue.key for issue in result.data.issue_details],
                     )
