@@ -10,6 +10,7 @@ import type { ReportDetail, ReportSummary } from '@/domain/Report'
 import type { RedeploymentReport } from '@/domain/RedeploymentReport'
 import type { ChartIssuesRequest, ChartIssuesResult } from '@/domain/ReportChartDetails'
 import type { SearchResult } from '@/domain/Search'
+import type { SecurityNewsSnapshot } from '@/domain/SecurityNews'
 import type { SlaDashboardCommentPage, SlaDashboardIssue } from '@/domain/SlaDashboard'
 import type { SlaViolationReport, SlaViolationReportSummary, SlaViolationRequest } from '@/domain/SlaViolationReport'
 import type {
@@ -177,6 +178,12 @@ export interface ApplicationServices {
   slaViolations: SlaViolationGateway
   redeployments: RedeploymentGateway
   issueManagement: { getIssues: () => Promise<IssueManagementSnapshot> }
+  securityNews: SecurityNewsGateway
+}
+
+export interface SecurityNewsGateway {
+  getSnapshot: (signal?: CancellationSignal) => Promise<SecurityNewsSnapshot>
+  refresh: () => Promise<SecurityNewsSnapshot>
 }
 
 export interface RedeploymentGateway {

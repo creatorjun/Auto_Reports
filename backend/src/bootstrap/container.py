@@ -25,10 +25,12 @@ from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.application.use_cases.sla_violation_report import SlaViolationReportUseCase
 from src.application.use_cases.redeployment_report import RedeploymentGenerationInProgress, RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
+from src.application.use_cases.security_news import SecurityNewsUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.smtp_email_client import SmtpEmailClient
+from src.infrastructure.external.security_news_source import PublicSecurityNewsSource
 from src.infrastructure.external.jira_oauth_client import JiraOAuthClient
 from src.infrastructure.external.sla_violation_jira_source import SlaViolationJiraSource
 from src.infrastructure.external.sla_digest_jira_source import SlaDigestJiraSource
@@ -131,6 +133,8 @@ class Container:
         )
         self.search = SearchUseCase(self._jira)
         self.issue_management = IssueManagementUseCase(self._jira, "TACEA", IssueManagementSnapshotRepository(database))
+        self._security_news_source = PublicSecurityNewsSource()
+        self.security_news = SecurityNewsUseCase(self._security_news_source)
         self._credential_encryptor = (
             CredentialEncryptor(settings.credential_encryption_key)
             if settings.credential_encryption_key
@@ -297,6 +301,8 @@ class Container:
                 stack.push_async_callback(self._ai.aclose)
             stack.push_async_callback(self._cache.aclose)
             stack.push_async_callback(self.issue_management.aclose)
+            stack.push_async_callback(self._security_news_source.aclose)
+            stack.push_async_callback(self.security_news.aclose)
 
     @staticmethod
     def _build_smtp(settings: Settings) -> SmtpEmailClient | None:

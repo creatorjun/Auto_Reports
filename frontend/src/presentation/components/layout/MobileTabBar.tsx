@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/MobileTabBar.tsx
 import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, ShieldCheck, ChevronUp } from 'lucide-react'
+import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, ShieldCheck, ChevronUp, Newspaper } from 'lucide-react'
 import { canViewAuditLogs } from '@/domain/Auth'
 import { useMe } from '@/presentation/hooks/useAuth'
 import { FOCUS_MANAGEMENT_LABEL, FOCUS_MANAGEMENT_LINKS, isFocusManagementPath } from '@/presentation/config/focusManagement'
@@ -12,6 +12,7 @@ const tabs = [
   { to: '/sites',   label: '사이트',     icon: <Building2      size={20} /> },
   { to: '/sla-dashboard', label: '장기 이슈', icon: <Clock     size={20} /> },
   { to: '/storage', label: '보관함',     icon: <HardDrive      size={20} /> },
+  { to: '/security-news', label: '보안 뉴스', icon: <Newspaper size={20} /> },
 ]
 
 export default function MobileTabBar() {
@@ -42,6 +43,7 @@ export default function MobileTabBar() {
           <div key={to} className="contents">
           <NavLink
             to={to}
+            aria-label={label}
             end={to === '/'}
             className={({ isActive }) =>
               `flex min-w-12 shrink-0 flex-col items-center gap-1 px-1.5 py-1 rounded-xl transition-colors ${

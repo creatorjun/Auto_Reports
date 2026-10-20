@@ -10,6 +10,7 @@ from src.presentation.api.v1 import (
     reports,
     redeployments,
     search,
+    security_news,
     sites,
     sla_dashboard,
     sla_violations,
@@ -32,6 +33,7 @@ _protected.include_router(issue_management.router)
 _protected.include_router(trigger.router)
 _protected.include_router(config.router)
 _protected.include_router(search.router)
+_protected.include_router(security_news.router)
 _protected.include_router(sites.router)
 _protected.include_router(sla_dashboard.router)
 _protected.include_router(sla_violations.router)

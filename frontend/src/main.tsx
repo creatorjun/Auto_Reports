@@ -14,6 +14,7 @@ import { slaDashboardApi } from '@/infrastructure/api/slaDashboardApi'
 import { slaViolationApi } from '@/infrastructure/api/slaViolationApi'
 import { redeploymentApi } from '@/infrastructure/api/redeploymentApi'
 import { issueManagementApi } from '@/infrastructure/api/issueManagementApi'
+import { securityNewsApi } from '@/infrastructure/api/securityNewsApi'
 import { dashboardPdfExporter } from '@/infrastructure/export/dashboardPdfExporter'
 import { dashboardExcelExporter } from '@/infrastructure/export/dashboardExcelExporter'
 import { storageApi } from '@/infrastructure/api/storageApi'
@@ -55,6 +56,7 @@ const services = {
   slaViolations: slaViolationApi,
   redeployments: redeploymentApi,
   issueManagement: issueManagementApi,
+  securityNews: securityNewsApi,
 }
 
 applyTheme(useThemeStore.getState().theme)

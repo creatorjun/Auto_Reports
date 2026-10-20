@@ -19,6 +19,7 @@
 | [구조 유지 기준](REFACTORING_NOTES.md) | 변경 이유, 회귀 방지와 유지보수 점검 |
 | [데이터 흐름](data-flow.md) | 보고서별 수집·저장·표시 흐름 |
 | [컴포넌트](components.md) | 공통 필터, 표, 차트, 내보내기·미리보기 |
+| [보안 뉴스](../../backend/docs/13_security_news.md) | 공개 보안 정보 검색·필터, 출처 상태와 갱신 범위 |
 
 백엔드 계약: [API](../../backend/docs/02_api_reference.md), [SLA 현황](../../backend/docs/08_sla_violation_report.md), [재배포 현황](../../backend/docs/09_redeployment_report.md), [감사로그](../../backend/docs/07_audit_logs.md), [운영](../../backend/docs/10_operations.md).
 

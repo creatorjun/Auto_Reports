@@ -14,6 +14,7 @@ const SlaViolationPage       = lazy(() => import('@/presentation/pages/SlaViolat
 const RedeploymentPage       = lazy(() => import('@/presentation/pages/RedeploymentPage'))
 const HistoryPage            = lazy(() => import('@/presentation/pages/HistoryPage'))
 const AuditLogPage           = lazy(() => import('@/presentation/pages/AuditLogPage'))
+const SecurityNewsPage       = lazy(() => import('@/presentation/pages/SecurityNewsPage'))
 const StoragePage            = lazy(() => import('@/presentation/pages/StoragePage'))
 const StoragePreviewPage     = lazy(() => import('@/presentation/pages/StoragePreviewPage'))
 const LoginPage              = lazy(() => import('@/presentation/pages/LoginPage'))
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
       { path: 'sla-violations', element: <Wrap><SlaViolationPage /></Wrap> },
       { path: 'sla-violations/history/:id', element: <Wrap><SlaViolationPage /></Wrap> },
       { path: 'issues',         element: <Wrap><IssueManagementPage /></Wrap> },
+      { path: 'security-news',  element: <Wrap><SecurityNewsPage /></Wrap> },
       { path: 'sla-dashboard',  element: <Wrap><SlaDashboardPage /></Wrap> },
       { path: 'history',        element: <Wrap><HistoryPage /></Wrap> },
       { path: 'audit-logs', element: <SuperadminRoute><Wrap><AuditLogPage /></Wrap></SuperadminRoute> },

@@ -64,6 +64,7 @@ def create_app(settings: Settings) -> FastAPI:
                     get_redeployment=container.get_redeployment,
                     get_report_chart_issues=container.get_report_chart_issues,
                     issue_management=container.issue_management,
+                    security_news=container.security_news,
                     audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir)),
                     notify_sla_digest=container.notify_sla_digest,
                 )

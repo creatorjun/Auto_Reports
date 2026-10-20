@@ -42,6 +42,8 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_shutdown_closes_owned_ai_and_jira(self) -> None:
         container = self.create_container(self.ai)
+        news_source_close = AsyncMock(wraps=container._security_news_source.aclose)
+        container._security_news_source.aclose = news_source_close
 
         await container.aclose()
 
@@ -49,6 +51,9 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.jira.aclose.assert_awaited_once_with()
         self.sla_source.aclose.assert_awaited_once_with()
         self.redeployment_source.aclose.assert_awaited_once_with()
+        news_source_close.assert_awaited_once_with()
+        self.assertTrue(container.security_news._closed)
+        self.assertTrue(container._security_news_source._client.is_closed)
 
     async def test_enabled_notifications_receive_the_renderer_from_bootstrap(self) -> None:
         self.settings.smtp_host = "smtp.example.test"

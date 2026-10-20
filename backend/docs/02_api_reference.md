@@ -142,6 +142,15 @@ Aggregate 또는 하위 엔티티가 없으면 404입니다.
 
 통합 검색은 Jira와 Confluence를 병렬 조회합니다. limit는 각 공급자에 적용되므로 총 결과 수가 limit보다 많을 수 있습니다. 한 공급자 오류는 로그에 남기고 다른 공급자의 결과를 반환할 수 있습니다. Confluence 자동 게시 API는 없습니다.
 
+## 보안 뉴스
+
+| Method | Path | 역할 |
+|---|---|---|
+| GET | `/security-news` | 마지막 수집 자료 반환, 필요한 경우 백그라운드 갱신 시작 |
+| POST | `/security-news/refresh` | 수동 갱신 요청, 진행 중이면 같은 작업 공유 |
+
+기존 로그인 인증을 적용하며 두 응답 모두 `Cache-Control: no-store`입니다. 최초 요청은 기다리지 않고 `initialized=false`, `refreshing=true`를 반환합니다. 응답의 `items`, `sources`, 갱신 시각과 오류 의미, 60초 수동 제한 및 NVD의 2시간 제한은 [보안 뉴스 계약](13_security_news.md)에 정리했습니다.
+
 ## Storage
 
 | Method | Path | 역할 |

@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { useId, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, Newspaper } from 'lucide-react'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout, useMe } from '@/presentation/hooks/useAuth'
 import { canViewAuditLogs } from '@/domain/Auth'
@@ -24,6 +24,7 @@ const reportLinks = [
   { to: '/sites',    label: '사이트 관리',    icon: <Building2       size={16} /> },
   { to: '/sla-dashboard', label: '장기 이슈', icon: <Clock          size={16} /> },
   { to: '/storage',  label: '파일 보관함',    icon: <HardDrive       size={16} /> },
+  { to: '/security-news', label: '보안 뉴스', icon: <Newspaper size={16} /> },
 ]
 
 interface Props {
@@ -149,6 +150,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
             <NavLink
               key={to}
               to={to}
+              aria-label={label}
               end={to === '/'}
               title={sidebarCollapsed ? label : undefined}
               className={({ isActive }) =>
