@@ -7,6 +7,8 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from src.application.ports.security_news_port import SecurityNewsPort
+from src.application.services.security_news_translation import SecurityNewsTranslationService
+from src.domain.entities.security_news_translation import NewsTranslationState
 from src.domain.entities.security_news import (
     SecurityNewsSnapshot,
     SecurityNewsSource,
@@ -32,8 +34,10 @@ class SecurityNewsUseCase:
         refresh_interval_seconds: int = 900,
         manual_interval_seconds: int = 60,
         clock: Callable[[], datetime] | None = None,
+        translation: SecurityNewsTranslationService | None = None,
     ) -> None:
         self._source = source
+        self._translation = translation
         self._interval = max(60, refresh_interval_seconds)
         self._manual_interval = max(60, manual_interval_seconds)
         self._clock = clock or (lambda: datetime.now(timezone.utc))
@@ -80,12 +84,16 @@ class SecurityNewsUseCase:
             for item in result.items
         }
         oldest = datetime.min.replace(tzinfo=timezone.utc)
+        rendered = tuple(sorted(
+            items.values(),
+            key=lambda item: (item.published_at or item.updated_at or oldest, item.id),
+            reverse=True,
+        ))
+        translation_state = NewsTranslationState()
+        if self._translation is not None:
+            rendered, translation_state = self._translation.snapshot(rendered)
         return SecurityNewsSnapshot(
-            items=tuple(sorted(
-                items.values(),
-                key=lambda item: (item.published_at or item.updated_at or oldest, item.id),
-                reverse=True,
-            )),
+            items=rendered,
             sources=tuple(self._states.values()),
             initialized=self._initialized,
             refreshing=running,
@@ -96,6 +104,7 @@ class SecurityNewsUseCase:
             ),
             refresh_interval_seconds=self._interval,
             retry_after_seconds=max(0, math.ceil(self._manual_interval - elapsed)) if math.isfinite(elapsed) else 0,
+            translation=translation_state,
         )
 
     async def _refresh(self) -> None:
@@ -117,6 +126,10 @@ class SecurityNewsUseCase:
                 state, status="ok", count=len({item.id for item in result.items}),
                 last_success_at=self._clock(), error=None, warning=result.warning,
             )
+            if self._translation is not None:
+                self._translation.snapshot(tuple(
+                    item for cached in self._results.values() for item in cached.items
+                ))
         except Exception as error:
             logger.warning("Security news source %s failed: %s", source.id, type(error).__name__)
             self._states[source.id] = replace(

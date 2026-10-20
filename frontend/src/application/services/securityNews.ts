@@ -1,5 +1,5 @@
 // frontend/src/application/services/securityNews.ts
-import type { SecurityNewsFilters, SecurityNewsItem, SecuritySeverity } from '@/domain/SecurityNews'
+import type { SecurityNewsFilters, SecurityNewsItem, SecurityNewsLanguage, SecuritySeverity } from '@/domain/SecurityNews'
 import { normalizeSearchText } from '@/domain/Search'
 
 const severityOrder: Record<SecuritySeverity, number> = { critical: 4, high: 3, medium: 2, low: 1, unknown: 0 }
@@ -29,7 +29,7 @@ export function filterSecurityNews(items: readonly SecurityNewsItem[], filters: 
     const timestamp = securityNewsTimestamp(item)
     if (threshold !== null && (timestamp === null || timestamp < threshold)) return false
     if (terms.length) {
-      const searchable = normalizeSearchText([item.title, item.summary, item.vendor, item.product, ...item.cve_ids].filter(Boolean).join(' '))
+      const searchable = normalizeSearchText([item.title, item.summary, item.title_ko, item.summary_ko, item.vendor, item.product, ...item.cve_ids].filter(Boolean).join(' '))
       if (!terms.every((term) => searchable.includes(term))) return false
     }
     return true
@@ -43,6 +43,19 @@ export function filterSecurityNews(items: readonly SecurityNewsItem[], filters: 
     const difference = (securityNewsTimestamp(right) ?? 0) - (securityNewsTimestamp(left) ?? 0)
     return difference || left.id.localeCompare(right.id)
   })
+}
+
+export function securityNewsDisplayText(item: SecurityNewsItem, language: SecurityNewsLanguage) {
+  if (language === 'original') return { title: item.title, summary: item.summary, translated: false, originalFallback: false }
+  const titleKo = item.title_ko?.trim()
+  const summaryKo = item.summary_ko?.trim()
+  const isForeignText = (text: string) => !!text.trim() && !/[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/u.test(text)
+  return {
+    title: titleKo || item.title,
+    summary: summaryKo || item.summary,
+    translated: !!((titleKo && titleKo !== item.title) || (summaryKo && summaryKo !== item.summary)),
+    originalFallback: (!titleKo && isForeignText(item.title)) || (!summaryKo && isForeignText(item.summary)),
+  }
 }
 
 export function safeSecurityNewsUrl(value: string): string | null {

@@ -1,13 +1,14 @@
 // frontend/src/presentation/pages/SecurityNewsPage.tsx
 import { useMemo, useState } from 'react'
 import { ArrowDownWideNarrow, ChevronLeft, ChevronRight, Newspaper, RefreshCw, Search, ShieldAlert, ShieldCheck, SlidersHorizontal, X } from 'lucide-react'
-import type { SecurityNewsFilters } from '@/domain/SecurityNews'
+import type { SecurityNewsFilters, SecurityNewsLanguage } from '@/domain/SecurityNews'
 import { RequestError } from '@/application/errors/RequestError'
 import { defaultSecurityNewsFilters, filterSecurityNews } from '@/application/services/securityNews'
 import { useSecurityNews } from '@/presentation/hooks/useSecurityNews'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import SecurityNewsCard, { securityDateLabel, securitySeverityLabels } from '@/presentation/components/security/SecurityNewsCard'
 import SecurityNewsSources from '@/presentation/components/security/SecurityNewsSources'
+import SecurityNewsTranslationControls from '@/presentation/components/security/SecurityNewsTranslationControls'
 
 const PAGE_SIZE = 20
 const categories = [
@@ -23,6 +24,7 @@ export default function SecurityNewsPage() {
   const query = useSecurityNews()
   const [filters, setFilters] = useState(defaultSecurityNewsFilters)
   const [page, setPage] = useState(0)
+  const [language, setLanguage] = useState<SecurityNewsLanguage>('ko')
   const data = query.data
   const items = data?.items
   const filterTime = Math.floor(query.now / 60000) * 60000
@@ -79,6 +81,7 @@ export default function SecurityNewsPage() {
       <p className="text-caption text-apple-light">집계는 현재 수집된 항목 기준이며 같은 CVE가 여러 출처에 포함될 수 있습니다. 실제 악용 여부는 CISA KEV 기준입니다.</p>
 
       <SecurityNewsSources sources={data?.sources ?? []} refreshing={query.refreshing} />
+      <SecurityNewsTranslationControls language={language} onLanguageChange={setLanguage} translation={data?.translation} />
       {(query.isError || query.refreshError) && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-label text-amber-800">
         <p>{query.refreshError ? refreshError : data ? '최신 목록 조회에 실패했습니다. 마지막으로 받은 자료를 표시하며 자동으로 다시 확인합니다.' : '보안 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'}</p>
         {query.isError && <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="rounded-lg px-2 py-1 font-semibold underline disabled:opacity-50">다시 조회</button>}
@@ -117,7 +120,7 @@ export default function SecurityNewsPage() {
           <label className="flex items-center gap-2 text-control text-apple-mid"><ArrowDownWideNarrow size={16} aria-hidden="true" /><span className="sr-only">정렬</span><select value={filters.sort} onChange={(event) => update('sort', event.target.value as SecurityNewsFilters['sort'])} className={`${fieldClass} !w-auto`}><option value="newest">최신순</option><option value="severity">위험도순</option></select></label>
         </div>
         {showLoading ? <div className="rounded-2xl border border-apple-divider bg-apple-surface py-8"><LoadingSpinner text="공개 보안 정보를 수집하고 있습니다..." /></div> : filtered.length ? (
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2 3xl:grid-cols-3">{filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((item) => <SecurityNewsCard key={item.id} item={item} sourceName={sources.get(item.source_id) ?? item.source_id} />)}</div>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2 3xl:grid-cols-3">{filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((item) => <SecurityNewsCard key={item.id} item={item} sourceName={sources.get(item.source_id) ?? item.source_id} language={language} />)}</div>
         ) : (
           <div className="rounded-2xl border border-apple-divider bg-apple-surface px-5 py-12 text-center">
             <SlidersHorizontal size={28} className="mx-auto text-apple-light" aria-hidden="true" />

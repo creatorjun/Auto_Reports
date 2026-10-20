@@ -39,7 +39,7 @@ function sourceLoader(overrides = {}) {
 }
 
 const load = sourceLoader()
-const { defaultSecurityNewsFilters, filterSecurityNews, safeSecurityNewsUrl, cveReferenceUrl } = load('application/services/securityNews')
+const { defaultSecurityNewsFilters, filterSecurityNews, safeSecurityNewsUrl, cveReferenceUrl, securityNewsDisplayText } = load('application/services/securityNews')
 const { RequestError } = load('application/errors/RequestError')
 const now = Date.parse('2026-10-20T05:00:00Z')
 const source = { id: 'nvd', name: 'NVD', homepage: 'https://nvd.nist.gov/', kind: 'cve', status: 'ok', count: 1, last_success_at: '2026-10-20T00:00:00Z', error: null }
@@ -48,6 +48,9 @@ function item(overrides = {}) {
 }
 function snapshot(overrides = {}) {
   return { items: [item()], sources: [source], initialized: true, refreshing: false, refreshed_at: '2026-10-20T00:00:00Z', next_refresh_at: null, retry_after_seconds: 0, refresh_interval_seconds: 900, ...overrides }
+}
+function translation(overrides = {}) {
+  return { enabled: true, translating: false, translated_count: 1, pending_count: 0, message: null, ...overrides }
 }
 function query(overrides = {}) {
   return { data: snapshot(), now, isError: false, isFetching: false, refreshing: false, canRefresh: true, retryAfterSeconds: 0, refreshError: null, refresh() {}, refetch() {}, ...overrides }
@@ -97,6 +100,25 @@ test('filters search normalized CVE, vendor and product with all terms and prese
   assert.deepEqual(original, copy)
 })
 
+test('translated and original fields are both searched without changing the filter contract', () => {
+  const rows = [item({ title: 'Remote access vulnerability', summary: 'Authentication bypass in network appliance', title_ko: '원격 접근 취약점', summary_ko: '네트워크 장비의 인증 우회' }), item({ id: 'other', title: 'Other report', summary: '', title_ko: null, summary_ko: null })]
+  for (const search of ['원격 취약점', '인증 우회', 'remote AUTHENTICATION', '원격 bypass']) {
+    assert.deepEqual(filterSecurityNews(rows, { ...defaultSecurityNewsFilters(), search }, now).map((row) => row.id), ['one'])
+  }
+  assert.deepEqual(filterSecurityNews(rows, { ...defaultSecurityNewsFilters(), search: '인증 우회', severity: 'critical' }, now), [])
+})
+
+test('Korean display picks translated fields independently and keeps original content intact', () => {
+  const row = item({ title: 'Original title', summary: 'Original description', title_ko: '한국어 제목', summary_ko: '한국어 설명' })
+  const original = structuredClone(row)
+  assert.deepEqual(securityNewsDisplayText(row, 'ko'), { title: '한국어 제목', summary: '한국어 설명', translated: true, originalFallback: false })
+  assert.deepEqual(securityNewsDisplayText(row, 'original'), { title: 'Original title', summary: 'Original description', translated: false, originalFallback: false })
+  assert.deepEqual(securityNewsDisplayText({ ...row, summary_ko: null }, 'ko'), { title: '한국어 제목', summary: 'Original description', translated: true, originalFallback: true })
+  assert.deepEqual(securityNewsDisplayText({ ...row, title_ko: ' ', summary_ko: null }, 'ko'), { title: 'Original title', summary: 'Original description', translated: false, originalFallback: true })
+  assert.deepEqual(securityNewsDisplayText(item({ source_id: 'kisa', title: '보안 업데이트 권고', summary: '', title_ko: null, summary_ko: null }), 'ko'), { title: '보안 업데이트 권고', summary: '', translated: false, originalFallback: false })
+  assert.deepEqual(row, original)
+})
+
 test('source, type, severity and exploitation filters combine rather than broaden the results', () => {
   const rows = [item(), item({ id: 'kev', source_id: 'cisa-kev', severity: 'unknown', cvss_score: null, known_exploited: true }), item({ id: 'news', kind: 'news' })]
   const filters = { ...defaultSecurityNewsFilters(), source: 'cisa-kev', severity: 'unknown', exploitedOnly: true, kind: 'cve' }
@@ -135,6 +157,22 @@ test('external source text is escaped, dangerous links are omitted, and unknown 
   assert.match(valid, /target="_blank" rel="noopener noreferrer"/)
 })
 
+test('translated cards escape generated text and label partial or unavailable translations honestly', () => {
+  const Card = load('presentation/components/security/SecurityNewsCard').default
+  const translated = renderToStaticMarkup(React.createElement(Card, { item: item({ title: 'Original title', summary: 'Original description', title_ko: '<script>번역 제목</script>', summary_ko: null }), sourceName: 'NVD' }))
+  assert.match(translated, /&lt;script&gt;번역 제목&lt;\/script&gt;/)
+  assert.match(translated, /AI 번역/)
+  assert.match(translated, /일부 원문 표시/)
+  assert.match(translated, /Original description/)
+  assert.doesNotMatch(translated, /<script>/)
+  const pending = renderToStaticMarkup(React.createElement(Card, { item: item({ title: 'Original title', summary: 'Original description' }), sourceName: 'NVD' }))
+  assert.match(pending, /원문 표시/)
+  assert.doesNotMatch(pending, /AI 번역/)
+  const native = renderToStaticMarkup(React.createElement(Card, { item: item({ source_id: 'kisa', title: '보안 업데이트 권고', summary: '' }), sourceName: 'KISA' }))
+  assert.match(native, /보안 업데이트 권고/)
+  assert.doesNotMatch(native, /원문 표시|AI 번역/)
+})
+
 test('KEV cards distinguish addition dates and federal due dates from vulnerability publication', () => {
   const Card = load('presentation/components/security/SecurityNewsCard').default
   const html = renderToStaticMarkup(React.createElement(Card, { item: item({ source_id: 'cisa-kev', known_exploited: true, due_date: '2026-10-30' }), sourceName: 'CISA KEV' }))
@@ -156,6 +194,46 @@ test('Korean page tabs, search, reset and pagination work on all filtered items'
   assert.match(plainText(view), /조건에 맞는 보안 정보가 없습니다/)
   act(() => view.root.findAllByType('button').find((button) => button.children.some((child) => child === '필터 초기화')).props.onClick())
   assert.equal(view.root.findAllByType('article').length, 20)
+})
+
+test('language toggle changes only card presentation and preserves search results without requesting translation', (t) => {
+  let refreshes = 0
+  let reads = 0
+  const state = query({
+    data: snapshot({ items: [item({ title: 'Original security update', summary: 'Original summary', title_ko: '한국어 보안 업데이트', summary_ko: '한국어 설명' })], translation: translation() }),
+    refresh: () => { refreshes += 1 },
+    refetch: () => { reads += 1 },
+  })
+  const view = renderPage(t, state)
+  const languageGroup = view.root.findByProps({ role: 'group', 'aria-label': '표시 언어 선택' })
+  const korean = languageGroup.findAllByType('button').find((button) => button.children.includes('한국어'))
+  const original = languageGroup.findAllByType('button').find((button) => button.children.includes('원문'))
+  assert.equal(korean.props['aria-pressed'], true)
+  assert.equal(view.root.findByType('h2').findByType('a').children.join(''), '한국어 보안 업데이트')
+  act(() => view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: '한국어' } }))
+  act(() => original.props.onClick())
+  assert.equal(original.props['aria-pressed'], true)
+  assert.equal(view.root.findAllByType('article').length, 1)
+  assert.match(view.root.findByType('h2').findByType('a').children.join(''), /Original security update/)
+  act(() => korean.props.onClick())
+  assert.equal(view.root.findByType('h2').findByType('a').children.join(''), '한국어 보안 업데이트')
+  assert.equal(refreshes, 0)
+  assert.equal(reads, 0)
+})
+
+test('translation status exposes progress completion and paused counts without blocking original content', () => {
+  const Controls = load('presentation/components/security/SecurityNewsTranslationControls').default
+  const render = (state) => renderToStaticMarkup(React.createElement(Controls, { language: 'ko', onLanguageChange() {}, translation: state }))
+  const active = render(translation({ translating: true, translated_count: 3, pending_count: 22 }))
+  assert.match(active, /한국어 번역 중/)
+  assert.match(active, /번역 완료 3건 · 대기 22건/)
+  assert.match(active, /준비되는 대로 자동으로 반영/)
+  const paused = render(translation({ enabled: false, translated_count: 7, pending_count: 18, message: '<제공 서비스 일시 중단>' }))
+  assert.match(paused, /한국어 번역 일시 대기/)
+  assert.match(paused, /번역 완료 7건 · 대기 18건/)
+  assert.match(paused, /&lt;제공 서비스 일시 중단&gt;/)
+  assert.match(render(translation()), /한국어 번역 완료/)
+  assert.match(render(undefined), /한국어 번역이 없는 항목은 원문으로 표시/)
 })
 
 test('source failures disclose missing success instead of showing a false valid zero count', () => {
@@ -253,6 +331,22 @@ test('successful refresh updates shared snapshot and polling follows collection 
   await until(() => state.observed.data.items[0].id === 'updated')
   assert.equal(cached.options.refetchInterval(cached), 2000)
   assert.equal(state.observed.canRefresh, false)
+})
+
+test('translation polling is faster while work remains but does not disable source refresh', async (t) => {
+  const translating = snapshot({ translation: translation({ translating: true, pending_count: 10 }) })
+  const state = setupHook(t, { getSnapshot: async () => translating, refresh: async () => translating })
+  await until(() => state.observed.canRefresh)
+  const cached = state.client.getQueryCache().find({ queryKey: ['security-news'] })
+  assert.equal(cached.options.refetchInterval(cached), 5000)
+  assert.equal(state.observed.refreshing, false)
+  assert.equal(state.observed.canRefresh, true)
+  act(() => state.client.setQueryData(['security-news'], { ...translating, refreshing: true }))
+  await until(() => state.observed.refreshing)
+  assert.equal(cached.options.refetchInterval(cached), 2000)
+  act(() => state.client.setQueryData(['security-news'], snapshot({ translation: translation() })))
+  await until(() => state.observed.canRefresh)
+  assert.equal(cached.options.refetchInterval(cached), 60000)
 })
 
 test('desktop and mobile expose accessible security news and route stays under protected layout', (t) => {

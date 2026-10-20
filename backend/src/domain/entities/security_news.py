@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+from src.domain.entities.security_news_translation import NewsTranslationState
+
 
 NewsKind = Literal["cve", "advisory", "news"]
 NewsSeverity = Literal["critical", "high", "medium", "low", "unknown"]
@@ -27,6 +29,8 @@ class SecurityNewsItem:
     vendor: str | None = None
     product: str | None = None
     due_date: str | None = None
+    title_ko: str | None = None
+    summary_ko: str | None = None
 
 
 @dataclass(frozen=True)
@@ -68,3 +72,4 @@ class SecurityNewsSnapshot:
     next_refresh_at: datetime | None
     refresh_interval_seconds: int
     retry_after_seconds: int = 0
+    translation: NewsTranslationState = NewsTranslationState()

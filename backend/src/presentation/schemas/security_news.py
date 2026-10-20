@@ -25,6 +25,8 @@ class SecurityNewsItemResponse(BaseModel):
     vendor: str | None
     product: str | None
     due_date: str | None
+    title_ko: str | None = None
+    summary_ko: str | None = None
 
 
 class SecurityNewsSourceResponse(BaseModel):
@@ -41,6 +43,16 @@ class SecurityNewsSourceResponse(BaseModel):
     warning: str | None = None
 
 
+class SecurityNewsTranslationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    enabled: bool = False
+    translating: bool = False
+    translated_count: int = 0
+    pending_count: int = 0
+    message: str | None = None
+
+
 class SecurityNewsResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -52,3 +64,4 @@ class SecurityNewsResponse(BaseModel):
     next_refresh_at: datetime | None
     refresh_interval_seconds: int
     retry_after_seconds: int = 0
+    translation: SecurityNewsTranslationResponse = SecurityNewsTranslationResponse()

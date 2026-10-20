@@ -10,6 +10,7 @@ from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.auth_service import AuthService
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
+from src.application.services.security_news_translation import SecurityNewsTranslationService
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.get_report import GetReportUseCase
@@ -31,6 +32,7 @@ from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.smtp_email_client import SmtpEmailClient
 from src.infrastructure.external.security_news_source import PublicSecurityNewsSource
+from src.infrastructure.external.gemini_news_translator import GeminiNewsTranslator
 from src.infrastructure.external.jira_oauth_client import JiraOAuthClient
 from src.infrastructure.external.sla_violation_jira_source import SlaViolationJiraSource
 from src.infrastructure.external.sla_digest_jira_source import SlaDigestJiraSource
@@ -42,6 +44,7 @@ from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.issue_management_snapshot_repository import IssueManagementSnapshotRepository
 from src.infrastructure.personal_data_runtime import PersonalDataRuntime
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
+from src.infrastructure.persistence.security_news_translation_cache import SqliteNewsTranslationCache
 from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
 from src.infrastructure.persistence.sla_violation_repository_impl import SlaViolationRepositoryImpl
 from src.infrastructure.persistence.redeployment_repository_impl import RedeploymentRepositoryImpl
@@ -134,7 +137,24 @@ class Container:
         self.search = SearchUseCase(self._jira)
         self.issue_management = IssueManagementUseCase(self._jira, "TACEA", IssueManagementSnapshotRepository(database))
         self._security_news_source = PublicSecurityNewsSource()
-        self.security_news = SecurityNewsUseCase(self._security_news_source)
+        self._news_translator = None
+        self._news_translation_cache = None
+        self._news_translation = None
+        if settings.security_news_translation_enabled and settings.gemini_api_key:
+            self._news_translator = GeminiNewsTranslator(
+                settings.gemini_api_key, settings.security_news_translation_model,
+            )
+            self._news_translation_cache = SqliteNewsTranslationCache(
+                settings.security_news_translation_cache_path,
+            )
+            self._news_translation = SecurityNewsTranslationService(
+                self._news_translator, self._news_translation_cache,
+                daily_limit=settings.security_news_translation_daily_request_limit,
+                batch_size=settings.security_news_translation_batch_size,
+                minimum_interval_seconds=settings.security_news_translation_min_interval_seconds,
+                max_attempts=settings.security_news_translation_max_attempts,
+            )
+        self.security_news = SecurityNewsUseCase(self._security_news_source, translation=self._news_translation)
         self._credential_encryptor = (
             CredentialEncryptor(settings.credential_encryption_key)
             if settings.credential_encryption_key
@@ -302,6 +322,12 @@ class Container:
             stack.push_async_callback(self._cache.aclose)
             stack.push_async_callback(self.issue_management.aclose)
             stack.push_async_callback(self._security_news_source.aclose)
+            if self._news_translator is not None:
+                stack.push_async_callback(self._news_translator.aclose)
+            if self._news_translation_cache is not None:
+                stack.push_async_callback(self._news_translation_cache.aclose)
+            if self._news_translation is not None:
+                stack.push_async_callback(self._news_translation.aclose)
             stack.push_async_callback(self.security_news.aclose)
 
     @staticmethod

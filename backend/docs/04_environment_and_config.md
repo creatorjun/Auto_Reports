@@ -70,7 +70,14 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 | Variable | Default | 설명 |
 |----------|---------|------|
 | `GEMINI_API_KEY` | 빈 값 | Gemini API key |
-| `AI_ENABLED` | `true` | false면 AI 분석 생략 |
+| `AI_ENABLED` | `true` | false면 보고서 AI 분석 생략. 보안 뉴스 번역은 별도 설정 |
+| `SECURITY_NEWS_TRANSLATION_ENABLED` | `true` | Gemini key가 있을 때 보안 뉴스 제목·요약 한국어 번역 |
+| `SECURITY_NEWS_TRANSLATION_MODEL` | `gemini-3.5-flash-lite` | 뉴스 번역 모델. 모델 변경만으로 저장된 번역을 다시 요청하지 않음 |
+| `SECURITY_NEWS_TRANSLATION_CACHE_PATH` | `reports/security-news-translations.sqlite3` | 영구 번역·호출 제한 저장소. Compose에서는 `/app/reports` 볼륨 |
+| `SECURITY_NEWS_TRANSLATION_DAILY_REQUEST_LIMIT` | `60` | UTC 날짜별 최대 번역 요청 횟수, 재시작 후에도 유지 |
+| `SECURITY_NEWS_TRANSLATION_BATCH_SIZE` | `10` | 한 요청에 묶는 최대 기사 수 |
+| `SECURITY_NEWS_TRANSLATION_MIN_INTERVAL_SECONDS` | `10` | 번역 요청 사이 최소 간격 |
+| `SECURITY_NEWS_TRANSLATION_MAX_ATTEMPTS` | `3` | 같은 원문에 대한 최대 번역 시도 횟수 |
 | `STORAGE_DIR` | `/app/storage` | 파일 root |
 | `AUDIT_LOG_DIR` | `logs` | 감사로그 저장·조회 경로. Compose에서는 `/app/logs`로 고정하고 named volume에 보관 |
 | `SCHEDULE_CRON` | `0 23 * * 5` | APScheduler 숫자 요일 기준 토요일 23시. 금요일은 `0 23 * * fri` |

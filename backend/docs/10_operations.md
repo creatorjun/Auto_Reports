@@ -8,7 +8,7 @@
 
 서비스 이름은 `db`, `backend`, `frontend`, 기본 컨테이너 이름은 `tac_db`, `tac_backend`, `tac_frontend`입니다. `docker compose logs`·`exec`에는 서비스 이름을 사용합니다.
 
-루트 `.env.example`을 `.env`로 복사한 뒤 [환경 설정](04_environment_and_config.md)에 맞게 실제 값을 입력합니다. Jira API 계정에는 대상 프로젝트·SLA·상태 이력·Assets 조회에 필요한 권한이 있어야 합니다. AI를 쓰지 않으면 `AI_ENABLED=false`로 설정합니다.
+루트 `.env.example`을 `.env`로 복사한 뒤 [환경 설정](04_environment_and_config.md)에 맞게 실제 값을 입력합니다. Jira API 계정에는 대상 프로젝트·SLA·상태 이력·Assets 조회에 필요한 권한이 있어야 합니다. 보고서 AI를 쓰지 않으면 `AI_ENABLED=false`, 보안 뉴스 번역을 쓰지 않으면 `SECURITY_NEWS_TRANSLATION_ENABLED=false`로 설정합니다.
 
 ```bash
 docker compose config --quiet

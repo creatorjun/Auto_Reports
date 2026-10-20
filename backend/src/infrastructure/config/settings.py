@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     jira_privacy_owner_account_id: str = ""
     gemini_api_key: str = ""
     ai_enabled: bool = True
+    security_news_translation_enabled: bool = True
+    security_news_translation_model: str = Field(default="gemini-3.5-flash-lite", min_length=1, max_length=100)
+    security_news_translation_cache_path: str = "reports/security-news-translations.sqlite3"
+    security_news_translation_daily_request_limit: int = Field(default=60, ge=0, le=1000)
+    security_news_translation_batch_size: int = Field(default=10, ge=1, le=10)
+    security_news_translation_min_interval_seconds: int = Field(default=10, ge=10, le=3600)
+    security_news_translation_max_attempts: int = Field(default=3, ge=1, le=5)
     db_user: str = "postgres"
     db_password: str = "postgres"
     db_host: str = "db"

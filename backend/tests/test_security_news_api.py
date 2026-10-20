@@ -8,7 +8,8 @@ import httpx
 from fastapi import FastAPI
 
 from src.application.use_cases.security_news import SecurityNewsRefreshThrottled
-from src.domain.entities.security_news import SecurityNewsSnapshot
+from src.domain.entities.security_news import SecurityNewsItem, SecurityNewsSnapshot
+from src.domain.entities.security_news_translation import NewsTranslationState
 from src.presentation.api.v1.router import router
 
 
@@ -47,6 +48,34 @@ class SecurityNewsApiTest(unittest.IsolatedAsyncioTestCase):
         response = await self.client.post("/api/v1/security-news/refresh", headers={"Authorization": "Bearer valid"})
         self.assertEqual(200, response.status_code)
         self.use_case.get_snapshot.assert_awaited_once_with(refresh=True)
+
+    async def test_translations_keep_original_text_and_independent_progress(self) -> None:
+        self.use_case.get_snapshot.return_value = SecurityNewsSnapshot(
+            items=(SecurityNewsItem(
+                id="article-1", source_id="nvd", kind="cve",
+                title="Security update", summary="Apply the update.",
+                title_ko="보안 업데이트", summary_ko="업데이트를 적용하세요.",
+                url="https://nvd.nist.gov/", cve_ids=("CVE-2026-12345",),
+            ),),
+            sources=(), initialized=True, refreshing=False, refreshed_at=None,
+            next_refresh_at=None, refresh_interval_seconds=900,
+            translation=NewsTranslationState(
+                enabled=True, translating=True, translated_count=1, pending_count=2,
+            ),
+        )
+        response = await self.client.get("/api/v1/security-news", headers={"Authorization": "Bearer valid"})
+        self.assertEqual(200, response.status_code)
+        payload = response.json()
+        self.assertEqual("Security update", payload["items"][0]["title"])
+        self.assertEqual("보안 업데이트", payload["items"][0]["title_ko"])
+        self.assertEqual("Apply the update.", payload["items"][0]["summary"])
+        self.assertEqual("업데이트를 적용하세요.", payload["items"][0]["summary_ko"])
+        self.assertEqual(["CVE-2026-12345"], payload["items"][0]["cve_ids"])
+        self.assertFalse(payload["refreshing"])
+        self.assertEqual({
+            "enabled": True, "translating": True, "translated_count": 1,
+            "pending_count": 2, "message": None,
+        }, payload["translation"])
 
     async def test_throttle_returns_retry_after_and_keeps_no_store(self) -> None:
         self.use_case.get_snapshot.side_effect = SecurityNewsRefreshThrottled(42)

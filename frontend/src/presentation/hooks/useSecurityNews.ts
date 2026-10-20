@@ -14,7 +14,7 @@ export function useSecurityNews() {
     queryKey: SECURITY_NEWS_QUERY_KEY,
     queryFn: ({ signal }) => securityNews.getSnapshot(signal),
     staleTime: 30000,
-    refetchInterval: (state) => state.state.data?.refreshing ? 2000 : 60000,
+    refetchInterval: (state) => state.state.data?.refreshing ? 2000 : state.state.data?.translation?.translating ? 5000 : 60000,
     refetchOnWindowFocus: true,
   })
   const mutation = useMutation({

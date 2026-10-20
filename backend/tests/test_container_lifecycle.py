@@ -1,4 +1,5 @@
 # backend/tests/test_container_lifecycle.py
+import asyncio
 import tempfile
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
@@ -11,6 +12,9 @@ from src.application.ports.sla_violation_port import SlaViolationSourcePort
 from src.application.ports.sla_digest_port import SlaDigestSourcePort, SlaDigestRendererPort
 from src.bootstrap.container import Container
 from src.infrastructure.config.settings import Settings
+from src.domain.entities.security_news import SecurityNewsItem
+from src.domain.entities.security_news_translation import NewsTranslationInput, NewsTranslationReservation
+from src.application.services.security_news_translation import translation_key
 
 
 class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
@@ -54,6 +58,40 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         news_source_close.assert_awaited_once_with()
         self.assertTrue(container.security_news._closed)
         self.assertTrue(container._security_news_source._client.is_closed)
+        self.assertIsNone(container._news_translation)
+
+    async def test_news_translation_is_independent_of_report_ai_and_closes_worker_before_dependencies(self) -> None:
+        self.settings.ai_enabled = False
+        self.settings.gemini_api_key = "fixture-key"
+        translator = AsyncMock()
+        cache = AsyncMock()
+        cache.read.return_value = {}
+        item = SecurityNewsItem("one", "nvd", "cve", "Security issue", "A product vulnerability", "https://example.com")
+        request = NewsTranslationInput(translation_key(item.title, item.summary), item.title, item.summary)
+        cache.reserve.return_value = NewsTranslationReservation((request,))
+        entered = asyncio.Event()
+        events = []
+
+        async def translate(inputs):
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                events.append("worker")
+
+        translator.translate.side_effect = translate
+        translator.aclose.side_effect = lambda: events.append("translator")
+        cache.aclose.side_effect = lambda: events.append("cache")
+        with (
+            patch("src.bootstrap.container.GeminiNewsTranslator", return_value=translator),
+            patch("src.bootstrap.container.SqliteNewsTranslationCache", return_value=cache),
+        ):
+            container = self.create_container(None)
+        self.assertIsNotNone(container._news_translation)
+        container._news_translation.snapshot((item,))
+        await entered.wait()
+        await container.aclose()
+        self.assertEqual(["worker", "cache", "translator"], events)
 
     async def test_enabled_notifications_receive_the_renderer_from_bootstrap(self) -> None:
         self.settings.smtp_host = "smtp.example.test"
