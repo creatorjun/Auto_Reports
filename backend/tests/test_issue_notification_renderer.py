@@ -1,8 +1,11 @@
 # backend/tests/test_issue_notification_renderer.py
 import hashlib
 import unittest
+from dataclasses import replace
 from datetime import datetime
+from html import escape
 from unittest.mock import AsyncMock, Mock, patch
+from urllib.parse import quote
 
 from src.application.ports.email_port import EmailPort
 from src.application.ports.issue_notification_renderer_port import IssueNotificationRendererPort
@@ -28,15 +31,57 @@ def issue() -> RecentIssueDetail:
 
 
 class IssueNotificationRendererTest(unittest.IsolatedAsyncioTestCase):
-    def test_existing_html_contract_is_preserved(self) -> None:
+    def test_tac_assigned_html_contract_is_preserved(self) -> None:
         renderer = IssueNotificationRenderer()
-        messages = (
-            (renderer.render_todo([issue()], JIRA_URL, NOW), "10fff38d8a239091004ad2d348904719605908983e4d6a79fe589f2d0e52b4dc"),
-            (renderer.render_tac_assigned(issue(), JIRA_URL, NOW), "1aa6143c066efd5cb7a188fb961c3be1c42b9a1435352f449cfdda538c498e2f"),
+        body = renderer.render_tac_assigned(issue(), JIRA_URL, NOW)
+        self.assertEqual(
+            "1aa6143c066efd5cb7a188fb961c3be1c42b9a1435352f449cfdda538c498e2f",
+            hashlib.sha256(body.encode()).hexdigest(),
         )
-        for body, expected in messages:
-            with self.subTest(expected=expected):
-                self.assertEqual(expected, hashlib.sha256(body.encode()).hexdigest())
+
+    def test_todo_layout_preserves_columns_ticket_information_and_summary_limit(self) -> None:
+        entry = issue()
+        entries = [entry, replace(entry, key="TACEA-43", summary="고객 시스템 점검", type="인시던트")]
+        body = IssueNotificationRenderer().render_todo(entries, f"{JIRA_URL}/jira/", NOW)
+
+        for label in ("이슈 번호", "요약", "유형", "생성일"):
+            self.assertIn(f">{label}</th>", body)
+        for value in (
+            "TAC AUTO REPORTS", "할 일 이슈 알림", "총 2건", "2026-10-06 09:15 KST",
+            "2026-10-01 09:30", "TACEA-42", entry.summary[:80], "개선", "고객 시스템 점검", "인시던트",
+        ):
+            self.assertIn(value, body)
+        self.assertNotIn(entry.summary, body)
+        self.assertIn('href="https://jira.example.test/jira/browse/TACEA-42"', body)
+        self.assertIn('href="https://jira.example.test/jira/browse/TACEA-43"', body)
+        self.assertLess(body.index("TACEA-42"), body.index("TACEA-43"))
+        self.assertIn("background:#f8fafc", body)
+        self.assertIn("background:#ffffff", body)
+        self.assertIn('scope="col"', body)
+
+    def test_todo_escapes_all_issue_text_and_encodes_ticket_links(self) -> None:
+        entry = replace(
+            issue(), key='TAC-1/../?a="x"&b=\'y\'#z', summary='<script>alert("x")</script> & \'summary\'',
+            type='<img src=x onerror="alert(1)">', created='<svg onload="1">',
+        )
+        body = IssueNotificationRenderer().render_todo([entry], JIRA_URL, NOW)
+
+        for value in (entry.key, entry.summary[:80], entry.type, entry.created[:16].replace("T", " ")):
+            self.assertIn(escape(value), body)
+        self.assertNotIn("<script>", body)
+        self.assertNotIn("<img src=", body)
+        self.assertNotIn("<svg onload=", body)
+        self.assertIn(f'href="{JIRA_URL}/browse/{quote(entry.key, safe="")}"', body)
+
+    def test_todo_rejects_unsafe_or_malformed_jira_base_urls(self) -> None:
+        for base_url in (
+            "javascript:alert(1)", "data:text/html,test", "//jira.example.test", "https://",
+            "https://user:password@jira.example.test", "https://jira.example.test?next=elsewhere",
+            "https://jira.example.test#fragment", "https://jira.example.test\n/browse",
+            "https://jira.example.test\\other", "https://jira.example.test:bad",
+        ):
+            with self.subTest(base_url=base_url), self.assertRaises(ValueError):
+                IssueNotificationRenderer().render_todo([issue()], base_url, NOW)
 
     async def test_use_cases_send_the_injected_renderers_body(self) -> None:
         for kind in ("todo", "tac_assigned"):

@@ -1,44 +1,64 @@
 # backend/src/presentation/email/issue_notification_renderer.py
 from datetime import datetime
+from html import escape
+from urllib.parse import quote, urlsplit
 
 from src.application.ports.issue_notification_renderer_port import IssueNotificationRendererPort
 from src.domain.entities.widget_data import RecentIssueDetail
 
 
 def _render_todo(issues: list[RecentIssueDetail], jira_base_url: str, now: datetime) -> str:
+    parsed_url = urlsplit(jira_base_url)
+    if (
+        parsed_url.scheme not in {"http", "https"}
+        or not parsed_url.hostname
+        or parsed_url.username is not None
+        or parsed_url.password is not None
+        or parsed_url.query
+        or parsed_url.fragment
+        or "\\" in jira_base_url
+        or any(character.isspace() or ord(character) < 32 for character in jira_base_url)
+    ):
+        raise ValueError("Jira base URL must be an HTTP(S) URL without credentials, whitespace, query or fragment")
+    parsed_url.port
+    base_url = jira_base_url.rstrip("/")
     now_str = now.strftime("%Y-%m-%d %H:%M")
-    rows = ""
+    cell_style = "padding:14px 16px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top;line-height:1.6;"
+    rows = []
     for issue in issues:
-        summary = issue.summary[:80]
-        created = issue.created[:16].replace("T", " ")
-        url = f"{jira_base_url}/browse/{issue.key}"
-        rows += (
-            f"<tr>"
-            f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;'>"
-            f"<a href='{url}' style='color:#2563eb;text-decoration:none;font-weight:bold;'>{issue.key}</a></td>"
-            f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;'>{summary}</td>"
-            f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;'>{issue.type}</td>"
-            f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;'>{created}</td>"
-            f"</tr>"
+        summary = escape(issue.summary[:80])
+        created = escape(issue.created[:16].replace("T", " "))
+        url = escape(f"{base_url}/browse/{quote(issue.key, safe='')}", quote=True)
+        rows.append(
+            "<tr>"
+            f"<td style=\"{cell_style}white-space:nowrap;\">"
+            f"<a href=\"{url}\" style=\"color:#2563eb;text-decoration:none;font-weight:700;\">{escape(issue.key)}</a></td>"
+            f"<td style=\"{cell_style}overflow-wrap:anywhere;\">{summary}</td>"
+            f"<td style=\"{cell_style}white-space:nowrap;\">{escape(issue.type)}</td>"
+            f"<td style=\"{cell_style}white-space:nowrap;color:#475569;\">{created}</td>"
+            "</tr>"
         )
-    return f"""
-<html><body style='font-family:sans-serif;color:#111;'>
-<h2 style='color:#dc2626;'>&#9888; \ud560\uc77c \uc774\uc288 \uc54c\ub9bc</h2>
-<p>\uae30\uc900 \uc2dc\uac01: <b>{now_str} KST</b> &nbsp;|&nbsp; \ucd1d <b>{len(issues)}</b>\uac74\uc758 \ud560\uc77c \uc774\uc288\uc774 \uc788\uc2b5\ub2c8\ub2e4.</p>
-<table style='border-collapse:collapse;width:100%;font-size:14px;'>
-  <thead>
-    <tr style='background:#f3f4f6;'>
-      <th style='padding:8px 12px;text-align:left;border-bottom:2px solid #d1d5db;'>\uc774\uc288 \ubc88\ud638</th>
-      <th style='padding:8px 12px;text-align:left;border-bottom:2px solid #d1d5db;'>\uc694\uc57d</th>
-      <th style='padding:8px 12px;text-align:left;border-bottom:2px solid #d1d5db;'>\uc720\ud615</th>
-      <th style='padding:8px 12px;text-align:left;border-bottom:2px solid #d1d5db;'>\uc0dd\uc131\uc77c</th>
-    </tr>
-  </thead>
-  <tbody>{rows}</tbody>
-</table>
-<p style='margin-top:20px;color:#6b7280;font-size:12px;'>TAC Auto Reports &mdash; \uc790\ub3d9 \uc54c\ub9bc</p>
-</body></html>
-"""
+    headings = "".join(
+        f"<th scope=\"col\" style=\"{cell_style}font-weight:600;color:#475569;\">{label}</th>"
+        for label in ("이슈 번호", "요약", "유형", "생성일")
+    )
+    return (
+        "<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"></head>"
+        "<body style=\"margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,'Malgun Gothic',sans-serif;\">"
+        "<main style=\"padding:28px;max-width:1280px;margin:auto;\">"
+        "<div style=\"font-size:12px;font-weight:700;letter-spacing:1px;color:#2563eb;\">TAC AUTO REPORTS</div>"
+        "<h1 style=\"font-size:26px;margin:10px 0 12px;\">할 일 이슈 알림</h1>"
+        f"<p style=\"margin:0;color:#475569;\">{now_str} KST 기준 · <strong>총 {len(issues)}건</strong></p>"
+        "<p style=\"padding:14px 16px;margin:20px 0 24px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:14px;line-height:1.6;color:#1e40af;\">"
+        "확인이 필요한 할 일 및 재오픈 이슈입니다. 티켓 번호를 누르면 Jira에서 상세 내용을 확인할 수 있습니다.</p>"
+        "<section style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;\">"
+        "<h2 style=\"font-size:17px;margin:0;padding:20px 16px;color:#0f172a;\">할 일 이슈 목록</h2>"
+        "<table aria-label=\"할 일 이슈 목록\" style=\"border-collapse:collapse;width:100%;font-size:14px;background:#ffffff;\">"
+        f"<thead style=\"background:#f1f5f9;\"><tr>{headings}</tr></thead><tbody>{''.join(rows)}</tbody></table>"
+        "</section>"
+        "<p style=\"margin-top:28px;color:#64748b;font-size:12px;\">TAC Auto Reports · 자동 알림</p>"
+        "</main></body></html>"
+    )
 
 
 def _render_tac_assigned(issue: RecentIssueDetail, jira_base_url: str, now: datetime) -> str:

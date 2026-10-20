@@ -10,6 +10,7 @@ from src.domain.entities.sla_digest import SlaDigestEntry
 
 
 CELL_STYLE = "padding:12px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top;"
+REMAINING_COLOR = "#dc2626"
 
 
 def _safe_base_url(value: str) -> str:
@@ -45,7 +46,6 @@ def _duration(millis: int) -> str:
 
 def _row(entry: SlaDigestEntry, jira_base_url: str) -> str:
     url = escape(f"{jira_base_url}/browse/{quote(entry.key, safe='')}", quote=True)
-    color = "#b45309"
     remaining = f"잔여 {_duration(entry.remaining_millis)}"
     percentage = f"{entry.remaining_millis * 100 / entry.goal_millis:.1f}%" if entry.goal_millis > 0 else "산정 불가"
     state = "일시정지" if entry.paused else "진행 중"
@@ -55,8 +55,8 @@ def _row(entry: SlaDigestEntry, jira_base_url: str) -> str:
         escape(entry.status),
         escape(entry.assignee or "미지정"),
         _duration(entry.goal_millis),
-        f"<span style=\"color:{color};font-weight:700;\">{remaining}</span>",
-        f"<span style=\"color:{color};font-weight:700;\">{percentage}</span>",
+        f"<span style=\"color:{REMAINING_COLOR};font-weight:700;\">{remaining}</span>",
+        f"<span style=\"color:{REMAINING_COLOR};font-weight:700;\">{percentage}</span>",
         state,
     )
     return "<tr>" + "".join(f"<td style=\"{CELL_STYLE}\">{cell}</td>" for cell in cells) + "</tr>"
@@ -74,7 +74,8 @@ class SlaDigestRenderer(SlaDigestRendererPort):
         sections = []
         labels = ("티켓", "제목", "현재 상태", "담당자", "목표 시간", "잔여 시간", "잔여율", "진행 상태")
         headings = "".join(
-            f"<th scope=\"col\" style=\"{CELL_STYLE}font-weight:600;color:#475569;\">{label}</th>"
+            f"<th scope=\"col\" style=\"{CELL_STYLE}font-weight:600;"
+            f"color:{REMAINING_COLOR if label in {'잔여 시간', '잔여율'} else '#475569'};\">{label}</th>"
             for label in labels
         )
         for (sla_id, name), group in sorted(groups.items(), key=lambda item: (item[0][1], item[0][0])):
