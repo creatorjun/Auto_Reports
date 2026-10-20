@@ -1,6 +1,7 @@
 # backend/tests/test_dashboard_period_generation.py
 import dataclasses
 import unittest
+from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -62,7 +63,14 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.runner = AsyncMock()
         self.audit = Mock()
+        self.reports = Mock(get_latest=AsyncMock())
+
+        @asynccontextmanager
+        async def get_report():
+            yield self.reports
+
         app = FastAPI()
+        app.state.services = Mock(get_report=get_report)
         app.include_router(router, prefix="/api/v1")
         app.dependency_overrides[get_job_runner] = lambda: self.runner
         app.dependency_overrides[get_audit] = lambda: self.audit
@@ -116,6 +124,54 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
             datetime(2025, 12, 31, 23, 59, 59, tzinfo=KST),
             bypass_jira_cache=True,
         )
+
+    async def test_rerun_latest_uses_saved_dates_and_standard_scope(self) -> None:
+        for start, end in (
+            (date(2024, 1, 1), date(2024, 12, 31)),
+            (date(2025, 12, 29), date(2026, 1, 1)),
+            (date(2024, 2, 1), date(2024, 2, 29)),
+        ):
+            with self.subTest(start=start, end=end):
+                self.reports.get_latest.return_value = Report(
+                    id=17, week_start=start, week_end=end, report_date="2026-10-20",
+                )
+                response = await self.client.post("/api/v1/trigger/", json={"rerun_latest": True})
+                self.assertEqual(202, response.status_code, response.text)
+                self.runner.submit.assert_awaited_with(
+                    response.json()["job_id"],
+                    datetime(start.year, start.month, start.day, tzinfo=KST),
+                    datetime(end.year, end.month, end.day, 23, 59, 59, tzinfo=KST),
+                    bypass_jira_cache=True,
+                    force_standard=True,
+                )
+                self.assertEqual(start.isoformat(), self.audit.record.call_args.kwargs["start"])
+                self.assertEqual(end.isoformat(), self.audit.record.call_args.kwargs["end"])
+        self.assertEqual(3, self.reports.get_latest.await_count)
+
+    async def test_rerun_latest_rejects_other_period_inputs(self) -> None:
+        for values in (
+            {"start_date": "2024-01-01"},
+            {"end_date": "2024-12-31"},
+            {"period": "week", "date": "2026-10-19"},
+            {"date": "2026-10-19"},
+            {"start_date": ""},
+        ):
+            with self.subTest(values=values):
+                response = await self.client.post("/api/v1/trigger/", json={
+                    "rerun_latest": True, **values,
+                })
+                self.assertEqual(422, response.status_code, response.text)
+        self.runner.submit.assert_not_awaited()
+        self.reports.get_latest.assert_not_awaited()
+        self.audit.record.assert_not_called()
+
+    async def test_rerun_latest_without_saved_report_does_not_start_job(self) -> None:
+        self.reports.get_latest.return_value = None
+        response = await self.client.post("/api/v1/trigger/", json={"rerun_latest": True})
+        self.assertEqual(404, response.status_code, response.text)
+        self.reports.get_latest.assert_awaited_once_with()
+        self.runner.submit.assert_not_awaited()
+        self.audit.record.assert_not_called()
 
 
 class DashboardGenerationTest(unittest.IsolatedAsyncioTestCase):

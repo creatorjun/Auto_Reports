@@ -50,9 +50,15 @@ class TriggerRequest(BaseModel):
     end_date: Optional[str] = None
     period: ReportPeriod | None = None
     date: SelectedDate | None = None
+    rerun_latest: bool = False
 
     @model_validator(mode="after")
     def validate_period_selection(self) -> "TriggerRequest":
+        if self.rerun_latest and any(
+            value is not None
+            for value in (self.period, self.date, self.start_date, self.end_date)
+        ):
+            raise ValueError("최근 보고서 갱신과 기간 선택을 함께 입력할 수 없습니다.")
         if (self.period is None) != (self.date is None):
             raise ValueError("period와 date를 함께 입력해야 합니다.")
         if self.period is not None and (self.start_date is not None or self.end_date is not None):

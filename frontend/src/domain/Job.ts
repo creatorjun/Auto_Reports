@@ -13,7 +13,7 @@ export interface JobStatus {
   error: string | null
 }
 
-export type TriggerParams = PeriodReportRequest | {
+export type TriggerParams = PeriodReportRequest | { rerun_latest: true } | {
   start_date?: string
   end_date?: string
 }

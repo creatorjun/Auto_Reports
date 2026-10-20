@@ -12,7 +12,7 @@ from src.application.ports.audit_port import AuditPort
 from src.application.services.report_period import report_period_dates
 from src.presentation.mappers.job_mapper import JobMapper
 from src.application.ports.job_runner_port import JobRunnerPort
-from src.presentation.api.deps import get_audit, get_job_runner
+from src.presentation.api.deps import get_api_services, get_audit, get_job_runner
 from src.presentation.schemas.report_schema import (
     JobStatusSchema,
     TriggerAcceptedSchema,
@@ -40,7 +40,20 @@ async def trigger_report(
     end_dt: datetime | None = None
 
     try:
-        if body.period is not None and body.date is not None:
+        if body.rerun_latest:
+            async with get_api_services(request).get_report() as reports:
+                latest = await reports.get_latest()
+            if latest is None:
+                raise HTTPException(status_code=404, detail="갱신할 최근 보고서가 없습니다.")
+            start_dt = datetime(
+                latest.week_start.year, latest.week_start.month, latest.week_start.day,
+                tzinfo=KST,
+            )
+            end_dt = datetime(
+                latest.week_end.year, latest.week_end.month, latest.week_end.day,
+                hour=23, minute=59, second=59, tzinfo=KST,
+            )
+        elif body.period is not None and body.date is not None:
             start_dt, end_dt = report_period_dates(body.period, body.date, datetime.now(KST).date())
         else:
             if body.start_date:
@@ -53,7 +66,7 @@ async def trigger_report(
         raise HTTPException(status_code=422, detail=str(error)) from error
 
     job_id = str(uuid.uuid4())
-    if body.period is not None:
+    if body.rerun_latest or body.period is not None:
         await job_runner.submit(job_id, start_dt, end_dt, bypass_jira_cache=True, force_standard=True)
     else:
         await job_runner.submit(job_id, start_dt, end_dt, bypass_jira_cache=True)
