@@ -4,6 +4,7 @@ from src.presentation.api.v1 import (
     auth,
     audit_logs,
     issue_management,
+    notifications,
     config,
     partners,
     reports,
@@ -21,6 +22,7 @@ router = APIRouter(prefix="/api/v1")
 
 router.include_router(auth.router)
 router.include_router(storage.preview_router)
+router.include_router(notifications.router)
 
 _protected = APIRouter(dependencies=[Depends(require_auth)])
 _protected.include_router(reports.router)

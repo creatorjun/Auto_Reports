@@ -185,6 +185,10 @@ class Container:
     def sla_digest_enabled(self) -> bool:
         return self._notify_sla_digest is not None
 
+    @property
+    def notify_sla_digest(self) -> NotifySlaDigestUseCase | None:
+        return self._notify_sla_digest
+
     async def send_sla_digest(self) -> int:
         if self._notify_sla_digest is None:
             return 0

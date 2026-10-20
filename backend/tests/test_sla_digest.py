@@ -173,3 +173,67 @@ class SlaDigestTest(unittest.IsolatedAsyncioTestCase):
 
         clock.now.assert_called_once_with(KST)
         self.renderer.render.assert_called_once_with((ENTRY,), "https://jira.example.test", NOW)
+
+    async def test_dry_run_counts_without_rendering_sending_or_marking_day_complete(self) -> None:
+        self.source.fetch_entries.return_value = (ENTRY, replace(ENTRY, sla_id="13"))
+
+        result = await self.use_case.trigger(dry_run=True, now=NOW)
+
+        self.assertEqual(("preview", 1, 2, 1, NOW), (
+            result.status, result.ticket_count, result.sla_count, result.recipient_count, result.generated_at,
+        ))
+        self.renderer.render.assert_not_called()
+        self.email.send.assert_not_awaited()
+        self.assertEqual(1, await self.use_case.execute(NOW))
+
+    async def test_preview_after_delivery_still_reads_live_jira_without_resetting_duplicate_guard(self) -> None:
+        self.assertEqual(1, await self.use_case.execute(NOW))
+        self.source.fetch_entries.return_value = ()
+
+        preview = await self.use_case.trigger(dry_run=True, now=NOW)
+        repeated = await self.use_case.trigger(now=NOW)
+
+        self.assertEqual(("preview", 0, 0), (preview.status, preview.ticket_count, preview.sla_count))
+        self.assertEqual(("already_sent", 1, 1), (repeated.status, repeated.ticket_count, repeated.sla_count))
+        self.assertEqual(2, self.source.fetch_entries.await_count)
+        self.email.send.assert_awaited_once()
+
+    async def test_trigger_reports_no_matches_without_sending(self) -> None:
+        self.source.fetch_entries.return_value = ()
+
+        result = await self.use_case.trigger(now=NOW)
+
+        self.assertEqual(("no_matches", 0, 0, 1), (
+            result.status, result.ticket_count, result.sla_count, result.recipient_count,
+        ))
+        self.email.send.assert_not_awaited()
+
+    async def test_trigger_and_scheduled_execution_share_one_delivery_lock(self) -> None:
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def deliver(**kwargs: object) -> None:
+            started.set()
+            await release.wait()
+
+        self.email.send.side_effect = deliver
+        scheduled = asyncio.create_task(self.use_case.execute(NOW))
+        await started.wait()
+        manual = asyncio.create_task(self.use_case.trigger(now=NOW))
+        release.set()
+
+        scheduled_count, manual_result = await asyncio.gather(scheduled, manual)
+
+        self.assertEqual(1, scheduled_count)
+        self.assertEqual("already_sent", manual_result.status)
+        self.email.send.assert_awaited_once()
+
+    async def test_failed_preview_propagates_and_does_not_prevent_actual_delivery(self) -> None:
+        self.source.fetch_entries.side_effect = RuntimeError("Jira unavailable")
+
+        with self.assertRaisesRegex(RuntimeError, "Jira unavailable"):
+            await self.use_case.trigger(dry_run=True, now=NOW)
+
+        self.source.fetch_entries.side_effect = None
+        result = await self.use_case.trigger(now=NOW)
+        self.assertEqual("sent", result.status)

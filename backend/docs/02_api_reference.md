@@ -1,6 +1,6 @@
 # API Reference
 
-문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+문서 기준: 2026-10-20. SLA 일일 알림 수동 트리거를 포함합니다.
 
 재배포 보고서는 기존 보호 라우트 인증 규칙을 적용하는 `GET /api/v1/redeployments/latest`로 최신 저장본을 조회하고, `POST /api/v1/redeployments`로 현재 시점 재생성을 요청합니다. 스키마·오류·수집 기준은 [재배포 보고서](09_redeployment_report.md)를 참고하세요.
 
@@ -23,7 +23,7 @@ Base URL은 `/api/v1`입니다. `LOGIN=true`일 때 보호 라우트는 `Authori
 | GET | `/storage/preview-converted` | folder, name, `_t` | LibreOffice 변환 PDF |
 | GET | `/storage/download` | folder, name, `_t` | attachment file |
 
-일반 보호 API는 `LOGIN=false`이면 인증 검증을 건너뜁니다. 감사로그 API는 이 경우에도 접근을 거부합니다. 운영 cookie 속성은 `COOKIE_SECURE` 설정을 따릅니다.
+일반 보호 API는 `LOGIN=false`이면 인증 검증을 건너뜁니다. 감사로그와 SLA 일일 알림 수동 트리거는 이 경우에도 접근을 거부합니다. 운영 cookie 속성은 `COOKIE_SECURE` 설정을 따릅니다.
 
 로그인·갱신 응답은 `access_token`, `token_type` 외에 `username`, `display_name`, `auth_provider`, `is_superadmin`을 포함합니다. Jira의 `username`은 `jira:<cloudId>:<accountId>`인 고유 식별자이며 화면 표시 이름과 분리합니다. Jira 계정에는 superadmin 권한을 부여하지 않습니다. cookie를 변경하는 인증 POST는 교차 사이트 요청을 거부합니다. OAuth 설정과 허용 조건은 [Jira 로그인](11_jira_login.md)을 참고하세요.
 
@@ -86,6 +86,16 @@ SLA 차트는 month 필수, 처리일 유형 차트는 month 불가입니다. �
 ## SLA 현황 보고서
 
 `POST /sla-violations`는 `period=week|month|year`와 `date`를 JSON으로 받아 주간은 해당 주 월요일~기준일, 월간·연간은 해당 달·연도 전체에 생성된 위반 티켓을 수집하고 히스토리에 자동 저장한 보고서를 201로 반환합니다. KST 기준 종료일 전체를 포함하며 기존 저장 보고서는 재계산하지 않습니다. `GET /sla-violations/latest`는 마지막 보고서 또는 `null`, `GET /sla-violations/history?limit=20&offset=0`은 생성순 요약 목록, `GET /sla-violations/{id}`는 저장된 보고서를 반환합니다. 잘못된 입력은 422, 생성 중 중복 요청은 409, Jira 수집 오류는 502입니다. [집계 기준과 응답 계약](08_sla_violation_report.md)을 참고하세요.
+
+## SLA 위반 임박 알림 트리거
+
+`POST /notifications/sla-digest/trigger`는 매일 09시 KST 예약과 같은 SLA 일일 알림을 수동 실행합니다. 일반 로그인 사용자의 유효한 Bearer access token이 필요하며, URL 토큰은 받지 않고 `LOGIN=false`인 경우도 401로 거부합니다.
+
+요청 본문 생략·`{}`·`{"dry_run":false}`는 실제 발송, `{"dry_run":true}`는 Jira 실조회 후 대상 건수만 반환합니다. 미리 조회는 메일을 보내거나 당일 중복 기록을 변경하지 않습니다. `dry_run`은 JSON boolean이며 추가 필드와 수신자·강제 재발송 옵션은 허용하지 않습니다.
+
+HTTP 200 응답은 `status`, `ticket_count`, `sla_count`, `recipient_count`, `generated_at`이며 `Cache-Control: no-store`를 적용합니다. 상태는 발송 접수 `sent`, 대상 없음 `no_matches`, 당일 발송 완료 `already_sent`, 미리 조회 `preview`입니다. `already_sent`의 건수는 당일 성공한 발송 기준입니다. 수동·예약 실행은 동일한 당일 중복 방지를 사용하므로 수동 발송을 먼저 완료하면 그날의 정기 예약은 다시 발송하지 않습니다.
+
+입력 오류 422, 기능 비활성화 503, Jira·SMTP 실패 502를 반환합니다. 진행·완료 SLA 어디에든 위반 이력이 있는 티켓은 전체 제외하고 잔여율 0~30%인 티켓만 다룹니다. [PowerShell 호출 예시, 설정 및 실패 후 재시도 주의사항](12_sla_digest.md#http-수동-트리거)을 참고하세요.
 
 ## 재배포 현황 보고서
 

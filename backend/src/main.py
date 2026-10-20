@@ -65,6 +65,7 @@ def create_app(settings: Settings) -> FastAPI:
                     get_report_chart_issues=container.get_report_chart_issues,
                     issue_management=container.issue_management,
                     audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir)),
+                    notify_sla_digest=container.notify_sla_digest,
                 )
                 scheduler = create_scheduler(
                     schedule_cron=settings.schedule_cron,
@@ -88,6 +89,9 @@ def create_app(settings: Settings) -> FastAPI:
                 )
                 scheduler.start()
                 stack.callback(scheduler.shutdown, wait=False)
+                sla_digest_job = scheduler.get_job("sla_digest_daily")
+                if sla_digest_job is not None:
+                    logger.info("SLA 일일 메일 다음 실행: %s", sla_digest_job.next_run_time.isoformat())
                 started = True
                 logger.info("TAC Auto Reports 서비스 시작")
                 yield

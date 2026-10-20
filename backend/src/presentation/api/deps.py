@@ -19,6 +19,7 @@ from src.application.use_cases.redeployment_report import RedeploymentReportUseC
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.application.use_cases.audit_logs import AuditLogsUseCase
+from src.application.use_cases.notify_sla_digest import NotifySlaDigestUseCase
 from src.presentation.http.request_audit import RequestAudit
 
 
@@ -39,6 +40,7 @@ class ApiServices:
     audit_logs: AuditLogsUseCase | None = None
     get_sla_violation: Callable[[], AsyncContextManager[SlaViolationReportUseCase]] | None = None
     get_redeployment: Callable[[], AsyncContextManager[RedeploymentReportUseCase]] | None = None
+    notify_sla_digest: NotifySlaDigestUseCase | None = None
 
 
 def get_api_services(request: Request) -> ApiServices:
@@ -74,3 +76,12 @@ def get_search_use_case(request: Request) -> SearchUseCase:
 
 def get_storage_use_case(request: Request) -> StorageUseCase:
     return get_api_services(request).storage
+
+
+def get_sla_digest_use_case(request: Request) -> NotifySlaDigestUseCase:
+    use_case = get_api_services(request).notify_sla_digest
+    if use_case is None:
+        raise HTTPException(
+            status_code=503, detail="SLA 일일 알림이 비활성화되어 있습니다.", headers={"Cache-Control": "no-store"},
+        )
+    return use_case

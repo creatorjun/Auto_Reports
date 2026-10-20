@@ -51,6 +51,53 @@ SMTP가 일부 수신자를 거부한 경우도 실패로 처리합니다. 이 �
 
 의존성은 기존 `backend/requirements.txt`의 httpx, APScheduler, aiosmtplib를 사용합니다. DB migration이나 프런트엔드 빌드가 필요하지 않습니다. 운영 백엔드를 새 코드로 재배포해야 실제 예약이 적용됩니다.
 
+## HTTP 수동 트리거
+
+`POST /api/v1/notifications/sla-digest/trigger`로 예약과 동일한 SLA 조회·선별·발송을 요청할 수 있습니다. 일반 보고서 트리거와 같은 로그인 사용자 권한을 적용하며 `Authorization: Bearer <access token>` 헤더가 반드시 필요합니다. 이 API는 `LOGIN=false`에서도 비인증 호출을 허용하지 않고, URL query의 `token`이나 `_t`를 인증에 사용하지 않습니다.
+
+요청 본문을 생략하거나 `{}` 또는 `{"dry_run":false}`를 보내면 기존 수신자에게 실제 메일을 발송합니다. 먼저 `{"dry_run":true}`로 확인하면 Jira를 실조회하여 대상 건수만 반환하며 메일 발송·HTML 생성·당일 중복 기록 변경은 하지 않습니다. `dry_run`은 JSON boolean만 허용합니다. 수신자 변경, 강제 재발송, 날짜 변경 옵션은 없습니다.
+
+PowerShell에서 서비스 주소와 기존 로그인 계정으로 access token을 받은 뒤 미리 조회할 수 있습니다. 환경변수의 계정·비밀번호와 응답 토큰을 로그나 공유 문서에 남기지 않습니다.
+
+```powershell
+$baseUrl = 'https://reports.example.com'
+$loginBody = @{ username = $env:REPORTS_USERNAME; password = $env:REPORTS_PASSWORD } | ConvertTo-Json
+$session = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/login" -ContentType 'application/json' -Body $loginBody
+$headers = @{ Authorization = "Bearer $($session.access_token)" }
+Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/notifications/sla-digest/trigger" -Headers $headers -ContentType 'application/json' -Body '{"dry_run":true}'
+```
+
+이미 브라우저 로그인 등으로 발급받은 유효한 access token이 있으면 로그인 요청을 생략하고 그 토큰을 헤더에 사용할 수 있습니다. 실제 발송을 요청하려면 다음과 같이 호출합니다.
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/notifications/sla-digest/trigger" -Headers $headers -ContentType 'application/json' -Body '{"dry_run":false}'
+```
+
+성공 응답은 HTTP 200이며 `Cache-Control: no-store`를 적용합니다. 아래 수치는 응답 형식 예시입니다.
+
+```json
+{
+  "status": "preview",
+  "ticket_count": 2,
+  "sla_count": 3,
+  "recipient_count": 5,
+  "generated_at": "2026-10-20T09:00:00+09:00"
+}
+```
+
+| status | 의미 |
+|---|---|
+| `preview` | 미리 조회 완료. 현재 대상 건수만 반환하고 발송하지 않음 |
+| `sent` | 대상 티켓을 한 통에 담아 SMTP에 접수 완료 |
+| `no_matches` | 조건에 맞는 대상이 없어 발송하지 않음 |
+| `already_sent` | 같은 KST 날짜에 성공한 발송이 있어 발송하지 않음. 건수는 해당 성공 발송 기준 |
+
+`ticket_count`는 고유 티켓 수, `sla_count`는 메일에 포함될 단계별 SLA 행 수, `recipient_count`는 기존 설정의 유효한 수신자 수이며 이메일 주소는 응답하지 않습니다. `generated_at`은 요청을 처리한 KST 시각입니다. 미리 조회는 같은 날 이미 발송했더라도 최신 Jira 건수를 다시 조회합니다.
+
+수동 호출과 09시 예약은 동일 유스케이스·동시 실행 잠금·당일 중복 기록을 공유합니다. 따라서 수동 실발송을 먼저 완료하면 같은 날의 자동 예약은 다시 보내지 않습니다. 반대 순서도 같습니다. 프로세스를 재시작하면 메모리의 중복 기록이 초기화된다는 기존 제한은 수동 트리거에도 적용됩니다.
+
+미인증·만료 토큰·로그인 비활성화는 401, 잘못된 JSON 형식이나 지원하지 않는 옵션은 422, 메일 기능 비활성화는 503, Jira 조회 또는 SMTP 발송 실패는 502입니다. 외부 오류 원문과 수신자 주소는 오류 응답에 포함하지 않습니다. 감사로그에는 `SLA_DIGEST_TRIGGER` 또는 `SLA_DIGEST_TRIGGER_FAILED` 이벤트와 요청 사용자·실행 모드·건수 또는 오류 종류를 기록합니다. 일부 수신자만 거부된 뒤 재호출할 때의 중복 전달 가능성은 앞의 SMTP 실패 안내를 따릅니다.
+
 ## 발송 없는 검증
 
 저장소 루트에서 기존 Python 환경으로 실행합니다.
@@ -64,7 +111,7 @@ venv\Scripts\python.exe backend\scripts\preview_sla_digest.py
 백엔드 디렉터리에서 관련 회귀 검사를 실행합니다.
 
 ```bash
-python -m unittest tests.test_sla_digest tests.test_sla_digest_renderer tests.test_sla_digest_jira_source tests.test_sla_digest_schedule tests.test_smtp_email_client tests.test_container_lifecycle tests.test_architecture -v
+python -m unittest tests.test_sla_digest tests.test_sla_digest_api tests.test_sla_digest_renderer tests.test_sla_digest_jira_source tests.test_sla_digest_schedule tests.test_smtp_email_client tests.test_container_lifecycle tests.test_architecture -v
 ```
 
 경계값, 이미 위반한 티켓 전체 제외, 여러 단계의 한 통 발송, 다음 날 재알림, 실패 후 재시도, 페이지 누락, 동적 SLA 추가, 리소스 종료, 09시 KST 예약과 기존 알림 설정의 연결을 검사합니다. 실제 SMTP 전달과 다음 정기 실행 성공 여부는 배포 후 `[SlaDigest]` 및 스케줄러 로그로 별도 확인합니다.
