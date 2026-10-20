@@ -58,13 +58,14 @@ RSS는 출처별 최대 100건을 보관하며 실제 제공 개수는 출처에
 | `refreshing` | 현재 수집 중인지 여부 |
 | `refreshed_at` | 마지막 전체 수집 시도 종료 시각 또는 null |
 | `next_refresh_at` | 다음 수동 갱신을 요청할 수 있는 가장 이른 시각 또는 null |
+| `retry_after_seconds` | 응답 시점의 수동 갱신 대기 초, 0이면 요청 가능 |
 | `refresh_interval_seconds` | 목록 요청에서 자동 수집을 시작하는 기준 간격, 900초 |
 
 `items`는 `id`, `source_id`, `kind`, `title`, `summary`, `url`, `published_at`, `updated_at`, `cve_ids`, `severity`, `cvss_score`, `cvss_version`, `known_exploited`, `vendor`, `product`, `due_date`를 포함합니다. `kind`는 `cve|advisory|news`, `severity`는 `critical|high|medium|low|unknown`입니다. 자료에 없는 점수·날짜·제품은 null입니다.
 
 `sources`는 `id`, `name`, `homepage`, `kind`, `status`, `count`, `last_success_at`, `error`, `warning`을 포함합니다. `status`는 `ok|stale|error|pending`입니다. 전체 출처 실패도 상태를 설명할 수 있도록 정상 snapshot 응답으로 반환합니다.
 
-60초 이내의 완료된 작업에 다시 수동 요청하면 `429`와 `Retry-After`를 반환합니다. 서비스 미구성은 `503`, 인증 실패는 기존 인증 응답을 따릅니다. 정상 및 서비스 오류 응답은 `Cache-Control: no-store`입니다.
+60초 이내의 완료된 작업에 다시 수동 요청하면 `429`와 `Retry-After`를 반환합니다. 화면의 대기 시간은 서버가 전달한 `retry_after_seconds`를 응답 수신 시각부터 계산하므로 PC와 서버의 시계 차이에 영향받지 않습니다. 서비스 미구성은 `503`, 인증 실패는 기존 인증 응답을 따릅니다. 정상 및 서비스 오류 응답은 `Cache-Control: no-store`입니다.
 
 ## 구현과 운영
 

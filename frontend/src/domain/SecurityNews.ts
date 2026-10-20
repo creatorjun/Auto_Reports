@@ -40,6 +40,7 @@ export interface SecurityNewsSnapshot {
   refreshing: boolean
   refreshed_at: string | null
   next_refresh_at: string | null
+  retry_after_seconds: number
   refresh_interval_seconds: number
 }
 

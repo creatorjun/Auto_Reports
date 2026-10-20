@@ -26,8 +26,8 @@ export function useSecurityNews() {
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(timer)
   }, [])
-  const nextRefresh = Date.parse(query.data?.next_refresh_at ?? '')
-  const retryAfterSeconds = Number.isFinite(nextRefresh) ? Math.max(0, Math.ceil((nextRefresh - now) / 1000)) : 0
+  const serverRetryAfterSeconds = Math.max(0, query.data?.retry_after_seconds ?? 0)
+  const retryAfterSeconds = Math.min(serverRetryAfterSeconds, Math.max(0, Math.ceil((query.dataUpdatedAt + serverRetryAfterSeconds * 1000 - now) / 1000)))
   const refreshing = mutation.isPending || !!query.data?.refreshing
   const canRefresh = !refreshing && !query.isFetching && retryAfterSeconds === 0
   const refresh = () => {

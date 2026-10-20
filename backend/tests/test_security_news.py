@@ -48,6 +48,7 @@ class SecurityNewsTest(unittest.IsolatedAsyncioTestCase):
         snapshot = await asyncio.wait_for(self.use_case.get_snapshot(), timeout=0.1)
         self.assertFalse(snapshot.initialized)
         self.assertTrue(snapshot.refreshing)
+        self.assertEqual(60, snapshot.retry_after_seconds)
         self.assertEqual({"pending"}, {state.status for state in snapshot.sources})
         gate.set()
         await self.use_case._task
@@ -74,6 +75,23 @@ class SecurityNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue((await self.use_case.get_snapshot()).refreshing)
         await self.use_case._task
         self.assertEqual(3, self.port.fetch.await_count)
+
+    async def test_retry_after_reports_remaining_seconds_independent_of_client_clock(self) -> None:
+        snapshot = await self.complete_refresh()
+        self.assertEqual(60, snapshot.retry_after_seconds)
+        eligibility = snapshot.next_refresh_at
+        self.now += timedelta(seconds=20)
+        snapshot = await self.use_case.get_snapshot()
+        self.assertEqual(40, snapshot.retry_after_seconds)
+        self.assertEqual(eligibility, snapshot.next_refresh_at)
+        self.now += timedelta(seconds=40)
+        snapshot = await self.use_case.get_snapshot()
+        self.assertEqual(0, snapshot.retry_after_seconds)
+        self.assertEqual(eligibility, snapshot.next_refresh_at)
+        restarted = await self.use_case.get_snapshot(refresh=True)
+        self.assertEqual(60, restarted.retry_after_seconds)
+        self.assertTrue(restarted.refreshing)
+        await self.use_case._task
 
     async def test_manual_refresh_throttles_and_preserves_nvd_two_hour_interval(self) -> None:
         await self.complete_refresh()

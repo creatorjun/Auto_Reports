@@ -40,6 +40,7 @@ class SecurityNewsApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("no-store", response.headers["cache-control"])
         self.assertEqual("2026-10-20T00:00:00Z", response.json()["refreshed_at"])
         self.assertEqual(900, response.json()["refresh_interval_seconds"])
+        self.assertEqual(0, response.json()["retry_after_seconds"])
         self.use_case.get_snapshot.assert_awaited_once_with(refresh=False)
 
     async def test_manual_refresh_uses_same_authenticated_service(self) -> None:

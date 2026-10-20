@@ -47,7 +47,7 @@ function item(overrides = {}) {
   return { id: 'one', source_id: 'nvd', kind: 'cve', title: '취약점 보안 업데이트', summary: 'Linux 보안 패치', url: 'https://nvd.nist.gov/vuln/detail/CVE-2026-12345', published_at: '2026-10-19T00:00:00Z', updated_at: null, cve_ids: ['CVE-2026-12345'], severity: 'high', cvss_score: 8.1, cvss_version: '3.1', known_exploited: false, vendor: 'Vendor', product: 'Linux', due_date: null, ...overrides }
 }
 function snapshot(overrides = {}) {
-  return { items: [item()], sources: [source], initialized: true, refreshing: false, refreshed_at: '2026-10-20T00:00:00Z', next_refresh_at: null, refresh_interval_seconds: 900, ...overrides }
+  return { items: [item()], sources: [source], initialized: true, refreshing: false, refreshed_at: '2026-10-20T00:00:00Z', next_refresh_at: null, retry_after_seconds: 0, refresh_interval_seconds: 900, ...overrides }
 }
 function query(overrides = {}) {
   return { data: snapshot(), now, isError: false, isFetching: false, refreshing: false, canRefresh: true, retryAfterSeconds: 0, refreshError: null, refresh() {}, refetch() {}, ...overrides }
@@ -210,12 +210,29 @@ test('hook performs single refresh under immediate repeated calls and retains ca
 
 test('hook enforces server retry eligibility', async (t) => {
   let refreshes = 0
-  const state = setupHook(t, { getSnapshot: async () => snapshot({ next_refresh_at: new Date(Date.now() + 60000).toISOString() }), refresh: async () => { refreshes += 1; return snapshot() } })
+  const state = setupHook(t, { getSnapshot: async () => snapshot({ next_refresh_at: new Date(Date.now() + 60000).toISOString(), retry_after_seconds: 60 }), refresh: async () => { refreshes += 1; return snapshot() } })
   await until(() => state.observed.data)
   assert.equal(state.observed.canRefresh, false)
   act(() => state.observed.refresh())
   assert.equal(refreshes, 0)
 })
+
+for (const clockOffset of [-180000, 180000]) {
+  test(`relative retry eligibility stays correct when client clock is ${clockOffset < 0 ? 'behind' : 'ahead of'} server`, { timeout: 3000 }, async (t) => {
+    const serverNow = Date.now()
+    t.mock.method(Date, 'now', () => serverNow + clockOffset)
+    const state = setupHook(t, {
+      getSnapshot: async () => snapshot({ next_refresh_at: new Date(serverNow + 60000).toISOString(), retry_after_seconds: 60 }),
+      refresh: async () => snapshot(),
+    })
+    await until(() => state.observed.data)
+    assert.equal(state.observed.retryAfterSeconds, 60)
+    assert.equal(state.observed.canRefresh, false)
+    act(() => state.client.setQueryData(['security-news'], snapshot({ next_refresh_at: new Date(serverNow + 60000).toISOString(), retry_after_seconds: 0 })))
+    await until(() => state.observed.canRefresh)
+    assert.equal(state.observed.retryAfterSeconds, 0)
+  })
+}
 
 test('hook cancels unfinished reads on unmount', async (t) => {
   const waiting = deferred()

@@ -65,6 +65,7 @@ class SecurityNewsUseCase:
             raise SecurityNewsRefreshThrottled(math.ceil(self._manual_interval - elapsed))
         if not running and (refresh or elapsed >= self._interval):
             self._last_attempt = now
+            elapsed = 0
             self._task = asyncio.create_task(self._refresh(), name="security-news-refresh")
             running = True
         exploited = frozenset().union(
@@ -94,6 +95,7 @@ class SecurityNewsUseCase:
                 if self._last_attempt is not None else None
             ),
             refresh_interval_seconds=self._interval,
+            retry_after_seconds=max(0, math.ceil(self._manual_interval - elapsed)) if math.isfinite(elapsed) else 0,
         )
 
     async def _refresh(self) -> None:

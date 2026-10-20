@@ -51,3 +51,4 @@ class SecurityNewsResponse(BaseModel):
     refreshed_at: datetime | None
     next_refresh_at: datetime | None
     refresh_interval_seconds: int
+    retry_after_seconds: int = 0
