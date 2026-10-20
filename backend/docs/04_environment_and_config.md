@@ -96,9 +96,12 @@ LibreOffice는 문서 PDF 변환에 사용하며 실행 파일이 없으면 변�
 | `SMTP_USE_TLS`, `SMTP_START_TLS` | `false` |
 | `NOTIFY_TODO_ENABLED`, `NOTIFY_TAC_ENABLED` | `false` |
 | `NOTIFY_TODO_TO`, `NOTIFY_TAC` | 빈 JSON list |
+| `NOTIFY_SLA_DIGEST_ENABLED` | `true` |
 | `NOTIFY_TAC_KEYWORD` | 사내 기본값 |
 
 SMTP host와 각 enable·recipient 조건이 모두 충족된 알림만 구성됩니다.
+
+`NOTIFY_SLA_DIGEST_ENABLED=true`이고 기존 할 일 알림의 SMTP·`NOTIFY_TODO_ENABLED`·`NOTIFY_TODO_TO` 조건이 충족되면 같은 수신자에게 매일 09:00 KST SLA 요약을 한 통 발송합니다. Jira 목표 시간 대비 잔여 시간이 0~30%인 진행 SLA를 대상으로 하며, 어느 SLA든 현재 또는 완료 주기에 위반 이력이 있는 티켓은 제외합니다. 별도 수신자 설정이나 보고서 갱신은 필요하지 않습니다. 대상이 없으면 발송하지 않습니다. 상세 기준과 발송 없는 미리보기는 [SLA 일일 알림](12_sla_digest.md)을 참고하세요.
 
 ## 실행 방식별 설정
 

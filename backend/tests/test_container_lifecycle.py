@@ -8,6 +8,7 @@ from src.application.ports.jira_port import JiraPort
 from src.application.ports.email_port import EmailPort
 from src.application.ports.issue_notification_renderer_port import IssueNotificationRendererPort
 from src.application.ports.sla_violation_port import SlaViolationSourcePort
+from src.application.ports.sla_digest_port import SlaDigestSourcePort, SlaDigestRendererPort
 from src.bootstrap.container import Container
 from src.infrastructure.config.settings import Settings
 
@@ -26,6 +27,8 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.ai = Mock(spec=AiPort)
         self.sla_source = AsyncMock(spec=SlaViolationSourcePort)
         self.redeployment_source = AsyncMock()
+        self.digest_source = AsyncMock(spec=SlaDigestSourcePort)
+        self.digest_source.fetch_entries.return_value = ()
 
     def create_container(self, ai: AiPort | None) -> Container:
         with (
@@ -33,6 +36,7 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
             patch("src.bootstrap.container.AiFactory.create", return_value=ai),
             patch("src.bootstrap.container.SlaViolationJiraSource", return_value=self.sla_source),
             patch("src.bootstrap.container.RedeploymentJiraSource", return_value=self.redeployment_source),
+            patch("src.bootstrap.container.SlaDigestJiraSource", return_value=self.digest_source),
         ):
             return Container(self.settings, Mock())
 
@@ -60,9 +64,48 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
             self.assertIsNotNone(container._notify_tac)
             self.assertIsInstance(container._notify_todo._renderer, IssueNotificationRendererPort)
             self.assertIs(container._notify_todo._renderer, container._notify_tac._renderer)
+            self.assertTrue(container.sla_digest_enabled)
+            self.assertIsInstance(container._notify_sla_digest._renderer, SlaDigestRendererPort)
+            self.assertEqual(self.settings.notify_todo_to, container._notify_sla_digest._notify_to)
+            self.assertIs(container._notify_todo._email, container._notify_sla_digest._email)
+            self.assertEqual(0, await container.send_sla_digest())
+            self.digest_source.fetch_entries.assert_awaited_once_with()
             await container._notify_todo.execute([])
             await container._notify_tac.execute({})
             email.send.assert_not_awaited()
+        finally:
+            await container.aclose()
+        self.digest_source.aclose.assert_awaited_once_with()
+
+    async def test_digest_is_disabled_without_existing_todo_notification(self) -> None:
+        for smtp, enabled, recipients in (
+            (None, True, ["test@example.test"]),
+            (AsyncMock(spec=EmailPort), False, ["test@example.test"]),
+            (AsyncMock(spec=EmailPort), True, []),
+        ):
+            with self.subTest(smtp=bool(smtp), enabled=enabled, recipients=bool(recipients)):
+                self.settings.notify_todo_enabled = enabled
+                self.settings.notify_todo_to = recipients
+                with patch("src.bootstrap.container.Container._build_smtp", return_value=smtp):
+                    container = self.create_container(None)
+                try:
+                    self.assertFalse(container.sla_digest_enabled)
+                    self.assertIsNone(container._sla_digest_source)
+                    self.assertEqual(0, await container.send_sla_digest())
+                finally:
+                    await container.aclose()
+        self.digest_source.fetch_entries.assert_not_awaited()
+
+    async def test_digest_can_be_disabled_without_disabling_todo(self) -> None:
+        self.settings.notify_todo_enabled = True
+        self.settings.notify_todo_to = ["test@example.test"]
+        self.settings.notify_sla_digest_enabled = False
+        with patch("src.bootstrap.container.Container._build_smtp", return_value=AsyncMock(spec=EmailPort)):
+            container = self.create_container(None)
+        try:
+            self.assertIsNotNone(container._notify_todo)
+            self.assertFalse(container.sla_digest_enabled)
+            self.assertIsNone(container._sla_digest_source)
         finally:
             await container.aclose()
 

@@ -16,6 +16,7 @@ from src.application.use_cases.get_report import GetReportUseCase
 from src.application.use_cases.get_report_chart_issues import GetReportChartIssuesUseCase
 from src.application.use_cases.notify_tac_assigned import NotifyTacAssignedUseCase
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase
+from src.application.use_cases.notify_sla_digest import NotifySlaDigestUseCase
 from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.refresh_report import RefreshReportUseCase
 from src.application.use_cases.search import SearchUseCase
@@ -30,6 +31,7 @@ from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.smtp_email_client import SmtpEmailClient
 from src.infrastructure.external.jira_oauth_client import JiraOAuthClient
 from src.infrastructure.external.sla_violation_jira_source import SlaViolationJiraSource
+from src.infrastructure.external.sla_digest_jira_source import SlaDigestJiraSource
 from src.infrastructure.external.redeployment_jira_source import RedeploymentJiraSource
 from src.infrastructure.factories.ai_factory import AiFactory
 from src.infrastructure.factories.jira_factory import JiraFactory
@@ -47,6 +49,7 @@ from src.infrastructure.security.jwt_service import JwtService
 from src.infrastructure.storage.document_converter import LibreOfficeDocumentConverter
 from src.infrastructure.storage.local_storage import LocalStorageAdapter
 from src.presentation.email.issue_notification_renderer import IssueNotificationRenderer
+from src.presentation.email.sla_digest_renderer import SlaDigestRenderer
 
 
 class Container:
@@ -145,6 +148,23 @@ class Container:
             if smtp and settings.notify_todo_enabled and settings.notify_todo_to
             else None
         )
+        self._sla_digest_source = (
+            SlaDigestJiraSource(
+                base_url=settings.jira_base_url, email=settings.jira_email,
+                api_token=settings.jira_api_token, project_key=settings.project_key,
+            )
+            if self._notify_todo is not None and settings.notify_sla_digest_enabled
+            else None
+        )
+        self._notify_sla_digest = (
+            NotifySlaDigestUseCase(
+                source=self._sla_digest_source, email=smtp,
+                renderer=SlaDigestRenderer(), notify_to=settings.notify_todo_to,
+                jira_base_url=settings.jira_base_url,
+            )
+            if self._sla_digest_source is not None and smtp is not None
+            else None
+        )
         self._notify_tac = (
             NotifyTacAssignedUseCase(
                 email=smtp,
@@ -160,6 +180,15 @@ class Container:
     @property
     def jira_base_url(self) -> str:
         return self._settings.jira_base_url
+
+    @property
+    def sla_digest_enabled(self) -> bool:
+        return self._notify_sla_digest is not None
+
+    async def send_sla_digest(self) -> int:
+        if self._notify_sla_digest is None:
+            return 0
+        return await self._notify_sla_digest.execute()
 
     async def _clear_personal_data_caches(self) -> None:
         await self.issue_management.clear_personal_data_cache()
@@ -257,6 +286,8 @@ class Container:
         async with AsyncExitStack() as stack:
             stack.push_async_callback(self._jira.aclose)
             stack.push_async_callback(self._sla_violation_source.aclose)
+            if self._sla_digest_source is not None:
+                stack.push_async_callback(self._sla_digest_source.aclose)
             stack.push_async_callback(self._redeployment_source.aclose)
             if self._ai is not None:
                 stack.push_async_callback(self._ai.aclose)

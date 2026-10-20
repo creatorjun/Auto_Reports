@@ -32,6 +32,7 @@ def create_scheduler(
     refresh: Callable[[], Awaitable[None]] | None = None,
     refresh_redeployments: Callable[[], Awaitable[None]] | None = None,
     report_personal_data: Callable[[], Awaitable[dict]] | None = None,
+    notify_sla_digest: Callable[[], Awaitable[int]] | None = None,
 ) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=timezone)
     scheduler.add_job(
@@ -64,4 +65,12 @@ def create_scheduler(
             next_run_time=datetime.now(KST), coalesce=True, max_instances=1,
             misfire_grace_time=3600,
         )
+    if notify_sla_digest:
+        scheduler.add_job(
+            notify_sla_digest,
+            CronTrigger(hour=9, minute=0, timezone="Asia/Seoul"),
+            id="sla_digest_daily", name="SLA 일일 요약 매일 09:00 KST",
+            coalesce=True, max_instances=1, misfire_grace_time=3600,
+        )
+        logger.info("스케줄러 등록 [SLA 일일 요약]: 매일 09:00 KST")
     return scheduler

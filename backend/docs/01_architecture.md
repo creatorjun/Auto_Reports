@@ -56,6 +56,8 @@
 
 할일·TAC 담당자 알림 유스케이스는 대상 이슈 선택, 라이선스 제외, 중복 알림 관리와 발송 요청을 담당합니다. 메일 HTML은 `IssueNotificationRendererPort`에 위임하며, Application은 HTML 레이아웃과 구체 렌더러를 알지 못합니다.
 
+SLA 일일 알림은 `SlaDigestSourcePort`가 제공한 Jira 현재 주기의 목표·잔여 시간과 티켓 전체 위반 이력으로 `NotifySlaDigestUseCase`가 대상을 선택합니다. `SlaDigestRendererPort`는 단계별 HTML을 렌더링하고 기존 `EmailPort`로 한 통을 전송합니다. `Container`가 구현을 조립하며 소유한 HTTP 클라이언트를 종료합니다. 스케줄러는 보고서 생성·갱신과 독립적으로 매일 09:00 KST 실행합니다.
+
 ### Infrastructure
 
 - `persistence`: `Database`가 async engine과 session transaction을 소유하고 repository adapter가 ORM 매핑을 수행합니다.

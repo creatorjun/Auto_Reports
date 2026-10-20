@@ -63,6 +63,8 @@ curl --cacert .certs/fullchain.pem https://SERVER_ADDRESS/api/health
 
 현재 Compose는 단일 backend 프로세스를 실행합니다. 일반 보고서 job의 중복 예약은 프로세스 내부에서 제어하므로 여러 backend worker/replica 운영 시 스케줄이 중복되지 않도록 별도 설계가 필요합니다. 재배포 수집은 DB advisory lock도 사용합니다. 중지된 기간의 일별 재배포 이력을 모두 소급 생성하지는 않습니다.
 
+SLA 일일 메일은 기존 할 일 알림 수신자에게 매일 09:00 KST 발송합니다. 시작 즉시 실행하거나 중단 기간의 메일을 소급 발송하지 않습니다. `NOTIFY_SLA_DIGEST_ENABLED=false`로 이 작업만 끌 수 있습니다. 단일 프로세스의 같은 날짜 중복 발송을 방지하며 여러 worker/replica 간 발송 상태를 공유하지 않습니다. Jira 수집 또는 SMTP 실패는 작업 오류로 남고 성공으로 기록되지 않습니다. 설정과 발송 없는 검증 명령은 [SLA 일일 알림](12_sla_digest.md)을 참고하세요.
+
 ## 백업과 마이그레이션
 
 DB, 파일 보관함과 감사로그는 별도 데이터입니다. 다음 named volume을 함께 관리합니다. 실제 이름 앞에는 Compose project 이름이 붙습니다.

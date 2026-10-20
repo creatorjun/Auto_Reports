@@ -72,6 +72,9 @@ def create_app(settings: Settings) -> FastAPI:
                     generate=job_runner.run_scheduled_job,
                     refresh_redeployments=container.refresh_redeployment_report,
                     report_personal_data=container.personal_data.run_reporting,
+                    notify_sla_digest=(
+                        container.send_sla_digest if container.sla_digest_enabled else None
+                    ),
                     refresh_interval_minutes=(
                         settings.refresh_report_interval_minutes
                         if settings.refresh_report_enabled

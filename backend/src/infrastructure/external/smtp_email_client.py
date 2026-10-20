@@ -47,5 +47,7 @@ class SmtpEmailClient(EmailPort):
             send_kwargs["username"] = self._username
             send_kwargs["password"] = self._password
 
-        await aiosmtplib.send(msg, **send_kwargs)
+        refused_recipients, _ = await aiosmtplib.send(msg, **send_kwargs)
+        if refused_recipients:
+            raise RuntimeError(f"SMTP delivery refused for {len(refused_recipients)} of {len(to)} recipients")
         logger.info(f"[메일 발송] to={to} subject={subject!r}")

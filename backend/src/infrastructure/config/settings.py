@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     smtp_start_tls: bool = Field(default=False, alias="SMTP_START_TLS", validation_alias="SMTP_START_TLS")
     notify_todo_enabled: bool = Field(default=False, alias="NOTIFY_TODO_ENABLED", validation_alias="NOTIFY_TODO_ENABLED")
     notify_todo_to: list[str] = Field(default=[], alias="NOTIFY_TODO_TO", validation_alias="NOTIFY_TODO_TO")
+    notify_sla_digest_enabled: bool = True
     notify_tac_enabled: bool = Field(default=False, alias="NOTIFY_TAC_ENABLED", validation_alias="NOTIFY_TAC_ENABLED")
     notify_tac_to: list[str] = Field(default=[], alias="NOTIFY_TAC", validation_alias="NOTIFY_TAC")
     notify_tac_keyword: str = Field(default="\uc624\uacbd\uc11d", alias="NOTIFY_TAC_KEYWORD", validation_alias="NOTIFY_TAC_KEYWORD")
