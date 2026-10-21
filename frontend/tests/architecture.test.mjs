@@ -348,15 +348,15 @@ test('annual reports render every redeployment dashboard view', () => {
   )
 })
 
-test('w3 and w4 cards omit only the recent prefix', () => {
+test('created and resolved cards display the saved report range label', () => {
   const page = fs.readFileSync(
     path.join(source, 'presentation/pages/DashboardPage.tsx'),
     'utf8',
   )
 
-  assert.match(page, /label={`\$\{rangeDays\}일 생성`}/)
-  assert.match(page, /label={`\$\{rangeDays\}일 완료`}/)
-  assert.doesNotMatch(page, /label={`최근 \$\{rangeDays\}일 (?:생성|완료)`}/)
+  assert.match(page, /label={`\$\{rangeLabel\} 생성`}/)
+  assert.match(page, /label={`\$\{rangeLabel\} 완료`}/)
+  assert.doesNotMatch(page, /label={`(?:최근 )?\$\{rangeDays\}일 (?:생성|완료)`}/)
 })
 
 test('theme palette and persisted mode stay centralized in presentation', () => {

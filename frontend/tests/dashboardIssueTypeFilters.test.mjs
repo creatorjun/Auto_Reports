@@ -197,6 +197,47 @@ function assertHiddenIssuesIncluded(data, expectedTypes, expectedIssueCount, exp
   assert.deepEqual(Object.keys(data.resolutionByType).sort(), [...expectedTypes].sort())
 }
 
+for (const { period, start, end, days, label } of [
+  { period: '31-day October', start: '2026-10-01', end: '2026-10-31', days: 31, label: '10월' },
+  { period: '30-day September', start: '2026-09-01', end: '2026-09-30', days: 30, label: '9월' },
+  { period: 'leap-year February', start: '2028-02-01', end: '2028-02-29', days: 29, label: '2월' },
+  { period: 'non-leap-year February', start: '2026-02-01', end: '2026-02-28', days: 28, label: '2월' },
+  { period: 'month ending on the selected day', start: '2026-10-01', end: '2026-10-21', days: 21, label: '21일' },
+  { period: 'month missing the first day', start: '2026-10-02', end: '2026-10-31', days: 30, label: '30일' },
+  { period: '31-day range crossing months', start: '2026-10-02', end: '2026-11-01', days: 31, label: '31일' },
+  { period: 'cross-year week', start: '2026-12-28', end: '2027-01-03', days: 7, label: '7일' },
+  { period: 'annual range', start: '2026-01-01', end: '2026-12-31', days: 365, label: '365일' },
+]) {
+  test(`${period} labels the saved range without changing its dates or issue counts`, () => {
+    const report = fixtureReport()
+    report.week_start = start
+    report.week_end = end
+    report.report_date = '2026-10-21'
+    const template = report.widgets.w3.data.created_details[0]
+    const created = [
+      { ...template, key: 'START', created: `${start} 00:00` },
+      { ...template, key: 'END', created: `${end} 23:59` },
+    ]
+    const resolved = [{ ...created[0], key: 'RESOLVED-END', resolved: `${end} 23:59` }]
+    report.widgets.w3 = widget({
+      created: created.length, resolved: resolved.length,
+      created_details: created, resolved_details: resolved,
+    })
+    const original = structuredClone(report)
+
+    const { weekly } = buildDashboardData(report)
+
+    assert.equal(weekly.rangeLabel, label)
+    assert.equal(weekly.rangeDays, days)
+    assert.deepEqual(weekly.dateRange, { start, end })
+    assert.equal(weekly.w3Created, 2)
+    assert.equal(weekly.w3Resolved, 1)
+    assert.deepEqual(weekly.weeklyCreated, created)
+    assert.deepEqual(weekly.weeklyResolved, resolved)
+    assert.deepEqual(report, original)
+  })
+}
+
 for (const { period, start, end, before, after, scope } of [
   { period: 'cross-year week', start: '2026-12-28', end: '2027-01-03', before: '2026-12-27', after: '2027-01-04', scope: 'standard' },
   { period: 'leap-year month', start: '2028-02-01', end: '2028-02-29', before: '2028-01-31', after: '2028-03-01', scope: 'standard' },

@@ -17,6 +17,7 @@ import type { ReportDetail } from '@/domain/Report'
 import type { RecentIssue } from '@/domain/Issue'
 import { filterIssuesByReportPeriod } from '@/domain/Issue'
 import { WIDGET_ID } from '@/domain/WidgetId'
+import { reportDateRange } from '@/application/services/reportPeriod'
 import {
   isDashboardDateInSemester,
   isDashboardIssueTypeFilterOption,
@@ -98,6 +99,13 @@ function getInclusiveDayCount(start: string, end: string): number {
 function getReportYear(report: ReportDetail): number {
   const year = Number.parseInt(report.week_end?.slice(0, 4) ?? '', 10)
   return Number.isFinite(year) ? year : new Date().getFullYear()
+}
+
+function getReportRangeLabel(start: string, end: string, rangeDays: number): string {
+  const monthRange = reportDateRange('month', start)
+  return monthRange?.start === start && monthRange.end === end
+    ? `${Number(start.slice(5, 7))}월`
+    : `${rangeDays}일`
 }
 
 function collectDashboardStatuses(value: unknown, statuses: Set<string>): void {
@@ -450,6 +458,7 @@ export function buildFilteredDashboardData(
     reportYear,
     (issue) => issue.resolved,
   )
+  const rangeDays = getInclusiveDayCount(report.week_start, report.week_end)
   const weekly = {
     w3Created: weeklyCreated.length,
     w3Resolved: weeklyResolved.length,
@@ -458,7 +467,8 @@ export function buildFilteredDashboardData(
     dateRange: report.week_start && report.week_end
       ? { start: report.week_start, end: report.week_end }
       : undefined,
-    rangeDays: getInclusiveDayCount(report.week_start, report.week_end),
+    rangeDays,
+    rangeLabel: getReportRangeLabel(report.week_start, report.week_end, rangeDays),
   }
 
   const w10Data = getData<{ monthly: MonthlyEntry[] }>(w[WIDGET_ID.SLA_INITIAL_RESPONSE])

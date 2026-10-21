@@ -128,7 +128,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
   const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, resolutionByStage, hasStageDurationData, recentAndIncomplete, statusIssues } = useDashboardData(report, effectiveIssueTypes, effectiveSemester, effectiveStatuses)
   const { issueTypes, statusTypes, reportYear, supportsIssueTypeFiltering, supportsStatusFiltering, supportsSemesterFiltering, semesterLabel } = filter
   const { w1YearlyCreated, w2YearlyResolved } = yearly
-  const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeDays } = weekly
+  const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeLabel } = weekly
   const { w10Monthly, w11Monthly, hasW10, hasW11 } = slaMonthly
   const { w8Monthly, w9Monthly, hasW8, hasW9 } = monthlyCount
   const { w12Total, w12Distribution } = slaDonut
@@ -294,8 +294,8 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
       ) : <div data-pdf-section="주요 지표" data-pdf-kind="metrics" className="grid grid-cols-2 md:grid-cols-4 3xl:grid-cols-8 gap-3 md:gap-4 3xl:gap-5">
         <SummaryCard label={`${reportYear} 생성`} value={w1YearlyCreated} color="blue"   icon={SUMMARY_ICONS.yearCreated}   />
         <SummaryCard label={`${reportYear} 해결`} value={w2YearlyResolved} color="green"  icon={SUMMARY_ICONS.yearResolved}   />
-        <SummaryCard label={`${rangeDays}일 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
-        <SummaryCard label={`${rangeDays}일 완료`} value={w3Resolved} color="green" icon={SUMMARY_ICONS.weekResolved} onClick={() => setShowWeeklyResolved(true)} />
+        <SummaryCard label={`${rangeLabel} 생성`} value={w3Created}  color="blue"  icon={SUMMARY_ICONS.weekCreated}  onClick={() => setShowWeeklyCreated(true)}  />
+        <SummaryCard label={`${rangeLabel} 완료`} value={w3Resolved} color="green" icon={SUMMARY_ICONS.weekResolved} onClick={() => setShowWeeklyResolved(true)} />
         <SummaryCard label="이슈 리뷰 중" value={reviewTotal}  color="purple" icon={SUMMARY_ICONS.issueReview}   onClick={() => setShowIssueReview(true)}   />
         <SummaryCard label="자료 요청 중" value={dataRequestTotal}  color="blue" icon={SUMMARY_ICONS.dataRequest}   onClick={() => setShowDataRequest(true)}   />
         <SummaryCard label="결과 대기 중" value={resultPendingTotal}  color="yellow" icon={SUMMARY_ICONS.resultPending} onClick={() => setShowResultPending(true)} />
