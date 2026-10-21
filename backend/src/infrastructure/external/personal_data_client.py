@@ -3,22 +3,15 @@ import asyncio
 import math
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Protocol
 
 import httpx
 
-from src.application.ports.personal_data_port import PersonalDataReporterPort, PersonalDataReportingFailure
+from src.application.ports.personal_data_port import PersonalDataReporterPort, PersonalDataReportingFailure, PersonalDataReportingGrantPort
 from src.domain.entities.personal_data import PersonalDataAccount, PersonalDataAction, PersonalDataReportResult
 
 
-class ReportingGrantStore(Protocol):
-    async def get_reporting_grant(self) -> tuple[str, str]: ...
-
-    async def save_reporting_grant(self, account_id: str, refresh_token: str) -> None: ...
-
-
 class AtlassianPersonalDataClient(PersonalDataReporterPort):
-    def __init__(self, client_id: str, client_secret: str, grants: ReportingGrantStore, transport: httpx.AsyncBaseTransport | None = None) -> None:
+    def __init__(self, client_id: str, client_secret: str, grants: PersonalDataReportingGrantPort, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
         self._grants = grants

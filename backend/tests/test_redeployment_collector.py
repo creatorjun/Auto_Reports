@@ -87,7 +87,7 @@ class RedeploymentCollectorTest(unittest.IsolatedAsyncioTestCase):
                 raise AssertionError("Fresh details must use fresh asset labels")
 
         jira = FreshJira()
-        queries = WidgetQueryBuilder(QueryConfig("TACEA", [], [], [], 30, 2026)).build(
+        queries = WidgetQueryBuilder(QueryConfig("TACEA", [], [], [], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]")).build(
             datetime.datetime(2024, 12, 31),
         )
 
@@ -131,6 +131,8 @@ class RedeploymentCollectorTest(unittest.IsolatedAsyncioTestCase):
             closed_statuses=[],
             sla_threshold_days=30,
             year_start=2026,
+            redeployment_flag_field="cf[11819]",
+            redeployment_month_field="cf[12421]",
         )
         queries = WidgetQueryBuilder(config).build(datetime.datetime(2026, 12, 31))
 
@@ -176,6 +178,8 @@ class RedeploymentCollectorTest(unittest.IsolatedAsyncioTestCase):
             closed_statuses=[],
             sla_threshold_days=30,
             year_start=2026,
+            redeployment_flag_field="cf[11819]",
+            redeployment_month_field="cf[12421]",
         )
         queries = WidgetQueryBuilder(config).build(datetime.datetime(2024, 12, 31))
         result = await RedeploymentAnalyticsCollector(RedeploymentJira(), queries).collect()

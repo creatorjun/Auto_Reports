@@ -16,6 +16,7 @@ from src.infrastructure.logging.audit_logger import AuditLogger
 from src.infrastructure.logging.audit_log_reader import FileAuditLogReader
 from src.infrastructure.logging.oauth_access_filter import OAuthAccessFilter
 from src.application.use_cases.audit_logs import AuditLogsUseCase
+from src.application.use_cases.trigger_report import TriggerReportUseCase
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.job_repository_impl import SqlJobRepository
 from src.infrastructure.scheduling.report_scheduler import create_scheduler
@@ -39,8 +40,7 @@ def create_app(settings: Settings) -> FastAPI:
             async with AsyncExitStack() as stack:
                 database = Database(settings.database_url)
                 stack.push_async_callback(database.aclose)
-                container = Container(settings, database)
-                stack.push_async_callback(container.aclose)
+                container = await stack.enter_async_context(Container.open(settings, database))
                 await container.auth.clear_jira_grants()
                 await container.issue_management.initialize()
                 await container.security_news.initialize()
@@ -57,6 +57,7 @@ def create_app(settings: Settings) -> FastAPI:
                     audit=audit,
                     jira_base_url=container.jira_base_url,
                     job_runner=job_runner,
+                    trigger_report=TriggerReportUseCase(job_runner, container.get_report),
                     partner=container.partner,
                     search=container.search,
                     storage=container.storage,

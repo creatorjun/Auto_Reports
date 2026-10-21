@@ -1,6 +1,6 @@
 # Backend Architecture
 
-문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+문서 기준: 2026-10-21. 전체 검토 범위와 수정 근거는 [백엔드 아키텍처 검토](17_backend_architecture_review.md)를 참고하세요.
 
 ## 의존성 규칙
 
@@ -36,7 +36,7 @@
 - `presentation`은 HTTP·Pydantic 변환과 알림 레이아웃을 담당하고 구체 인프라 구현을 알지 못합니다.
 - `bootstrap`과 `main.py`만 양쪽의 구체 구현을 조립합니다.
 
-이 규칙은 `backend/tests/test_architecture.py`가 AST import graph로 검사합니다.
+이 규칙은 `backend/tests/test_architecture.py`가 AST import graph와 구체 유스케이스 조립, 공급자 필드 ID, HTTP 작업 제출 경계로 검사합니다. import 검사만으로 업무 책임과 비동기 수명이 보장되지는 않으므로 유스케이스·취소·저장소 테스트를 함께 실행합니다.
 
 ## 레이어별 구성
 
@@ -78,7 +78,11 @@ Presentation dependency는 이미 조립된 유스케이스 또는 요청 단위
 
 ### Bootstrap
 
-`src/bootstrap/container.py`는 설정에 맞는 adapter와 유스케이스 factory를 구성합니다. 전역 singleton이나 `app.state.container` service locator로 노출하지 않습니다. `main.py`가 프로세스 수준 `Database`, `Container`, `JobRunner`, scheduler와 `ApiServices`를 만들고 lifespan 종료 순서에 맞게 닫습니다.
+`src/bootstrap/container.py`는 설정에 맞는 adapter와 유스케이스 factory를 구성합니다. `WidgetCollectorFactory`도 bootstrap에서 수집기를 조립합니다. 재배포용 Jira 필드 ID는 Infrastructure가 소유하며 JQL 필드 참조를 `QueryConfig`에 주입합니다. 전역 singleton이나 `app.state.container` service locator로 노출하지 않습니다. `main.py`가 프로세스 수준 `Database`, `Container`, `JobRunner`, scheduler와 `ApiServices`를 만들고 lifespan 종료 순서에 맞게 닫습니다.
+
+개인정보 보고는 `PersonalDataReportingService`가 소유자 승인 상태, 재시도, 삭제·최신 이름 갱신, 수집과 보고 순서를 관리합니다. DB 스냅샷과 PostgreSQL advisory lock은 output port 구현이며, repository와 외부 API 및 유스케이스 조립은 Container에서 수행합니다. 로그인 알림 권한은 조회·해제 계약과 레거시 OAuth 쓰기 계약을 분리하여 영속 로그인에 지원하지 않는 저장 메서드를 요구하지 않습니다.
+
+번역 재시도 간격, 요청 한도 오류에 대한 시도 횟수 복원과 안내는 Application 정책입니다. SQLite adapter는 같은 트랜잭션 안에서 현재 상태를 읽고 정책 결과를 반영하며 예약·완료의 원자성을 유지합니다. AI 입력 요약과 샘플링도 Application이 소유하고 도메인 위젯은 프롬프트를 렌더링하지 않습니다.
 
 런타임 설정은 `main.py`에서 한 번 해석해 adapter 생성자에 전달합니다. Infrastructure adapter는 `get_settings()`를 다시 호출하거나 자체 singleton factory를 만들지 않습니다.
 
@@ -86,11 +90,17 @@ Presentation dependency는 이미 조립된 유스케이스 또는 요청 단위
 
 요청 단위 DB 유스케이스는 `Database.session()` context manager 안에서 만들어집니다. 정상 종료 시 commit, 예외 시 rollback이며 엔진은 FastAPI lifespan 종료 때 dispose됩니다. Jira와 Gemini HTTP client, 보고서 캐시, 잡 task도 각 소유자의 `aclose()`에서 정리됩니다. `Container`는 AI 포트의 수명을 소유하며, `AsyncExitStack`으로 한 리소스의 종료가 실패해도 나머지 종료를 수행합니다. Gemini SDK의 동기·비동기 전송 리소스 해제는 어댑터 안에서 처리합니다.
 
+`Container.open()`은 초기화 완료 전부터 정리 범위를 설정합니다. 중간 생성 실패 시 이미 생성한 자원을 회수하며, 하나의 종료 오류가 나머지 자원 정리를 막지 않습니다. DB 엔진은 별도로 main이 소유합니다.
+
+캐시의 공유 조회 작업은 캐시가 소유합니다. 개별 요청 취소는 다른 대기자에게 전파되지 않고, 무효화·종료는 이전 작업을 취소하여 늦게 반환된 값의 재삽입을 막습니다. 보고서 캐시의 백그라운드 조회는 Container에서 주입한 callback이 독립 DB 세션을 열고 닫습니다. HTTP 요청의 repository 세션을 백그라운드 작업에 넘기지 않습니다.
+
 파일시스템과 LibreOffice 같은 동기 I/O는 `StorageUseCase`가 `asyncio.to_thread` 경계를 통해 호출하므로 이벤트 루프를 차단하지 않습니다.
 
 ## 잡 실행과 SSE
 
-`JobRunner.submit()`은 lock 안에서 실행권을 원자적으로 예약하고 중복 제출에는 `JobAlreadyRunningError`를 발생시킵니다. FastAPI `BackgroundTasks`가 아니라 JobRunner가 생성한 `asyncio.Task`를 추적하고 종료 시 취소·회수합니다. 저장소 I/O와 보고서 생성은 lock 밖에서 실행됩니다.
+`TriggerReportUseCase`는 수동 보고서의 전체 주간·월간·연간 기간, 최근 저장본 재실행, 캐시 우회와 작업 제출을 담당합니다. HTTP 라우트는 요청·응답, 오류와 감사 로그를 처리합니다.
+
+`JobRunner.submit()`은 lock 안에서 실행권을 원자적으로 예약하고 중복 제출에는 `JobAlreadyRunningError`를 발생시킵니다. 예약 저장 도중 요청이 취소되어도 실행권을 해제합니다. FastAPI `BackgroundTasks`가 아니라 JobRunner가 생성한 `asyncio.Task`를 추적하고 종료 시 취소·회수합니다. 저장소 I/O와 보고서 생성은 lock 밖에서 실행됩니다.
 
 SSE는 조회한 `JobStatus`를 `wait_for_update()`에 전달합니다. 실행기는 대기자를 등록하기 전후로 상태를 다시 확인해 lost notification을 막고, 대기자 set은 종료 시 제거합니다.
 
@@ -100,7 +110,7 @@ SSE는 조회한 `JobStatus`를 `wait_for_update()`에 전달합니다. 실행�
 
 SLA 위반은 `SlaViolationReportUseCase`가 기간별 티켓 수집과 저장을 담당하며 일반 보고서 job/SSE와 분리된 HTTP 요청입니다. 재배포 현황은 별도 수집·저장 포트와 DB advisory lock을 사용하고, 스케줄러는 매일 08시 KST 및 시작 시 보충 작업을 등록합니다. 자세한 동시성·저장 계약은 [SLA](08_sla_violation_report.md)와 [재배포](09_redeployment_report.md)에 있습니다.
 
-전체 이슈 캐시는 `IssueManagementUseCase`가 소유하며 목록 요청에서 백그라운드 갱신을 시작합니다. 첫 전체 수집, 30초 최소 갱신 간격, 2분 중첩 증분 조회, 1시간 경과 후 전체 재수집을 사용합니다. DB 스냅샷이 아니므로 프로세스 종료 시 소멸합니다. 응답의 목록 객체는 복사하여 호출자 변경이 내부 캐시를 오염시키지 않게 합니다.
+전체 이슈와 SLA 현황은 저장소 포트가 제공한 DB 스냅샷을 복구하고 유스케이스가 백그라운드 갱신을 관리합니다. 전체 이슈는 30초 최소 갱신 간격, 2분 중첩 증분 조회, 1시간 경과 후 전체 재수집을 사용합니다. 응답의 목록 객체는 복사하여 호출자 변경이 내부 캐시를 오염시키지 않게 합니다.
 
 일반 보고서 w14의 상태 이력 계산은 잘못된 티켓 이력의 `ValueError`만 잡아 해당 이슈의 단계별 시간에서 제외하고 로그를 남깁니다. Jira 요청 실패·잘린 페이지 같은 공급자 오류는 전파합니다. SLA 위반의 불완전 이력은 위반 티켓 자체를 제외하지 않고 미확인 상세·경고로 보존합니다. 두 계약을 혼동하지 않습니다.
 

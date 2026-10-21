@@ -8,7 +8,7 @@ from time import monotonic
 
 from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable, JiraOAuthPort
 from src.application.ports.jira_login_port import JiraLoginPort
-from src.application.ports.jira_user_grant_port import JiraUserGrantStorePort
+from src.application.ports.jira_user_grant_port import JiraUserGrantAccessPort
 from src.application.ports.personal_data_port import PersonalDataProfilePort, PersonalDataReportingPort
 from src.application.ports.token_service_port import TokenServicePort
 from src.domain.entities.auth_identity import AuthIdentity
@@ -37,7 +37,7 @@ class AuthService:
         personal_data: PersonalDataProfilePort | None = None,
         reporting: PersonalDataReportingPort | None = None,
         privacy_owner_account_id: str = "",
-        jira_grants: JiraUserGrantStorePort | None = None,
+        jira_grants: JiraUserGrantAccessPort | None = None,
         jira_login: JiraLoginPort | None = None,
         jira_device_expire_days: int = 90,
     ) -> None:

@@ -1,18 +1,15 @@
 # backend/src/presentation/api/v1/trigger.py
 import json
 import time
-import uuid
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from src.application.ports.audit_port import AuditPort
-from src.application.services.report_period import report_period_dates
+from src.application.use_cases.trigger_report import LatestReportUnavailableError, TriggerReportUseCase
 from src.presentation.mappers.job_mapper import JobMapper
 from src.application.ports.job_runner_port import JobRunnerPort
-from src.presentation.api.deps import get_api_services, get_audit, get_job_runner
+from src.presentation.api.deps import get_audit, get_job_runner, get_trigger_report_use_case
 from src.presentation.schemas.report_schema import (
     JobStatusSchema,
     TriggerAcceptedSchema,
@@ -21,8 +18,6 @@ from src.presentation.schemas.report_schema import (
 from src.presentation.http.client_ip import get_client_ip
 
 router = APIRouter(prefix="/trigger", tags=["trigger"])
-
-KST = ZoneInfo("Asia/Seoul")
 
 _SSE_WAIT_TIMEOUT    = 30.0
 _SSE_TIMEOUT_SECONDS = 300
@@ -33,54 +28,32 @@ _SSE_KEEPALIVE_EVERY = 15.0
 async def trigger_report(
     request: Request,
     body: TriggerRequest = TriggerRequest(),
-    job_runner: JobRunnerPort = Depends(get_job_runner),
+    use_case: TriggerReportUseCase = Depends(get_trigger_report_use_case),
     audit: AuditPort = Depends(get_audit),
 ):
-    start_dt: datetime | None = None
-    end_dt: datetime | None = None
-
     try:
-        if body.rerun_latest:
-            async with get_api_services(request).get_report() as reports:
-                latest = await reports.get_latest()
-            if latest is None:
-                raise HTTPException(status_code=404, detail="갱신할 최근 보고서가 없습니다.")
-            start_dt = datetime(
-                latest.week_start.year, latest.week_start.month, latest.week_start.day,
-                tzinfo=KST,
-            )
-            end_dt = datetime(
-                latest.week_end.year, latest.week_end.month, latest.week_end.day,
-                hour=23, minute=59, second=59, tzinfo=KST,
-            )
-        elif body.period is not None and body.date is not None:
-            start_dt, end_dt = report_period_dates(body.period, body.date, datetime.now(KST).date())
-        else:
-            if body.start_date:
-                start_dt = datetime.strptime(body.start_date, "%Y-%m-%d").replace(tzinfo=KST)
-            if body.end_date:
-                end_dt = datetime.strptime(body.end_date, "%Y-%m-%d").replace(
-                    hour=23, minute=59, second=59, tzinfo=KST
-                )
+        result = await use_case.execute(
+            start_date=body.start_date,
+            end_date=body.end_date,
+            period=body.period,
+            selected_date=body.date,
+            rerun_latest=body.rerun_latest,
+        )
+    except LatestReportUnavailableError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-
-    job_id = str(uuid.uuid4())
-    if body.rerun_latest or body.period is not None:
-        await job_runner.submit(job_id, start_dt, end_dt, bypass_jira_cache=True, force_standard=True)
-    else:
-        await job_runner.submit(job_id, start_dt, end_dt, bypass_jira_cache=True)
 
     ip = get_client_ip(request)
     audit.record(
         "REPORT_TRIGGER",
         ip=ip,
-        job_id=job_id,
-        start=start_dt.date().isoformat() if start_dt else "auto",
-        end=end_dt.date().isoformat() if end_dt else "auto",
+        job_id=result.job_id,
+        start=result.start_date.date().isoformat() if result.start_date else "auto",
+        end=result.end_date.date().isoformat() if result.end_date else "auto",
     )
     return TriggerAcceptedSchema(
-        job_id=job_id,
+        job_id=result.job_id,
         message="보고서 생성을 시작했습니다.",
     )
 

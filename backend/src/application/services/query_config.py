@@ -10,3 +10,5 @@ class QueryConfig:
     closed_statuses: list[str]
     sla_threshold_days: int
     year_start: int
+    redeployment_flag_field: str
+    redeployment_month_field: str

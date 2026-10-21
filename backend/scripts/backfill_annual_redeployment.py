@@ -14,6 +14,7 @@ from src.application.widgets.redeployment_collector import RedeploymentAnalytics
 from src.domain.constants import KST
 from src.domain.value_objects.widget_id import WidgetId
 from src.infrastructure.config.settings import get_settings
+from src.infrastructure.external.jira_redeployment_fields import REDEPLOYMENT_FLAG_FIELD, REDEPLOYMENT_MONTH_FIELD, jql_field
 from src.infrastructure.factories.jira_factory import JiraFactory
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
@@ -31,6 +32,8 @@ async def backfill(years: list[int]) -> None:
             closed_statuses=settings.closed_statuses,
             sla_threshold_days=settings.sla_threshold_days,
             year_start=settings.year_start,
+            redeployment_flag_field=jql_field(REDEPLOYMENT_FLAG_FIELD),
+            redeployment_month_field=jql_field(REDEPLOYMENT_MONTH_FIELD),
         )
     )
     try:

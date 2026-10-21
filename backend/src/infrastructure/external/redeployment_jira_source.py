@@ -10,10 +10,11 @@ import httpx
 from src.domain.constants import KST
 from src.domain.entities.redeployment_report import REDEPLOYMENT_START, RedeploymentTicket
 from src.infrastructure.external.jira_user_identity import jira_account_id
+from src.infrastructure.external.jira_redeployment_fields import REDEPLOYMENT_FLAG_FIELD, REDEPLOYMENT_MONTH_FIELD, jql_field
 
 REDEPLOYMENT_FIELDS = {
-    "flag": "customfield_11819", "cause": "customfield_11885", "reason": "customfield_11852",
-    "month": "customfield_12421", "count": "customfield_11753", "customer": "customfield_11022",
+    "flag": REDEPLOYMENT_FLAG_FIELD, "cause": "customfield_11885", "reason": "customfield_11852",
+    "month": REDEPLOYMENT_MONTH_FIELD, "count": "customfield_11753", "customer": "customfield_11022",
     "partner": "customfield_10859",
 }
 
@@ -50,7 +51,7 @@ class RedeploymentJiraSource:
     async def fetch(self, as_of: datetime) -> tuple[str, tuple[RedeploymentTicket, ...], tuple[str, ...]]:
         cutoff = as_of.astimezone(KST).strftime("%Y-%m-%d %H:%M")
         jql = (
-            f'project = {self._project} AND cf[11819] = Y AND issuetype != "라이선스" '
+            f'project = {self._project} AND {jql_field(REDEPLOYMENT_FLAG_FIELD)} = Y AND issuetype != "라이선스" '
             f'AND ((status = Closed AND resolved >= "{REDEPLOYMENT_START}" '
             f'AND resolved <= "{cutoff}") OR status != Closed) ORDER BY key ASC'
         )

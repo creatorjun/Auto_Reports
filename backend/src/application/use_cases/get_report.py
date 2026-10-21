@@ -1,5 +1,6 @@
 # backend/src/application/use_cases/get_report.py
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Optional
 
 from src.application.ports.report_cache_port import ReportCachePort
@@ -11,14 +12,20 @@ logger = logging.getLogger(__name__)
 
 
 class GetReportUseCase:
-    def __init__(self, repository: ReportRepository, cache: ReportCachePort):
+    def __init__(
+        self,
+        repository: ReportRepository,
+        cache: ReportCachePort,
+        refresh_report: Callable[[int], Awaitable[Report | None]] | None = None,
+    ):
         self._repository = repository
         self._cache = cache
+        self._refresh_report = refresh_report
 
     async def get_by_id(self, report_id: int) -> Optional[Report]:
         cached = await self._cache.get(
             report_id,
-            refresh_fn=self._fetch_by_id,
+            refresh_fn=self._fetch_by_id if self._refresh_report is not None else None,
         )
         if cached is not None:
             return with_current_issue_age(cached)
@@ -32,7 +39,7 @@ class GetReportUseCase:
         if latest_id is not None:
             cached = await self._cache.get(
                 latest_id,
-                refresh_fn=self._fetch_by_id,
+                refresh_fn=self._fetch_by_id if self._refresh_report is not None else None,
             )
             if cached is not None:
                 return with_current_issue_age(cached)
@@ -68,8 +75,10 @@ class GetReportUseCase:
         return deleted
 
     async def _fetch_by_id(self, report_id: int) -> Optional[Report]:
+        if self._refresh_report is None:
+            return None
         try:
-            return await self._repository.find_by_id(report_id)
+            return await self._refresh_report(report_id)
         except Exception as exc:
             logger.error(f"[cache-refresh] DB 조회 실패: id={report_id} -> {exc}")
             return None

@@ -133,9 +133,6 @@ class JiraLoginService(JiraLoginPort):
             return None
         return record.grant
 
-    async def put(self, grant: JiraUserGrant, identity: AuthIdentity) -> str:
-        raise ValueError("Persistent Jira login requires a verified profile and browser authorization")
-
     async def revoke(self, grant_id: str, identity: AuthIdentity) -> None:
         if identity.jira_grant_id == grant_id and identity.auth_provider == "jira":
             await self._repository.revoke_session(identity)

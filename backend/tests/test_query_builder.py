@@ -5,6 +5,7 @@ import pathlib
 import re
 import sys
 import unittest
+from dataclasses import replace
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -14,7 +15,8 @@ from src.application.services.query_config import QueryConfig
 from src.application.widgets.created_vs_resolved_collector import CreatedVsResolvedCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
 from src.domain.value_objects.widget_id import WidgetId
-from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
+from src.bootstrap.widget_collector_factory import WidgetCollectorFactory
+from src.infrastructure.external.jira_redeployment_fields import REDEPLOYMENT_FLAG_FIELD, REDEPLOYMENT_MONTH_FIELD, jql_field
 
 
 class WidgetQueryBuilderTest(unittest.TestCase):
@@ -26,6 +28,8 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             closed_statuses=["Closed", "반려됨", "중복 이슈", "취소됨"],
             sla_threshold_days=30,
             year_start=2026,
+            redeployment_flag_field="cf[11819]",
+            redeployment_month_field="cf[12421]",
         )
         self.queries = WidgetQueryBuilder(self.config).build(
             datetime.datetime(2026, 8, 18)
@@ -260,6 +264,25 @@ class WidgetQueryBuilderTest(unittest.TestCase):
             'ORDER BY cf[12421] DESC, resolved DESC'
         ))
 
+    def test_redeployment_fields_are_supplied_by_the_adapter_without_core_schema_defaults(self) -> None:
+        queries = WidgetQueryBuilder(replace(
+            self.config,
+            redeployment_flag_field=jql_field("customfield_90001"),
+            redeployment_month_field=jql_field("customfield_90002"),
+        )).build(datetime.datetime(2024, 12, 31))
+
+        self.assertIn("AND cf[90001] = Y", queries.w15_redeployment_issues())
+        self.assertTrue(queries.w15_redeployment_analytics().endswith("ORDER BY cf[90002] DESC, resolved DESC"))
+        self.assertNotIn("11819", queries.w15_redeployment_analytics())
+        self.assertNotIn("12421", queries.w15_redeployment_analytics())
+
+    def test_adapter_maps_shared_field_ids_and_rejects_nonidentifiers(self) -> None:
+        self.assertEqual("cf[11819]", jql_field(REDEPLOYMENT_FLAG_FIELD))
+        self.assertEqual("cf[12421]", jql_field(REDEPLOYMENT_MONTH_FIELD))
+        for field_id in ("", "summary", "customfield_1 OR project = OTHER", "customfield_-1"):
+            with self.subTest(field_id=field_id), self.assertRaises(ValueError):
+                jql_field(field_id)
+
 
 class PeriodJira:
     async def get_issue_status_changes(self, issue_key):
@@ -295,7 +318,7 @@ class PeriodJira:
 
 class ReportPeriodCollectorsTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
-        self.queries = WidgetQueryBuilder(QueryConfig("TACEA", ["개선"], [], [], 30, 2026)).build(
+        self.queries = WidgetQueryBuilder(QueryConfig("TACEA", ["개선"], [], [], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]")).build(
             datetime.datetime(2026, 9, 10),
             week_start_override=datetime.datetime(2026, 1, 1),
         )
@@ -347,7 +370,7 @@ class CurrentStatusPeriodJira(PeriodJira):
 
 class CurrentStatusPeriodCollectorsTest(unittest.IsolatedAsyncioTestCase):
     async def test_all_status_widgets_include_current_stage_without_period_or_age_limit(self) -> None:
-        config = QueryConfig("TACEA", ["개선"], [], ["Closed", "반려됨", "중복 이슈", "취소됨"], 30, 2026)
+        config = QueryConfig("TACEA", ["개선"], [], ["Closed", "반려됨", "중복 이슈", "취소됨"], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]")
         widget_ids = (WidgetId.ISSUE_REVIEW, WidgetId.DATA_REQUEST, WidgetId.RESULT_PENDING)
         for start_date, end_date in (
             ("2026-08-12", "2026-08-18"),

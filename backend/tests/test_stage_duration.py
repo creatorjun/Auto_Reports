@@ -125,7 +125,7 @@ class StageDurationCollectorTest(unittest.IsolatedAsyncioTestCase):
                 await asyncio.sleep(0)
                 return [JiraStatusChange("2026-01-02", "할 일", "Closed")]
 
-        queries = WidgetQueryBuilder(QueryConfig("T", ["개선"], [], [], 30, 2026)).build(
+        queries = WidgetQueryBuilder(QueryConfig("T", ["개선"], [], [], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]")).build(
             datetime.datetime(2026, 1, 4), week_start_override=datetime.datetime(2026, 1, 1),
         )
         with self.assertLogs("src.application.widgets.resolution_collector", level="WARNING") as logs:
@@ -154,7 +154,7 @@ class StageDurationCollectorTest(unittest.IsolatedAsyncioTestCase):
             ("2026-01-01", "2026-01-03", "", [], 1),
             ("2026-01-03", "2026-01-01", "Closed", [], 0),
         )
-        queries = WidgetQueryBuilder(QueryConfig("T", ["개선"], [], [], 30, 2026)).build(datetime.datetime(2026, 1, 3))
+        queries = WidgetQueryBuilder(QueryConfig("T", ["개선"], [], [], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]")).build(datetime.datetime(2026, 1, 3))
         for created, resolved, status, changes, expected_total in cases:
             with self.subTest(created=created, resolved=resolved, status=status, changes=changes):
                 class Jira:
@@ -179,7 +179,7 @@ class StageDurationCollectorTest(unittest.IsolatedAsyncioTestCase):
             async def get_issue_status_changes(self, issue_key):
                 raise ValueError("invalid provider response")
 
-        queries = WidgetQueryBuilder(QueryConfig("T", [], [], [], 30, 2026)).build(datetime.datetime(2026, 1, 3))
+        queries = WidgetQueryBuilder(QueryConfig("T", [], [], [], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]")).build(datetime.datetime(2026, 1, 3))
         with self.assertRaisesRegex(ValueError, "invalid provider response"):
             await ResolutionCollector(Jira(), queries, queries.week_end).collect()
 
@@ -201,7 +201,7 @@ class StageDurationCollectorTest(unittest.IsolatedAsyncioTestCase):
                     cancelled.append(issue_key)
                     raise
 
-        queries = WidgetQueryBuilder(QueryConfig("T", [], [], [], 30, 2026)).build(datetime.datetime(2026, 1, 3))
+        queries = WidgetQueryBuilder(QueryConfig("T", [], [], [], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]")).build(datetime.datetime(2026, 1, 3))
         with self.assertRaisesRegex(RuntimeError, "history unavailable"):
             await ResolutionCollector(Jira(), queries, queries.week_end).collect()
         self.assertEqual(["PENDING"], cancelled)
@@ -217,7 +217,7 @@ class StageDurationCollectorTest(unittest.IsolatedAsyncioTestCase):
             async def get_issue_status_changes(self, issue_key):
                 return [JiraStatusChange("2026-01-02T00:00:00+09:00", "할 일", "Closed")]
 
-        queries = WidgetQueryBuilder(QueryConfig("T", ["개선"], [], [], 30, 2026)).build(
+        queries = WidgetQueryBuilder(QueryConfig("T", ["개선"], [], [], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]")).build(
             datetime.datetime(2026, 1, 3), week_start_override=datetime.datetime(2026, 1, 1),
         )
         result = await ResolutionCollector(Jira(), queries, queries.week_end).collect()

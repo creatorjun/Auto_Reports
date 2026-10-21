@@ -1,4 +1,4 @@
-# backend/src/infrastructure/factories/widget_collector_factory.py
+# backend/src/bootstrap/widget_collector_factory.py
 from datetime import datetime
 
 from src.application.services.query_builder import ResolvedQueries

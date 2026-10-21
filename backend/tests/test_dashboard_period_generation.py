@@ -3,7 +3,7 @@ import dataclasses
 import unittest
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import httpx
 from fastapi import FastAPI
@@ -18,13 +18,14 @@ from src.application.services.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.services.report_period import report_period_dates
 from src.application.use_cases.generate_report import GenerateReportUseCase
+from src.application.use_cases.trigger_report import TriggerReportUseCase
 from src.application.widgets.collector_factory import CollectorEntry
 from src.domain.constants import KST
 from src.domain.entities.report import Report, ReportScope
 from src.domain.entities.widget import WidgetResult
 from src.domain.value_objects.widget_id import WidgetId
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
-from src.presentation.api.deps import get_audit, get_job_runner
+from src.presentation.api.deps import get_audit, get_trigger_report_use_case
 from src.presentation.api.v1.trigger import router
 
 
@@ -69,15 +70,16 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
         self.runner = AsyncMock()
         self.audit = Mock()
         self.reports = Mock(get_latest=AsyncMock())
+        self.clock = Mock(return_value=datetime(2026, 10, 14, 12, tzinfo=KST))
 
         @asynccontextmanager
         async def get_report():
             yield self.reports
 
         app = FastAPI()
-        app.state.services = Mock(get_report=get_report)
         app.include_router(router, prefix="/api/v1")
-        app.dependency_overrides[get_job_runner] = lambda: self.runner
+        use_case = TriggerReportUseCase(self.runner, get_report, self.clock)
+        app.dependency_overrides[get_trigger_report_use_case] = lambda: use_case
         app.dependency_overrides[get_audit] = lambda: self.audit
         self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
 
@@ -92,11 +94,11 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
             ("year", (date(2026, 1, 1), date(2026, 12, 31))),
         ):
             with self.subTest(period=period):
-                with patch("src.presentation.api.v1.trigger.datetime", wraps=datetime) as clock:
-                    clock.now.return_value = now
-                    response = await self.client.post("/api/v1/trigger/", json={"period": period, "date": "2026-10-09"})
+                self.clock.reset_mock()
+                self.clock.return_value = now
+                response = await self.client.post("/api/v1/trigger/", json={"period": period, "date": "2026-10-09"})
                 self.assertEqual(202, response.status_code, response.text)
-                clock.now.assert_called_once_with(KST)
+                self.clock.assert_called_once_with()
                 args, kwargs = self.runner.submit.await_args
                 self.assertEqual(response.json()["job_id"], args[0])
                 self.assertEqual(expected, (args[1].date(), args[2].date()))
@@ -121,9 +123,7 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
         self.audit.record.assert_not_called()
 
     async def test_selected_wednesday_passes_full_week_to_generation(self) -> None:
-        with patch("src.presentation.api.v1.trigger.datetime", wraps=datetime) as clock:
-            clock.now.return_value = datetime(2026, 10, 14, 12, tzinfo=KST)
-            response = await self.client.post("/api/v1/trigger/", json={"period": "week", "date": "2026-10-14"})
+        response = await self.client.post("/api/v1/trigger/", json={"period": "week", "date": "2026-10-14"})
         self.assertEqual(202, response.status_code, response.text)
         self.runner.submit.assert_awaited_once_with(
             response.json()["job_id"],
@@ -208,7 +208,7 @@ class DashboardGenerationTest(unittest.IsolatedAsyncioTestCase):
             WidgetId.REDEPLOYMENT_ANALYTICS, AsyncMock(collect=AsyncMock(return_value=self.annual_widget)),
         )])
         self.assembler = ReportAssembler(
-            WidgetQueryBuilder(QueryConfig("T", ["개선"], [], ["Closed"], 30, 2026)),
+            WidgetQueryBuilder(QueryConfig("T", ["개선"], [], ["Closed"], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]")),
             self.base_factory, self.monthly_factory, self.annual_factory,
         )
         self.repository = AsyncMock(spec=ReportRepository)

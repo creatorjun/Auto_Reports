@@ -185,7 +185,7 @@ class ResolvedQueries:
         year = self._now.year
         return (
             f"{self._redeployment_base()} AND status = Closed "
-            f"AND cf[11819] = Y "
+            f"AND {self._c.redeployment_flag_field} = Y "
             f"AND resolved >= \"{year}-01-01\" AND resolved < \"{year + 1}-01-01\""
         )
 
@@ -193,5 +193,5 @@ class ResolvedQueries:
         return (
             f"{self.w15_redeployment_issues()} "
             f"AND type IN (\uac1c\uc120, \uc778\uc2dc\ub358\ud2b8, \"\uc11c\ube44\uc2a4 \uc694\uccad\") "
-            f"ORDER BY cf[12421] DESC, resolved DESC"
+            f"ORDER BY {self._c.redeployment_month_field} DESC, resolved DESC"
         )

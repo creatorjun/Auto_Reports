@@ -6,7 +6,6 @@ KST = ZoneInfo("Asia/Seoul")
 JIRA_MAX_RESULT = 500
 REDEPLOYMENT_CLASSIFICATION_START_YEAR = 2026
 SUMMARY_TRUNCATE_LEN = 60
-SUMMARY_TRUNCATE_SHORT_LEN = 30
 STATUS_ORDER: list[str] = [
     "할 일",
     "재오픈",
@@ -33,4 +32,3 @@ STAGE_MAP: dict[str, int] = {
     "배포 파일 검토 중": 5,
     "결과 대기 중": 6,
 }
-AI_OVERDUE_DETAIL_LIMIT = 10

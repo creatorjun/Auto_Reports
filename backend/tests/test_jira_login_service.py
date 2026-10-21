@@ -8,12 +8,13 @@ from unittest.mock import AsyncMock, Mock
 
 from src.application.ports.jira_login_port import JiraLoginRecord, JiraLoginRepositoryPort
 from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable, JiraOAuthPort
-from src.application.ports.jira_user_grant_port import JiraUserGrant
+from src.application.ports.jira_user_grant_port import JiraUserGrant, JiraUserGrantAccessPort, JiraUserGrantStorePort
 from src.application.ports.personal_data_port import PersonalDataProfilePort
 from src.application.services.jira_login_service import JiraLoginService
 from src.domain.entities.auth_identity import AuthIdentity
 from src.infrastructure.security.jira_login_cipher import JiraLoginCipher
 from src.infrastructure.security.personal_data_cipher import PersonalDataCipher
+from src.infrastructure.security.memory_jira_user_grant_store import MemoryJiraUserGrantStore
 
 
 class JiraLoginServiceTest(unittest.IsolatedAsyncioTestCase):
@@ -163,8 +164,12 @@ class JiraLoginServiceTest(unittest.IsolatedAsyncioTestCase):
         self.repository.resolve.return_value = None
         with self.assertRaises(JiraLoginDenied):
             await self.service.resolve(self.identity)
-        with self.assertRaises(ValueError):
-            await self.service.put(self.grant, self.identity)
+
+    def test_persistent_login_exposes_access_without_legacy_unverified_insertion(self):
+        self.assertIsInstance(self.service, JiraUserGrantAccessPort)
+        self.assertNotIsInstance(self.service, JiraUserGrantStorePort)
+        self.assertFalse(hasattr(self.service, "put"))
+        self.assertTrue(issubclass(MemoryJiraUserGrantStore, JiraUserGrantStorePort))
 
     async def test_close_preserves_database_while_explicit_clear_deletes(self):
         await self.service.aclose()

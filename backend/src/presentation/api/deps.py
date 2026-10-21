@@ -23,6 +23,7 @@ from src.application.use_cases.security_news import SecurityNewsUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.application.use_cases.audit_logs import AuditLogsUseCase
 from src.application.use_cases.notify_sla_digest import NotifySlaDigestUseCase
+from src.application.use_cases.trigger_report import TriggerReportUseCase
 from src.presentation.http.request_audit import RequestAudit
 
 
@@ -47,6 +48,7 @@ class ApiServices:
     security_news: SecurityNewsUseCase | None = None
     sla_status: SlaStatusUseCase | None = None
     jira_notifications: JiraNotificationsUseCase | None = None
+    trigger_report: TriggerReportUseCase | None = None
 
 
 def get_api_services(request: Request) -> ApiServices:
@@ -55,6 +57,13 @@ def get_api_services(request: Request) -> ApiServices:
 
 def get_job_runner(request: Request) -> JobRunnerPort:
     return get_api_services(request).job_runner
+
+
+def get_trigger_report_use_case(request: Request) -> TriggerReportUseCase:
+    use_case = get_api_services(request).trigger_report
+    if use_case is None:
+        raise HTTPException(status_code=503, detail="보고서 생성이 준비되지 않았습니다.")
+    return use_case
 
 
 def get_audit(request: Request) -> AuditPort:

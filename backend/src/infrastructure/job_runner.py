@@ -87,7 +87,7 @@ class JobRunner(JobRunnerPort):
             await self._repo.save(
                 JobRecord(job_id=job_id, status=JobStatus.PENDING)
             )
-        except Exception:
+        except BaseException:
             await self._release(job_id)
             raise
 

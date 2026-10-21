@@ -12,7 +12,7 @@ from src.application.ports.jira_port import JiraIssue
 from src.application.widgets.recent_collector import RecentCollector
 from src.domain.entities.widget_data import RecentIssueWidgetData
 from src.domain.value_objects.widget_id import WidgetId
-from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
+from src.bootstrap.widget_collector_factory import WidgetCollectorFactory
 from src.infrastructure.persistence.widget_serializer import deserialize_widget, serialize_widget
 
 
@@ -46,6 +46,8 @@ class RecentCollectorTest(unittest.IsolatedAsyncioTestCase):
             closed_statuses=[],
             sla_threshold_days=30,
             year_start=2026,
+            redeployment_flag_field="cf[11819]",
+            redeployment_month_field="cf[12421]",
         )
         self.now = datetime.datetime(2026, 9, 8, 23, 59, 59)
         self.queries = WidgetQueryBuilder(config).build(self.now)

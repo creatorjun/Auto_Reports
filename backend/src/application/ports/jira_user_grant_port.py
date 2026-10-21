@@ -15,11 +15,7 @@ class JiraUserGrant:
     refresh_token: str | None = field(default=None, repr=False)
 
 
-class JiraUserGrantStorePort(ABC):
-    @abstractmethod
-    async def put(self, grant: JiraUserGrant, identity: AuthIdentity) -> str:
-        raise NotImplementedError
-
+class JiraUserGrantAccessPort(ABC):
     @abstractmethod
     async def get(self, grant_id: str, identity: AuthIdentity) -> JiraUserGrant | None:
         raise NotImplementedError
@@ -34,4 +30,10 @@ class JiraUserGrantStorePort(ABC):
 
     @abstractmethod
     async def aclose(self) -> None:
+        raise NotImplementedError
+
+
+class JiraUserGrantStorePort(JiraUserGrantAccessPort):
+    @abstractmethod
+    async def put(self, grant: JiraUserGrant, identity: AuthIdentity) -> str:
         raise NotImplementedError

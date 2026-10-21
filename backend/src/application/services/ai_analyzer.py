@@ -9,7 +9,6 @@ from typing import Optional
 
 from src.application.ports.ai_port import AiPort
 from src.application.ports.report_analyzer_port import ReportAnalyzerPort
-from src.domain.constants import AI_OVERDUE_DETAIL_LIMIT
 from src.domain.entities.report import NewReport, ReportScope
 from src.domain.entities.widget_data import (
     CreatedVsResolvedWidgetData,
@@ -66,6 +65,9 @@ _YEAR_WIDGETS = frozenset({
     WidgetId.MONTHLY_RESOLVED, WidgetId.SLA_INITIAL_RESPONSE,
     WidgetId.SLA_RESOLUTION_MONTHLY, WidgetId.REDEPLOYMENT_ANALYTICS,
 })
+
+
+AI_OVERDUE_DETAIL_LIMIT = 10
 
 
 def _sample_keys(issues: list, limit: int = AI_OVERDUE_DETAIL_LIMIT) -> list[str]:

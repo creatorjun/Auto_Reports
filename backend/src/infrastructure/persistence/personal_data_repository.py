@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
-from src.application.ports.personal_data_port import PersonalDataProfilePort, PersonalDataRepositoryPort, PersonalDataReportingFailure
+from src.application.ports.personal_data_port import PersonalDataRepositoryPort, PersonalDataReportingFailure
 from src.application.services.snapshot_personal_data import is_person_name, utc, valid_account_id
 from src.domain.entities.auth_identity import AuthIdentity
 from src.domain.entities.personal_data import PersonalDataAccount, PersonalDataAction, PersonalDataProfile
@@ -23,7 +23,7 @@ def _aware(value: datetime | None) -> datetime | None:
     return value.replace(tzinfo=timezone.utc) if value is not None and value.tzinfo is None else value
 
 
-class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort):
+class PersonalDataRepository(PersonalDataRepositoryPort):
     def __init__(
         self, database: Database, server_secret: str, owner_account_id: str,
         on_profiles_refreshed: Callable[[], Awaitable[None]] | None = None,

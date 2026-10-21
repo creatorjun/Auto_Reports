@@ -9,7 +9,7 @@ from src.application.ports.jira_notification_port import (
     JiraNotificationsUnavailable,
 )
 from src.application.ports.jira_oauth_port import JiraLoginUnavailable
-from src.application.ports.jira_user_grant_port import JiraUserGrant, JiraUserGrantStorePort
+from src.application.ports.jira_user_grant_port import JiraUserGrant, JiraUserGrantAccessPort
 from src.domain.entities.auth_identity import AuthIdentity
 from src.domain.entities.jira_notification import JiraNotificationPage
 
@@ -17,7 +17,7 @@ T = TypeVar("T")
 
 
 class JiraNotificationsUseCase:
-    def __init__(self, source: JiraNotificationSourcePort, grants: JiraUserGrantStorePort) -> None:
+    def __init__(self, source: JiraNotificationSourcePort, grants: JiraUserGrantAccessPort) -> None:
         self._source = source
         self._grants = grants
         self._slots = asyncio.Semaphore(8)

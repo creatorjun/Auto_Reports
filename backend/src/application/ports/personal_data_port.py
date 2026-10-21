@@ -1,5 +1,6 @@
 # backend/src/application/ports/personal_data_port.py
 from abc import ABC, abstractmethod
+from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 
 from src.domain.entities.auth_identity import AuthIdentity
@@ -39,7 +40,28 @@ class PersonalDataSnapshotPort(ABC):
     async def coverage(self) -> dict[str, int]: ...
 
 
-class PersonalDataRepositoryPort(ABC):
+class PersonalDataReportingGrantPort(ABC):
+    @abstractmethod
+    async def get_reporting_grant(self) -> tuple[str, str]: ...
+
+    @abstractmethod
+    async def save_reporting_grant(self, account_id: str, refresh_token: str) -> None: ...
+
+
+class PersonalDataReportingStatePort(PersonalDataReportingGrantPort):
+    @abstractmethod
+    async def status(self) -> dict: ...
+
+    @abstractmethod
+    async def record_attempt(self, now: datetime, *, error: str | None = None, next_attempt_at: datetime | None = None) -> None: ...
+
+
+class PersonalDataReportingLockPort(ABC):
+    @abstractmethod
+    def acquire(self) -> AbstractAsyncContextManager[bool]: ...
+
+
+class PersonalDataRepositoryPort(PersonalDataProfilePort, PersonalDataReportingStatePort):
     @abstractmethod
     async def apply_refreshed_profiles(self, profiles: tuple[PersonalDataProfile, ...]) -> int: ...
 

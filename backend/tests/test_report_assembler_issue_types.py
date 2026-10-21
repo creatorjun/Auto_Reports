@@ -29,6 +29,8 @@ class ReportAssemblerIssueTypesTest(unittest.IsolatedAsyncioTestCase):
             closed_statuses=["Closed"],
             sla_threshold_days=30,
             year_start=2026,
+            redeployment_flag_field="cf[11819]",
+            redeployment_month_field="cf[12421]",
         ))
 
     async def test_uses_all_issue_types_discovered_from_jira(self) -> None:

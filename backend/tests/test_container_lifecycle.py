@@ -69,6 +69,52 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(container._news_translation)
         self.digest_source.aclose.assert_awaited_once_with()
 
+    async def test_early_initialization_failure_closes_resources_already_created(self) -> None:
+        database = AsyncMock()
+        with (
+            patch("src.bootstrap.container.JiraFactory.create", return_value=self.jira),
+            patch("src.bootstrap.container.AiFactory.create", side_effect=ValueError("invalid AI configuration")),
+        ):
+            with self.assertRaisesRegex(ValueError, "invalid AI configuration"):
+                async with Container.open(self.settings, database):
+                    self.fail("A partially initialized container must not be exposed")
+        self.jira.aclose.assert_awaited_once_with()
+        database.aclose.assert_not_awaited()
+
+    async def test_late_initialization_failure_closes_all_created_resources(self) -> None:
+        self.settings.credential_encryption_key = "invalid"
+        notifications = AsyncMock()
+        news = AsyncMock()
+        with (
+            patch("src.bootstrap.container.JiraFactory.create", return_value=self.jira),
+            patch("src.bootstrap.container.AiFactory.create", return_value=self.ai),
+            patch("src.bootstrap.container.SlaViolationJiraSource", return_value=self.sla_source),
+            patch("src.bootstrap.container.RedeploymentJiraSource", return_value=self.redeployment_source),
+            patch("src.bootstrap.container.JiraNotificationClient", return_value=notifications),
+            patch("src.bootstrap.container.PublicSecurityNewsSource", return_value=news),
+            patch("src.bootstrap.container.SlaDigestJiraSource") as digest,
+        ):
+            with self.assertRaises(ValueError):
+                async with Container.open(self.settings, Mock()):
+                    self.fail("Invalid credentials must prevent startup")
+        for resource in (self.jira, self.ai, self.sla_source, self.redeployment_source, notifications, news):
+            resource.aclose.assert_awaited_once_with()
+        digest.assert_not_called()
+
+    async def test_container_context_closes_once_when_body_is_cancelled(self) -> None:
+        container = self.create_container(self.ai)
+
+        def initialize(instance, settings, database):
+            instance.__dict__.update(container.__dict__)
+
+        with patch.object(Container, "__init__", autospec=True, side_effect=initialize):
+            with self.assertRaises(asyncio.CancelledError):
+                async with Container.open(self.settings, Mock()) as opened:
+                    self.assertIs(self.jira, opened._jira)
+                    raise asyncio.CancelledError()
+        self.jira.aclose.assert_awaited_once_with()
+        self.ai.aclose.assert_awaited_once_with()
+
     async def test_sla_status_is_available_without_email_and_never_sends_notifications(self) -> None:
         container = self.create_container(None)
         try:

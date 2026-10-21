@@ -105,9 +105,10 @@ class ArchitectureTest(unittest.TestCase):
                     )
         self.assertEqual([], violations)
 
-    def test_presentation_does_not_construct_use_cases(self) -> None:
+    def test_outer_adapters_do_not_construct_use_cases(self) -> None:
         violations: list[str] = []
-        for path in (SOURCE / "presentation").rglob("*.py"):
+        paths = [path for layer in ("presentation", "infrastructure") for path in (SOURCE / layer).rglob("*.py")]
+        for path in paths:
             tree = ast.parse(path.read_text(encoding="utf-8"))
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Call):
@@ -140,10 +141,30 @@ class ArchitectureTest(unittest.TestCase):
                 for node in ast.walk(tree):
                     if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
                         continue
-                    if node.value in provider_terms or "customfield_" in node.value:
+                    if node.value in provider_terms or "customfield_" in node.value or re.search(r"cf\[\d+\]", node.value):
                         violations.append(
                             f"{path.relative_to(SOURCE)}:{node.lineno}:{node.value}"
                         )
+        self.assertEqual([], violations)
+
+    def test_widget_composition_stays_out_of_infrastructure(self) -> None:
+        violations: list[str] = []
+        for path in (SOURCE / "infrastructure").rglob("*.py"):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                for module in imported_modules(path, node):
+                    if module.startswith("src.application.widgets"):
+                        violations.append(f"{path.relative_to(SOURCE)}:{node.lineno}:{module}")
+        self.assertEqual([], violations)
+
+    def test_http_routes_delegate_report_submission(self) -> None:
+        violations: list[str] = []
+        for path in (SOURCE / "presentation" / "api").rglob("*.py"):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if not isinstance(node, ast.Call):
+                    continue
+                name = node.func.id if isinstance(node.func, ast.Name) else getattr(node.func, "attr", "")
+                if name in {"submit", "report_period_dates"}:
+                    violations.append(f"{path.relative_to(SOURCE)}:{node.lineno}:{name}")
         self.assertEqual([], violations)
 
     def test_presentation_does_not_call_jira_output_port(self) -> None:

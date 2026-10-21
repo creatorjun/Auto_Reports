@@ -145,7 +145,7 @@ class AnnualReportTest(unittest.IsolatedAsyncioTestCase):
         repository = InMemoryReportRepository(None, annual)
         cache = InMemoryReportCache()
         assembler = ReportAssembler(
-            query_builder=WidgetQueryBuilder(QueryConfig("T", ["개선"], [], ["Closed"], 30, 2026)),
+            query_builder=WidgetQueryBuilder(QueryConfig("T", ["개선"], [], ["Closed"], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]")),
             base_collector_factory=lambda queries, now: [
                 CollectorEntry(WidgetId.AVG_RESOLUTION_TYPE, ResolutionCollector(Jira(), queries, now)),
             ],

@@ -30,6 +30,7 @@ from src.domain.entities.partner import PartnerMember, PartnerOrganization
 from src.domain.entities.search import SearchResult, SearchSource
 from src.infrastructure.cache.lru_cache import LruCache
 from src.infrastructure.external.jira_user_identity import jira_account_id
+from src.infrastructure.external.jira_redeployment_fields import REDEPLOYMENT_MONTH_FIELD as _REDEPLOYMENT_MONTH_FIELD
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,6 @@ _SD_HEADERS = {
     "X-ExperimentalApi": "opt-in",
 }
 
-_REDEPLOYMENT_MONTH_FIELD = "customfield_12421"
 _REDEPLOYMENT_CAUSE_FIELD = "customfield_11885"
 _REDEPLOYMENT_PARTNER_FIELD = "customfield_10859"
 _JIRA_FIELD_NAMES: dict[JiraIssueField, str] = {

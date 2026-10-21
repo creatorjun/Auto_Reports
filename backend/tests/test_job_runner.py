@@ -86,3 +86,44 @@ class JobRunnerTest(unittest.IsolatedAsyncioTestCase):
         await self.runner.wait_for_update("dashboard-year", JobStatus.PENDING, timeout=1)
         self.assertEqual([True], self.cache_modes)
         self.assertEqual([True], self.standard_modes)
+
+    async def test_cancelled_pending_submission_releases_slot_for_next_report(self) -> None:
+        entered = asyncio.Event()
+        save = self.repository.save
+
+        async def save_pending(record):
+            if record.job_id == "cancelled" and record.status == JobStatus.PENDING:
+                entered.set()
+                await asyncio.Event().wait()
+            await save(record)
+
+        self.repository.save = save_pending
+        submission = asyncio.create_task(self.runner.submit("cancelled"))
+        await entered.wait()
+        submission.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await submission
+        self.assertIsNone(self.runner._running_job_id)
+        self.assertFalse(self.runner._tasks)
+        self.assertEqual([], self.cache_modes)
+        await self.runner.submit("next")
+        await asyncio.gather(*self.runner._tasks)
+        record = await self.runner.get_job_status("next")
+        self.assertEqual(JobStatus.DONE, record.status)
+        self.assertEqual(1, record.report_id)
+
+    async def test_close_cancels_tracked_job_and_releases_slot(self) -> None:
+        entered = asyncio.Event()
+
+        async def generate(*args, **kwargs):
+            entered.set()
+            await asyncio.Event().wait()
+
+        self.runner._generate_report = generate
+        await self.runner.submit("running")
+        await entered.wait()
+        await self.runner.aclose()
+        record = await self.runner.get_job_status("running")
+        self.assertEqual(JobStatus.ERROR, record.status)
+        self.assertIsNone(self.runner._running_job_id)
+        self.assertFalse(self.runner._tasks)

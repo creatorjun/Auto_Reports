@@ -32,7 +32,7 @@ from src.domain.entities.widget_data import (
     TypeCountWidgetData,
 )
 from src.domain.value_objects.widget_id import WidgetId
-from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
+from src.bootstrap.widget_collector_factory import WidgetCollectorFactory
 
 
 NOW = datetime.datetime(2026, 9, 10, 0, 5, tzinfo=KST)
@@ -270,6 +270,8 @@ class CollectorIssueAgeTest(unittest.IsolatedAsyncioTestCase):
         config = QueryConfig(
             project_key="TACEA", issue_types=["인시던트"], active_statuses=["할 일"],
             closed_statuses=["Closed"], sla_threshold_days=30, year_start=2026,
+            redeployment_flag_field="cf[11819]",
+            redeployment_month_field="cf[12421]",
         )
         self.end = datetime.datetime(2026, 8, 31, 23, 59, tzinfo=KST)
         self.query_builder = WidgetQueryBuilder(config)

@@ -74,7 +74,7 @@ class ReportChartIssuesTest(unittest.IsolatedAsyncioTestCase):
             )),
         }
         self.report = Report(id=7, week_start=datetime.date(2024, 1, 1), week_end=datetime.date(2024, 12, 31), report_date="2025-01-01 12:00", scope=ReportScope.ANNUAL, report_year=2024, widgets=widgets)
-        self.builder = WidgetQueryBuilder(QueryConfig("TACEA", ["개선"], [], [], 30, 2026))
+        self.builder = WidgetQueryBuilder(QueryConfig("TACEA", ["개선"], [], [], 30, 2026, redeployment_flag_field="cf[11819]", redeployment_month_field="cf[12421]"))
 
     def use_case(self, jira):
         return GetReportChartIssuesUseCase(StoredReport(self.report), jira, self.builder)

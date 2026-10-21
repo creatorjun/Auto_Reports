@@ -9,6 +9,7 @@ from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.auth_service import AuthService
 from src.application.services.jira_login_service import JiraLoginService
+from src.application.services.personal_data_reporting_service import PersonalDataReportingService
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
 from src.application.services.security_news_translation import SecurityNewsTranslationService
@@ -20,6 +21,7 @@ from src.application.use_cases.notify_tac_assigned import NotifyTacAssignedUseCa
 from src.application.use_cases.notify_todo_issues import NotifyTodoIssuesUseCase
 from src.application.use_cases.notify_sla_digest import NotifySlaDigestUseCase
 from src.application.use_cases.partner_use_case import PartnerUseCase
+from src.application.use_cases.report_personal_data import ReportPersonalDataUseCase
 from src.application.use_cases.refresh_report import RefreshReportUseCase
 from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
@@ -38,17 +40,21 @@ from src.infrastructure.external.security_news_source import PublicSecurityNewsS
 from src.infrastructure.external.gemini_news_translator import GeminiNewsTranslator
 from src.infrastructure.external.jira_oauth_client import JiraOAuthClient
 from src.infrastructure.external.jira_notification_client import JiraNotificationClient
+from src.infrastructure.external.jira_redeployment_fields import REDEPLOYMENT_FLAG_FIELD, REDEPLOYMENT_MONTH_FIELD, jql_field
+from src.infrastructure.external.personal_data_client import AtlassianPersonalDataClient
+from src.infrastructure.external.jira_personal_data_client import JiraPersonalDataClient
 from src.infrastructure.external.sla_violation_jira_source import SlaViolationJiraSource
 from src.infrastructure.external.sla_digest_jira_source import SlaDigestJiraSource
 from src.infrastructure.external.redeployment_jira_source import RedeploymentJiraSource
 from src.infrastructure.factories.ai_factory import AiFactory
 from src.infrastructure.factories.jira_factory import JiraFactory
-from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
+from src.bootstrap.widget_collector_factory import WidgetCollectorFactory
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.jira_login_repository import JiraLoginRepository
 from src.infrastructure.persistence.issue_management_snapshot_repository import IssueManagementSnapshotRepository
 from src.infrastructure.persistence.sla_status_snapshot_repository import SlaStatusSnapshotRepository
-from src.infrastructure.personal_data_runtime import PersonalDataRuntime
+from src.infrastructure.personal_data_runtime import PersonalDataSnapshots, PostgresPersonalDataReportingLock
+from src.infrastructure.persistence.personal_data_repository import PersonalDataRepository
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.security_news_translation_cache import SqliteNewsTranslationCache
 from src.infrastructure.persistence.security_news_snapshot_store import SqliteSecurityNewsSnapshotStore
@@ -66,6 +72,16 @@ from src.presentation.email.sla_digest_renderer import SlaDigestRenderer
 
 
 class Container:
+    @classmethod
+    @asynccontextmanager
+    async def open(cls, settings: Settings, database: Database) -> AsyncIterator["Container"]:
+        container = cls.__new__(cls)
+        try:
+            container.__init__(settings, database)
+            yield container
+        finally:
+            await container.aclose()
+
     def __init__(self, settings: Settings, database: Database) -> None:
         self._settings = settings
         self._database = database
@@ -95,6 +111,8 @@ class Container:
                 closed_statuses=settings.closed_statuses,
                 sla_threshold_days=settings.sla_threshold_days,
                 year_start=settings.year_start,
+                redeployment_flag_field=jql_field(REDEPLOYMENT_FLAG_FIELD),
+                redeployment_month_field=jql_field(REDEPLOYMENT_MONTH_FIELD),
             )
         )
         self._query_builder = query_builder
@@ -107,7 +125,25 @@ class Container:
             issue_type_provider=lambda: self._jira.get_project_issue_types(settings.project_key),
         )
         self._analyzer = AiAnalyzer(ai=self._ai, enabled=settings.ai_enabled)
-        self.personal_data = PersonalDataRuntime(settings, database, self._clear_personal_data_caches)
+        personal_data_repository = PersonalDataRepository(
+            database, settings.jwt_secret, settings.jira_privacy_owner_account_id,
+            on_profiles_refreshed=self._clear_personal_data_caches,
+            on_actions_staged=self._clear_personal_data_caches,
+        )
+        personal_data_snapshots = PersonalDataSnapshots(database, self._clear_personal_data_caches)
+        personal_data_reporter = AtlassianPersonalDataClient(
+            settings.jira_oauth_client_id, settings.jira_oauth_client_secret, personal_data_repository,
+        )
+        personal_data_profiles = JiraPersonalDataClient(
+            settings.jira_base_url, settings.jira_email, settings.jira_api_token,
+        )
+        self.personal_data = PersonalDataReportingService(
+            personal_data_repository, personal_data_snapshots,
+            ReportPersonalDataUseCase(
+                personal_data_repository, personal_data_reporter, personal_data_snapshots, personal_data_profiles,
+            ),
+            PostgresPersonalDataReportingLock(database),
+        )
         tokens = JwtService(settings)
         jira_oauth = JiraOAuthClient(
             client_id=settings.jira_oauth_client_id,
@@ -259,7 +295,12 @@ class Container:
             yield GetReportUseCase(
                 ReportRepositoryImpl(session),
                 cache=self._cache,
+                refresh_report=self._fetch_report_for_cache,
             )
+
+    async def _fetch_report_for_cache(self, report_id: int) -> Report | None:
+        async with self._database.session() as session:
+            return await ReportRepositoryImpl(session).find_by_id(report_id)
 
     @asynccontextmanager
     async def get_report_chart_issues(self) -> AsyncIterator[GetReportChartIssuesUseCase]:
@@ -342,26 +383,15 @@ class Container:
 
     async def aclose(self) -> None:
         async with AsyncExitStack() as stack:
-            stack.push_async_callback(self._jira_notification_source.aclose)
-            stack.push_async_callback(self._jira_user_grants.aclose)
-            stack.push_async_callback(self._jira.aclose)
-            stack.push_async_callback(self._sla_violation_source.aclose)
-            stack.push_async_callback(self._sla_status_source.aclose)
-            stack.push_async_callback(self.sla_status.aclose)
-            stack.push_async_callback(self._redeployment_source.aclose)
-            if self._ai is not None:
-                stack.push_async_callback(self._ai.aclose)
-            stack.push_async_callback(self._cache.aclose)
-            stack.push_async_callback(self.issue_management.aclose)
-            stack.push_async_callback(self._security_news_source.aclose)
-            stack.push_async_callback(self._security_news_store.aclose)
-            if self._news_translator is not None:
-                stack.push_async_callback(self._news_translator.aclose)
-            if self._news_translation_cache is not None:
-                stack.push_async_callback(self._news_translation_cache.aclose)
-            if self._news_translation is not None:
-                stack.push_async_callback(self._news_translation.aclose)
-            stack.push_async_callback(self.security_news.aclose)
+            for name in (
+                "_jira_notification_source", "_jira_user_grants", "_jira", "_sla_violation_source",
+                "_sla_status_source", "sla_status", "_redeployment_source", "_ai", "_cache",
+                "issue_management", "_security_news_source", "_security_news_store",
+                "_news_translator", "_news_translation_cache", "_news_translation", "security_news",
+            ):
+                resource = getattr(self, name, None)
+                if resource is not None:
+                    stack.push_async_callback(resource.aclose)
 
     @staticmethod
     def _build_smtp(settings: Settings) -> SmtpEmailClient | None:

@@ -6,20 +6,17 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from src.application.ports.security_news_translation_port import NewsTranslationCachePort, TranslationFailure
+from src.application.services.translation_retry_policy import (
+    ATTEMPT_RESERVATION_SECONDS,
+    DAILY_LIMIT_MESSAGE,
+    EXHAUSTED_MESSAGE,
+    translation_retry_decision,
+)
 from src.domain.entities.security_news_translation import (
     NewsTranslation,
     NewsTranslationInput,
     NewsTranslationReservation,
 )
-
-
-FAILURE_MESSAGES = {
-    "quota": "Gemini API 요청 한도에 도달하여 번역을 일시 중지했습니다. 저장된 번역과 원문을 표시합니다.",
-    "billing": "Gemini API 크레딧이 부족하여 번역을 일시 중지했습니다. 저장된 번역과 원문을 표시합니다.",
-    "authorization": "Gemini API 설정·인증 또는 모델 접근 권한을 확인해야 합니다. 저장된 번역과 원문을 표시합니다.",
-    "provider": "번역 서비스 응답이 지연되어 일부 항목의 번역을 나중에 다시 시도합니다.",
-    "invalid": "일부 번역 결과를 검증하지 못해 원문을 표시합니다. 잠시 후 다시 시도합니다.",
-}
 
 
 class SqliteNewsTranslationCache(NewsTranslationCachePort):
@@ -105,7 +102,7 @@ class SqliteNewsTranslationCache(NewsTranslationCachePort):
                 tomorrow = datetime.combine(now.astimezone(timezone.utc).date() + timedelta(days=1), datetime.min.time(), timezone.utc)
                 return NewsTranslationReservation(
                     next_attempt_at=tomorrow,
-                    message="오늘의 번역 요청 한도에 도달했습니다. 저장된 번역과 원문을 표시하며 다음 UTC 날짜에 재개합니다.",
+                    message=DAILY_LIMIT_MESSAGE,
                 )
             eligible = []
             retry_times = []
@@ -132,7 +129,7 @@ class SqliteNewsTranslationCache(NewsTranslationCachePort):
             if not eligible:
                 return NewsTranslationReservation(
                     next_attempt_at=datetime.fromtimestamp(min(retry_times), timezone.utc) if retry_times else None,
-                    message=message or "일부 항목은 번역 자동 재시도가 제한되어 원문을 표시합니다.",
+                    message=message or EXHAUSTED_MESSAGE,
                 )
             connection.execute(
                 "INSERT INTO request_budget (day, used) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET used=used+1",
@@ -146,7 +143,7 @@ class SqliteNewsTranslationCache(NewsTranslationCachePort):
                 connection.execute(
                     "INSERT INTO attempts VALUES (?, 1, ?) ON CONFLICT(content_key) DO UPDATE "
                     "SET attempt_count=attempt_count+1, next_attempt_at=excluded.next_attempt_at",
-                    (value.key, timestamp + 300),
+                    (value.key, timestamp + ATTEMPT_RESERVATION_SECONDS),
                 )
             return NewsTranslationReservation(tuple(eligible))
 
@@ -173,43 +170,35 @@ class SqliteNewsTranslationCache(NewsTranslationCachePort):
                     (value.key, value.title_ko, value.summary_ko, timestamp),
                 )
                 connection.execute("DELETE FROM attempts WHERE content_key=?", (value.key,))
-            if failure in {"quota", "billing", "authorization"}:
-                quota_failures = connection.execute(
-                    "SELECT quota_failures FROM translation_control WHERE id=1",
-                ).fetchone()[0] + 1
-                delay = min(86400, 3600 * (2 ** min(quota_failures - 1, 5))) if failure == "quota" else 86400
+            quota_failures = connection.execute(
+                "SELECT quota_failures FROM translation_control WHERE id=1",
+            ).fetchone()[0]
+            decision = translation_retry_decision(failure, quota_failures)
+            connection.execute(
+                "UPDATE translation_control SET message=? WHERE id=1", (decision.message,),
+            )
+            if decision.quota_failures is not None:
                 connection.execute(
-                    "UPDATE translation_control SET next_request_at=?, quota_failures=?, message=? WHERE id=1",
-                    (timestamp + delay, quota_failures, FAILURE_MESSAGES[failure]),
+                    "UPDATE translation_control SET quota_failures=? WHERE id=1", (decision.quota_failures,),
                 )
-                for value in inputs:
-                    if value.key not in successes:
-                        connection.execute(
-                            "UPDATE attempts SET attempt_count=MAX(0, attempt_count-1), next_attempt_at=? WHERE content_key=?",
-                            (timestamp + delay, value.key),
-                        )
-            elif failure is not None:
+            if decision.request_delay_seconds is not None:
+                expression = "MAX(next_request_at, ?)" if decision.extend_request_delay else "?"
                 connection.execute(
-                    "UPDATE translation_control SET message=? WHERE id=1", (FAILURE_MESSAGES[failure],),
+                    f"UPDATE translation_control SET next_request_at={expression} WHERE id=1",
+                    (timestamp + decision.request_delay_seconds,),
                 )
-                if failure == "provider":
-                    connection.execute(
-                        "UPDATE translation_control SET next_request_at=MAX(next_request_at, ?) WHERE id=1",
-                        (timestamp + 300,),
-                    )
+            if failure is not None:
                 for value in inputs:
                     if value.key not in successes:
                         count = connection.execute(
                             "SELECT attempt_count FROM attempts WHERE content_key=?", (value.key,),
                         ).fetchone()
-                        delay = min(86400, 300 * (2 ** min((count[0] if count else 1) - 1, 8)))
+                        delay = decision.item_delay_seconds(count[0] if count else 1)
+                        restore = "attempt_count=MAX(0, attempt_count-1), " if decision.restore_attempts else ""
                         connection.execute(
-                            "UPDATE attempts SET next_attempt_at=? WHERE content_key=?", (timestamp + delay, value.key),
+                            f"UPDATE attempts SET {restore}next_attempt_at=? WHERE content_key=?",
+                            (timestamp + delay, value.key),
                         )
-            else:
-                connection.execute(
-                    "UPDATE translation_control SET quota_failures=0, message=NULL WHERE id=1",
-                )
 
     async def aclose(self) -> None:
         self._closed = True

@@ -4,7 +4,7 @@ from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from src.application.ports.jira_user_grant_port import JiraUserGrant, JiraUserGrantStorePort
+from src.application.ports.jira_user_grant_port import JiraUserGrant, JiraUserGrantAccessPort
 from src.domain.entities.auth_identity import AuthIdentity
 
 
@@ -81,7 +81,7 @@ class JiraLoginRepositoryPort(ABC):
         raise NotImplementedError
 
 
-class JiraLoginPort(JiraUserGrantStorePort):
+class JiraLoginPort(JiraUserGrantAccessPort):
     @abstractmethod
     async def finish_login(
         self, grant: JiraUserGrant, registered_identity: AuthIdentity, remember_token: str | None = None,

@@ -8,9 +8,10 @@ import httpx
 from fastapi import FastAPI
 
 from src.application.ports.jira_port import JiraAssetReference
+from src.application.use_cases.trigger_report import TriggerReportUseCase
 from src.bootstrap.container import Container
 from src.infrastructure.external.jira_client import JiraClient
-from src.presentation.api.deps import get_audit, get_job_runner
+from src.presentation.api.deps import get_audit, get_trigger_report_use_case
 from src.presentation.api.v1.trigger import router
 
 
@@ -149,7 +150,8 @@ class ManualRefreshCacheTest(unittest.IsolatedAsyncioTestCase):
         audit = Mock()
         app = FastAPI()
         app.include_router(router, prefix="/api/v1")
-        app.dependency_overrides[get_job_runner] = lambda: runner
+        use_case = TriggerReportUseCase(runner, Mock())
+        app.dependency_overrides[get_trigger_report_use_case] = lambda: use_case
         app.dependency_overrides[get_audit] = lambda: audit
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test",

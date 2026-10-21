@@ -81,6 +81,8 @@ class DashboardIssueTypeDataTest(unittest.IsolatedAsyncioTestCase):
             closed_statuses=["Closed"],
             sla_threshold_days=30,
             year_start=2026,
+            redeployment_flag_field="cf[11819]",
+            redeployment_month_field="cf[12421]",
         )
         self.now = datetime.datetime(2026, 8, 21)
         self.queries = WidgetQueryBuilder(config).build(self.now)

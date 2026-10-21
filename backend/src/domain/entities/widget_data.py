@@ -1,13 +1,5 @@
 # backend/src/domain/entities/widget_data.py
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
-
-from src.domain.constants import AI_OVERDUE_DETAIL_LIMIT, SUMMARY_TRUNCATE_SHORT_LEN
-
-
-@runtime_checkable
-class AiContextProvider(Protocol):
-    def to_ai_context(self) -> dict: ...
 
 
 @dataclass
@@ -34,18 +26,6 @@ class OverdueIssueDetail:
 class OverdueWidgetData:
     by_type: dict[str, dict[str, int]] = field(default_factory=dict)
     issue_details: list[OverdueIssueDetail] = field(default_factory=list)
-
-    def to_ai_context(self) -> dict:
-        details = [
-            f"  - {d.key} [{d.type}] "
-            f"{d.summary[:SUMMARY_TRUNCATE_SHORT_LEN]} / "
-            f"생성: {d.created} / "
-            f"상태: {d.resp_status} / "
-            f"초과: +{d.over_h}h"
-            for d in self.issue_details[:AI_OVERDUE_DETAIL_LIMIT]
-        ]
-        return {"overdue_issue_list": "\n".join(details) if details else "  (데이터 없음)"}
-
 
 @dataclass
 class SlaViolatedIssueDetail:
@@ -79,10 +59,6 @@ class SlaDelayWidgetData:
     by_status_details: dict[str, list[SlaDelayIssueDetail]] = field(default_factory=dict)
     distribution: list[SlaDistributionEntry] = field(default_factory=list)
     issue_details: list[SlaViolatedIssueDetail] = field(default_factory=list)
-
-    def to_ai_context(self) -> dict:
-        return {"delay_reasons": str(self.by_status)}
-
 
 @dataclass
 class SimpleIssueWidgetData:
@@ -120,16 +96,6 @@ class RecentIssueDetail:
 @dataclass
 class RecentIssueWidgetData:
     issue_details: list[RecentIssueDetail] = field(default_factory=list)
-
-    def to_ai_context(self) -> dict:
-        if not self.issue_details:
-            return {"avg_resolution_days": 0}
-        avg = round(
-            sum(d.elapsed_days for d in self.issue_details) / len(self.issue_details),
-            1,
-        )
-        return {"avg_resolution_days": avg}
-
 
 @dataclass
 class ResolutionTypeEntry:
@@ -181,10 +147,6 @@ class SlaMetVsViolatedWidgetData:
     both_violations: int = 0
     violation_distribution: list[SlaMetVsViolatedEntry] = field(default_factory=list)
 
-    def to_ai_context(self) -> dict:
-        return {"sla_violated": self.initial_response_violations + self.resolution_violations}
-
-
 @dataclass
 class CreatedResolvedIssueDetail:
     key: str
@@ -209,10 +171,6 @@ class CreatedVsResolvedWidgetData:
     resolved: int = 0
     created_details: list[CreatedResolvedIssueDetail] = field(default_factory=list)
     resolved_details: list[ResolvedIssueDetail] = field(default_factory=list)
-
-    def to_ai_context(self) -> dict:
-        return {"created": self.created, "resolved": self.resolved}
-
 
 @dataclass
 class SlaMonthlyTypeStats:

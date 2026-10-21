@@ -1,26 +1,16 @@
 # backend/src/infrastructure/personal_data_runtime.py
-import asyncio
-import logging
-from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta, timezone
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 
 from sqlalchemy import text
 
-from src.application.ports.personal_data_port import PersonalDataProfilePort, PersonalDataReportingFailure, PersonalDataReportingPort, PersonalDataSnapshotPort
-from src.application.use_cases.report_personal_data import ReportPersonalDataUseCase
-from src.domain.entities.auth_identity import AuthIdentity
+from src.application.ports.personal_data_port import PersonalDataReportingLockPort, PersonalDataSnapshotPort
 from src.domain.entities.personal_data import PersonalDataAccount
-from src.infrastructure.config.settings import Settings
-from src.infrastructure.external.personal_data_client import AtlassianPersonalDataClient
-from src.infrastructure.external.jira_personal_data_client import JiraPersonalDataClient
 from src.infrastructure.persistence.database import Database
-from src.infrastructure.persistence.personal_data_repository import PersonalDataRepository
 from src.infrastructure.persistence.personal_data_snapshot_store import PersonalDataSnapshotStore
 
-logger = logging.getLogger(__name__)
 
-
-class _Snapshots(PersonalDataSnapshotPort):
+class PersonalDataSnapshots(PersonalDataSnapshotPort):
     def __init__(self, database: Database, clear_caches: Callable[[], Awaitable[None]] | None = None) -> None:
         self._database = database
         self._clear_caches = clear_caches
@@ -48,86 +38,12 @@ class _Snapshots(PersonalDataSnapshotPort):
             return await PersonalDataSnapshotStore(session).coverage()
 
 
-class PersonalDataRuntime(PersonalDataProfilePort, PersonalDataReportingPort):
-    def __init__(self, settings: Settings, database: Database, clear_caches: Callable[[], Awaitable[None]] | None = None) -> None:
+class PostgresPersonalDataReportingLock(PersonalDataReportingLockPort):
+    def __init__(self, database: Database) -> None:
         self._database = database
-        self._repository = PersonalDataRepository(
-            database, settings.jwt_secret, settings.jira_privacy_owner_account_id,
-            on_profiles_refreshed=clear_caches, on_actions_staged=clear_caches,
-        )
-        self._snapshots = _Snapshots(database, clear_caches)
-        self._reporter = AtlassianPersonalDataClient(settings.jira_oauth_client_id, settings.jira_oauth_client_secret, self._repository)
-        self._profiles = JiraPersonalDataClient(settings.jira_base_url, settings.jira_email, settings.jira_api_token)
-        self._use_case = ReportPersonalDataUseCase(self._repository, self._reporter, self._snapshots, self._profiles)
-        self._lock = asyncio.Lock()
 
-    async def register_identity(self, identity: AuthIdentity) -> AuthIdentity:
-        return await self._repository.register_identity(identity)
-
-    async def resolve_identity(self, identity: AuthIdentity) -> AuthIdentity:
-        return await self._repository.resolve_identity(identity)
-
-    async def save_reporting_grant(self, account_id: str, refresh_token: str) -> None:
-        async with self._lock:
-            try:
-                await self._repository.save_reporting_grant(account_id, refresh_token)
-            except ValueError:
-                raise PersonalDataReportingFailure("owner_grant_configuration_invalid") from None
-            except Exception:
-                raise PersonalDataReportingFailure("owner_grant_storage_failed") from None
-
-    async def reporting_status(self) -> dict:
-        status = await self._repository.status()
-        coverage = await self._snapshots.coverage()
-        return {
-            **status, "coverage": coverage,
-            "reporting_ready": bool(
-                status["owner_authorized"] and status["last_success_at"] and not status["last_error"]
-                and coverage.get("unmapped_personal_fields", 0) == 0
-                and status["unreported_accounts"] == 0 and status["due_accounts"] == 0
-                and not status["account_states"].get("pending_closed")
-                and not status["account_states"].get("pending_updated")
-                and not status["account_states"].get("updated")
-            ),
-        }
-
-    async def run_reporting(self) -> dict:
-        if self._lock.locked():
-            return {"status": "already_running"}
-        async with self._lock:
-            async with self._database.session() as lock_session:
-                acquired = await lock_session.scalar(text("SELECT pg_try_advisory_xact_lock(20261016, 1900)"))
-                if not acquired:
-                    return {"status": "already_running"}
-                now = datetime.now(timezone.utc)
-                retry_not_before = None
-                try:
-                    status = await self._repository.status()
-                    retry_not_before = datetime.fromisoformat(status["next_attempt_at"]) if status["next_attempt_at"] else None
-                    retry_scheduled = retry_not_before is not None and retry_not_before > now
-                    await self._use_case.erase_pending(refresh_profiles=not retry_scheduled)
-                    if retry_scheduled:
-                        return {"status": "retry_scheduled", "next_attempt_at": status["next_attempt_at"]}
-                    await self._repository.register_accounts(await self._snapshots.collect_accounts())
-                    status = await self._repository.status()
-                    if not status["owner_authorized"]:
-                        return {"status": "owner_authorization_required"}
-                    if status["next_attempt_at"] and datetime.fromisoformat(status["next_attempt_at"]) > now:
-                        return {"status": "retry_scheduled", "next_attempt_at": status["next_attempt_at"]}
-                    result = await self._use_case.execute()
-                    completed_status = await self._repository.status()
-                except PersonalDataReportingFailure as error:
-                    now = datetime.now(timezone.utc)
-                    retry_at = max(now + timedelta(seconds=error.retry_after_seconds), retry_not_before or now)
-                    await self._repository.record_attempt(now, error=error.code, next_attempt_at=retry_at)
-                    logger.warning("Personal data reporting deferred: %s", error.code)
-                    return {"status": error.code, "next_attempt_at": retry_at.isoformat()}
-                except Exception:
-                    now = datetime.now(timezone.utc)
-                    await self._repository.record_attempt(now, error="reporting_processing_failed", next_attempt_at=max(now + timedelta(minutes=5), retry_not_before or now))
-                    logger.error("Personal data reporting processing failed")
-                    return {"status": "reporting_processing_failed"}
-                pending = any(completed_status["account_states"].get(state) for state in ("pending_closed", "pending_updated", "updated"))
-                if not pending and (result["reported_accounts"] > 0 or completed_status["last_error"]):
-                    await self._repository.record_attempt(datetime.now(timezone.utc))
-                return {"status": "ok", **result}
+    @asynccontextmanager
+    async def acquire(self) -> AsyncIterator[bool]:
+        async with self._database.session() as session:
+            acquired = await session.scalar(text("SELECT pg_try_advisory_xact_lock(20261016, 1900)"))
+            yield bool(acquired)
