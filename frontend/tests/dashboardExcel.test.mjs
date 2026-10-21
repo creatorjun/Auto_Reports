@@ -44,6 +44,97 @@ function loader(overrides = {}) {
 
 const load = loader()
 const { buildDashboardExcelWorkbook } = load('infrastructure/export/dashboardExcelWorkbook')
+const { default: AiSummaryCard } = load('presentation/components/cards/AiSummaryCard')
+
+function nodeText(node) {
+  if (typeof node === 'string') return node
+  return (node.children ?? []).map(nodeText).join('')
+}
+
+const legacyAnalysis = {
+  summary: '선택 기간에 생성된 요청을 집계했습니다.',
+  risks: ['처리 대기 요청이 누적되었습니다.'],
+  recommendations: ['대기 요청의 우선순위를 검토하세요.'],
+  sentiment: 'warning',
+}
+
+test('AI summaries preserve legacy reports without inventing bottlenecks or provider metadata', (t) => {
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(AiSummaryCard, { ai: legacyAnalysis })) })
+  t.after(() => act(() => view.unmount()))
+  const rendered = nodeText(view.root)
+  for (const value of [legacyAnalysis.summary, ...legacyAnalysis.risks, ...legacyAnalysis.recommendations, '요약', '문제점', '개선 제안']) {
+    assert.ok(rendered.includes(value))
+  }
+  assert.doesNotMatch(rendered, /병목|Rovo|다음 주|KST|이전 분석 시점/)
+  assert.equal(view.root.findAllByType('time').length, 0)
+})
+
+test('AI summaries omit empty bottlenecks and invalid timestamps without labeling another provider as Rovo', (t) => {
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(AiSummaryCard, { ai: {
+    ...legacyAnalysis, bottlenecks: [], provider: 'gemini', analyzed_at: 'invalid',
+  } })) })
+  t.after(() => act(() => view.unmount()))
+  assert.doesNotMatch(nodeText(view.root), /병목|Rovo|Invalid Date|KST/)
+  assert.equal(view.root.findAllByType('time').length, 0)
+})
+
+test('stale analysis stays visible with its original analysis time and clears the note only when current', (t) => {
+  const ai = { ...legacyAnalysis, analyzed_at: '2026-10-21T02:03:00Z', is_stale: true }
+  const original = structuredClone(ai)
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(AiSummaryCard, { ai })) })
+  t.after(() => act(() => view.unmount()))
+  assert.equal(nodeText(view.root.findByProps({ role: 'status' })), '보고서 데이터가 갱신되었습니다. 이 총평은 이전 분석 시점 기준입니다.')
+  assert.ok(nodeText(view.root).includes(ai.summary))
+  assert.equal(view.root.findByType('time').props.dateTime, ai.analyzed_at)
+  assert.deepEqual(ai, original)
+  act(() => view.update(React.createElement(AiSummaryCard, { ai: { ...ai, is_stale: false } })))
+  assert.equal(view.root.findAllByProps({ role: 'status' }).length, 0)
+  assert.ok(nodeText(view.root).includes(ai.summary))
+  assert.equal(view.root.findByType('time').props.dateTime, ai.analyzed_at)
+})
+
+test('Rovo summaries include bottlenecks and KST provenance in the shared PDF and Excel export capture', (t) => {
+  const ai = { ...legacyAnalysis, bottlenecks: ['자료 요청 단계에 대기가 집중되었습니다.'], provider: 'rovo_automation', analyzed_at: '2026-10-21T02:03:00Z', is_stale: true }
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(AiSummaryCard, { ai })) })
+  t.after(() => act(() => view.unmount()))
+  assert.match(nodeText(view.root), /Rovo/)
+  assert.match(nodeText(view.root), /병목/)
+  assert.equal(view.root.findByType('time').props.dateTime, ai.analyzed_at)
+  assert.match(nodeText(view.root.findByType('time')), /2026.*10.*21.*11:03.*KST/)
+  const card = view.root.findByProps({ 'data-pdf-kind': 'text' })
+  const domNode = (node) => ({
+    getAttribute: (name) => node.props[name] ?? null,
+    textContent: nodeText(node),
+    closest: () => null,
+  })
+  let section
+  const block = {
+    ...domNode(card),
+    querySelector: () => domNode(card.findByType('h3')),
+    querySelectorAll: () => card.findAll((node) => ['p', 'li'].includes(node.type) || node.props['data-pdf-paragraph']).map(domNode),
+    closest: () => section,
+  }
+  section = { getAttribute: () => 'AI 종합 분석', hasAttribute: () => false, querySelectorAll: () => [block] }
+  const { captureDashboardPdf } = load('presentation/utils/dashboardPdfCapture')
+  const { buildDashboardPdfDefinition } = load('infrastructure/export/dashboardPdfDefinition')
+  const document = captureDashboardPdf({ querySelectorAll: () => [section] }, fixture())
+  const paragraphs = document.sections[0].blocks[0].paragraphs
+  for (const value of ['분석: Rovo', '요약', ai.summary, '문제점', '병목', '개선 제안', '보고서 데이터가 갱신되었습니다. 이 총평은 이전 분석 시점 기준입니다.', ...ai.risks, ...ai.bottlenecks, ...ai.recommendations]) {
+    assert.ok(paragraphs.some((paragraph) => paragraph.includes(value)), value)
+  }
+  assert.ok(paragraphs.some((paragraph) => /분석 시각: .*11:03.*KST/.test(paragraph)))
+  const workbook = roundTrip(document)
+  const excelContent = utils.sheet_to_json(workbook.Sheets['AI 종합 분석'], { header: 1 }).flat()
+  const pdfContent = JSON.stringify(buildDashboardPdfDefinition(document))
+  for (const paragraph of paragraphs) {
+    assert.ok(excelContent.includes(paragraph), paragraph)
+    assert.ok(pdfContent.includes(paragraph), paragraph)
+  }
+})
 
 function fixture() {
   return {

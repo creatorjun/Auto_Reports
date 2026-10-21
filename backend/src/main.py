@@ -28,6 +28,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 logging.getLogger("uvicorn.access").addFilter(OAuthAccessFilter())
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def create_app(settings: Settings) -> FastAPI:

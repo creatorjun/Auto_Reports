@@ -140,6 +140,17 @@ class ReportRepositoryImpl(ReportRepository):
     async def update_widgets(self, report_id: int, report: NewReport) -> Report:
         widgets_dict = {k: serialize_widget(v) for k, v in report.widgets.items()}
         await suppress_erased_people(self._session, widgets_dict)
+        previous_result = await self._session.execute(
+            select(ReportORM).where(ReportORM.id == report_id).with_for_update()
+        )
+        previous = previous_result.scalar_one()
+        analysis = previous.ai_analysis
+        if analysis and (
+            previous.widgets != widgets_dict
+            or previous.week_start != report.week_start
+            or previous.week_end != report.week_end
+        ):
+            analysis = {**analysis, "is_stale": True}
         await self._session.execute(
             update(ReportORM)
             .where(ReportORM.id == report_id)
@@ -148,6 +159,7 @@ class ReportRepositoryImpl(ReportRepository):
                 week_start=report.week_start,
                 week_end=report.week_end,
                 report_date=report.report_date,
+                ai_analysis=analysis,
             )
         )
         await self._session.flush()

@@ -52,6 +52,10 @@ class ReportMapper:
                 risks=report.ai_analysis.risks,
                 recommendations=report.ai_analysis.recommendations,
                 sentiment=report.ai_analysis.sentiment,
+                bottlenecks=report.ai_analysis.bottlenecks,
+                provider=report.ai_analysis.provider,
+                analyzed_at=report.ai_analysis.analyzed_at,
+                is_stale=report.ai_analysis.is_stale,
             )
         return ReportDetailSchema(
             id=report.id,

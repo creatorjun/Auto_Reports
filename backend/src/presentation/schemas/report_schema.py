@@ -3,7 +3,7 @@ from datetime import date, datetime
 from datetime import date as SelectedDate
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from src.application.services.report_period import ReportPeriod
 
@@ -13,6 +13,10 @@ class AiAnalysisSchema(BaseModel):
     risks: list[str]
     recommendations: list[str]
     sentiment: str
+    bottlenecks: list[str] = Field(default_factory=list)
+    provider: str | None = None
+    analyzed_at: str | None = None
+    is_stale: bool = False
 
 
 class WidgetResultSchema(BaseModel):

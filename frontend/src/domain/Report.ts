@@ -4,6 +4,10 @@ export interface AiAnalysis {
   risks: string[]
   recommendations: string[]
   sentiment: 'good' | 'warning' | 'critical'
+  bottlenecks?: string[]
+  provider?: string | null
+  analyzed_at?: string | null
+  is_stale?: boolean
 }
 
 export interface WidgetResult {

@@ -1,6 +1,7 @@
 # backend/src/infrastructure/config/settings.py
 import datetime
 from functools import lru_cache
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import Field
@@ -20,6 +21,12 @@ class Settings(BaseSettings):
     jira_privacy_owner_account_id: str = ""
     gemini_api_key: str = ""
     ai_enabled: bool = True
+    ai_provider: Literal["gemini", "rovo_automation"] = "gemini"
+    rovo_automation_webhook_url: str = Field(default="", repr=False)
+    rovo_automation_webhook_token: str = Field(default="", repr=False)
+    rovo_automation_result_issue_key: str = ""
+    rovo_automation_timeout_seconds: int = Field(default=180, ge=15, le=300)
+    rovo_automation_poll_seconds: float = Field(default=5, ge=1, le=30)
     security_news_translation_enabled: bool = True
     security_news_translation_model: str = Field(default="gemini-3.5-flash-lite", min_length=1, max_length=100)
     security_news_translation_cache_path: str = "reports/security-news-translations.sqlite3"
