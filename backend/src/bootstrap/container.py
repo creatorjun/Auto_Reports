@@ -24,6 +24,7 @@ from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.application.use_cases.sla_status import SlaStatusUseCase
+from src.application.use_cases.jira_notifications import JiraNotificationsUseCase
 from src.application.use_cases.sla_violation_report import SlaViolationReportUseCase
 from src.application.use_cases.redeployment_report import RedeploymentGenerationInProgress, RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
@@ -35,6 +36,7 @@ from src.infrastructure.external.smtp_email_client import SmtpEmailClient
 from src.infrastructure.external.security_news_source import PublicSecurityNewsSource
 from src.infrastructure.external.gemini_news_translator import GeminiNewsTranslator
 from src.infrastructure.external.jira_oauth_client import JiraOAuthClient
+from src.infrastructure.external.jira_notification_client import JiraNotificationClient
 from src.infrastructure.external.sla_violation_jira_source import SlaViolationJiraSource
 from src.infrastructure.external.sla_digest_jira_source import SlaDigestJiraSource
 from src.infrastructure.external.redeployment_jira_source import RedeploymentJiraSource
@@ -52,6 +54,7 @@ from src.infrastructure.persistence.redeployment_repository_impl import Redeploy
 from src.infrastructure.report_cache import ReportLruCache
 from src.infrastructure.security.credential_encryptor import CredentialEncryptor
 from src.infrastructure.security.jwt_service import JwtService
+from src.infrastructure.security.memory_jira_user_grant_store import MemoryJiraUserGrantStore
 from src.infrastructure.storage.document_converter import LibreOfficeDocumentConverter
 from src.infrastructure.storage.local_storage import LocalStorageAdapter
 from src.presentation.email.issue_notification_renderer import IssueNotificationRenderer
@@ -102,6 +105,9 @@ class Container:
         self._analyzer = AiAnalyzer(ai=self._ai, enabled=settings.ai_enabled)
         self.personal_data = PersonalDataRuntime(settings, database, self._clear_personal_data_caches)
         tokens = JwtService(settings)
+        self._jira_user_grants = MemoryJiraUserGrantStore()
+        self._jira_notification_source = JiraNotificationClient(settings.jira_base_url)
+        self.jira_notifications = JiraNotificationsUseCase(self._jira_notification_source, self._jira_user_grants)
         self.auth = AuthService(
             tokens=tokens,
             enabled=settings.login,
@@ -113,6 +119,7 @@ class Container:
             cookie_secure=settings.cookie_secure,
             personal_data=self.personal_data,
             reporting=self.personal_data,
+            jira_grants=self._jira_user_grants,
             privacy_owner_account_id=settings.jira_privacy_owner_account_id,
             jira_oauth=JiraOAuthClient(
                 client_id=settings.jira_oauth_client_id,
@@ -120,6 +127,7 @@ class Container:
                 redirect_uri=settings.jira_oauth_redirect_uri,
                 jira_base_url=settings.jira_base_url,
                 project_key=settings.project_key,
+                grants=self._jira_user_grants,
             ) if (
                 settings.login and settings.jira_login_enabled
                 and settings.jira_oauth_client_id and settings.jira_oauth_client_secret
@@ -222,6 +230,7 @@ class Container:
         return await self._notify_sla_digest.execute()
 
     async def _clear_personal_data_caches(self) -> None:
+        await self.auth.clear_jira_grants()
         await self.issue_management.clear_personal_data_cache()
         await self._jira.clear_personal_data_cache()
         await self.sla_status.clear_personal_data_cache()
@@ -316,6 +325,8 @@ class Container:
 
     async def aclose(self) -> None:
         async with AsyncExitStack() as stack:
+            stack.push_async_callback(self._jira_notification_source.aclose)
+            stack.push_async_callback(self._jira_user_grants.aclose)
             stack.push_async_callback(self._jira.aclose)
             stack.push_async_callback(self._sla_violation_source.aclose)
             stack.push_async_callback(self._sla_status_source.aclose)

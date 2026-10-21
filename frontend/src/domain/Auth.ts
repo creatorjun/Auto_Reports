@@ -48,3 +48,15 @@ export interface JiraPrivacyStatus {
 export function canViewAuditLogs(me: MeResponse | undefined): boolean {
   return me?.login_required === true && me.is_superadmin === true
 }
+
+export function canViewJiraNotifications(me: MeResponse | undefined): boolean {
+  return me?.login_required === true && me.auth_provider === 'jira'
+}
+
+export function loginUserId(me: MeResponse | undefined): string | null {
+  if (!me?.login_required) return null
+  if (me.auth_provider === 'jira' && me.username.startsWith('jira:')) {
+    return me.username.split(':').slice(2).join(':') || me.username
+  }
+  return me.username
+}

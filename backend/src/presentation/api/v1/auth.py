@@ -277,7 +277,9 @@ async def logout(
     username = None
     if auth.enabled and refresh_token:
         try:
-            username = auth.decode_refresh_token(refresh_token)
+            identity = auth.decode_refresh_identity(refresh_token)
+            username = identity.username
+            await auth.logout(identity)
         except ValueError:
             pass
     if username is not None:

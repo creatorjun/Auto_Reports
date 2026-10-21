@@ -10,3 +10,4 @@ class AuthIdentity:
     auth_provider: Literal["local", "jira"] = "local"
     session_expires_at: int | None = None
     profile_version: int | None = None
+    jira_grant_id: str | None = None

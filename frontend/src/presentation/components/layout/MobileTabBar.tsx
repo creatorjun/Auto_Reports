@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/MobileTabBar.tsx
 import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, ShieldCheck, ChevronUp, Newspaper } from 'lucide-react'
+import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, ShieldCheck, ChevronUp, Newspaper, UserRound } from 'lucide-react'
 import { canViewAuditLogs } from '@/domain/Auth'
 import { useMe } from '@/presentation/hooks/useAuth'
 import { FOCUS_MANAGEMENT_LABEL, FOCUS_MANAGEMENT_LINKS, isFocusManagementPath } from '@/presentation/config/focusManagement'
@@ -15,7 +15,12 @@ const tabs = [
   { to: '/security-news', label: '보안 뉴스', icon: <Newspaper size={20} /> },
 ]
 
-export default function MobileTabBar() {
+interface Props {
+  onOpenAccount?: (trigger: HTMLButtonElement) => void
+  accountExpanded?: boolean
+}
+
+export default function MobileTabBar({ onOpenAccount, accountExpanded = false }: Props) {
   const me = useMe()
   const { pathname } = useLocation()
   const [expanded, setExpanded] = useState(false)
@@ -57,7 +62,7 @@ export default function MobileTabBar() {
           {to === '/issues' && <button ref={trigger} type="button" aria-expanded={expanded} aria-controls={menuId} onClick={() => setExpanded((value) => !value)} className={`flex min-w-12 shrink-0 flex-col items-center gap-1 rounded-xl px-1.5 py-1 ${expanded || isFocusManagementPath(pathname) ? 'text-brand-600' : 'text-apple-light'}`}><ListChecks size={20} /><span className="flex items-center gap-1 text-control-label font-medium">{FOCUS_MANAGEMENT_LABEL}<ChevronUp size={12} className={expanded ? 'rotate-180' : ''} /></span></button>}
           </div>
         ))}
-
+        {onOpenAccount && !me.isError && me.data?.login_required && <button type="button" aria-label="계정 메뉴" aria-expanded={accountExpanded} onClick={(event) => { setExpanded(false); onOpenAccount(event.currentTarget) }} className={`flex min-w-12 shrink-0 flex-col items-center gap-1 rounded-xl px-1.5 py-1 ${accountExpanded ? 'text-brand-600' : 'text-apple-light'}`}><UserRound size={20} aria-hidden="true" /><span className="text-control-label font-medium">계정</span></button>}
       </nav>
       <nav ref={menu} id={menuId} hidden={!expanded} aria-label={FOCUS_MANAGEMENT_LABEL} className="fixed bottom-24 left-3 right-3 z-30 rounded-2xl border border-apple-divider bg-apple-surface p-3 shadow-xl">
         <p className="px-3 pb-2 text-caption font-semibold text-apple-mid">{FOCUS_MANAGEMENT_LABEL}</p>

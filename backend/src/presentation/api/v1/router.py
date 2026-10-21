@@ -4,6 +4,7 @@ from src.presentation.api.v1 import (
     auth,
     audit_logs,
     issue_management,
+    jira_notifications,
     notifications,
     config,
     partners,
@@ -23,6 +24,7 @@ from src.presentation.api.v1.deps import require_auth
 router = APIRouter(prefix="/api/v1")
 
 router.include_router(auth.router)
+router.include_router(jira_notifications.router)
 router.include_router(storage.preview_router)
 router.include_router(notifications.router)
 

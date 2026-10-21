@@ -15,6 +15,7 @@ from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.application.use_cases.sla_status import SlaStatusUseCase
+from src.application.use_cases.jira_notifications import JiraNotificationsUseCase
 from src.application.use_cases.sla_violation_report import SlaViolationReportUseCase
 from src.application.use_cases.redeployment_report import RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
@@ -45,6 +46,7 @@ class ApiServices:
     notify_sla_digest: NotifySlaDigestUseCase | None = None
     security_news: SecurityNewsUseCase | None = None
     sla_status: SlaStatusUseCase | None = None
+    jira_notifications: JiraNotificationsUseCase | None = None
 
 
 def get_api_services(request: Request) -> ApiServices:

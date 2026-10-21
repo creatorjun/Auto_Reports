@@ -1,11 +1,14 @@
 # backend/src/infrastructure/external/jira_oauth_client.py
 import asyncio
 import re
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode, urlsplit
 
 import httpx
 
 from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable, JiraOAuthPort, JiraReportingGrant
+from src.application.ports.jira_user_grant_port import JiraUserGrant, JiraUserGrantStorePort
 from src.domain.entities.auth_identity import AuthIdentity
 
 _SCOPES = ("read:jira-user", "read:jira-work")
@@ -20,6 +23,7 @@ class JiraOAuthClient(JiraOAuthPort):
         jira_base_url: str,
         project_key: str,
         transport: httpx.AsyncBaseTransport | None = None,
+        grants: JiraUserGrantStorePort | None = None,
     ) -> None:
         site = urlsplit(jira_base_url)
         callback = urlsplit(redirect_uri)
@@ -37,6 +41,7 @@ class JiraOAuthClient(JiraOAuthPort):
         self._site_url = jira_base_url.rstrip("/").lower()
         self._project_key = project_key
         self._transport = transport
+        self._grants = grants
 
     def authorization_url(self, state: str, include_offline: bool = False) -> str:
         return "https://auth.atlassian.com/authorize?" + urlencode({
@@ -86,6 +91,7 @@ class JiraOAuthClient(JiraOAuthPort):
                 "redirect_uri": self._redirect_uri,
             },
         ))
+        received_at = datetime.now(timezone.utc)
         access_token = token.get("access_token") if isinstance(token, dict) else None
         if not isinstance(access_token, str) or not access_token:
             raise JiraLoginDenied("Jira login could not be verified")
@@ -125,10 +131,18 @@ class JiraOAuthClient(JiraOAuthPort):
         display_name = profile.get("displayName")
         if not isinstance(display_name, str) or not display_name.strip() or len(display_name) > 200:
             display_name = account_id
-        return (
-            AuthIdentity(f"jira:{cloud_id}:{account_id}", display_name.strip(), "jira"),
-            token.get("refresh_token") if include_offline else None,
-        )
+        identity = AuthIdentity(f"jira:{cloud_id}:{account_id}", display_name.strip(), "jira")
+        if self._grants is not None and not include_offline:
+            expires_in = token.get("expires_in")
+            if type(expires_in) is not int or expires_in <= 0:
+                raise JiraLoginDenied("Jira token expiration could not be verified")
+            try:
+                expires_at = received_at + timedelta(seconds=expires_in)
+            except OverflowError:
+                raise JiraLoginDenied("Jira token expiration could not be verified") from None
+            grant_id = await self._grants.put(JiraUserGrant(cloud_id, account_id, access_token, expires_at), identity)
+            identity = replace(identity, jira_grant_id=grant_id)
+        return identity, token.get("refresh_token") if include_offline else None
 
     @staticmethod
     def _json(response: httpx.Response):

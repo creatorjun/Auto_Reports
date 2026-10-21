@@ -1,10 +1,11 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
-import { useId, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, Newspaper } from 'lucide-react'
+import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, Newspaper, Bell, UserRound, X } from 'lucide-react'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout, useMe } from '@/presentation/hooks/useAuth'
-import { canViewAuditLogs } from '@/domain/Auth'
+import { canViewAuditLogs, canViewJiraNotifications, loginUserId } from '@/domain/Auth'
+import JiraNotificationsPanel from '@/presentation/components/notifications/JiraNotificationsPanel'
 import ThemeToggle from './ThemeToggle'
 import { ANNUAL_REPORT_YEARS } from '@/presentation/config/annualReports'
 import { FOCUS_MANAGEMENT_LABEL, FOCUS_MANAGEMENT_LINKS } from '@/presentation/config/focusManagement'
@@ -30,9 +31,11 @@ const reportLinks = [
 interface Props {
   collapsed: boolean
   setCollapsed: (v: boolean) => void
+  mobileOpen?: boolean
+  onCloseMobile?: () => void
 }
 
-export default function Sidebar({ collapsed, setCollapsed }: Props) {
+export default function Sidebar({ collapsed, setCollapsed, mobileOpen = false, onCloseMobile }: Props) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [hoveredGroup, setHoveredGroup] = useState<string | null>(null)
   const sidebarCollapsed = collapsed && hoveredGroup === null
@@ -48,9 +51,24 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
     setGroupExpanded(id, false)
     setHoveredGroup((current) => current === id ? null : current)
   }
-  const { loginRequired, username } = useAuthStore()
+  const { loginRequired, username, accessToken } = useAuthStore()
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
   const me = useMe()
+  const profile = accessToken && !me.isError ? me.data : undefined
+  const userId = loginUserId(profile)
+  const allowed = !!accessToken && canViewJiraNotifications(profile)
+  const [notification, setNotification] = useState<{ trigger: HTMLButtonElement; token: string } | null>(null)
+  const panelId = useId()
+  const expanded = allowed && notification?.token === accessToken
+  const closeNotifications = useCallback(() => setNotification(null), [])
+  useEffect(() => { if (!mobileOpen) closeNotifications() }, [mobileOpen, closeNotifications])
+  useEffect(() => { closeNotifications() }, [pathname, closeNotifications])
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const media = window.matchMedia('(min-width: 1280px)')
+    media.addEventListener('change', closeNotifications)
+    return () => media.removeEventListener('change', closeNotifications)
+  }, [closeNotifications])
 
   return (
     <aside
@@ -61,13 +79,14 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
         'transition-all duration-250 ease-in-out flex-shrink-0',
       ].join(' ')}
     >
+      {onCloseMobile && <button type="button" onClick={onCloseMobile} aria-label="계정 메뉴 닫기" className="mb-2 self-end rounded-xl p-2 text-apple-mid hover:bg-apple-gray xl:hidden"><X size={18} aria-hidden="true" /></button>}
       <button
         onClick={() => {
           setExpandedGroups(new Set())
           setHoveredGroup(null)
           setCollapsed(!sidebarCollapsed)
         }}
-        className="flex shrink-0 items-center justify-center w-8 h-8 3xl:w-10 3xl:h-10 rounded-xl text-apple-light hover:bg-apple-gray hover:text-apple-dark transition-all duration-200 mb-2 self-end"
+        className="hidden xl:flex shrink-0 items-center justify-center w-8 h-8 3xl:w-10 3xl:h-10 rounded-xl text-apple-light hover:bg-apple-gray hover:text-apple-dark transition-all duration-200 mb-2 self-end"
         title={sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
       >
         {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -182,8 +201,15 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
           <>
             <div className="w-full border-t border-apple-divider/50 my-2" />
 
+            {userId && (sidebarCollapsed ? <button type="button" onClick={() => setCollapsed(false)} aria-label={`로그인 사용자 ${profile?.display_name ?? ''} · ID ${userId}`} title={`${profile?.display_name ?? ''} · ID ${userId}`} className="mb-1 flex h-9 w-9 items-center justify-center rounded-xl text-apple-mid hover:bg-apple-gray"><UserRound size={16} aria-hidden="true" /></button>
+              : <div aria-label="로그인 사용자" className="min-w-0 px-3 pb-2 text-caption text-apple-mid">{profile?.display_name && <p className="truncate font-medium text-apple-dark" title={profile.display_name}>{profile.display_name}</p>}<p className="truncate" title={userId}>ID: {userId}</p></div>)}
+            {allowed && <button type="button" aria-label="Jira 알림" aria-haspopup="dialog" aria-expanded={expanded} aria-controls={panelId} title={sidebarCollapsed ? 'Jira 알림' : undefined}
+              onClick={(event) => setNotification(expanded || !accessToken ? null : { trigger: event.currentTarget, token: accessToken })}
+              className={`mb-1 flex min-h-9 items-center rounded-xl text-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${sidebarCollapsed ? 'w-9 justify-center' : 'w-full gap-2 px-3 py-2'} ${expanded ? 'bg-brand-50 text-brand-700' : 'text-apple-mid hover:bg-apple-gray'}`}><Bell size={16} className="shrink-0" aria-hidden="true" />{!sidebarCollapsed && <span>Jira 알림</span>}</button>}
+
             {sidebarCollapsed ? (
               <button
+                aria-label="로그아웃"
                 onClick={() => logout()}
                 disabled={isLoggingOut}
                 title={username ? `${username} · LOGOUT` : 'LOGOUT'}
@@ -193,6 +219,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
               </button>
             ) : (
               <button
+                aria-label="로그아웃"
                 onClick={() => logout()}
                 disabled={isLoggingOut}
                 className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-control font-medium tracking-wide text-apple-light hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
@@ -204,6 +231,7 @@ export default function Sidebar({ collapsed, setCollapsed }: Props) {
           </>
         )}
       </div>
+      {expanded && notification && <JiraNotificationsPanel key={notification.token} id={panelId} trigger={notification.trigger} sessionToken={notification.token} sidebarCollapsed={sidebarCollapsed} onClose={closeNotifications} />}
     </aside>
   )
 }

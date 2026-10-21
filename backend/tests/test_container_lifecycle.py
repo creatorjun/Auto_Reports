@@ -56,6 +56,8 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.sla_source.aclose.assert_awaited_once_with()
         self.redeployment_source.aclose.assert_awaited_once_with()
         news_source_close.assert_awaited_once_with()
+        self.assertTrue(container._jira_notification_source._client.is_closed)
+        self.assertTrue(container._jira_user_grants._closed)
         self.assertTrue(container.security_news._closed)
         self.assertTrue(container._security_news_source._client.is_closed)
         self.assertIsNone(container._news_translation)
@@ -78,9 +80,11 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         container.issue_management.clear_personal_data_cache = AsyncMock()
         self.jira.clear_personal_data_cache = AsyncMock()
         container.sla_status.clear_personal_data_cache = AsyncMock()
+        container.auth.clear_jira_grants = AsyncMock()
         try:
             await container._clear_personal_data_caches()
             container.sla_status.clear_personal_data_cache.assert_awaited_once_with()
+            container.auth.clear_jira_grants.assert_awaited_once_with()
             events = []
             container.sla_status.aclose = AsyncMock(side_effect=lambda: events.append("status"))
             self.digest_source.aclose.side_effect = lambda: events.append("source")

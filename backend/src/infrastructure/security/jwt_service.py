@@ -1,6 +1,7 @@
 # backend/src/infrastructure/security/jwt_service.py
 from datetime import datetime, timedelta, timezone
 from threading import Lock
+import re
 
 from jose import JWTError, jwt
 
@@ -83,7 +84,13 @@ class JwtService(TokenServicePort):
                 raise ValueError("Jira profile version required")
             payload["session_exp"] = identity.session_expires_at
             payload["profile_ver"] = identity.profile_version
+            if identity.jira_grant_id is not None:
+                if not isinstance(identity.jira_grant_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", identity.jira_grant_id):
+                    raise ValueError("Invalid Jira grant identifier")
+                payload["jira_grant_id"] = identity.jira_grant_id
         else:
+            if identity.jira_grant_id is not None:
+                raise ValueError("Local identity cannot contain a Jira grant")
             payload["display_name"] = identity.display_name
         return jwt.encode(payload, self._settings.jwt_secret, algorithm="HS256")
 
@@ -106,6 +113,11 @@ class JwtService(TokenServicePort):
                 raise ValueError("Invalid Jira identity")
             session_exp = payload.get("session_exp") if provider == "jira" else None
             profile_version = payload.get("profile_ver") if provider == "jira" else None
+            grant_id = payload.get("jira_grant_id")
+            if grant_id is not None and (
+                provider != "jira" or not isinstance(grant_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", grant_id)
+            ):
+                raise ValueError("Invalid Jira grant identifier")
             if provider == "jira" and (
                 type(session_exp) is not int or payload["exp"] > session_exp
                 or session_exp <= datetime.now(timezone.utc).timestamp()
@@ -124,6 +136,6 @@ class JwtService(TokenServicePort):
                 raise ValueError("Superadmin session required")
             if gen is not None and gen != self._superadmin_generation:
                 raise ValueError("Superadmin session invalidated")
-            return AuthIdentity(subject, display_name, provider, session_exp, profile_version)
+            return AuthIdentity(subject, display_name, provider, session_exp, profile_version, grant_id)
         except (JWTError, ValueError, KeyError, TypeError) as e:
             raise ValueError("Invalid or expired token") from e

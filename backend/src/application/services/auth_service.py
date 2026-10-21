@@ -7,6 +7,7 @@ from threading import Lock
 from time import monotonic
 
 from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable, JiraOAuthPort
+from src.application.ports.jira_user_grant_port import JiraUserGrantStorePort
 from src.application.ports.personal_data_port import PersonalDataProfilePort, PersonalDataReportingPort
 from src.application.ports.token_service_port import TokenServicePort
 from src.domain.entities.auth_identity import AuthIdentity
@@ -27,6 +28,7 @@ class AuthService:
         personal_data: PersonalDataProfilePort | None = None,
         reporting: PersonalDataReportingPort | None = None,
         privacy_owner_account_id: str = "",
+        jira_grants: JiraUserGrantStorePort | None = None,
     ) -> None:
         self._tokens = tokens
         self.enabled = enabled
@@ -40,6 +42,7 @@ class AuthService:
         self._personal_data = personal_data
         self._reporting = reporting
         self._privacy_owner_account_id = privacy_owner_account_id
+        self._jira_grants = jira_grants
         self._jira_states: dict[str, float] = {}
         self._jira_privacy_states: dict[str, int] = {}
         self._jira_state_lock = Lock()
@@ -128,18 +131,30 @@ class AuthService:
         if not code or len(code) > 4096:
             raise JiraLoginDenied("Invalid Jira authorization code")
         identity = await self._jira_oauth.authenticate(code)
-        if identity.auth_provider != "jira" or identity.username in {self.admin_username, self.superadmin_username}:
-            raise JiraLoginDenied("Invalid Jira account identity")
-        if self._personal_data is None:
-            raise JiraLoginUnavailable("Jira profile storage is not configured")
         try:
-            identity = await self._personal_data.register_identity(identity)
-        except ValueError:
-            raise JiraLoginDenied("Jira account is no longer available") from None
-        return replace(
-            identity,
-            session_expires_at=int((datetime.now(timezone.utc) + timedelta(days=self.refresh_expire_days)).timestamp()),
-        )
+            if identity.auth_provider != "jira" or identity.username in {self.admin_username, self.superadmin_username}:
+                raise JiraLoginDenied("Invalid Jira account identity")
+            if self._personal_data is None:
+                raise JiraLoginUnavailable("Jira profile storage is not configured")
+            try:
+                identity = await self._personal_data.register_identity(identity)
+            except ValueError:
+                raise JiraLoginDenied("Jira account is no longer available") from None
+            return replace(
+                identity,
+                session_expires_at=int((datetime.now(timezone.utc) + timedelta(days=self.refresh_expire_days)).timestamp()),
+            )
+        except BaseException:
+            await self.logout(identity)
+            raise
+
+    async def logout(self, identity: AuthIdentity) -> None:
+        if self._jira_grants is not None and identity.auth_provider == "jira" and identity.jira_grant_id:
+            await self._jira_grants.revoke(identity.jira_grant_id, identity)
+
+    async def clear_jira_grants(self) -> None:
+        if self._jira_grants is not None:
+            await self._jira_grants.clear()
 
     def is_valid_credentials(self, username: str, password: str) -> bool:
         if not password:

@@ -13,6 +13,7 @@ import { siteApi } from '@/infrastructure/api/siteApi'
 import { slaDashboardApi } from '@/infrastructure/api/slaDashboardApi'
 import { slaViolationApi } from '@/infrastructure/api/slaViolationApi'
 import { slaStatusApi } from '@/infrastructure/api/slaStatusApi'
+import { jiraNotificationApi } from '@/infrastructure/api/jiraNotificationApi'
 import { redeploymentApi } from '@/infrastructure/api/redeploymentApi'
 import { issueManagementApi } from '@/infrastructure/api/issueManagementApi'
 import { securityNewsApi } from '@/infrastructure/api/securityNewsApi'
@@ -38,6 +39,7 @@ configureHttpClient({
     queryClient.removeQueries({ queryKey: ['me'] })
     queryClient.removeQueries({ queryKey: ['audit-logs'] })
     queryClient.removeQueries({ queryKey: ['sla-status'] })
+    queryClient.removeQueries({ queryKey: ['jira-notifications'] })
   },
   redirectToLogin: () => {
     window.location.href = '/login'
@@ -57,6 +59,7 @@ const services = {
   slaDashboard: slaDashboardApi,
   slaViolations: slaViolationApi,
   slaStatus: slaStatusApi,
+  jiraNotifications: jiraNotificationApi,
   redeployments: redeploymentApi,
   issueManagement: issueManagementApi,
   securityNews: securityNewsApi,

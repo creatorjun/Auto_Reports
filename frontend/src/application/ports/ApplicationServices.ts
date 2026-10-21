@@ -5,6 +5,7 @@ import type { AppConfig } from '@/domain/Config'
 import type { IssueManagementSnapshot } from '@/domain/IssueManagement'
 import type { DashboardPdfDocument } from '@/domain/DashboardExport'
 import type { JobStatus, TriggerAccepted, TriggerParams } from '@/domain/Job'
+import type { JiraNotificationPage, JiraNotificationRequest } from '@/domain/JiraNotification'
 import type { PartnerIssue, PartnerMember, PartnerOrg } from '@/domain/Partner'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
 import type { RedeploymentReport } from '@/domain/RedeploymentReport'
@@ -169,6 +170,10 @@ export interface SlaStatusGateway {
   getSnapshot: (refresh?: boolean, signal?: CancellationSignal) => Promise<SlaStatusSnapshot>
 }
 
+export interface JiraNotificationGateway {
+  getNotifications: (request: JiraNotificationRequest, signal?: CancellationSignal) => Promise<JiraNotificationPage>
+}
+
 export interface ApplicationServices {
   previewParser: PreviewParserPort
   dashboardExport: DashboardExportGateway
@@ -182,6 +187,7 @@ export interface ApplicationServices {
   slaDashboard: SlaDashboardGateway
   slaViolations: SlaViolationGateway
   slaStatus: SlaStatusGateway
+  jiraNotifications: JiraNotificationGateway
   redeployments: RedeploymentGateway
   issueManagement: { getIssues: () => Promise<IssueManagementSnapshot> }
   securityNews: SecurityNewsGateway

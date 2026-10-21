@@ -14,7 +14,7 @@ export default function PrivacyPage() {
         <dl className="divide-y divide-apple-divider rounded-xl border border-apple-divider px-4">
           <div className="grid gap-2 py-4 sm:grid-cols-[140px_minmax(0,1fr)]">
             <dt className="font-medium text-apple-dark">로그인 정보</dt>
-            <dd className="min-w-0">Atlassian 계정 식별자, Jira 사이트 식별자, 표시 이름, 계정 활성 여부, 대상 프로젝트 조회 권한을 확인합니다. Jira 로그인 표시 이름과 프로필 상태·버전은 서버에 저장합니다. Jira 로그인용 JWT에는 사용자 식별자, 로그인 방식, 프로필 버전과 만료 정보가 포함되며 표시 이름은 포함하지 않습니다.</dd>
+            <dd className="min-w-0">Atlassian 계정 식별자, Jira 사이트 식별자, 표시 이름, 계정 활성 여부, 대상 프로젝트 조회 권한을 확인합니다. Jira 로그인 표시 이름과 프로필 상태·버전은 서버에 저장합니다. Jira 로그인용 JWT에는 사용자 식별자, 로그인 방식, 프로필 버전, 만료 정보와 알림 연결용 임의 식별자가 포함되며 표시 이름이나 원문 Atlassian 토큰은 포함하지 않습니다.</dd>
           </div>
           <div className="grid gap-2 py-4 sm:grid-cols-[140px_minmax(0,1fr)]">
             <dt className="font-medium text-apple-dark">티켓·보고서</dt>
@@ -33,13 +33,14 @@ export default function PrivacyPage() {
 
       <PolicySection id="privacy-auth" title="3. Jira 인증과 자동 로그인">
         <p>Jira 로그인은 Atlassian의 OAuth 인증·승인 화면에서 진행합니다. 본 서비스는 Jira 비밀번호나 사용자의 개인 API 토큰을 입력받지 않습니다. 로그인 연동은 사용자와 업무 조회 범위를 요청하며 Jira 쓰기 권한을 요청하지 않습니다.</p>
-        <p>일반 사용자의 Atlassian access token은 로그인 검증 과정에서만 사용하고 지속 보관하지 않습니다. 일반 로그인은 offline_access 권한을 요청하지 않으며 Atlassian refresh token을 저장하지 않습니다. 자동 로그인에는 본 서비스가 발급한 JWT를 사용하고, 서버에 저장된 프로필 상태와 버전을 함께 확인합니다.</p>
+        <p>일반 사용자의 Atlassian access token은 로그인 검증과 본인의 Jira 알림 조회에 사용하며 실제 만료 시각까지만 서버 메모리에 보관합니다. 원문 토큰을 DB나 브라우저에 저장하지 않으며 로그아웃·개인정보 삭제 처리·서버 종료 시 해당 메모리 연결을 제거합니다. 일반 로그인은 offline_access 권한을 요청하지 않으며 Atlassian refresh token을 저장하지 않습니다. 자동 로그인에는 본 서비스가 발급한 JWT를 사용하고, 서버에 저장된 프로필 상태와 버전을 함께 확인합니다. 앱 로그인과 별개로 Jira 알림 연결이 만료되면 다시 Jira로 로그인해야 합니다.</p>
         <p>개인정보 정기 보고를 위해서는 최고 관리자가 별도 연결 화면에서 앱 소유자의 승인을 진행합니다. 이때 사용자·업무 조회 및 offline_access 권한을 요청하고, 앱 소유자의 refresh token을 서버에서 암호화해 보관합니다. 이 자격 증명은 Atlassian 개인정보 보고용 access token을 발급받는 데 사용하며, 직원의 로그인 승인 범위를 변경하지 않습니다.</p>
         <p>서비스 access token은 브라우저 메모리에 보관하며 기본 유효기간은 30분입니다. refresh token은 HTTPS에서 전달되는 HttpOnly·Secure 쿠키에 보관합니다. Jira 로그인 세션은 기본 7일 뒤 다시 인증하며, 갱신으로 최초 인증의 최대 유효기간을 연장하지 않습니다. 실제 기간은 운영 설정에 따릅니다.</p>
         <p>표시 이름과 access token은 브라우저 메모리에서만 관리하며, 표시 이름·토큰·비밀번호를 localStorage에 저장하지 않습니다. 이전 버전의 로그인 표시 정보가 저장되어 있으면 서비스 시작 시 해당 저장 항목을 제거합니다. 테마와 표 표시 설정은 별도로 저장하며 유지합니다. 로그아웃하면 이 브라우저의 로그인 쿠키와 메모리 세션을 제거합니다. 브라우저의 사이트 데이터를 삭제해 저장된 설정을 지울 수 있으며, 쿠키를 차단하거나 삭제하면 자동 로그인이 제한됩니다.</p>
       </PolicySection>
 
       <PolicySection id="privacy-access" title="4. 정보 접근과 연동 서비스">
+        <p>Jira 알림은 Jira로 로그인한 사용자 본인의 권한으로 조회합니다. 알림의 제목·본문·작성자·시각·읽음 상태는 화면 표시에만 사용하며 서버에 목록을 저장하지 않습니다. 패널을 닫거나 로그인 세션이 변경되면 브라우저 알림 캐시를 제거합니다. 앱에서 알림을 조회해도 Jira의 읽음 상태는 변경하지 않습니다.</p>
         <p>저장 보고서와 업무자료는 본 서비스 접근 권한이 있는 내부 사용자가 조회합니다. Jira에서 현재 사용자에게 보이는 티켓만으로 저장 보고서를 다시 제한하는 구조는 아니므로 회사의 업무 권한과 내부 자료 취급 기준에 따라 이용해야 합니다. 감사로그 조회는 별도의 관리자 권한으로 제한합니다.</p>
         <p>Atlassian은 Jira 로그인과 원본 업무자료 조회를 제공하는 연동 서비스입니다. Atlassian 인증·승인 화면과 Jira에 저장된 원본 정보의 처리는 해당 서비스의 정책도 적용됩니다. 본 서비스에서 로그아웃해도 Jira 원본이나 Atlassian 계정이 삭제되지는 않습니다.</p>
         <p>앱 소유자의 개인정보 보고 연결이 설정되면, 서버는 보관 중인 개인정보에 연결된 Atlassian 계정 식별자(accountId)와 해당 계정 정보의 가장 오래된 수집 시점을 Atlassian에 정기 보고합니다. 보고 요청에는 이름·이메일·티켓 본문을 포함하지 않으며, 다음 보고 주기는 Atlassian 응답을 따릅니다. 연결과 처리 상태는 최고 관리자 전용 화면에서 확인합니다.</p>
@@ -59,7 +60,7 @@ export default function PrivacyPage() {
 
       <PolicySection id="privacy-contact" title="7. 문의와 방침 변경">
         <p>운영 주체는 SecuLayer이며 개인정보 관련 문의 및 요청은 <PolicySupportLink />로 접수합니다. 비밀번호나 인증 토큰을 이메일에 포함하지 마세요.</p>
-        <p>처리 범위나 서비스 운영 방식이 변경되면 이 페이지에 변경 내용과 시행일을 안내합니다. 본 방침은 2026년 10월 16일부터 적용합니다.</p>
+        <p>처리 범위나 서비스 운영 방식이 변경되면 이 페이지에 변경 내용과 시행일을 안내합니다. 본 방침은 2026년 10월 16일부터 적용하며, 2026년 10월 21일 Jira 알림 조회와 임시 인증 보관에 관한 내용을 반영했습니다.</p>
       </PolicySection>
     </PolicyLayout>
   )
