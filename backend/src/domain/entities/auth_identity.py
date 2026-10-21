@@ -11,3 +11,4 @@ class AuthIdentity:
     session_expires_at: int | None = None
     profile_version: int | None = None
     jira_grant_id: str | None = None
+    email_address: str | None = None

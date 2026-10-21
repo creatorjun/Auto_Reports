@@ -41,6 +41,7 @@ class MeResponse(BaseModel):
     is_superadmin: bool = False
     display_name: str = ""
     auth_provider: str = "local"
+    email_address: str | None = None
 
 
 def _token_response(auth: AuthService, identity: AuthIdentity, generation: int | None = None) -> TokenResponse:
@@ -290,9 +291,11 @@ async def logout(
 
 @router.get("/me", response_model=MeResponse)
 async def me(
+    response: Response,
     refresh_token: str = Cookie(default=None, alias=REFRESH_COOKIE),
     auth: AuthService = Depends(get_auth),
 ):
+    response.headers["Cache-Control"] = "no-store"
     if not auth.enabled:
         return MeResponse(username="guest", login_required=False)
     if not refresh_token:
@@ -307,6 +310,7 @@ async def me(
         username=identity.username,
         display_name=identity.display_name,
         auth_provider=identity.auth_provider,
+        email_address=identity.email_address if identity.auth_provider == "jira" else None,
         login_required=True,
         is_superadmin=identity.auth_provider == "local" and auth.is_superadmin_user(identity.username),
     )

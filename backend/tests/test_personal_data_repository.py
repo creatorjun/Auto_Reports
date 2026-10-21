@@ -5,7 +5,9 @@ import unittest
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
+from jose import jwt
 from sqlalchemy import delete, select, update
 from unittest.mock import AsyncMock, patch
 
@@ -22,9 +24,32 @@ from src.infrastructure.persistence.sla_violation_models import SlaViolationRepo
 from src.infrastructure.persistence.redeployment_repository_impl import RedeploymentReportORM
 from src.infrastructure.persistence.issue_management_snapshot_repository import IssueManagementSnapshotORM
 from src.infrastructure.persistence.sla_status_snapshot_repository import SlaStatusSnapshotORM
+from src.infrastructure.security.jwt_service import JwtService
 
 DATABASE_URL = os.environ.get("PERSONAL_DATA_TEST_DATABASE_URL")
 SECRET = "personal-data-tests-only-server-key-with-32-bytes"
+
+
+class PersonalDataEmailContractTest(unittest.TestCase):
+    def test_existing_positional_identity_and_profile_arguments_remain_compatible(self):
+        identity = AuthIdentity("jira:site:account-1", "사용자", "jira", 9999999999, 2, "g" * 43)
+        profile = PersonalDataProfile("account-1", "사용자", datetime.now(timezone.utc))
+        self.assertEqual("g" * 43, identity.jira_grant_id)
+        self.assertIsNone(identity.email_address)
+        self.assertIsNone(profile.email_address)
+
+    def test_access_and_refresh_tokens_omit_email_and_keep_opaque_grant(self):
+        service = JwtService(SimpleNamespace(jwt_secret=SECRET, jwt_access_expire_minutes=30, jwt_refresh_expire_days=7, login=False))
+        identity = AuthIdentity("jira:site:account-1", "사용자", "jira", 9999999999, 2, "g" * 43, "verified@example.com")
+        for create, decode in ((service.create_identity_access_token, service.decode_access_identity), (service.create_identity_refresh_token, service.decode_refresh_identity)):
+            with self.subTest(token=create.__name__):
+                token = create(identity)
+                payload = jwt.get_unverified_claims(token)
+                self.assertNotIn("email_address", payload)
+                self.assertNotIn(identity.email_address, str(payload))
+                restored = decode(token)
+                self.assertEqual((identity.username, identity.jira_grant_id, identity.profile_version), (restored.username, restored.jira_grant_id, restored.profile_version))
+                self.assertIsNone(restored.email_address)
 
 
 @unittest.skipUnless(DATABASE_URL, "Requires an isolated PostgreSQL PERSONAL_DATA_TEST_DATABASE_URL")
@@ -59,6 +84,56 @@ class PersonalDataRepositoryTest(unittest.IsolatedAsyncioTestCase):
             self.snapshot_rows.extend((type(row), row.id) for row in rows)
         return rows
 
+    async def test_login_email_comes_from_verified_identity_and_resolves_from_current_database(self):
+        verified = replace(self.identity, jira_grant_id="g" * 43, email_address="first@example.com")
+        registered = await self.repository.register_identity(verified)
+        self.assertEqual("first@example.com", registered.email_address)
+        self.assertEqual((verified.username, verified.jira_grant_id), (registered.username, registered.jira_grant_id))
+        self.assertEqual(registered, await self.repository.resolve_identity(replace(registered, email_address="untrusted@example.com")))
+        changed = await self.repository.register_identity(replace(verified, email_address="current@example.com"))
+        self.assertEqual("current@example.com", (await self.repository.resolve_identity(registered)).email_address)
+        self.assertEqual(registered.profile_version, changed.profile_version)
+        hidden = await self.repository.register_identity(replace(verified, email_address=None))
+        self.assertIsNone(hidden.email_address)
+        self.assertIsNone((await self.repository.resolve_identity(registered)).email_address)
+        async with self.database.session() as session:
+            self.assertIsNone((await session.get(PersonalDataAccountORM, "account-1")).email_address)
+
+    async def test_privacy_staging_clears_email_for_both_actions_and_entry_points(self):
+        now = datetime.now(timezone.utc)
+        for entry_point in ("stage_actions", "record_result"):
+            for status in ("updated", "closed"):
+                with self.subTest(entry_point=entry_point, status=status):
+                    account_id = f"{entry_point}-{status}"
+                    identity = await self.repository.register_identity(replace(self.identity, username=f"jira:site:{account_id}", email_address="private@example.com"))
+                    action = PersonalDataAction(account_id, status)
+                    if entry_point == "record_result":
+                        await self.repository.record_result((account_id,), (action,), now, now + timedelta(days=7))
+                    else:
+                        await self.repository.stage_actions((action,))
+                    async with self.database.session() as session:
+                        row = await session.get(PersonalDataAccountORM, account_id)
+                        self.assertEqual(f"pending_{status}", row.status)
+                        self.assertIsNone(row.email_address)
+                    with self.assertRaises(ValueError):
+                        await self.repository.resolve_identity(identity)
+                    await self.repository.finish_actions((action,))
+                    async with self.database.session() as session:
+                        row = await session.get(PersonalDataAccountORM, account_id)
+                        self.assertEqual(status, row.status)
+                        self.assertIsNone(row.email_address)
+
+    async def test_finish_actions_clears_email_from_existing_pending_rows(self):
+        now = datetime.now(timezone.utc)
+        actions = tuple(PersonalDataAction(status, status) for status in ("updated", "closed"))
+        async with self.database.session() as session:
+            for action in actions:
+                session.add(PersonalDataAccountORM(account_id=action.account_id, email_address="private@example.com", oldest_retrieved_at=now, status=f"pending_{action.status}", profile_version=2))
+        await self.repository.finish_actions(actions)
+        async with self.database.session() as session:
+            for action in actions:
+                self.assertIsNone((await session.get(PersonalDataAccountORM, action.account_id)).email_address)
+
     async def test_refresh_updated_profiles_restores_all_snapshot_types_and_preserves_closed_accounts(self):
         now = datetime.now(timezone.utc)
         old = now - timedelta(days=40)
@@ -71,13 +146,13 @@ class PersonalDataRepositoryTest(unittest.IsolatedAsyncioTestCase):
         rows = await self._save_snapshots(payload, old)
         async with self.database.session() as session:
             for account_id, status in (("account-1", "updated"), ("account-2", "pending_updated"), ("closed", "closed"), ("active", "active")):
-                session.add(PersonalDataAccountORM(account_id=account_id, display_name=None, oldest_retrieved_at=old, profile_version=2, status=status, next_report_at=now + timedelta(days=7)))
+                session.add(PersonalDataAccountORM(account_id=account_id, display_name=None, email_address="old@example.com" if status != "closed" else None, oldest_retrieved_at=old, profile_version=2, status=status, next_report_at=now + timedelta(days=7)))
         callbacks = []
         async def after_commit():
             async with self.database.session() as session:
                 callbacks.append((await session.get(PersonalDataAccountORM, "account-1")).status)
         repository = PersonalDataRepository(self.database, SECRET, "owner", on_profiles_refreshed=after_commit)
-        profiles = tuple(PersonalDataProfile(account_id, name, now) for account_id, name in (("account-1", "현재 이름"), ("account-2", "다른 이름"), ("closed", "복원 금지"), ("active", "변경 금지"), ("missing", "추가 금지")))
+        profiles = tuple(PersonalDataProfile(account_id, name, now, None if account_id == "account-2" else "fresh@example.com") for account_id, name in (("account-1", "현재 이름"), ("account-2", "다른 이름"), ("closed", "복원 금지"), ("active", "변경 금지"), ("missing", "추가 금지")))
         self.assertEqual(2, await repository.apply_refreshed_profiles(profiles))
         self.assertEqual(["active"], callbacks)
         self.assertEqual(0, await repository.apply_refreshed_profiles(profiles))
@@ -90,12 +165,17 @@ class PersonalDataRepositoryTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual({"현재 이름": 1, "다른 이름": 1, REDACTED_PERSON: 1, "그대로": 1}, actual["by_assignee"])
                 self.assertEqual([8, 4, 2, 1], [item["hours"] for item in actual["latest_issues"]])
                 self.assertEqual(4, actual["total"])
+                self.assertNotIn("fresh@example.com", str(actual))
                 people = list(snapshot_people(actual, old))
                 self.assertEqual([now], [person.retrieved_at for person in people if person.account_id == "account-1"])
                 self.assertEqual([old], [person.retrieved_at for person in people if person.account_id == "unrelated"])
             account = await session.get(PersonalDataAccountORM, "account-1")
             self.assertEqual(("active", "현재 이름", now, 2, now + timedelta(days=7)), (account.status, account.display_name, account.oldest_retrieved_at, account.profile_version, account.next_report_at))
             self.assertEqual(now, account.profile_retrieved_at)
+            self.assertEqual("fresh@example.com", account.email_address)
+            self.assertIsNone((await session.get(PersonalDataAccountORM, "account-2")).email_address)
+            self.assertIsNone((await session.get(PersonalDataAccountORM, "closed")).email_address)
+            self.assertEqual("old@example.com", (await session.get(PersonalDataAccountORM, "active")).email_address)
             self.assertEqual("closed", (await session.get(PersonalDataAccountORM, "closed")).status)
             self.assertIsNone(await session.get(PersonalDataAccountORM, "missing"))
 
@@ -139,8 +219,10 @@ class PersonalDataRepositoryTest(unittest.IsolatedAsyncioTestCase):
                 saved = await session.get(ReportORM, rows[0].id)
                 committed_names.append(saved.widgets["tickets"][0]["reporter"])
         repository = PersonalDataRepository(self.database, SECRET, "owner", on_profiles_refreshed=after_commit)
-        identity = await repository.register_identity(replace(self.identity, display_name="로그인 최신 이름"))
+        identity = await repository.register_identity(replace(self.identity, display_name="로그인 최신 이름", email_address="current@example.com"))
         self.assertEqual(2, identity.profile_version)
+        self.assertEqual("current@example.com", identity.email_address)
+        self.assertEqual(identity, await repository.resolve_identity(replace(identity, email_address=None)))
         self.assertEqual(["로그인 최신 이름"], committed_names)
         await repository.register_identity(identity)
         self.assertEqual(["로그인 최신 이름"], committed_names)
@@ -208,10 +290,11 @@ class PersonalDataRepositoryTest(unittest.IsolatedAsyncioTestCase):
         repository = PersonalDataRepository(self.database, SECRET, "owner", on_profiles_refreshed=callback)
         with patch.object(PersonalDataSnapshotStore, "refresh_personal_data", fail_after_snapshot_write):
             with self.assertRaisesRegex(RuntimeError, "snapshot write failed"):
-                await repository.apply_refreshed_profiles((PersonalDataProfile("account-1", "현재", now),))
+                await repository.apply_refreshed_profiles((PersonalDataProfile("account-1", "현재", now, "fresh@example.com"),))
         callback.assert_not_awaited()
         async with self.database.session() as session:
             self.assertEqual("updated", (await session.get(PersonalDataAccountORM, "account-1")).status)
+            self.assertIsNone((await session.get(PersonalDataAccountORM, "account-1")).email_address)
             for row in rows:
                 saved = await session.get(type(row), row.id)
                 self.assertEqual(payload, saved.widgets if isinstance(saved, ReportORM) else saved.payload)

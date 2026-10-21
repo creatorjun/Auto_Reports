@@ -10,6 +10,7 @@ import httpx
 from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable, JiraOAuthPort, JiraReportingGrant
 from src.application.ports.jira_user_grant_port import JiraUserGrant, JiraUserGrantStorePort
 from src.domain.entities.auth_identity import AuthIdentity
+from src.infrastructure.external.jira_profile_fields import email_address
 
 _SCOPES = ("read:jira-user", "read:jira-work")
 
@@ -131,7 +132,10 @@ class JiraOAuthClient(JiraOAuthPort):
         display_name = profile.get("displayName")
         if not isinstance(display_name, str) or not display_name.strip() or len(display_name) > 200:
             display_name = account_id
-        identity = AuthIdentity(f"jira:{cloud_id}:{account_id}", display_name.strip(), "jira")
+        identity = AuthIdentity(
+            f"jira:{cloud_id}:{account_id}", display_name.strip(), "jira",
+            email_address=email_address(profile.get("emailAddress")),
+        )
         if self._grants is not None and not include_offline:
             expires_in = token.get("expires_in")
             if type(expires_in) is not int or expires_in <= 0:

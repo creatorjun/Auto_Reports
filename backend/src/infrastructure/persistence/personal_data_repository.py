@@ -44,7 +44,7 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
                     PersonalDataAccountORM.account_id == action.account_id,
                     PersonalDataAccountORM.status == "active",
                 ).values(
-                    display_name=None, profile_retrieved_at=None, status=f"pending_{action.status}",
+                    display_name=None, email_address=None, profile_retrieved_at=None, status=f"pending_{action.status}",
                     profile_version=PersonalDataAccountORM.profile_version + 1,
                 ))
                 staged = result.rowcount > 0 or staged
@@ -89,6 +89,7 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
                 row.next_report_at = row.next_report_at or now
                 refreshed = True
             row.display_name = identity.display_name
+            row.email_address = identity.email_address
             row.profile_retrieved_at = now
             row.status = "active"
             registered = replace(identity, profile_version=row.profile_version)
@@ -120,6 +121,7 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
             for row in rows:
                 profile = profile_map[row.account_id]
                 row.display_name = profile.display_name
+                row.email_address = profile.email_address
                 row.profile_retrieved_at = utc(profile.retrieved_at)
                 row.oldest_retrieved_at = utc(profile.retrieved_at)
                 row.status = "active"
@@ -133,7 +135,7 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
             row = await session.get(PersonalDataAccountORM, account_id)
             if row is None or row.status != "active" or row.profile_version != identity.profile_version or not row.display_name:
                 raise ValueError("Jira profile is unavailable")
-            return replace(identity, display_name=row.display_name, profile_version=row.profile_version)
+            return replace(identity, display_name=row.display_name, profile_version=row.profile_version, email_address=row.email_address)
 
     async def register_accounts(self, accounts: tuple[PersonalDataAccount, ...]) -> None:
         now = datetime.now(timezone.utc)
@@ -189,7 +191,7 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
                     PersonalDataAccountORM.account_id == action.account_id,
                     PersonalDataAccountORM.status == "active",
                 ).values(
-                    display_name=None, profile_retrieved_at=None, status=f"pending_{action.status}",
+                    display_name=None, email_address=None, profile_retrieved_at=None, status=f"pending_{action.status}",
                     profile_version=PersonalDataAccountORM.profile_version + 1,
                 ))
                 staged = result.rowcount > 0 or staged
@@ -203,7 +205,7 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
                 await session.execute(update(PersonalDataAccountORM).where(
                     PersonalDataAccountORM.account_id == action.account_id,
                     PersonalDataAccountORM.status == f"pending_{action.status}",
-                ).values(status=action.status, display_name=None))
+                ).values(status=action.status, display_name=None, email_address=None))
 
     async def mark_reported(self, account_ids: tuple[str, ...], checked_at: datetime, next_report_at: datetime) -> None:
         async with self._database.session() as session:

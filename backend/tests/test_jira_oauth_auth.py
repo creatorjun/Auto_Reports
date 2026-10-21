@@ -83,6 +83,30 @@ class JiraOAuthClientTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("TACEA", self.requests[-1].url.params["projectKey"])
         self.assertEqual("BROWSE_PROJECTS", self.requests[-1].url.params["permissions"])
 
+    async def test_visible_profile_email_is_trimmed_without_changing_jira_subject(self):
+        self.profile["emailAddress"] = "  engineer@company.example  "
+        identity = await self.adapter().authenticate("authorization-code")
+        self.assertEqual("engineer@company.example", identity.email_address)
+        self.assertEqual("jira:cloud-123:account:123", identity.username)
+        self.assertEqual("superadmin", identity.display_name)
+        self.assertEqual("jira", identity.auth_provider)
+
+    async def test_private_or_invalid_email_does_not_prevent_jira_login(self):
+        values = (
+            None, "", "  ", 123, True, {}, [], "account:123", "@company.example", "engineer@",
+            "engineer@@company.example", "engineer name@company.example", "engineer\nname@company.example",
+            "engineer\x00name@company.example", "engineer\x7fname@company.example", "x" * 319 + "@x",
+        )
+        for value in values:
+            with self.subTest(email=value):
+                self.profile["emailAddress"] = value
+                identity = await self.adapter().authenticate("authorization-code")
+                self.assertIsNone(identity.email_address)
+                self.assertEqual("jira:cloud-123:account:123", identity.username)
+                self.assertEqual("superadmin", identity.display_name)
+        del self.profile["emailAddress"]
+        self.assertIsNone((await self.adapter().authenticate("authorization-code")).email_address)
+
     def test_authorization_uses_read_only_scopes_and_exact_callback(self):
         url = self.adapter().authorization_url("browser-state")
         query = parse_qs(urlsplit(url).query)
@@ -236,6 +260,49 @@ class JiraOAuthAuthTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(401, (await client.post("/api/v1/auth/refresh")).status_code)
         self.oauth.authenticate.assert_awaited_once_with("code")
         self.assertNotIn("authorization", str(self.audit.record.call_args_list))
+
+    async def test_me_returns_resolved_current_email_without_putting_email_in_session_tokens(self):
+        self.oauth.authenticate.return_value = replace(self.identity, email_address="login@company.example")
+        self.profiles.resolve_identity.side_effect = lambda identity: replace(
+            identity, display_name="현재 이름", email_address="current@company.example",
+        )
+        async with self.client() as client:
+            state = await self.start(client)
+            callback = await self.callback(client, state)
+            self.assertEqual("/login?jira=success", callback.headers["location"])
+            me = await client.get("/api/v1/auth/me")
+            self.assertEqual(200, me.status_code)
+            self.assertEqual("current@company.example", me.json()["email_address"])
+            self.assertEqual("no-store", me.headers["cache-control"])
+            self.assertEqual("현재 이름", me.json()["display_name"])
+            self.assertEqual(self.identity.username, me.json()["username"])
+            refreshed = await client.post("/api/v1/auth/refresh")
+            self.assertEqual(200, refreshed.status_code)
+            self.assertNotIn("email_address", refreshed.json())
+            self.assertNotIn("emailAddress", refreshed.json())
+            for token in (refreshed.json()["access_token"], client.cookies["refresh_token"]):
+                payload = jwt.decode(token, self.settings.jwt_secret, algorithms=["HS256"])
+                for claim in ("email_address", "emailAddress", "email"):
+                    self.assertNotIn(claim, payload)
+                self.assertNotIn("@company.example", json.dumps(payload))
+            headers = {"Authorization": f"Bearer {refreshed.json()['access_token']}"}
+            resolved = await client.get("/api/v1/auth/me", headers=headers)
+            self.assertEqual("current@company.example", resolved.json()["email_address"])
+            self.assertTrue(all(
+                call.args[0].email_address is None for call in self.profiles.resolve_identity.await_args_list
+            ))
+
+    async def test_me_keeps_jira_login_usable_when_current_email_is_private(self):
+        self.oauth.authenticate.return_value = replace(self.identity, email_address="old@company.example")
+        self.profiles.resolve_identity.side_effect = lambda identity: replace(identity, display_name="현재 이름", email_address=None)
+        async with self.client() as client:
+            state = await self.start(client)
+            self.assertEqual("/login?jira=success", (await self.callback(client, state)).headers["location"])
+            me = await client.get("/api/v1/auth/me")
+            self.assertEqual(200, me.status_code)
+            self.assertIsNone(me.json()["email_address"])
+            self.assertEqual("현재 이름", me.json()["display_name"])
+            self.assertEqual(200, (await client.post("/api/v1/auth/refresh")).status_code)
 
     async def test_state_cookie_is_http_only_lax_and_expires_after_ten_minutes(self):
         self.auth.cookie_secure = True
@@ -453,6 +520,25 @@ class JiraIdentityTokenTest(unittest.TestCase):
         self.assertEqual(self.identity.username, self.tokens.decode_refresh_token(refresh))
         with self.assertRaises(ValueError):
             self.tokens.decode_access_identity(refresh)
+
+    def test_email_is_neither_serialized_nor_trusted_from_either_jira_token_type(self):
+        identity = replace(self.identity, email_address="private@company.example")
+        for create, decode in (
+            (self.tokens.create_identity_access_token, self.tokens.decode_access_identity),
+            (self.tokens.create_identity_refresh_token, self.tokens.decode_refresh_identity),
+        ):
+            with self.subTest(token_type=create.__name__):
+                token = create(identity)
+                payload = jwt.decode(token, self.settings.jwt_secret, algorithms=["HS256"])
+                for claim in ("email_address", "emailAddress", "email"):
+                    self.assertNotIn(claim, payload)
+                self.assertIsNone(decode(token).email_address)
+                payload.update(email_address="stale@company.example", emailAddress="other@company.example", email="third@company.example")
+                with_email = jwt.encode(payload, self.settings.jwt_secret, algorithm="HS256")
+                restored = decode(with_email)
+                self.assertIsNone(restored.email_address)
+                self.assertEqual(identity.username, restored.username)
+                self.assertEqual(identity.session_expires_at, restored.session_expires_at)
 
     def test_expiration_is_required_and_expired_or_tampered_token_is_rejected(self):
         base = {"sub": self.identity.username, "type": "refresh", "auth_provider": "jira", "display_name": "김영준"}

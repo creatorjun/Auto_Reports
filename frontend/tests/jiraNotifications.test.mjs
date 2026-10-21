@@ -40,9 +40,9 @@ function sourceLoader(overrides = {}) {
 }
 
 const load = sourceLoader()
-const { canViewJiraNotifications, loginUserId } = load('domain/Auth')
+const { canViewJiraNotifications } = load('domain/Auth')
 const { jiraNotificationItems, safeJiraNotificationUrl } = load('application/services/jiraNotifications')
-const jira = { username: 'jira:cloud:account-a', display_name: '동일 이름', auth_provider: 'jira', login_required: true, is_superadmin: false }
+const jira = { username: 'jira:cloud:account-a', display_name: '동일 이름', email_address: 'jira-user@example.test', auth_provider: 'jira', login_required: true, is_superadmin: false }
 function item(overrides = {}) { return { id: 'notification-a', title: '담당자가 변경되었습니다', message: '실제 Jira 알림', url: 'https://jira.example.test/browse/TAC-1', actor: '동료', created_at: '2026-10-21T03:00:00Z', category: 'direct', is_read: false, group_size: 1, ...overrides } }
 function page(items = [item()], next_cursor = null, connection_status = 'connected') { return { items, next_cursor, connection_status } }
 function deferred() { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no }); return { promise, resolve, reject } }
@@ -99,14 +99,6 @@ function setupSidebar(t, { me = async () => jira, getNotifications = async () =>
 test('Jira notification eligibility requires explicit verified Jira login', () => {
   assert.equal(canViewJiraNotifications(jira), true)
   for (const me of [undefined, { ...jira, login_required: false }, { ...jira, auth_provider: 'local', is_superadmin: true }, { ...jira, auth_provider: undefined }, { ...jira, auth_provider: 'JIRA' }]) assert.equal(canViewJiraNotifications(me), false)
-})
-
-test('login identity displays server account ID without assuming an email and preserves colons within account IDs', () => {
-  assert.equal(loginUserId(jira), 'account-a')
-  assert.equal(loginUserId({ ...jira, username: 'jira:cloud:712020:account-a' }), '712020:account-a')
-  assert.equal(loginUserId({ ...jira, username: 'admin', auth_provider: 'local' }), 'admin')
-  assert.equal(loginUserId({ ...jira, login_required: false }), null)
-  assert.equal(loginUserId(undefined), null)
 })
 
 test('pages deduplicate IDs and reconnect pages suppress every previously loaded item; unsafe URLs never become links', () => {
@@ -203,7 +195,9 @@ test('Sidebar shows identity and Jira notifications above logout, mounts one pan
   await until(() => app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' }).length === 1)
   const account = app.view.root.findByProps({ 'aria-label': '로그인 사용자' })
   assert.equal(account.findAllByType('p')[0].children.join(''), '동일 이름')
-  assert.equal(account.findAllByType('p')[1].children.join(''), 'ID: account-a')
+  assert.equal(account.findAllByType('p')[1].children.join(''), 'jira-user@example.test')
+  assert.equal(account.findAllByType('p')[1].props.title, 'jira-user@example.test')
+  assert.ok(!JSON.stringify(app.view.toJSON()).includes('account-a'))
   assert.deepEqual(account.parent.children.filter((child) => typeof child === 'object' && child.props['aria-label']).map((child) => child.props['aria-label']), ['로그인 사용자', 'Jira 알림', '로그아웃'])
   assert.equal(calls, 0)
   app.open()
@@ -230,6 +224,32 @@ test('Sidebar shows identity and Jira notifications above logout, mounts one pan
   assert.equal(app.trigger.focused, 2)
 })
 
+test('Jira accounts without a disclosed email never fall back to an internal account ID', async (t) => {
+  for (const email_address of [null, undefined, '', '   ']) {
+    await t.test(`missing email ${JSON.stringify(email_address)}`, async (t) => {
+      const app = setupSidebar(t, { me: async () => ({ ...jira, email_address }) })
+      await until(() => app.view.root.findAllByProps({ 'aria-label': '로그인 사용자' }).length === 1)
+      const account = app.view.root.findByProps({ 'aria-label': '로그인 사용자' })
+      assert.equal(account.findAllByType('p')[1].children.join(''), '이메일 비공개')
+      assert.ok(!JSON.stringify(app.view.toJSON()).includes('account-a'))
+      app.update({ collapsed: true })
+      assert.equal(app.view.root.findByProps({ 'aria-label': '로그인 사용자 동일 이름 · 이메일 비공개' }).props.title, '동일 이름 · 이메일 비공개')
+      assert.ok(!JSON.stringify(app.view.toJSON()).includes('account-a'))
+    })
+  }
+})
+
+test('local login keeps its ID and does not show a Jira email or notification control', async (t) => {
+  const app = setupSidebar(t, { me: async () => ({ ...jira, username: 'admin', auth_provider: 'local' }) })
+  await until(() => app.view.root.findAllByProps({ 'aria-label': '로그인 사용자' }).length === 1)
+  const account = app.view.root.findByProps({ 'aria-label': '로그인 사용자' })
+  assert.equal(account.findAllByType('p')[1].children.join(''), 'ID: admin')
+  assert.equal(app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' }).length, 0)
+  assert.ok(!JSON.stringify(app.view.toJSON()).includes('jira-user@example.test'))
+  app.update({ collapsed: true })
+  assert.equal(app.view.root.findByProps({ 'aria-label': '로그인 사용자 동일 이름 · ID: admin' }).props.title, '동일 이름 · ID: admin')
+})
+
 test('closing panel cancels pending feed; changing identity hides controls and the single panel immediately', async (t) => {
   const pending = deferred()
   let signal
@@ -245,6 +265,7 @@ test('closing panel cancels pending feed; changing identity hides controls and t
   act(() => app.store.getState().clearAuth())
   assert.equal(app.view.root.findAllByProps({ role: 'dialog' }).length, 0)
   assert.equal(app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' }).length, 0)
+  assert.ok(!JSON.stringify(app.view.toJSON()).includes('jira-user@example.test'))
 })
 
 test('reconnect state offers Jira login and rejects late redirect after the session changes', async (t) => {
@@ -267,7 +288,7 @@ test('collapsed sidebar provides identity tooltip and icon notification access, 
   const pending = deferred()
   const app = setupSidebar(t, { collapsed: true, mobileOpen: true, getNotifications: (_request, value) => { signal = value; return pending.promise } })
   await until(() => app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' }).length === 1)
-  assert.equal(app.view.root.findByProps({ 'aria-label': '로그인 사용자 동일 이름 · ID account-a' }).props.title, '동일 이름 · ID account-a')
+  assert.equal(app.view.root.findByProps({ 'aria-label': '로그인 사용자 동일 이름 · jira-user@example.test' }).props.title, '동일 이름 · jira-user@example.test')
   assert.equal(app.view.root.findByProps({ 'aria-label': 'Jira 알림' }).props.title, 'Jira 알림')
   app.open()
   await until(() => !!signal)
@@ -287,6 +308,7 @@ test('mobile account button opens the single shared Sidebar with identity, notif
   act(() => app.view.root.findByProps({ 'aria-label': '계정 메뉴' }).props.onClick({ currentTarget: app.trigger }))
   assert.equal(app.view.root.findByProps({ 'aria-label': '계정 메뉴' }).props['aria-expanded'], true)
   assert.equal(app.view.root.findAllByProps({ 'aria-label': '로그인 사용자' }).length, 1)
+  assert.equal(app.view.root.findByProps({ 'aria-label': '로그인 사용자' }).findAllByType('p')[1].children.join(''), 'jira-user@example.test')
   assert.equal(app.view.root.findAllByProps({ 'aria-label': '로그아웃' }).length, 1)
   app.open()
   await until(() => app.view.root.findAllByProps({ 'data-notification-id': 'notification-a' }).length === 1)

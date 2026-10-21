@@ -11,6 +11,7 @@ class PersonalDataAccountORM(Base):
     __tablename__ = "personal_data_accounts"
     account_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     display_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    email_address: Mapped[str | None] = mapped_column(String(320), nullable=True)
     profile_retrieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     oldest_retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_reported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

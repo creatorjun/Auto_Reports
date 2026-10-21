@@ -21,6 +21,7 @@ class PersonalDataProfile:
     account_id: str
     display_name: str
     retrieved_at: datetime
+    email_address: str | None = None
 
 
 @dataclass(frozen=True)

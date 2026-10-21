@@ -4,7 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, Newspaper, Bell, UserRound, X } from 'lucide-react'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout, useMe } from '@/presentation/hooks/useAuth'
-import { canViewAuditLogs, canViewJiraNotifications, loginUserId } from '@/domain/Auth'
+import { canViewAuditLogs, canViewJiraNotifications } from '@/domain/Auth'
 import JiraNotificationsPanel from '@/presentation/components/notifications/JiraNotificationsPanel'
 import ThemeToggle from './ThemeToggle'
 import { ANNUAL_REPORT_YEARS } from '@/presentation/config/annualReports'
@@ -55,7 +55,11 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen = false, o
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
   const me = useMe()
   const profile = accessToken && !me.isError ? me.data : undefined
-  const userId = loginUserId(profile)
+  const accountLabel = profile?.login_required
+    ? profile.auth_provider === 'jira'
+      ? profile.email_address?.trim() || '이메일 비공개'
+      : `ID: ${profile.username}`
+    : null
   const allowed = !!accessToken && canViewJiraNotifications(profile)
   const [notification, setNotification] = useState<{ trigger: HTMLButtonElement; token: string } | null>(null)
   const panelId = useId()
@@ -201,8 +205,8 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen = false, o
           <>
             <div className="w-full border-t border-apple-divider/50 my-2" />
 
-            {userId && (sidebarCollapsed ? <button type="button" onClick={() => setCollapsed(false)} aria-label={`로그인 사용자 ${profile?.display_name ?? ''} · ID ${userId}`} title={`${profile?.display_name ?? ''} · ID ${userId}`} className="mb-1 flex h-9 w-9 items-center justify-center rounded-xl text-apple-mid hover:bg-apple-gray"><UserRound size={16} aria-hidden="true" /></button>
-              : <div aria-label="로그인 사용자" className="min-w-0 px-3 pb-2 text-caption text-apple-mid">{profile?.display_name && <p className="truncate font-medium text-apple-dark" title={profile.display_name}>{profile.display_name}</p>}<p className="truncate" title={userId}>ID: {userId}</p></div>)}
+            {accountLabel && (sidebarCollapsed ? <button type="button" onClick={() => setCollapsed(false)} aria-label={`로그인 사용자 ${profile?.display_name ?? ''} · ${accountLabel}`} title={`${profile?.display_name ?? ''} · ${accountLabel}`} className="mb-1 flex h-9 w-9 items-center justify-center rounded-xl text-apple-mid hover:bg-apple-gray"><UserRound size={16} aria-hidden="true" /></button>
+              : <div aria-label="로그인 사용자" className="min-w-0 px-3 pb-2 text-caption text-apple-mid">{profile?.display_name && <p className="truncate font-medium text-apple-dark" title={profile.display_name}>{profile.display_name}</p>}<p className="truncate" title={accountLabel}>{accountLabel}</p></div>)}
             {allowed && <button type="button" aria-label="Jira 알림" aria-haspopup="dialog" aria-expanded={expanded} aria-controls={panelId} title={sidebarCollapsed ? 'Jira 알림' : undefined}
               onClick={(event) => setNotification(expanded || !accessToken ? null : { trigger: event.currentTarget, token: accessToken })}
               className={`mb-1 flex min-h-9 items-center rounded-xl text-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${sidebarCollapsed ? 'w-9 justify-center' : 'w-full gap-2 px-3 py-2'} ${expanded ? 'bg-brand-50 text-brand-700' : 'text-apple-mid hover:bg-apple-gray'}`}><Bell size={16} className="shrink-0" aria-hidden="true" />{!sidebarCollapsed && <span>Jira 알림</span>}</button>}

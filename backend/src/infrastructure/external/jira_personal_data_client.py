@@ -9,6 +9,7 @@ import httpx
 from src.application.ports.personal_data_port import PersonalDataReportingFailure, PersonalDataUserSourcePort
 from src.application.services.snapshot_personal_data import is_person_name, valid_account_id
 from src.domain.entities.personal_data import PersonalDataProfile
+from src.infrastructure.external.jira_profile_fields import email_address
 
 
 class JiraPersonalDataClient(PersonalDataUserSourcePort):
@@ -42,7 +43,10 @@ class JiraPersonalDataClient(PersonalDataUserSourcePort):
                     name = payload.get("displayName")
                     if not is_person_name(name) or len(name.strip()) > 200:
                         raise PersonalDataReportingFailure("invalid_profile_response")
-                    return PersonalDataProfile(account_id, name.strip(), datetime.now(timezone.utc))
+                    return PersonalDataProfile(
+                        account_id, name.strip(), datetime.now(timezone.utc),
+                        email_address=email_address(payload.get("emailAddress")),
+                    )
         except (httpx.HTTPError, TimeoutError):
             raise PersonalDataReportingFailure("profile_network_unavailable") from None
         except (ValueError, TypeError):
