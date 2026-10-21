@@ -102,6 +102,8 @@ function getReportYear(report: ReportDetail): number {
 }
 
 function getReportRangeLabel(start: string, end: string, rangeDays: number): string {
+  const yearRange = reportDateRange('year', start)
+  if (yearRange?.start === start && yearRange.end === end) return start.slice(0, 4)
   const monthRange = reportDateRange('month', start)
   return monthRange?.start === start && monthRange.end === end
     ? `${Number(start.slice(5, 7))}월`

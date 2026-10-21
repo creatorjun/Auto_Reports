@@ -206,7 +206,9 @@ for (const { period, start, end, days, label } of [
   { period: 'month missing the first day', start: '2026-10-02', end: '2026-10-31', days: 30, label: '30일' },
   { period: '31-day range crossing months', start: '2026-10-02', end: '2026-11-01', days: 31, label: '31일' },
   { period: 'cross-year week', start: '2026-12-28', end: '2027-01-03', days: 7, label: '7일' },
-  { period: 'annual range', start: '2026-01-01', end: '2026-12-31', days: 365, label: '365일' },
+  { period: 'annual range', start: '2026-01-01', end: '2026-12-31', days: 365, label: '2026' },
+  { period: 'leap-year annual range', start: '2028-01-01', end: '2028-12-31', days: 366, label: '2028' },
+  { period: 'year missing the final day', start: '2026-01-01', end: '2026-12-30', days: 364, label: '364일' },
 ]) {
   test(`${period} labels the saved range without changing its dates or issue counts`, () => {
     const report = fixtureReport()
