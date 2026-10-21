@@ -278,11 +278,12 @@ function hookSetup(t, gateway) {
   return { client, hooks, get query() { return query }, get mutation() { return mutation }, unmount: () => act(() => view.unmount()), remount: () => act(() => { view = TestRenderer.create(element) }) }
 }
 
-test('period selection ends weekly reports on the reference date and keeps complete months and years', () => {
-  assert.deepEqual(slaDateRange('week', '2026-10-09'), { start: '2026-10-05', end: '2026-10-09' })
-  assert.deepEqual(slaDateRange('week', '2026-01-01'), { start: '2025-12-29', end: '2026-01-01' })
+test('period selection covers complete calendar weeks months and years', () => {
+  assert.deepEqual(slaDateRange('week', '2026-10-14'), { start: '2026-10-12', end: '2026-10-18' })
+  assert.deepEqual(slaDateRange('week', '2026-10-09'), { start: '2026-10-05', end: '2026-10-11' })
+  assert.deepEqual(slaDateRange('week', '2026-01-01'), { start: '2025-12-29', end: '2026-01-04' })
   assert.deepEqual(slaDateRange('week', '2026-01-04'), { start: '2025-12-29', end: '2026-01-04' })
-  assert.deepEqual(slaDateRange('week', '2026-01-05'), { start: '2026-01-05', end: '2026-01-05' })
+  assert.deepEqual(slaDateRange('week', '2026-01-05'), { start: '2026-01-05', end: '2026-01-11' })
   assert.deepEqual(slaDateRange('month', '2026-10-09'), { start: '2026-10-01', end: '2026-10-31' })
   assert.deepEqual(slaDateRange('month', '2024-02-29'), { start: '2024-02-01', end: '2024-02-29' })
   assert.deepEqual(slaDateRange('month', '2026-12-31'), { start: '2026-12-01', end: '2026-12-31' })
@@ -740,10 +741,10 @@ test('page restores saved controls, separates changed conditions, and submits th
   assert.doesNotMatch(textOf(view.toJSON()), /아래에는 기존 보고서가 표시됩니다/)
 })
 
-test('legacy full-week snapshots stay unchanged and show a mismatch until a new cutoff report is generated', async (t) => {
-  const saved = { ...report, period: 'week', selected_date: '2026-10-09', start_date: '2026-10-05', end_date: '2026-10-11' }
+test('legacy partial-week snapshots stay unchanged until a new full-week report is generated', async (t) => {
+  const saved = { ...report, period: 'week', selected_date: '2026-10-09', start_date: '2026-10-05', end_date: '2026-10-09' }
   const original = structuredClone(saved)
-  const created = { ...saved, id: 11, end_date: saved.selected_date }
+  const created = { ...saved, id: 11, end_date: '2026-10-11' }
   const generated = deferred()
   const requests = []
   const instance = sourceLoader({
@@ -771,7 +772,7 @@ test('legacy full-week snapshots stay unchanged and show a mismatch until a new 
   generated.resolve(created)
   await until(() => view.root.findByType(Content).props.report.id === created.id)
   assert.doesNotMatch(textOf(view.toJSON()), /아래에는 기존 보고서가 표시됩니다/)
-  assert.equal(view.root.findByType(Content).props.report.end_date, saved.selected_date)
+  assert.equal(view.root.findByType(Content).props.report.end_date, created.end_date)
   assert.deepEqual(saved, original)
 })
 

@@ -142,7 +142,7 @@ class ReportPeriodEndQueryTest(unittest.TestCase):
 
 
 class ReportPeriodEndCollectorTest(unittest.IsolatedAsyncioTestCase):
-    async def test_selected_friday_week_includes_friday_and_excludes_weekend(self) -> None:
+    async def test_selected_friday_week_includes_weekend_and_excludes_next_monday(self) -> None:
         start, end = report_period_dates("week", datetime.date(2026, 10, 9), datetime.date(2026, 10, 16))
         queries = query_builder().build(end, week_start_override=start)
         jira = DateRangeJira([
@@ -151,13 +151,14 @@ class ReportPeriodEndCollectorTest(unittest.IsolatedAsyncioTestCase):
             issue("FRIDAY", "2026-10-09T23:59:59", "2026-10-09T23:59:59"),
             issue("SATURDAY", "2026-10-10T00:00:00", "2026-10-10T00:00:00"),
             issue("SUNDAY", "2026-10-11T23:59:59", "2026-10-11T23:59:59"),
+            issue("NEXT-MONDAY", "2026-10-12T00:00:00", "2026-10-12T00:00:00"),
         ])
 
         result = await CreatedVsResolvedCollector(jira, queries).collect()
 
-        self.assertEqual(["MONDAY", "FRIDAY"], [row.key for row in result.data.created_details])
-        self.assertEqual(["MONDAY", "FRIDAY"], [row.key for row in result.data.resolved_details])
-        self.assertEqual((2, 2), (result.data.created, result.data.resolved))
+        self.assertEqual(["MONDAY", "FRIDAY", "SATURDAY", "SUNDAY"], [row.key for row in result.data.created_details])
+        self.assertEqual(["MONDAY", "FRIDAY", "SATURDAY", "SUNDAY"], [row.key for row in result.data.resolved_details])
+        self.assertEqual((4, 4), (result.data.created, result.data.resolved))
 
     def setUp(self) -> None:
         self.now = datetime.datetime(2026, 9, 10, tzinfo=KST)

@@ -219,3 +219,7 @@ class AnnualReportTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ReportScope.ANNUAL, repository.updated[1].scope)
         self.assertEqual(1, cache.latest_id)
         self.assertEqual([FixedDateTime.now(KST)] * 2, assembler.collected_at)
+        self.assertEqual([
+            (datetime.datetime(2026, 8, 31, 23, 59, 59, tzinfo=KST), datetime.datetime(2026, 8, 25, tzinfo=KST)),
+            (FixedDateTime.now(KST), datetime.datetime(2026, 1, 1, tzinfo=KST)),
+        ], assembler.calls)

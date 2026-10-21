@@ -14,6 +14,8 @@ export function reportDateRange(period: ReportPeriod, selectedDate: string): { s
   const end = new Date(start)
   if (period === 'week') {
     start.setUTCDate(start.getUTCDate() - (start.getUTCDay() + 6) % 7)
+    end.setTime(start.getTime())
+    end.setUTCDate(end.getUTCDate() + 6)
   } else if (period === 'month') {
     start.setUTCDate(1)
     end.setUTCMonth(end.getUTCMonth() + 1, 0)

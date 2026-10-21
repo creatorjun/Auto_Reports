@@ -95,18 +95,22 @@ function setup(t, gateway = {}) {
   }
 }
 
-test('dashboard and SLA share Monday-through-reference-date weekly periods', () => {
+test('dashboard and SLA share complete Monday-through-Sunday weekly periods', () => {
   const load = sourceLoader()
   const period = load('application/services/reportPeriod')
   const sla = load('application/services/slaViolationReport')
   assert.equal(sla.slaDateRange, period.reportDateRange)
   assert.equal(sla.slaToday, period.reportToday)
   for (const [date, start, end] of [
-    ['2026-10-09', '2026-10-05', '2026-10-09'],
-    ['2026-10-05', '2026-10-05', '2026-10-05'],
+    ['2026-10-09', '2026-10-05', '2026-10-11'],
+    ['2026-10-05', '2026-10-05', '2026-10-11'],
     ['2026-10-11', '2026-10-05', '2026-10-11'],
-    ['2026-01-01', '2025-12-29', '2026-01-01'],
+    ['2026-01-01', '2025-12-29', '2026-01-04'],
+    ['2026-03-01', '2026-02-23', '2026-03-01'],
   ]) assert.deepEqual(period.reportDateRange('week', date), { start, end })
+  for (const day of [12, 13, 14, 15, 16, 17, 18]) {
+    assert.deepEqual(period.reportDateRange('week', `2026-10-${day}`), { start: '2026-10-12', end: '2026-10-18' })
+  }
   assert.equal(period.reportToday(new Date('2026-10-13T15:00:00Z')), '2026-10-14')
 })
 
@@ -122,18 +126,22 @@ test('dashboard and SLA month and year cover the complete calendar period and re
   }
 })
 
-test('dashboard form compares the displayed report against the reference-date weekly cutoff', (t) => {
+test('dashboard form compares a saved partial week against the full week without changing the saved report', (t) => {
   const generation = { generate() {}, pending: false, error: null, lastRequest: { period: 'week', date: '2026-10-09' } }
   const Form = sourceLoader({ 'presentation/context/ReportGenerationContext': { useReportGeneration: () => generation } })('presentation/components/common/DashboardGenerateForm').default
   const report = { ...previous, week_start: '2026-10-05', week_end: '2026-10-09' }
+  const original = structuredClone(report)
   let view
   act(() => { view = TestRenderer.create(React.createElement(Form, { report })) })
   t.after(() => act(() => view.unmount()))
-  assert.doesNotMatch(textOf(view.toJSON()), /선택한 기간과 현재 보고서의 기간이 다릅니다/)
+  assert.match(textOf(view.toJSON()), /선택한 기간과 현재 보고서의 기간이 다릅니다/)
   act(() => view.update(React.createElement(Form, { report: { ...report, week_end: '2026-10-11' } })))
+  assert.doesNotMatch(textOf(view.toJSON()), /선택한 기간과 현재 보고서의 기간이 다릅니다/)
+  act(() => view.root.findByType('input').props.onChange({ target: { value: '2026-10-14' } }))
   assert.match(textOf(view.toJSON()), /선택한 기간과 현재 보고서의 기간이 다릅니다/)
   act(() => view.root.findByType('input').props.onChange({ target: { value: '2026-10-11' } }))
   assert.doesNotMatch(textOf(view.toJSON()), /선택한 기간과 현재 보고서의 기간이 다릅니다/)
+  assert.deepEqual(report, original)
 })
 
 test('API forwards explicit period and selected date without legacy date range inference', async () => {

@@ -103,11 +103,11 @@ function getReportYear(report: ReportDetail): number {
 
 function getReportRangeLabel(start: string, end: string, rangeDays: number): string {
   const yearRange = reportDateRange('year', start)
-  if (yearRange?.start === start && yearRange.end === end) return start.slice(0, 4)
+  if (yearRange?.start === start && yearRange.end === end) return '연간'
   const monthRange = reportDateRange('month', start)
-  return monthRange?.start === start && monthRange.end === end
-    ? `${Number(start.slice(5, 7))}월`
-    : `${rangeDays}일`
+  if (monthRange?.start === start && monthRange.end === end) return `${Number(start.slice(5, 7))}월`
+  const weekRange = reportDateRange('week', start)
+  return weekRange?.start === start && weekRange.end === end ? '주간' : `${rangeDays}일`
 }
 
 function collectDashboardStatuses(value: unknown, statuses: Set<string>): void {
