@@ -89,6 +89,39 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(0, state.pending_count)
         self.assertEqual(1, self.scalar("SELECT COUNT(*) FROM translations"))
 
+    async def test_read_only_snapshots_never_start_provider_even_after_cooldown(self) -> None:
+        service, provider, _ = self.service()
+        for _ in range(10):
+            self.now += timedelta(days=1)
+            _, state = service.snapshot((self.item,), start=False)
+            self.assertFalse(state.translating)
+            self.assertEqual(1, state.pending_count)
+        self.assertIsNone(service._task)
+        provider.translate.assert_not_awaited()
+        provider.translate.side_effect = NewsTranslationProviderError("quota")
+        await self.finish(service, (self.item,))
+        provider.translate.assert_awaited_once()
+        self.now += timedelta(days=2)
+        for _ in range(10):
+            self.assertFalse(service.snapshot((self.item,), start=False)[1].translating)
+        provider.translate.assert_awaited_once()
+
+    async def test_restore_loads_existing_translations_without_reserving_or_translating_missing(self) -> None:
+        service, provider, _ = self.service()
+        await self.finish(service, (self.item,))
+        restarted, other, cache = self.service()
+        cache.reserve = AsyncMock(wraps=cache.reserve)
+        missing = replace(self.item, id="missing", title="An untranslated title")
+        await restarted.restore((self.item, missing))
+        items, state = restarted.snapshot((self.item, missing), start=False)
+        self.assertIsNotNone(items[0].title_ko)
+        self.assertIsNone(items[1].title_ko)
+        self.assertEqual(1, state.translated_count)
+        self.assertEqual(1, state.pending_count)
+        self.assertFalse(state.translating)
+        other.translate.assert_not_awaited()
+        cache.reserve.assert_not_awaited()
+
     async def test_identical_content_deduplicates_sources_refreshes_and_restarts(self) -> None:
         service, provider, _ = self.service()
         duplicate = replace(self.item, id="another", source_id="cisa-kev")

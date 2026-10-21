@@ -379,6 +379,26 @@ test('429 refresh rejection and initial failure have readable Korean recovery co
   assert.doesNotMatch(plainText(view), /보안 뉴스 로딩 중/)
 })
 
+test('first scheduled collection can remain empty without an endless loader and manual refresh stays available', (t) => {
+  let refreshes = 0
+  const empty = snapshot({ items: [], initialized: false, sources: [{ ...source, status: 'pending', count: 0, last_success_at: null }] })
+  const view = renderPage(t, query({ data: empty, refresh: () => { refreshes += 1 } }))
+  assert.match(plainText(view), /아직 수집된 보안 정보가 없습니다/)
+  assert.doesNotMatch(plainText(view), /보안 뉴스 로딩 중/)
+  assert.equal(view.root.findByProps({ id: 'security-news-results' }).props['aria-busy'], false)
+  const refresh = view.root.findByType('header').findByType('button')
+  assert.equal(refresh.props.disabled, false)
+  assert.equal(refreshes, 0)
+  act(() => refresh.props.onClick())
+  assert.equal(refreshes, 1)
+
+  for (const state of [query({ data: undefined, isFetching: true, canRefresh: false }), query({ data: { ...empty, refreshing: true }, refreshing: true, canRefresh: false })]) {
+    const loading = renderPage(t, state)
+    assert.match(plainText(loading), /보안 뉴스 로딩 중/)
+    assert.equal(loading.root.findByProps({ id: 'security-news-results' }).props['aria-busy'], true)
+  }
+})
+
 test('gateway uses authenticated application client and passes cancellation only to GET', async () => {
   const calls = []
   const instance = sourceLoader({ 'infrastructure/api/client': { default: { get: async (...args) => { calls.push(['get', ...args]); return { data: snapshot() } }, post: async (...args) => { calls.push(['post', ...args]); return { data: snapshot() } } } } })
@@ -409,6 +429,27 @@ test('hook enforces server retry eligibility', async (t) => {
   assert.equal(state.observed.canRefresh, false)
   act(() => state.observed.refresh())
   assert.equal(refreshes, 0)
+})
+
+test('opening and repeated snapshot reads never collect news and the next daily schedule does not block manual refresh', async (t) => {
+  let reads = 0
+  let refreshes = 0
+  const empty = snapshot({ items: [], initialized: false, next_refresh_at: new Date(Date.now() + 86400000).toISOString(), refresh_interval_seconds: 86400, retry_after_seconds: 0 })
+  const state = setupHook(t, {
+    getSnapshot: async () => { reads += 1; return empty },
+    refresh: async () => { refreshes += 1; return snapshot({ refreshing: true }) },
+  })
+  await until(() => state.observed.canRefresh)
+  assert.equal(reads, 1)
+  assert.equal(refreshes, 0)
+  for (let count = 0; count < 3; count += 1) {
+    await act(async () => { await state.observed.refetch() })
+  }
+  assert.equal(reads, 4)
+  assert.equal(refreshes, 0)
+  await until(() => state.observed.canRefresh)
+  act(() => state.observed.refresh())
+  await until(() => refreshes === 1 && state.observed.refreshing)
 })
 
 for (const clockOffset of [-180000, 180000]) {

@@ -63,6 +63,16 @@ class SecurityNewsSourceState:
 
 
 @dataclass(frozen=True)
+class SecurityNewsStoredSnapshot:
+    results: tuple[tuple[str, SecurityNewsSourceResult], ...]
+    sources: tuple[SecurityNewsSourceState, ...]
+    source_attempts: tuple[tuple[str, datetime], ...]
+    last_attempt: datetime | None
+    refreshed_at: datetime | None
+    initialized: bool
+
+
+@dataclass(frozen=True)
 class SecurityNewsSnapshot:
     items: tuple[SecurityNewsItem, ...]
     sources: tuple[SecurityNewsSourceState, ...]

@@ -17,7 +17,7 @@ class SecurityNewsApiTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.use_case = AsyncMock()
         self.use_case.get_snapshot.return_value = SecurityNewsSnapshot(
-            (), (), True, False, datetime(2026, 10, 20, tzinfo=timezone.utc), None, 900,
+            (), (), True, False, datetime(2026, 10, 20, tzinfo=timezone.utc), None, 86400,
         )
         self.auth = SimpleNamespace(enabled=True, resolve_access_identity=AsyncMock(
             return_value=SimpleNamespace(username="employee"),
@@ -40,7 +40,7 @@ class SecurityNewsApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(200, response.status_code)
         self.assertEqual("no-store", response.headers["cache-control"])
         self.assertEqual("2026-10-20T00:00:00Z", response.json()["refreshed_at"])
-        self.assertEqual(900, response.json()["refresh_interval_seconds"])
+        self.assertEqual(86400, response.json()["refresh_interval_seconds"])
         self.assertEqual(0, response.json()["retry_after_seconds"])
         self.use_case.get_snapshot.assert_awaited_once_with(refresh=False)
 
@@ -58,7 +58,7 @@ class SecurityNewsApiTest(unittest.IsolatedAsyncioTestCase):
                 url="https://nvd.nist.gov/", cve_ids=("CVE-2026-12345",),
             ),),
             sources=(), initialized=True, refreshing=False, refreshed_at=None,
-            next_refresh_at=None, refresh_interval_seconds=900,
+            next_refresh_at=None, refresh_interval_seconds=86400,
             translation=NewsTranslationState(
                 enabled=True, translating=True, translated_count=1, pending_count=2,
             ),

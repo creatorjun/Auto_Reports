@@ -49,6 +49,7 @@ from src.infrastructure.persistence.sla_status_snapshot_repository import SlaSta
 from src.infrastructure.personal_data_runtime import PersonalDataRuntime
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.security_news_translation_cache import SqliteNewsTranslationCache
+from src.infrastructure.persistence.security_news_snapshot_store import SqliteSecurityNewsSnapshotStore
 from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
 from src.infrastructure.persistence.sla_violation_repository_impl import SlaViolationRepositoryImpl
 from src.infrastructure.persistence.redeployment_repository_impl import RedeploymentRepositoryImpl
@@ -147,6 +148,7 @@ class Container:
         self.search = SearchUseCase(self._jira)
         self.issue_management = IssueManagementUseCase(self._jira, "TACEA", IssueManagementSnapshotRepository(database))
         self._security_news_source = PublicSecurityNewsSource()
+        self._security_news_store = SqliteSecurityNewsSnapshotStore(settings.security_news_snapshot_path)
         self._news_translator = None
         self._news_translation_cache = None
         self._news_translation = None
@@ -164,7 +166,9 @@ class Container:
                 minimum_interval_seconds=settings.security_news_translation_min_interval_seconds,
                 max_attempts=settings.security_news_translation_max_attempts,
             )
-        self.security_news = SecurityNewsUseCase(self._security_news_source, translation=self._news_translation)
+        self.security_news = SecurityNewsUseCase(
+            self._security_news_source, translation=self._news_translation, store=self._security_news_store,
+        )
         self._credential_encryptor = (
             CredentialEncryptor(settings.credential_encryption_key)
             if settings.credential_encryption_key
@@ -341,6 +345,7 @@ class Container:
             stack.push_async_callback(self._cache.aclose)
             stack.push_async_callback(self.issue_management.aclose)
             stack.push_async_callback(self._security_news_source.aclose)
+            stack.push_async_callback(self._security_news_store.aclose)
             if self._news_translator is not None:
                 stack.push_async_callback(self._news_translator.aclose)
             if self._news_translation_cache is not None:

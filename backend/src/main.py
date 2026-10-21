@@ -42,6 +42,7 @@ def create_app(settings: Settings) -> FastAPI:
                 container = Container(settings, database)
                 stack.push_async_callback(container.aclose)
                 await container.issue_management.initialize()
+                await container.security_news.initialize()
                 audit = AuditLogger(settings.audit_log_dir)
                 stack.callback(audit.close)
                 job_repository = SqlJobRepository(database.session_factory)
@@ -76,6 +77,7 @@ def create_app(settings: Settings) -> FastAPI:
                     timezone=settings.tz,
                     generate=job_runner.run_scheduled_job,
                     refresh_redeployments=container.refresh_redeployment_report,
+                    refresh_security_news=container.security_news.refresh_scheduled,
                     report_personal_data=container.personal_data.run_reporting,
                     notify_sla_digest=(
                         container.send_sla_digest if container.sla_digest_enabled else None

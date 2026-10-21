@@ -332,11 +332,17 @@ const searchableRows = [
 ]
 
 test('the last issue snapshot remains visible during refresh and failures without losing filters, sort or page', (t) => {
+  let refreshes = 0
   const rows = Array.from({ length: TABLE_PAGE_SIZE * 2 + 10 }, (_, index) => issue(`T-${String(index).padStart(3, '0')}`, { summary: '서울 기존 요청' }))
   const { view, column } = managementPage(t, rows, {
     data: { issues: rows, initialized: true, refreshing: true, synced_at: '2026-10-06T00:00:00Z', error: null },
+    refetch: async () => { refreshes += 1 },
   })
-  assert.match(textOf(view.root), /마지막 목록 표시 중 · 동기화 중/)
+  assert.doesNotMatch(textOf(view.root), /마지막 동기화|마지막 목록 표시 중|동기화 중/)
+  const refreshButton = view.root.findAllByType('button').find((node) => textOf(node) === '새로고침')
+  assert.equal(refreshButton.props['aria-busy'], true)
+  click(refreshButton)
+  assert.equal(refreshes, 1)
   assert.doesNotMatch(textOf(view.root), /TACEA 전체 이슈 수집 중/)
   column('제목', '서울')
   const header = () => view.root.findByType('thead').findAllByType('th')[0]
@@ -361,13 +367,14 @@ test('the last issue snapshot remains visible during refresh and failures withou
   assert.equal(view.root.findByProps({ 'aria-label': '제목 컬럼 검색' }).props.value, '서울')
   assert.match(textOf(header()), /↑/)
   assert.equal(view.root.findAllByProps({ role: 'alert' }).length, 0)
-  assert.doesNotMatch(textOf(view.root), /동기화 중/)
+  assert.doesNotMatch(textOf(view.root), /마지막 동기화|마지막 목록 표시 중|동기화 중/)
+  assert.equal(refreshButton.props['aria-busy'], false)
 })
 
 test('an initialized empty snapshot shows the empty list while refreshing instead of initial collection', (t) => {
   const { view } = managementPage(t, [], { data: { issues: [], initialized: true, refreshing: true, synced_at: '2026-10-06T00:00:00Z', error: null } })
   assert.match(textOf(view.root), /전체 0건/)
-  assert.match(textOf(view.root), /마지막 목록 표시 중 · 동기화 중/)
+  assert.doesNotMatch(textOf(view.root), /마지막 동기화|마지막 목록 표시 중|동기화 중/)
   assert.doesNotMatch(textOf(view.root), /TACEA 전체 이슈 수집 중/)
 })
 

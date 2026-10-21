@@ -10,6 +10,10 @@ from src.application.ports.security_news_translation_port import (
     NewsTranslationProviderError,
 )
 from src.domain.entities.security_news_translation import NewsTranslation, NewsTranslationInput
+from src.infrastructure.config.gemini_translation_models import (
+    DEFAULT_SECURITY_NEWS_TRANSLATION_MODEL,
+    FREE_TIER_NEWS_TRANSLATION_MODELS,
+)
 
 
 RESPONSE_SCHEMA = {
@@ -45,7 +49,9 @@ SYSTEM_INSTRUCTION = (
 
 
 class GeminiNewsTranslator(NewsTranslationPort):
-    def __init__(self, api_key: str, model: str = "gemini-3.5-flash-lite") -> None:
+    def __init__(self, api_key: str, model: str = DEFAULT_SECURITY_NEWS_TRANSLATION_MODEL) -> None:
+        if model not in FREE_TIER_NEWS_TRANSLATION_MODELS:
+            raise ValueError("Security news translation requires an approved free-tier Gemini model")
         self._model = model
         self._client = genai.Client(
             api_key=api_key,

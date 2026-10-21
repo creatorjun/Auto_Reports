@@ -32,12 +32,24 @@ class SecurityNewsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self) -> None:
         await self.use_case.aclose()
 
-    async def complete_refresh(self, *, manual: bool = False):
+    async def complete_refresh(self, *, manual: bool = True):
         await self.use_case.get_snapshot(refresh=manual)
         await self.use_case._task
         return await self.use_case.get_snapshot()
 
-    async def test_initial_response_does_not_wait_for_sources(self) -> None:
+    async def test_initialization_and_repeated_get_never_start_collection(self) -> None:
+        await self.use_case.initialize()
+        for _ in range(20):
+            self.now += timedelta(days=1)
+            snapshot = await self.use_case.get_snapshot()
+            self.assertFalse(snapshot.initialized)
+            self.assertFalse(snapshot.refreshing)
+            self.assertEqual(0, snapshot.retry_after_seconds)
+            self.assertEqual(86400, snapshot.refresh_interval_seconds)
+            self.assertIsNone(snapshot.next_refresh_at)
+        self.port.fetch.assert_not_awaited()
+
+    async def test_manual_initial_response_does_not_wait_for_sources(self) -> None:
         gate = asyncio.Event()
 
         async def fetch(source_id):
@@ -45,7 +57,7 @@ class SecurityNewsTest(unittest.IsolatedAsyncioTestCase):
             return self.results[source_id]
 
         self.port.fetch.side_effect = fetch
-        snapshot = await asyncio.wait_for(self.use_case.get_snapshot(), timeout=0.1)
+        snapshot = await asyncio.wait_for(self.use_case.get_snapshot(refresh=True), timeout=0.1)
         self.assertFalse(snapshot.initialized)
         self.assertTrue(snapshot.refreshing)
         self.assertEqual(60, snapshot.retry_after_seconds)
@@ -66,15 +78,79 @@ class SecurityNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.now, snapshot.refreshed_at)
         self.assertEqual(self.now + timedelta(seconds=60), snapshot.next_refresh_at)
 
-    async def test_cached_get_does_not_fetch_and_automatic_refresh_obeys_interval(self) -> None:
+    async def test_cached_get_never_collects_after_old_interval_or_many_days(self) -> None:
         await self.complete_refresh()
-        self.now += timedelta(seconds=899)
-        self.assertFalse((await self.use_case.get_snapshot()).refreshing)
+        for delay in (899, 1, 86400, 864000):
+            self.now += timedelta(seconds=delay)
+            for _ in range(5):
+                self.assertFalse((await self.use_case.get_snapshot()).refreshing)
+            self.assertEqual(2, self.port.fetch.await_count)
+
+    async def test_scheduled_collection_is_once_per_kst_day_even_with_parallel_calls(self) -> None:
+        self.now = datetime(2026, 10, 20, 23, tzinfo=timezone.utc)
+        await asyncio.gather(*(self.use_case.refresh_scheduled() for _ in range(20)))
         self.assertEqual(2, self.port.fetch.await_count)
-        self.now += timedelta(seconds=1)
+        self.now += timedelta(hours=1)
+        await self.use_case.refresh_scheduled()
+        self.assertEqual(2, self.port.fetch.await_count)
+        self.now += timedelta(hours=23)
+        await self.use_case.refresh_scheduled()
+        self.assertEqual(4, self.port.fetch.await_count)
+
+    async def test_failed_scheduled_collection_is_not_retried_automatically_same_day(self) -> None:
+        self.port.fetch.side_effect = TimeoutError()
+        await self.use_case.refresh_scheduled()
+        self.now += timedelta(hours=3)
+        await self.use_case.refresh_scheduled()
+        await self.use_case.get_snapshot()
+        self.assertEqual(2, self.port.fetch.await_count)
+        self.port.fetch.side_effect = lambda source_id: self.results[source_id]
+        self.assertEqual(1, len((await self.complete_refresh()).items))
+        self.assertEqual(4, self.port.fetch.await_count)
+
+    async def test_scheduled_and_manual_refresh_share_inflight_collection(self) -> None:
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        async def fetch(source_id):
+            entered.set()
+            await release.wait()
+            return self.results[source_id]
+
+        self.port.fetch.side_effect = fetch
+        scheduled = asyncio.create_task(self.use_case.refresh_scheduled())
+        await entered.wait()
+        await asyncio.gather(*(self.use_case.get_snapshot(refresh=True) for _ in range(10)))
+        self.assertFalse(scheduled.done())
+        release.set()
+        await scheduled
+        self.assertEqual(2, self.port.fetch.await_count)
+
+    async def test_manual_collection_immediately_before_schedule_is_not_duplicated(self) -> None:
+        await self.complete_refresh()
+        self.now += timedelta(seconds=30)
+        await self.use_case.refresh_scheduled()
+        self.now += timedelta(minutes=30)
+        await self.use_case.refresh_scheduled()
+        self.assertEqual(2, self.port.fetch.await_count)
+
+    async def test_cancelling_scheduler_wait_does_not_cancel_shared_collection(self) -> None:
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        async def fetch(source_id):
+            entered.set()
+            await release.wait()
+            return self.results[source_id]
+
+        self.port.fetch.side_effect = fetch
+        scheduled = asyncio.create_task(self.use_case.refresh_scheduled())
+        await entered.wait()
+        scheduled.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await scheduled
         self.assertTrue((await self.use_case.get_snapshot()).refreshing)
+        release.set()
         await self.use_case._task
-        self.assertEqual(3, self.port.fetch.await_count)
+        self.assertEqual(2, self.port.fetch.await_count)
 
     async def test_retry_after_reports_remaining_seconds_independent_of_client_clock(self) -> None:
         snapshot = await self.complete_refresh()
@@ -154,7 +230,7 @@ class SecurityNewsTest(unittest.IsolatedAsyncioTestCase):
                 cancelled.append(source_id)
 
         self.port.fetch.side_effect = fetch
-        await self.use_case.get_snapshot()
+        await self.use_case.get_snapshot(refresh=True)
         await started.wait()
         await self.use_case.aclose()
         self.assertEqual({"cisa-kev", "nvd"}, set(cancelled))

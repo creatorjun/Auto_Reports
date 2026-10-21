@@ -64,6 +64,7 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(container._jira_notification_source._client.is_closed)
         self.assertTrue(container._jira_user_grants._closed)
         self.assertTrue(container.security_news._closed)
+        self.assertTrue(container._security_news_store._closed)
         self.assertTrue(container._security_news_source._client.is_closed)
         self.assertIsNone(container._news_translation)
         self.digest_source.aclose.assert_awaited_once_with()

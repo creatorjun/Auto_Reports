@@ -94,7 +94,7 @@ class SecurityNewsTranslationService:
         self._closed = False
 
     def snapshot(
-        self, items: tuple[SecurityNewsItem, ...],
+        self, items: tuple[SecurityNewsItem, ...], *, start: bool = True,
     ) -> tuple[tuple[SecurityNewsItem, ...], NewsTranslationState]:
         inputs = {
             translation_key(item.title, item.summary): NewsTranslationInput(
@@ -102,14 +102,15 @@ class SecurityNewsTranslationService:
             )
             for item in items if needs_translation(item)
         }
-        if inputs.keys() != self._inputs.keys():
-            self._not_before = None
-            self._exhausted_inputs = None
-        self._inputs = inputs
+        if start:
+            if inputs.keys() != self._inputs.keys():
+                self._not_before = None
+                self._exhausted_inputs = None
+            self._inputs = inputs
         missing = set(inputs).difference(self._translations)
         running = self._task is not None and not self._task.done()
         if (
-            missing and not running and not self._cache_failed and not self._closed
+            start and missing and not running and not self._cache_failed and not self._closed
             and self._exhausted_inputs != frozenset(inputs)
             and (self._not_before is None or self._clock() >= self._not_before)
         ):
@@ -131,6 +132,17 @@ class SecurityNewsTranslationService:
             enabled=True, translating=running, translated_count=translated_count,
             pending_count=pending_count, message=self._message,
         )
+
+    async def restore(self, items: tuple[SecurityNewsItem, ...]) -> None:
+        keys = tuple({translation_key(item.title, item.summary) for item in items if needs_translation(item)})
+        if not keys:
+            return
+        try:
+            self._translations.update(await self._cache.read(keys))
+        except Exception as error:
+            logger.warning("Security news translation cache unavailable: %s", type(error).__name__)
+            self._cache_failed = True
+            self._message = "번역 저장소를 사용할 수 없어 새 번역을 중지했습니다. 저장된 번역과 원문을 표시합니다."
 
     async def _run(self) -> None:
         try:

@@ -50,7 +50,7 @@ export default function SecurityNewsPage() {
     setFilters((current) => ({ ...defaultSecurityNewsFilters(), kind: summary.kind, severity: summary.severity, exploitedOnly: summary.exploitedOnly, sort: current.sort }))
     setPage(0)
   }
-  const showLoading = !data?.initialized && !query.isError && !failedSources.length
+  const showLoading = !data?.initialized && !query.isError && !failedSources.length && (!data || query.refreshing)
   const refreshError = query.refreshError instanceof RequestError && query.refreshError.status === 429
     ? '업데이트 요청 대기 · 잠시 후 다시 시도해 주세요.'
     : '업데이트 실패 · 기존 자료 표시'

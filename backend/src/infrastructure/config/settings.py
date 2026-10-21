@@ -7,6 +7,11 @@ from zoneinfo import ZoneInfo
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.infrastructure.config.gemini_translation_models import (
+    DEFAULT_SECURITY_NEWS_TRANSLATION_MODEL,
+    SecurityNewsTranslationModel,
+)
+
 _KST = ZoneInfo("Asia/Seoul")
 
 
@@ -27,8 +32,9 @@ class Settings(BaseSettings):
     rovo_automation_result_issue_key: str = ""
     rovo_automation_timeout_seconds: int = Field(default=180, ge=15, le=300)
     rovo_automation_poll_seconds: float = Field(default=5, ge=1, le=30)
+    security_news_snapshot_path: str = "reports/security-news-snapshot.sqlite3"
     security_news_translation_enabled: bool = True
-    security_news_translation_model: str = Field(default="gemini-3.5-flash-lite", min_length=1, max_length=100)
+    security_news_translation_model: SecurityNewsTranslationModel = DEFAULT_SECURITY_NEWS_TRANSLATION_MODEL
     security_news_translation_cache_path: str = "reports/security-news-translations.sqlite3"
     security_news_translation_daily_request_limit: int = Field(default=60, ge=0, le=1000)
     security_news_translation_batch_size: int = Field(default=10, ge=1, le=10)
