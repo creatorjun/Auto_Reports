@@ -69,21 +69,26 @@ export default function PartnerIssuePanel({
   useEffect(() => {
     onStatusesChange(availableStatuses)
   }, [availableStatuses, onStatusesChange])
-  const dashboardFilteredIssues = filterPartnerIssues(
-    issues,
-    selectedIssueTypes,
-    issueTypes,
-    selectedStatuses,
-    selectedSemester,
-    reportYear,
+  const dashboardFilteredIssues = useMemo(
+    () => filterPartnerIssues(
+      issues,
+      selectedIssueTypes,
+      issueTypes,
+      selectedStatuses,
+      selectedSemester,
+      reportYear,
+    ),
+    [issues, selectedIssueTypes, issueTypes, selectedStatuses, selectedSemester, reportYear],
   )
   const normalizedQuery = normalizePartnerSearch(searchQuery)
-  const visibleIssues = normalizedQuery
-    ? dashboardFilteredIssues.filter((issue) => (
+  const visibleIssues = useMemo(
+    () => normalizedQuery ? dashboardFilteredIssues.filter((issue) => (
         matchesPartnerSearch(issue.key, normalizedQuery)
         || matchesPartnerSearch(issue.summary, normalizedQuery)
       ))
-    : dashboardFilteredIssues
+    : dashboardFilteredIssues,
+    [dashboardFilteredIssues, normalizedQuery],
+  )
 
   if (!orgId) {
     return (

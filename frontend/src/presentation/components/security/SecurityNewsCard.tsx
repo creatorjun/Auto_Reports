@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/security/SecurityNewsCard.tsx
+import { memo } from 'react'
 import { ExternalLink, ShieldAlert } from 'lucide-react'
 import type { SecurityNewsItem, SecurityNewsLanguage, SecuritySeverity } from '@/domain/SecurityNews'
 import { cveReferenceUrl, safeSecurityNewsUrl, securityNewsDisplayText } from '@/application/services/securityNews'
@@ -6,19 +7,16 @@ import { cveReferenceUrl, safeSecurityNewsUrl, securityNewsDisplayText } from '@
 export const securitySeverityLabels: Record<SecuritySeverity, string> = { critical: '치명적', high: '높음', medium: '보통', low: '낮음', unknown: '미평가' }
 const severityClasses: Record<SecuritySeverity, string> = { critical: 'badge-critical', high: 'badge-warning', medium: 'badge-neutral', low: 'badge-good', unknown: 'badge-neutral' }
 const kindLabels = { cve: 'CVE 취약점', advisory: '보안 권고', news: '보안 뉴스' }
+const dateOptions: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }
+const dateFormatter = new Intl.DateTimeFormat('ko-KR', dateOptions)
+const timestampFormatter = new Intl.DateTimeFormat('ko-KR', { ...dateOptions, hour: '2-digit', minute: '2-digit', hour12: false })
 
 export function securityDateLabel(value: string | null, includeTime = false): string {
-  if (!value || !Number.isFinite(Date.parse(value))) return '날짜 미제공'
-  return new Date(value).toLocaleString('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    ...(includeTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}),
-  })
+  const timestamp = value ? Date.parse(value) : NaN
+  return Number.isFinite(timestamp) ? (includeTime ? timestampFormatter : dateFormatter).format(timestamp) : '날짜 미제공'
 }
 
-export default function SecurityNewsCard({ item, sourceName, language = 'ko' }: { item: SecurityNewsItem; sourceName: string; language?: SecurityNewsLanguage }) {
+const SecurityNewsCard = memo(function SecurityNewsCard({ item, sourceName, language = 'ko' }: { item: SecurityNewsItem; sourceName: string; language?: SecurityNewsLanguage }) {
   const url = safeSecurityNewsUrl(item.url)
   const isKev = item.source_id.toLowerCase().includes('kev')
   const display = securityNewsDisplayText(item, language)
@@ -55,4 +53,6 @@ export default function SecurityNewsCard({ item, sourceName, language = 'ko' }: 
       </div>
     </article>
   )
-}
+})
+
+export default SecurityNewsCard

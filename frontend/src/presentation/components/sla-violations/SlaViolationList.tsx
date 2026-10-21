@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/sla-violations/SlaViolationList.tsx
-import { useId, useMemo, useState } from 'react'
+import { memo, useId, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { ChevronDown, ExternalLink } from 'lucide-react'
 import type { SlaViolationTicket } from '@/domain/SlaViolationReport'
@@ -19,7 +19,7 @@ import SlaViolationTableHeader, { DEFAULT_SLA_COLUMN_WIDTHS, MIN_SLA_COLUMN_WIDT
 
 const TICKET_COLUMNS = 'lg:grid-cols-[var(--sla-ticket-columns)]'
 
-function TicketRow({ ticket }: { ticket: SlaViolationTicket }) {
+const TicketRow = memo(function TicketRow({ ticket }: { ticket: SlaViolationTicket }) {
   const [expanded, setExpanded] = useState(false)
   const detailsId = useId()
   const { jiraBrowse } = useJira()
@@ -80,7 +80,7 @@ function TicketRow({ ticket }: { ticket: SlaViolationTicket }) {
       )}
     </li>
   )
-}
+})
 
 export default function SlaViolationList({ tickets, isFiltered = false }: { tickets: SlaViolationTicket[]; isFiltered?: boolean }) {
   const { sort, setSort, widths, setWidths } = useTablePreferences('sla-violations:combined', DEFAULT_SLA_COLUMN_WIDTHS, MIN_SLA_COLUMN_WIDTHS)

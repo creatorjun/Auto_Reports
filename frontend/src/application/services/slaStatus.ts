@@ -35,20 +35,24 @@ export function slaStatusFilterOptions(tickets: SlaStatusTicket[]) {
 
 export function filterSlaStatusTickets(tickets: SlaStatusTicket[], filters: SlaStatusFilters): SlaStatusTicket[] {
   const terms = normalized(filters.search).trim().split(/\s+/u).filter(Boolean)
-  const result: SlaStatusTicket[] = []
+  const metric = filters.sort
+  const result: { ticket: SlaStatusTicket; minimum: number }[] = []
   for (const ticket of tickets) {
     if (filters.status && ticket.status !== filters.status) continue
     const slas = ticket.slas.filter((sla) => (!filters.stage || sla.sla_id === filters.stage) && matchesScope(sla, filters.scope))
       .sort((left, right) => left.remaining_percent - right.remaining_percent || left.remaining_millis - right.remaining_millis || collator.compare(left.sla_id, right.sla_id))
     if (slas.length === 0) continue
-    const haystack = normalized([ticket.key, ticket.summary, ticket.status, ticket.assignee, ...slas.map((sla) => sla.sla_name)].join(' '))
-    if (!terms.every((term) => haystack.includes(term))) continue
-    result.push({ ...ticket, slas })
+    if (terms.length) {
+      const haystack = normalized([ticket.key, ticket.summary, ticket.status, ticket.assignee, ...slas.map((sla) => sla.sla_name)].join(' '))
+      if (!terms.every((term) => haystack.includes(term))) continue
+    }
+    result.push({
+      ticket: { ...ticket, slas },
+      minimum: metric === 'key' ? 0 : Math.min(...slas.map((sla) => sla[metric])),
+    })
   }
   return result.sort((left, right) => {
-    if (filters.sort === 'key') return collator.compare(left.key, right.key)
-    const metric = filters.sort
-    const difference = Math.min(...left.slas.map((sla) => sla[metric])) - Math.min(...right.slas.map((sla) => sla[metric]))
-    return difference || collator.compare(left.key, right.key)
-  })
+    const difference = left.minimum - right.minimum
+    return difference || collator.compare(left.ticket.key, right.ticket.key)
+  }).map(({ ticket }) => ticket)
 }

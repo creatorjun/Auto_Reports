@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/storage/FilePreviewModal.tsx
-import { Fragment, useEffect, useRef, useState, useCallback } from 'react'
+import { Fragment, memo, useEffect, useRef, useState, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -381,7 +381,7 @@ function PptxPreview({ name, folder, storage, onPageChange }: { name: string; fo
   return <PdfViewer url={pdfUrl!} onPageChange={onPageChange} />
 }
 
-function TextPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
+const TextPreview = memo(function TextPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
   const parse = useCallback((buffer: ArrayBuffer) => parser.decodeText(buffer), [parser])
   const { content, error } = usePreviewContent({ name, folder, storage }, parse)
   if (error) return <PreviewError message={error} />
@@ -391,9 +391,9 @@ function TextPreview({ name, folder, storage, parser }: ParsedContentPreviewProp
       <pre className="text-control-label leading-relaxed text-white/90 whitespace-pre-wrap break-all font-mono p-8 min-h-full">{content}</pre>
     </div>
   )
-}
+})
 
-function MarkdownPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
+const MarkdownPreview = memo(function MarkdownPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
   const parse = useCallback((buffer: ArrayBuffer) => parser.decodeText(buffer), [parser])
   const { content, error } = usePreviewContent({ name, folder, storage }, parse)
   if (error) return <PreviewError message={error} />
@@ -410,9 +410,9 @@ function MarkdownPreview({ name, folder, storage, parser }: ParsedContentPreview
       </div>
     </div>
   )
-}
+})
 
-function CsvPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
+const CsvPreview = memo(function CsvPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
   const parse = useCallback((buffer: ArrayBuffer) => parser.parseCsv(buffer), [parser])
   const { content: rows, error } = usePreviewContent({ name, folder, storage }, parse)
   if (error) return <PreviewError message={error} />
@@ -427,7 +427,7 @@ function CsvPreview({ name, folder, storage, parser }: ParsedContentPreviewProps
       </div>
     </div>
   )
-}
+})
 
 const XLSX_TABLE_STYLE = `
   .xlsx-preview table {
@@ -461,7 +461,7 @@ const XLSX_TABLE_STYLE = `
   }
 `
 
-function XlsxPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
+const XlsxPreview = memo(function XlsxPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
   const parse = useCallback((buffer: ArrayBuffer) => parser.parseWorkbook(buffer), [parser])
   const { content: sheets, error } = usePreviewContent({ name, folder, storage }, parse)
   const [activeSheet, setActiveSheet] = useState(0)
@@ -491,9 +491,9 @@ function XlsxPreview({ name, folder, storage, parser }: ParsedContentPreviewProp
       </div>
     </div>
   )
-}
+})
 
-function DocxPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
+const DocxPreview = memo(function DocxPreview({ name, folder, storage, parser }: ParsedContentPreviewProps) {
   const parse = useCallback((buffer: ArrayBuffer) => parser.parseDocument(buffer), [parser])
   const { content: html, error } = usePreviewContent({ name, folder, storage }, parse)
   if (error) return <PreviewError message={error} />
@@ -503,7 +503,7 @@ function DocxPreview({ name, folder, storage, parser }: ParsedContentPreviewProp
       <div className="max-w-3xl mx-auto my-8 px-10 py-10 bg-apple-surface rounded-2xl shadow-xl prose prose-sm text-apple-dark" dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   )
-}
+})
 
 function ArchivePreview({ name, folder, storage }: { name: string; folder: string; storage: StorageGateway }) {
   return (

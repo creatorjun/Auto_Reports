@@ -14,13 +14,23 @@ const COLLATOR = new Intl.Collator('ko-KR', { numeric: true, sensitivity: 'base'
 
 export function sortSlaViolationTickets(tickets: SlaViolationTicket[], sort: SlaViolationSort | null): SlaViolationTicket[] {
   if (!sort) return tickets
+  const key = sort.key
+  if (key === 'created_at') {
+    return tickets.map((ticket) => ({ ticket, value: Date.parse(ticket.created_at) }))
+      .sort((left, right) => sort.direction === 'asc' ? left.value - right.value : right.value - left.value)
+      .map(({ ticket }) => ticket)
+  }
+  if (key === 'issue_type' || key === 'violation') {
+    return tickets.map((ticket) => ({
+      ticket,
+      value: key === 'issue_type' ? getIssueTypeLabel(slaIssueType(ticket)) : slaViolationLabel(ticket),
+    })).sort((left, right) => sort.direction === 'asc' ? COLLATOR.compare(left.value, right.value) : COLLATOR.compare(right.value, left.value))
+      .map(({ ticket }) => ticket)
+  }
   return [...tickets].sort((left, right) => {
     let result: number
-    if (sort.key === 'elapsed_days') result = left.elapsed_days - right.elapsed_days
-    else if (sort.key === 'created_at') result = Date.parse(left.created_at) - Date.parse(right.created_at)
-    else if (sort.key === 'issue_type') result = COLLATOR.compare(getIssueTypeLabel(slaIssueType(left)), getIssueTypeLabel(slaIssueType(right)))
-    else if (sort.key === 'violation') result = COLLATOR.compare(slaViolationLabel(left), slaViolationLabel(right))
-    else result = COLLATOR.compare(left[sort.key], right[sort.key])
+    if (key === 'elapsed_days') result = left.elapsed_days - right.elapsed_days
+    else result = COLLATOR.compare(left[key], right[key])
     return sort.direction === 'asc' ? result : -result
   })
 }

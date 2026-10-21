@@ -266,6 +266,29 @@ test('changing folders reloads a file with the same name', async (t) => {
   assertReady(view.renderer, 'second folder content')
 })
 
+test('fullscreen and toolbar updates do not reparse unchanged Markdown while file navigation refreshes it', async (t) => {
+  let renders = 0
+  let reads = 0
+  const app = loadApplication({
+    readPreview: async (name) => { reads++; return binary(name) },
+    imports: { 'react-markdown': { default: ({ children }) => { renders++; return React.createElement('article', null, children) } } },
+  })
+  const view = await mount(t, app, { name: 'first.md' })
+  assert.equal(renders, 1)
+  await act(async () => {
+    app.document.fullscreenElement = {}
+    app.document.dispatch('fullscreenchange', {})
+  })
+  await view.update({ fileList: ['first.md', 'second.md'] })
+  assert.equal(renders, 1)
+  assert.equal(reads, 1)
+  assertReady(view.renderer, 'first.md')
+  await view.update({ name: 'second.md' })
+  assert.equal(renders, 2)
+  assert.equal(reads, 2)
+  assertReady(view.renderer, 'second.md')
+})
+
 for (const [extension, method] of [['xlsx', 'parseWorkbook'], ['docx', 'parseDocument']]) {
   test(`${extension} ignores a previous file's late result from the injected parser`, async (t) => {
     const previous = deferred()

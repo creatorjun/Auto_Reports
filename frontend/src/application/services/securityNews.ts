@@ -21,32 +21,34 @@ export function securityNewsTimestamp(item: SecurityNewsItem): number | null {
 export function filterSecurityNews(items: readonly SecurityNewsItem[], filters: SecurityNewsFilters, now: number): SecurityNewsItem[] {
   const terms = normalizeSearchText(filters.search).split(/\s+/).filter(Boolean)
   const threshold = filters.days === 'all' ? null : now - filters.days * 86400000
-  return items.filter((item) => {
+  const result: { item: SecurityNewsItem; timestamp: number | null }[] = []
+  for (const item of items) {
     if (filters.kind === 'updates') {
-      if (item.kind !== 'advisory' && item.kind !== 'news') return false
-    } else if (filters.kind !== 'all' && item.kind !== filters.kind) return false
-    if (filters.source && item.source_id !== filters.source) return false
+      if (item.kind !== 'advisory' && item.kind !== 'news') continue
+    } else if (filters.kind !== 'all' && item.kind !== filters.kind) continue
+    if (filters.source && item.source_id !== filters.source) continue
     if (filters.severity === 'high-risk') {
-      if (item.severity !== 'critical' && item.severity !== 'high') return false
-    } else if (filters.severity !== 'all' && item.severity !== filters.severity) return false
-    if (filters.exploitedOnly && !item.known_exploited) return false
+      if (item.severity !== 'critical' && item.severity !== 'high') continue
+    } else if (filters.severity !== 'all' && item.severity !== filters.severity) continue
+    if (filters.exploitedOnly && !item.known_exploited) continue
     const timestamp = securityNewsTimestamp(item)
-    if (threshold !== null && (timestamp === null || timestamp < threshold)) return false
+    if (threshold !== null && (timestamp === null || timestamp < threshold)) continue
     if (terms.length) {
       const searchable = normalizeSearchText([item.title, item.summary, item.title_ko, item.summary_ko, item.vendor, item.product, ...item.cve_ids].filter(Boolean).join(' '))
-      if (!terms.every((term) => searchable.includes(term))) return false
+      if (!terms.every((term) => searchable.includes(term))) continue
     }
-    return true
-  }).sort((left, right) => {
+    result.push({ item, timestamp })
+  }
+  return result.sort((left, right) => {
     if (filters.sort === 'severity') {
-      const difference = severityOrder[right.severity] - severityOrder[left.severity]
+      const difference = severityOrder[right.item.severity] - severityOrder[left.item.severity]
       if (difference) return difference
-      const scoreDifference = (right.cvss_score ?? -1) - (left.cvss_score ?? -1)
+      const scoreDifference = (right.item.cvss_score ?? -1) - (left.item.cvss_score ?? -1)
       if (scoreDifference) return scoreDifference
     }
-    const difference = (securityNewsTimestamp(right) ?? 0) - (securityNewsTimestamp(left) ?? 0)
-    return difference || left.id.localeCompare(right.id)
-  })
+    const difference = (right.timestamp ?? 0) - (left.timestamp ?? 0)
+    return difference || left.item.id.localeCompare(right.item.id)
+  }).map(({ item }) => item)
 }
 
 export function securityNewsDisplayText(item: SecurityNewsItem, language: SecurityNewsLanguage) {

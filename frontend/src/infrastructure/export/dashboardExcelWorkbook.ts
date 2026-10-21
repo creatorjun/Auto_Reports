@@ -30,9 +30,15 @@ function worksheet(rows: Value[][], filter = true): WorkSheet {
   const widths: number[] = []
   for (const row of rows) {
     row.forEach((value, index) => {
-      const width = String(value ?? '').split('\n').reduce((maximum, line) => Math.max(maximum,
-        Array.from(line).reduce((sum, character) => sum + (character.charCodeAt(0) > 255 ? 2 : 1), 0)), 0)
-      widths[index] = Math.min(60, Math.max(widths[index] ?? 14, width))
+      if (widths[index] === 60) return
+      let width = 0
+      let maximum = widths[index] ?? 14
+      for (const character of String(value ?? '')) {
+        width = character === '\n' ? 0 : width + (character.charCodeAt(0) > 255 ? 2 : 1)
+        maximum = Math.max(maximum, width)
+        if (maximum >= 60) break
+      }
+      widths[index] = Math.min(60, maximum)
     })
   }
   sheet['!cols'] = widths.map((wch) => ({ wch }))

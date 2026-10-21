@@ -36,12 +36,12 @@ export function sortIssueTableRows<T>(data: T[], columns: SortableIssueColumn<T>
   const column = sort && columns.find((candidate) => candidate.header === sort.column)
   if (!sort || !column) return data
   const direction = sort.direction === 'asc' ? 1 : -1
-  return [...data].sort((left, right) => {
-    const a = normalizedValue(column.sortValue(left), column.sortType)
-    const b = normalizedValue(column.sortValue(right), column.sortType)
+  return data.map((row) => ({ row, value: normalizedValue(column.sortValue(row), column.sortType) })).sort((left, right) => {
+    const a = left.value
+    const b = right.value
     if (a == null) return b == null ? 0 : 1
     if (b == null) return -1
     const comparison = typeof a === 'number' && typeof b === 'number' ? a - b : COLLATOR.compare(String(a), String(b))
     return comparison * direction
-  })
+  }).map(({ row }) => row)
 }

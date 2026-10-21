@@ -23,9 +23,11 @@ interface Props {
   paginationResetKey?: string
 }
 
+const dateFormatter = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' })
+
 function dateLabel(value: string | null) {
   if (!value) return '미입력'
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date(value))
+  return dateFormatter.format(new Date(value))
 }
 
 export default function RedeploymentTickets({ tickets, columnFilters = {}, onColumnFilterChange, paginationResetKey }: Props) {

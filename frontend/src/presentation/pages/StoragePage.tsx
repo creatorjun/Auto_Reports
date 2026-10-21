@@ -17,7 +17,7 @@ import {
 } from '@/presentation/hooks/useStorage'
 import { RequestError } from '@/application/errors/RequestError'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
-import FilePreviewModal from '@/presentation/components/storage/FilePreviewModal'
+import LazyFilePreviewModal from '@/presentation/components/storage/LazyFilePreviewModal'
 import StorageNavigation from '@/presentation/components/storage/StorageNavigation'
 import {
   QuotaBar,
@@ -355,7 +355,7 @@ export default function StoragePage() {
         />
       )}
       {previewTarget && (
-        <FilePreviewModal
+        <LazyFilePreviewModal
           name={previewTarget}
           folder={folder}
           fileList={previewableFiles}

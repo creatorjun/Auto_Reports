@@ -460,7 +460,7 @@ test('partner management filters organizations members and issues independently'
   assert.match(page, /<IssueTypeFilter/)
   assert.match(page, /useState<Set<string> \| null>\(null\)/)
   assert.match(page, /useState<Semester \| null>\(null\)/)
-  assert.match(page, /buildDashboardData\(latestReport\.data\)\.filter/)
+  assert.match(page, /resolveDashboardFilterContract\(latestReport\.data\)/)
   assert.match(page, /loadedPartnerStatuses/)
   assert.match(page, /onStatusesChange=\{handlePartnerStatusesChange\}/)
   assert.doesNotMatch(page, /파트너사명과 직원명을 한 번에/)

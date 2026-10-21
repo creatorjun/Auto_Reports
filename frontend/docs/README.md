@@ -17,6 +17,7 @@
 | [공통 디자인](SHARED.md) | 팔레트·3단계 글꼴·배지·로고 |
 | [의존성](DEPENDENCIES.md) | package.json 선언, 빌드·검증 명령 |
 | [구조 유지 기준](REFACTORING_NOTES.md) | 변경 이유, 회귀 방지와 유지보수 점검 |
+| [성능 검토](PERFORMANCE_REVIEW.md) | 반복 정렬·렌더·미리보기 로딩·Excel 최적화와 전후 측정 |
 | [데이터 흐름](data-flow.md) | 보고서별 수집·저장·표시 흐름 |
 | [컴포넌트](components.md) | 공통 필터, 표, 차트, 내보내기·미리보기 |
 | [보안 뉴스](../../backend/docs/13_security_news.md) | 공개 보안 정보 검색·필터, 출처 상태와 갱신 범위 |

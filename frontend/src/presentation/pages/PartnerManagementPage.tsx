@@ -7,7 +7,7 @@ import PartnerMemberPanel from '@/presentation/components/partner/PartnerMemberP
 import PartnerIssuePanel from '@/presentation/components/partner/PartnerIssuePanel'
 import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
 import { useLatestReport } from '@/presentation/hooks/useReport'
-import { buildDashboardData } from '@/application/services/dashboardData'
+import { resolveDashboardFilterContract } from '@/application/services/dashboardData'
 import { sortDashboardStatuses } from '@/domain/DashboardStatusPolicy'
 import { isLicenseIssueType } from '@/domain/DashboardIssueTypePolicy'
 
@@ -23,10 +23,10 @@ export default function PartnerManagementPage() {
   const [selectedSemester, setSelectedSemester] = useState<Semester | null>(null)
   const latestReport = useLatestReport()
   const reportFilter = useMemo(
-    () => latestReport.data ? buildDashboardData(latestReport.data).filter : null,
+    () => latestReport.data ? resolveDashboardFilterContract(latestReport.data) : null,
     [latestReport.data],
   )
-  const issueTypes = (reportFilter?.issueTypes ?? []).filter((issueType) => !isLicenseIssueType(issueType))
+  const issueTypes = useMemo(() => (reportFilter?.issueTypes ?? []).filter((issueType) => !isLicenseIssueType(issueType)), [reportFilter])
   const reportStatusTypes = reportFilter?.statusTypes ?? []
   const statusTypes = useMemo(
     () => sortDashboardStatuses([...reportStatusTypes, ...loadedPartnerStatuses]),

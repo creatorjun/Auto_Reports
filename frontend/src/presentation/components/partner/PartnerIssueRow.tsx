@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/partner/PartnerIssueRow.tsx
+import { memo } from 'react'
 import type { PartnerIssue } from '@/domain/Partner'
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
 import PartnerElapsedBadge from './PartnerElapsedBadge'
@@ -12,7 +13,7 @@ const STAGE_COLOR: Record<number, string> = {
   5: 'bg-purple-100 text-purple-700',
 }
 
-export default function PartnerIssueRow({
+export default memo(function PartnerIssueRow({
   issue,
   jiraBrowse,
 }: {
@@ -41,4 +42,4 @@ export default function PartnerIssueRow({
       <PartnerElapsedBadge days={issue.elapsed_days} />
     </a>
   )
-}
+})

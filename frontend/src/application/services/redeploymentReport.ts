@@ -2,6 +2,8 @@
 import type { RedeploymentColumn, RedeploymentColumnFilters, RedeploymentReport, RedeploymentScope, RedeploymentTicket } from '@/domain/RedeploymentReport'
 import { normalizeSearchText } from '@/domain/Search'
 
+const TICKET_KEY_COLLATOR = new Intl.Collator('en', { numeric: true })
+
 export function redeploymentSummary(tickets: RedeploymentTicket[]) {
   const closed = tickets.filter((ticket) => ticket.closed).length
   const counts = new Map<string, number>()
@@ -56,7 +58,7 @@ export function filterRedeployments(tickets: RedeploymentTicket[], scope: Redepl
       const text = normalizeSearchText(columnSearchValue(ticket, column))
       return column === 'issue_type' ? text.replace(/\s/g, '').includes(value.replace(/\s/g, '')) : text.includes(value)
     }),
-  ).sort((a, b) => Number(a.closed) - Number(b.closed) || b.key.localeCompare(a.key, 'en', { numeric: true }))
+  ).sort((a, b) => Number(a.closed) - Number(b.closed) || TICKET_KEY_COLLATOR.compare(b.key, a.key))
 }
 
 export function redeploymentIsStale(generatedAt: string, now = new Date()) {

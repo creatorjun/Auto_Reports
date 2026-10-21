@@ -33,24 +33,27 @@ export default function AnnualIssueDetailsModal({ title, total, issues, descript
   }, [issues, search])
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, pages)
-  const hasResolved = dateField ? dateField === 'resolved' : issues.some((issue) => Boolean(issue.resolved))
-  const columns: ColumnDef<AnnualDetailIssue>[] = [
-    { header: '티켓', sortValue: (issue) => issue.key, renderCell: (issue) => <span className="font-mono text-label font-semibold text-brand-600">{issue.key}</span>, mobile: { slot: 'primary' } },
-    { header: '제목', sortValue: (issue) => issue.summary, width: 'wide', renderCell: (issue) => <div className="py-3 text-left text-body whitespace-normal break-words" title={issue.summary}>{issue.summary}{(issue.cause || issue.assignee || issue.partners?.length) && <p className="mt-1 text-label text-apple-mid">{[issue.cause, issue.assignee, issue.partners?.join(', ')].filter(Boolean).join(' · ')}</p>}</div>, mobile: { slot: 'summary' } },
-    { header: '유형', sortValue: (issue) => issue.type, renderCell: (issue) => <IssueTypeBadge type={issue.type} />, mobile: { slot: 'detail' } },
-  ]
-  if (issues.some((issue) => Boolean(issue.status))) {
-    columns.push({ header: '상태', sortValue: (issue) => issue.status, renderCell: (issue) => issue.status ? <StatusBadge status={issue.status} /> : '—', mobile: { slot: 'detail' } })
-  }
-  if (issues.some((issue) => typeof issue.sla_met === 'boolean')) {
-    columns.push({ header: 'SLA', sortValue: (issue) => issue.sla_met, sortType: 'number', renderCell: (issue) => <span className="text-label font-semibold">{issue.sla_met === true ? '준수' : issue.sla_met === false ? '위반' : '미확인'}</span>, mobile: { slot: 'detail' } })
-  }
-  if (issues.some((issue) => issue.elapsed_hours != null)) {
-    columns.push({ header: '처리시간', sortValue: (issue) => issue.elapsed_hours, sortType: 'number', renderCell: (issue) => <span className="text-label tabular-nums">{issue.elapsed_hours == null ? '—' : `${issue.elapsed_hours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}시간`}</span>, mobile: { slot: 'detail' } })
-  }
-  columns.push({ header: hasResolved ? '해결일시' : '생성일시', sortValue: (issue) => hasResolved ? issue.resolved : issue.created, sortType: 'date', width: 'date', renderCell: (issue) => <span className="text-label tabular-nums">{(hasResolved ? issue.resolved : issue.created)?.replace('T', ' ').slice(0, 16) || '—'}</span>, mobile: { slot: 'secondary' } })
+  const columns = useMemo(() => {
+    const hasResolved = dateField ? dateField === 'resolved' : issues.some((issue) => Boolean(issue.resolved))
+    const result: ColumnDef<AnnualDetailIssue>[] = [
+      { header: '티켓', sortValue: (issue) => issue.key, renderCell: (issue) => <span className="font-mono text-label font-semibold text-brand-600">{issue.key}</span>, mobile: { slot: 'primary' } },
+      { header: '제목', sortValue: (issue) => issue.summary, width: 'wide', renderCell: (issue) => <div className="py-3 text-left text-body whitespace-normal break-words" title={issue.summary}>{issue.summary}{(issue.cause || issue.assignee || issue.partners?.length) && <p className="mt-1 text-label text-apple-mid">{[issue.cause, issue.assignee, issue.partners?.join(', ')].filter(Boolean).join(' · ')}</p>}</div>, mobile: { slot: 'summary' } },
+      { header: '유형', sortValue: (issue) => issue.type, renderCell: (issue) => <IssueTypeBadge type={issue.type} />, mobile: { slot: 'detail' } },
+    ]
+    if (issues.some((issue) => Boolean(issue.status))) {
+      result.push({ header: '상태', sortValue: (issue) => issue.status, renderCell: (issue) => issue.status ? <StatusBadge status={issue.status} /> : '—', mobile: { slot: 'detail' } })
+    }
+    if (issues.some((issue) => typeof issue.sla_met === 'boolean')) {
+      result.push({ header: 'SLA', sortValue: (issue) => issue.sla_met, sortType: 'number', renderCell: (issue) => <span className="text-label font-semibold">{issue.sla_met === true ? '준수' : issue.sla_met === false ? '위반' : '미확인'}</span>, mobile: { slot: 'detail' } })
+    }
+    if (issues.some((issue) => issue.elapsed_hours != null)) {
+      result.push({ header: '처리시간', sortValue: (issue) => issue.elapsed_hours, sortType: 'number', renderCell: (issue) => <span className="text-label tabular-nums">{issue.elapsed_hours == null ? '—' : `${issue.elapsed_hours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}시간`}</span>, mobile: { slot: 'detail' } })
+    }
+    result.push({ header: hasResolved ? '해결일시' : '생성일시', sortValue: (issue) => hasResolved ? issue.resolved : issue.created, sortType: 'date', width: 'date', renderCell: (issue) => <span className="text-label tabular-nums">{(hasResolved ? issue.resolved : issue.created)?.replace('T', ' ').slice(0, 16) || '—'}</span>, mobile: { slot: 'secondary' } })
+    return result
+  }, [issues, dateField])
 
-  const sorted = sortIssueTableRows(filtered, columns, sort)
+  const sorted = useMemo(() => sortIssueTableRows(filtered, columns, sort), [filtered, columns, sort])
   const rows = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (

@@ -1,4 +1,5 @@
 // frontend/src/presentation/components/partner/PartnerOrgPanel.tsx
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import PartnerPanelHeader from './PartnerPanelHeader'
@@ -9,6 +10,8 @@ import {
   sortPartnerOrganizationsByIssueCount,
   type PartnerOrg,
 } from '@/domain/Partner'
+
+const EMPTY_PARTNER_ORGS: PartnerOrg[] = []
 
 export default function PartnerOrgPanel({
   selectedOrgId,
@@ -22,16 +25,18 @@ export default function PartnerOrgPanel({
   onSelect: (org: PartnerOrg) => void
 }) {
   const { partners } = useApplicationServices()
-  const { data: orgs = [], isLoading } = useQuery({
+  const { data: orgs = EMPTY_PARTNER_ORGS, isLoading } = useQuery({
     queryKey: ['partner-orgs'],
     queryFn: partners.getOrganizations,
     staleTime: 5 * 60_000,
   })
   const normalizedQuery = normalizePartnerSearch(searchQuery)
-  const visibleOrgs = sortPartnerOrganizationsByIssueCount(
-    normalizedQuery
-      ? orgs.filter((org) => matchesPartnerSearch(org.name, normalizedQuery))
-      : orgs,
+  const sortedOrgs = useMemo(() => sortPartnerOrganizationsByIssueCount(orgs), [orgs])
+  const visibleOrgs = useMemo(
+    () => normalizedQuery
+      ? sortedOrgs.filter((org) => matchesPartnerSearch(org.name, normalizedQuery))
+      : sortedOrgs,
+    [sortedOrgs, normalizedQuery],
   )
 
   return (

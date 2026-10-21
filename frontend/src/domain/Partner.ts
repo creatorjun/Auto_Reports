@@ -9,6 +9,8 @@ import {
 } from './DashboardIssueTypePolicy'
 import { isDashboardStatusIncluded } from './DashboardStatusPolicy'
 
+const ORGANIZATION_NAME_COLLATOR = new Intl.Collator('ko-KR', { numeric: true, sensitivity: 'base' })
+
 export interface PartnerOrg {
   id: string
   name: string
@@ -34,7 +36,7 @@ export function matchesPartnerSearch(value: string, normalizedQuery: string): bo
 export function sortPartnerOrganizationsByIssueCount(organizations: PartnerOrg[]): PartnerOrg[] {
   return [...organizations].sort((left, right) => (
     right.issue_count - left.issue_count
-    || left.name.localeCompare(right.name, 'ko-KR', { numeric: true, sensitivity: 'base' })
+    || ORGANIZATION_NAME_COLLATOR.compare(left.name, right.name)
     || left.id.localeCompare(right.id)
   ))
 }
