@@ -3,6 +3,7 @@ export type JiraNotificationCategory = 'all' | 'direct' | 'watching'
 
 export interface JiraNotification {
   id: string
+  group_id: string
   title: string
   message: string
   url: string | null
@@ -22,4 +23,17 @@ export interface JiraNotificationPage {
 export interface JiraNotificationRequest {
   category: JiraNotificationCategory
   cursor?: string
+}
+
+export interface JiraNotificationReadRequest {
+  notification_id: string
+  group_id: string
+  category: 'direct' | 'watching'
+}
+
+export interface JiraNotificationReadResult {
+  connection_status: 'connected' | 'reconnect_required'
+  notification_id: string
+  group_id: string
+  is_read: boolean
 }

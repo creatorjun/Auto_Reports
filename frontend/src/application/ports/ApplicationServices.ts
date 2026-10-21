@@ -5,7 +5,7 @@ import type { AppConfig } from '@/domain/Config'
 import type { IssueManagementSnapshot } from '@/domain/IssueManagement'
 import type { DashboardPdfDocument } from '@/domain/DashboardExport'
 import type { JobStatus, TriggerAccepted, TriggerParams } from '@/domain/Job'
-import type { JiraNotificationPage, JiraNotificationRequest } from '@/domain/JiraNotification'
+import type { JiraNotificationPage, JiraNotificationReadRequest, JiraNotificationReadResult, JiraNotificationRequest } from '@/domain/JiraNotification'
 import type { PartnerIssue, PartnerMember, PartnerOrg } from '@/domain/Partner'
 import type { ReportDetail, ReportSummary } from '@/domain/Report'
 import type { RedeploymentReport } from '@/domain/RedeploymentReport'
@@ -172,6 +172,7 @@ export interface SlaStatusGateway {
 
 export interface JiraNotificationGateway {
   getNotifications: (request: JiraNotificationRequest, signal?: CancellationSignal) => Promise<JiraNotificationPage>
+  markRead: (request: JiraNotificationReadRequest, signal?: CancellationSignal) => Promise<JiraNotificationReadResult>
 }
 
 export interface ApplicationServices {

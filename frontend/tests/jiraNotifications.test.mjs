@@ -41,15 +41,16 @@ function sourceLoader(overrides = {}) {
 
 const load = sourceLoader()
 const { canViewJiraNotifications } = load('domain/Auth')
-const { jiraNotificationItems, safeJiraNotificationUrl } = load('application/services/jiraNotifications')
+const { applyJiraNotificationReads, jiraNotificationItems, jiraNotificationReadKey, safeJiraNotificationUrl } = load('application/services/jiraNotifications')
 const jira = { username: 'jira:cloud:account-a', display_name: '동일 이름', email_address: 'jira-user@example.test', auth_provider: 'jira', login_required: true, is_superadmin: false }
-function item(overrides = {}) { return { id: 'notification-a', title: '담당자가 변경되었습니다', message: '실제 Jira 알림', url: 'https://jira.example.test/browse/TAC-1', actor: '동료', created_at: '2026-10-21T03:00:00Z', category: 'direct', is_read: false, group_size: 1, ...overrides } }
+function item(overrides = {}) { return { id: 'notification-a', group_id: 'group-a', title: '담당자가 변경되었습니다', message: '실제 Jira 알림', url: 'https://jira.example.test/browse/TAC-1', actor: '동료', created_at: '2026-10-21T03:00:00Z', category: 'direct', is_read: false, group_size: 1, ...overrides } }
 function page(items = [item()], next_cursor = null, connection_status = 'connected') { return { items, next_cursor, connection_status } }
+function readResult(overrides = {}) { return { connection_status: 'connected', notification_id: 'notification-a', group_id: 'group-a', is_read: true, ...overrides } }
 function deferred() { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no }); return { promise, resolve, reject } }
 async function until(predicate) { const deadline = Date.now() + 3000; while (!predicate()) { assert.ok(Date.now() < deadline, 'Timed out waiting for state'); await act(async () => { await new Promise((resolve) => setTimeout(resolve, 15)) }) } }
 function makeStore(token = 'session-a') { return create((set) => ({ accessToken: token, username: '동일 이름', loginRequired: true, setAuth: (accessToken) => set({ accessToken }), clearAuth: () => set({ accessToken: null }), setLoginRequired() {} })) }
 
-function setupHook(t, { me = async () => jira, getNotifications = async () => page(), token = 'session-a' } = {}) {
+function setupHook(t, { me = async () => jira, getNotifications = async () => page(), markRead = async (request) => readResult(request), token = 'session-a' } = {}) {
   const store = makeStore(token)
   const instance = sourceLoader({ 'presentation/state/authStore': { useAuthStore: store } })
   const { ApplicationServicesProvider } = instance('presentation/context/ApplicationServicesContext')
@@ -57,13 +58,13 @@ function setupHook(t, { me = async () => jira, getNotifications = async () => pa
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   let observed, view
   function Probe({ category }) { observed = useJiraNotifications(category); return null }
-  const element = (category) => React.createElement(ApplicationServicesProvider, { services: { auth: { me }, jiraNotifications: { getNotifications } } }, React.createElement(QueryClientProvider, { client }, React.createElement(Probe, { category })))
+  const element = (category) => React.createElement(ApplicationServicesProvider, { services: { auth: { me }, jiraNotifications: { getNotifications, markRead } } }, React.createElement(QueryClientProvider, { client }, React.createElement(Probe, { category })))
   act(() => { view = TestRenderer.create(element('all')) })
   t.after(() => { act(() => view.unmount()); client.clear() })
   return { store, client, category(value) { act(() => view.update(element(value))) }, unmount() { act(() => view.unmount()) }, get observed() { return observed } }
 }
 
-function setupSidebar(t, { me = async () => jira, getNotifications = async () => page(), startJira = async () => ({ authorization_url: 'https://auth.example.test/authorize' }), collapsed = false, mobileOpen = false, layout = false } = {}) {
+function setupSidebar(t, { me = async () => jira, getNotifications = async () => page(), markRead = async (request) => readResult(request), startJira = async () => ({ authorization_url: 'https://auth.example.test/authorize' }), collapsed = false, mobileOpen = false, layout = false } = {}) {
   const previous = { document: globalThis.document, Node: globalThis.Node, window: globalThis.window }
   const listeners = new Map()
   class NodeStub { isConnected = true; focused = 0; focus() { this.focused++ } contains(target) { return target === this } }
@@ -90,7 +91,7 @@ function setupSidebar(t, { me = async () => jira, getNotifications = async () =>
   const trigger = new NodeStub()
   const panel = new NodeStub()
   let view
-  const element = (props) => React.createElement(ApplicationServicesProvider, { services: { auth: { me, startJira, logout: async () => {} }, jiraNotifications: { getNotifications } } }, React.createElement(QueryClientProvider, { client }, React.createElement(MemoryRouter, null, layout ? React.createElement(Layout) : React.createElement(Sidebar, { collapsed, mobileOpen, setCollapsed: () => {}, ...props }))))
+  const element = (props) => React.createElement(ApplicationServicesProvider, { services: { auth: { me, startJira, logout: async () => {} }, jiraNotifications: { getNotifications, markRead } } }, React.createElement(QueryClientProvider, { client }, React.createElement(MemoryRouter, null, layout ? React.createElement(Layout) : React.createElement(Sidebar, { collapsed, mobileOpen, setCollapsed: () => {}, ...props }))))
   act(() => { view = TestRenderer.create(element(), { createNodeMock: ({ props }) => props.role === 'dialog' ? panel : null }) })
   t.after(() => { act(() => view.unmount()); client.clear(); Object.assign(globalThis, previous) })
   return { view, client, store, trigger, panel, redirects, listeners, update(props) { act(() => view.update(element(props))) }, outside: () => new NodeStub(), open() { act(() => view.root.findByProps({ 'aria-label': 'Jira 알림' }).props.onClick({ currentTarget: trigger })) } }
@@ -108,15 +109,25 @@ test('pages deduplicate IDs and reconnect pages suppress every previously loaded
   assert.equal(safeJiraNotificationUrl('https://jira.example.test/browse/TAC-1'), 'https://jira.example.test/browse/TAC-1')
 })
 
-test('notification adapter forwards only category/cursor and cancellation through the shared client', async () => {
+test('confirmed reads match both notification and group IDs and leave newer heads and other groups unread', () => {
+  const original = page([item(), item({ id: 'newer-head' }), item({ group_id: 'another-group' })])
+  const updated = applyJiraNotificationReads(original, new Set([jiraNotificationReadKey(item())]))
+  assert.deepEqual(updated.items.map((row) => row.is_read), [true, false, false])
+  assert.deepEqual(original.items.map((row) => row.is_read), [false, false, false])
+})
+
+test('notification adapter forwards feed parameters and read identity with cancellation through the shared client', async () => {
   const calls = []
   const response = page()
-  const instance = sourceLoader({ 'infrastructure/api/client': { default: { async get(...args) { calls.push(args); return { data: response } } } } })
+  const instance = sourceLoader({ 'infrastructure/api/client': { default: { async get(...args) { calls.push(args); return { data: response } }, async post(...args) { calls.push(args); return { data: readResult() } } } } })
   const { jiraNotificationApi } = instance('infrastructure/api/jiraNotificationApi')
   const signal = new AbortController().signal
   assert.equal(await jiraNotificationApi.getNotifications({ category: 'watching', cursor: 'opaque/+=' }, signal), response)
   assert.deepEqual(calls, [['/jira/notifications', { params: { category: 'watching', cursor: 'opaque/+=' }, signal }]])
-  assert.deepEqual(Object.keys(jiraNotificationApi), ['getNotifications'])
+  const request = { notification_id: 'notification-a', group_id: 'group-a', category: 'direct' }
+  assert.deepEqual(await jiraNotificationApi.markRead(request, signal), readResult())
+  assert.deepEqual(calls[1], ['/jira/notifications/read', request, { signal }])
+  assert.deepEqual(Object.keys(jiraNotificationApi), ['getNotifications', 'markRead'])
 })
 
 test('feed waits for server identity, and local, guest or failed identity never starts requests', async (t) => {
@@ -189,6 +200,106 @@ test('session token changes cancel old requests and do not expose same-display-n
   assert.equal(state.observed.allowed, false)
 })
 
+test('read waits for confirmation, suppresses duplicate requests and updates every cached category and page by exact identity', async (t) => {
+  const pending = deferred()
+  const calls = []
+  const state = setupHook(t, { markRead: (request, signal) => { calls.push([request, signal]); return pending.promise } })
+  await until(() => state.observed.items.length === 1)
+  state.client.setQueryDefaults(['jira-notifications'], { gcTime: Infinity })
+  state.client.setQueryData(['jira-notifications', 'session-a', 'watching'], { pages: [page([item(), item({ id: 'newer-head' })]), page([item(), item({ group_id: 'other-group' })])], pageParams: [null, 'next'] })
+  state.client.setQueryData(['jira-notifications', 'another-session', 'all'], { pages: [page()], pageParams: [null] })
+  let request
+  act(() => { request = state.observed.markRead(item()); void state.observed.markRead(item()) })
+  assert.equal(calls.length, 1)
+  assert.deepEqual(calls[0][0], { notification_id: 'notification-a', group_id: 'group-a', category: 'direct' })
+  assert.equal(state.observed.isMarkingRead(item()), true)
+  assert.equal(state.observed.items[0].is_read, false)
+  await act(async () => { pending.resolve(readResult()); await request })
+  await until(() => state.observed.items[0].is_read)
+  assert.equal(state.observed.isMarkingRead(item()), false)
+  assert.deepEqual(state.client.getQueryData(['jira-notifications', 'session-a', 'watching']).pages.map((value) => value.items.map((row) => row.is_read)), [[true, false], [true, false]])
+  assert.equal(state.client.getQueryData(['jira-notifications', 'another-session', 'all']).pages[0].items[0].is_read, false)
+  await act(async () => state.observed.markRead(item()))
+  await act(async () => state.observed.markRead(item({ is_read: true })))
+  assert.equal(calls.length, 1)
+})
+
+test('unconfirmed or failed read responses preserve unread state and allow a successful retry', async (t) => {
+  for (const outcome of [new Error('unavailable'), readResult({ is_read: false }), readResult({ notification_id: 'other' }), readResult({ group_id: 'other' })]) {
+    await t.test(outcome instanceof Error ? 'network failure' : JSON.stringify(outcome), async (t) => {
+      let attempts = 0
+      const state = setupHook(t, { markRead: async () => { if (++attempts === 1) { if (outcome instanceof Error) throw outcome; return outcome } return readResult() } })
+      await until(() => state.observed.items.length === 1)
+      await act(async () => state.observed.markRead(item()))
+      assert.equal(state.observed.items[0].is_read, false)
+      assert.match(state.observed.readError(item()), /실패/)
+      assert.equal(state.observed.isMarkingRead(item()), false)
+      await act(async () => state.observed.markRead(item()))
+      await until(() => state.observed.items[0].is_read)
+      assert.equal(state.observed.readError(item()), null)
+      assert.equal(attempts, 2)
+    })
+  }
+})
+
+test('an in-flight category response cannot undo confirmed reads, but an explicit refresh uses Jira state again', async (t) => {
+  const lateFeed = deferred()
+  let directRequests = 0
+  const state = setupHook(t, { getNotifications: async ({ category }) => category === 'direct' && ++directRequests === 1 ? lateFeed.promise : page() })
+  await until(() => state.observed.items.length === 1)
+  const read = state.observed.markRead
+  state.category('direct')
+  await until(() => directRequests === 1)
+  await act(async () => read(item()))
+  await act(async () => lateFeed.resolve(page([item(), item({ id: 'new-head' })])))
+  await until(() => state.observed.items.length === 2)
+  assert.deepEqual(state.observed.items.map((row) => row.is_read), [true, false])
+  await act(async () => state.observed.refresh())
+  await until(() => !state.observed.isFetching && state.observed.items.length === 1)
+  assert.equal(state.observed.items[0].is_read, false)
+})
+
+test('a refreshed Jira read state clears the visible error after an ambiguous mutation failure', async (t) => {
+  let fetched = 0
+  const state = setupHook(t, { getNotifications: async () => page([item({ is_read: ++fetched > 1 })]), markRead: async () => { throw new Error('confirmation unavailable') } })
+  await until(() => state.observed.items.length === 1)
+  await act(async () => state.observed.markRead(item()))
+  assert.match(state.observed.readError(state.observed.items[0]), /실패/)
+  await act(async () => state.observed.refresh())
+  await until(() => state.observed.items[0]?.is_read)
+  assert.equal(state.observed.readError(state.observed.items[0]), null)
+})
+
+test('session changes abort pending reads and ignore late success or failure for an identical notification', async (t) => {
+  for (const fail of [false, true]) {
+    await t.test(fail ? 'late failure' : 'late success', async (t) => {
+      const pending = deferred()
+      let signal, request
+      const state = setupHook(t, { markRead: (_request, value) => { signal = value; return pending.promise } })
+      await until(() => state.observed.items.length === 1)
+      act(() => { request = state.observed.markRead(item()) })
+      act(() => state.store.getState().setAuth('session-b'))
+      await until(() => state.observed.items.length === 1 && !state.observed.isPending)
+      assert.equal(signal.aborted, true)
+      await act(async () => { if (fail) pending.reject(new Error('old session failure')); else pending.resolve(readResult()); await request })
+      assert.equal(state.observed.items[0].is_read, false)
+      assert.equal(state.observed.readError(item()), null)
+      assert.equal(state.observed.isMarkingRead(item()), false)
+    })
+  }
+})
+
+test('read reconnect response hides the previous feed and stops further mutations', async (t) => {
+  let calls = 0
+  const state = setupHook(t, { markRead: async () => { calls++; return readResult({ connection_status: 'reconnect_required', is_read: false }) } })
+  await until(() => state.observed.items.length === 1)
+  await act(async () => state.observed.markRead(item()))
+  assert.equal(state.observed.reconnectRequired, true)
+  assert.deepEqual(state.observed.items, [])
+  await act(async () => state.observed.markRead(item()))
+  assert.equal(calls, 1)
+})
+
 test('Sidebar shows identity and Jira notifications above logout, mounts one panel only on click, and restores focus on dismissal', async (t) => {
   let calls = 0
   const app = setupSidebar(t, { getNotifications: async () => { calls++; return page([item({ title: '<script>text</script>', message: '<img src=x>', url: 'javascript:alert(1)' }), item({ id: 'read', is_read: true, group_size: 2 })]) } })
@@ -209,8 +320,8 @@ test('Sidebar shows identity and Jira notifications above logout, mounts one pan
   assert.equal(app.view.root.findAllByType('img').length, 0)
   assert.equal(app.view.root.findByProps({ role: 'dialog' }).findAllByType('a').length, 1)
   assert.equal(app.view.root.findAllByType('span').filter((node) => node.children.includes('읽지 않음')).length, 1)
-  assert.ok(JSON.stringify(app.view.toJSON()).includes('읽음 상태는 조회 시점 기준'))
-  assert.ok(JSON.stringify(app.view.toJSON()).includes('알림을 열어도 Jira의 읽음 상태는 변경되지 않습니다.'))
+  assert.ok(JSON.stringify(app.view.toJSON()).includes('Jira의 알림과 읽음 상태를 확인합니다.'))
+  assert.ok(JSON.stringify(app.view.toJSON()).includes('알림을 열거나 읽음 처리하면 Jira에도 반영됩니다.'))
   const buttons = app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' })
   for (const button of buttons) assert.deepEqual(button.findAllByType('span').map((span) => span.children.join('')), ['Jira 알림'])
   act(() => app.listeners.get('keydown')({ key: 'Escape', preventDefault() {} }))
@@ -222,6 +333,76 @@ test('Sidebar shows identity and Jira notifications above logout, mounts one pan
   act(() => app.listeners.get('pointerdown')({ target: app.outside() }))
   assert.equal(app.view.root.findAllByProps({ role: 'dialog' }).length, 0)
   assert.equal(app.trigger.focused, 2)
+})
+
+test('read button supports linkless notifications, pending feedback and retry without changing unread state on failure', async (t) => {
+  const pending = deferred()
+  let calls = 0
+  const app = setupSidebar(t, { getNotifications: async () => page([item({ url: null })]), markRead: async () => ++calls === 1 ? pending.promise : readResult() })
+  await until(() => app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' }).length === 1)
+  app.open()
+  const label = `${item().title} 읽음 처리`
+  await until(() => app.view.root.findAllByProps({ 'aria-label': label }).length === 1)
+  const button = app.view.root.findByProps({ 'aria-label': label })
+  act(() => { button.props.onClick(); button.props.onClick() })
+  assert.equal(calls, 1)
+  assert.equal(app.view.root.findByProps({ 'aria-label': label }).props.disabled, true)
+  assert.ok(JSON.stringify(app.view.toJSON()).includes('처리 중...'))
+  await act(async () => pending.reject(new Error('temporarily unavailable')))
+  await until(() => app.view.root.findAllByProps({ role: 'alert' }).length === 1)
+  assert.ok(JSON.stringify(app.view.toJSON()).includes('읽지 않음'))
+  assert.ok(JSON.stringify(app.view.toJSON()).includes('읽음 처리 재시도'))
+  assert.equal(app.view.root.findByProps({ 'aria-label': label }).props.disabled, false)
+  act(() => app.view.root.findByProps({ 'aria-label': label }).props.onClick())
+  await until(() => app.view.root.findAllByProps({ 'aria-label': label }).length === 0)
+  assert.equal(calls, 2)
+  assert.equal(app.view.root.findAllByProps({ role: 'alert' }).length, 0)
+  assert.ok(!JSON.stringify(app.view.toJSON()).includes('읽지 않음'))
+})
+
+test('primary and middle link activation mark unread notifications without preventing the existing new-tab navigation', async (t) => {
+  for (const mode of ['primary', 'middle']) {
+    await t.test(mode, async (t) => {
+      const pending = deferred()
+      let calls = 0
+      const app = setupSidebar(t, { getNotifications: async () => page([item(), item({ id: 'already-read', is_read: true })]), markRead: () => { calls++; return pending.promise } })
+      await until(() => app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' }).length === 1)
+      app.open()
+      await until(() => app.view.root.findAllByProps({ 'data-notification-id': 'notification-a' }).length === 1)
+      const link = app.view.root.findByProps({ 'data-notification-id': 'notification-a' }).findByType('a')
+      assert.equal(link.props.href, item().url)
+      assert.equal(link.props.target, '_blank')
+      assert.equal(link.props.rel, 'noopener noreferrer')
+      const event = { button: mode === 'middle' ? 1 : 0, preventDefault() { assert.fail('Default navigation must not be prevented') } }
+      act(() => link.props.onAuxClick({ ...event, button: 2 }))
+      assert.equal(calls, 0)
+      act(() => { if (mode === 'middle') link.props.onAuxClick(event); else link.props.onClick(event) })
+      assert.equal(calls, 1)
+      act(() => app.view.root.findByProps({ 'data-notification-id': 'already-read' }).findByType('a').props.onClick(event))
+      assert.equal(calls, 1)
+      await act(async () => pending.resolve(readResult()))
+      await until(() => app.view.root.findByProps({ 'data-notification-id': 'notification-a' }).findAllByType('button').length === 0)
+    })
+  }
+})
+
+test('closing the panel aborts a pending read and a late result does not change a reopened feed', async (t) => {
+  const pending = deferred()
+  let signal
+  const app = setupSidebar(t, { markRead: (_request, value) => { signal = value; return pending.promise } })
+  await until(() => app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' }).length === 1)
+  app.open()
+  const label = `${item().title} 읽음 처리`
+  await until(() => app.view.root.findAllByProps({ 'aria-label': label }).length === 1)
+  act(() => app.view.root.findByProps({ 'aria-label': label }).props.onClick())
+  act(() => app.view.root.findByProps({ 'aria-label': 'Jira 알림 닫기' }).props.onClick())
+  assert.equal(signal.aborted, true)
+  await until(() => app.client.getQueriesData({ queryKey: ['jira-notifications'] }).length === 0)
+  app.open()
+  await until(() => app.view.root.findAllByProps({ 'aria-label': label }).length === 1)
+  await act(async () => pending.resolve(readResult()))
+  assert.equal(app.view.root.findAllByProps({ 'aria-label': label }).length, 1)
+  assert.ok(JSON.stringify(app.view.toJSON()).includes('읽지 않음'))
 })
 
 test('Jira accounts without a disclosed email never fall back to an internal account ID', async (t) => {

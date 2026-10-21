@@ -5,6 +5,7 @@ import json
 import unittest
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 import httpx
 
@@ -53,6 +54,22 @@ def _response(nodes: list | None = None, has_next: bool = False, cursor: str | N
             },
         },
     }
+
+
+def _group_response(read_state: str = "unread") -> dict:
+    return {"data": {"notifications": {"notificationGroup": {"nodes": [{
+        "notificationId": "notification-1", "category": "direct", "readState": read_state,
+        "timestamp": "2026-10-21T05:00:00Z",
+        "entityModel": {"cloudId": "cloud-1"},
+    }]}}}}
+
+
+def _read_response(value=None) -> dict:
+    return {"data": {"notifications": {"markNotificationsByGroupIdAsRead": value}}}
+
+
+def _empty_group_response() -> dict:
+    return {"data": {"notifications": {"notificationGroup": {"nodes": []}}}}
 
 
 class JiraNotificationClientTests(unittest.IsolatedAsyncioTestCase):
@@ -305,3 +322,196 @@ class JiraNotificationClientTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(url=url):
                 with self.assertRaises(ValueError):
                     JiraNotificationClient(url)
+
+    async def test_mark_read_verifies_membership_and_provider_readback_with_exact_cutoff(self) -> None:
+        requests = []
+        responses = [_group_response(), _read_response(), _group_response("read"), _empty_group_response()]
+
+        def handler(request):
+            requests.append(request)
+            return httpx.Response(200, json=responses[len(requests) - 1])
+
+        await self._client(handler).mark_read(_grant(), "notification-1", "group-1", "direct")
+        bodies = [json.loads(request.content) for request in requests]
+        self.assertEqual([body["operationName"] for body in bodies], [
+            "JiraNotificationReadState", "MarkJiraNotificationRead", "JiraNotificationReadState", "JiraNotificationReadState",
+        ])
+        self.assertTrue(all(request.headers["Authorization"] == "Bearer user-token" for request in requests))
+        self.assertEqual(bodies[0]["variables"], {
+            "groupId": "group-1", "routing": "ari:cloud:platform::site/cloud-1",
+            "filter": {"productFilter": "jira", "workspaceId": "cloud-1", "categoryFilter": "direct"},
+        })
+        self.assertEqual(bodies[1]["variables"], {
+            "groupId": "group-1", "notificationId": "notification-1", "category": "direct",
+            "routing": "ari:cloud:platform::site/cloud-1",
+        })
+        self.assertIn("beforeInclusive: $notificationId", bodies[1]["query"])
+        self.assertNotIn("markNotificationsAsRead(", bodies[1]["query"])
+        self.assertEqual(bodies[0], bodies[2])
+        self.assertEqual(bodies[3]["variables"], {
+            "groupId": "group-1", "routing": "ari:cloud:platform::site/cloud-1",
+            "filter": {
+                "productFilter": "jira", "workspaceId": "cloud-1", "categoryFilter": "direct",
+                "readStateFilter": "unread", "beforeTimestamp": "2026-10-21T05:00:00.001+00:00",
+            },
+        })
+
+    async def test_unverified_or_cross_site_group_does_not_mutate(self) -> None:
+        variants = []
+        for field, value in [
+            ("notificationId", "other"), ("category", "watching"), ("readState", "bad"),
+            ("entityModel", {"cloudId": "other-cloud"}),
+            ("timestamp", None), ("timestamp", "invalid"), ("timestamp", "2026-10-21T05:00:00"),
+        ]:
+            payload = _group_response()
+            payload["data"]["notifications"]["notificationGroup"]["nodes"][0][field] = value
+            variants.append(payload)
+        variants.extend([{}, {"data": {"notifications": {"notificationGroup": {"nodes": []}}}}])
+        for payload in variants:
+            calls = []
+
+            def handler(request):
+                calls.append(request)
+                return httpx.Response(200, json=payload)
+
+            with self.subTest(payload=payload):
+                with self.assertRaises(JiraNotificationsUnavailable):
+                    await self._client(handler).mark_read(_grant(), "notification-1", "group-1", "direct")
+                self.assertEqual(len(calls), 1)
+
+    async def test_mutation_acknowledgement_without_readback_is_not_success(self) -> None:
+        for readback in [_group_response(), {}, {"errors": [{"message": "private"}]}]:
+            responses = iter([_group_response(), _read_response("OK"), readback])
+            client = self._client(lambda request: httpx.Response(200, json=next(responses)))
+            with self.assertRaises(JiraNotificationsUnavailable):
+                await client.mark_read(_grant(), "notification-1", "group-1", "direct")
+
+    async def test_already_read_head_does_not_hide_older_unread_notifications_in_the_group(self) -> None:
+        group = _group_response("read")
+        older = copy.deepcopy(group["data"]["notifications"]["notificationGroup"]["nodes"][0])
+        older.update(notificationId="older-notification", readState="unread", timestamp="2026-10-20T05:00:00Z")
+        group["data"]["notifications"]["notificationGroup"]["nodes"].append(older)
+        unread = _empty_group_response()
+        unread["data"]["notifications"]["notificationGroup"]["nodes"] = [older]
+        responses = iter([group, _read_response(), group, unread])
+        client = self._client(lambda request: httpx.Response(200, json=next(responses)))
+        with self.assertRaises(JiraNotificationsUnavailable):
+            await client.mark_read(_grant(), "notification-1", "group-1", "direct")
+
+    async def test_newer_unread_notification_does_not_change_the_selected_group_cutoff(self) -> None:
+        calls = []
+        selected = _group_response("read")
+        newer = copy.deepcopy(selected["data"]["notifications"]["notificationGroup"]["nodes"][0])
+        newer.update(notificationId="newer-notification", readState="unread", timestamp="2026-10-21T05:01:00Z")
+        selected["data"]["notifications"]["notificationGroup"]["nodes"].insert(0, newer)
+
+        def handler(request):
+            body = json.loads(request.content)
+            calls.append(body)
+            if body["operationName"] == "MarkJiraNotificationRead":
+                self.assertEqual("notification-1", body["variables"]["notificationId"])
+                return httpx.Response(200, json=_read_response())
+            filters = body["variables"]["filter"]
+            if filters.get("readStateFilter") == "unread":
+                cutoff = datetime.fromisoformat(filters["beforeTimestamp"])
+                self.assertGreater(datetime.fromisoformat(newer["timestamp"]), cutoff)
+                return httpx.Response(200, json=_empty_group_response())
+            return httpx.Response(200, json=selected)
+
+        await self._client(handler).mark_read(_grant(), "notification-1", "group-1", "direct")
+        self.assertEqual(4, len(calls))
+
+    async def test_unread_cutoff_uses_the_next_millisecond_and_normalizes_timezone(self) -> None:
+        timestamp = "2026-10-21T14:00:00.123456+09:00"
+        before, after = _group_response(), _group_response("read")
+        for payload in (before, after):
+            payload["data"]["notifications"]["notificationGroup"]["nodes"][0]["timestamp"] = timestamp
+        responses = iter([before, _read_response(), after, _empty_group_response()])
+        requests = []
+
+        def handler(request):
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, json=next(responses))
+
+        await self._client(handler).mark_read(_grant(), "notification-1", "group-1", "direct")
+        cutoff = requests[-1]["variables"]["filter"]["beforeTimestamp"]
+        self.assertEqual("2026-10-21T05:00:00.124+00:00", cutoff)
+        self.assertGreater(datetime.fromisoformat(cutoff), datetime.fromisoformat(timestamp))
+
+    async def test_missing_malformed_or_failed_unread_check_never_reports_success(self) -> None:
+        payloads = [{}, {"errors": [{"message": "private provider response"}]}]
+        for nodes in (None, {}, [None], [_group_response()] * 31):
+            payload = _empty_group_response()
+            payload["data"]["notifications"]["notificationGroup"]["nodes"] = nodes
+            payloads.append(payload)
+        for unread in payloads:
+            with self.subTest(unread=unread):
+                responses = iter([_group_response(), _read_response(), _group_response("read"), unread])
+                client = self._client(lambda request: httpx.Response(200, json=next(responses)))
+                with self.assertRaises(JiraNotificationsUnavailable) as raised:
+                    await client.mark_read(_grant(), "notification-1", "group-1", "direct")
+                self.assertNotIn("private", str(raised.exception))
+
+    async def test_auth_denial_on_final_unread_check_still_requires_reconnection(self) -> None:
+        responses = iter([
+            httpx.Response(200, json=_group_response()), httpx.Response(200, json=_read_response()),
+            httpx.Response(200, json=_group_response("read")), httpx.Response(403),
+        ])
+        with self.assertRaises(JiraNotificationsReconnectRequired):
+            await self._client(lambda request: next(responses)).mark_read(_grant(), "notification-1", "group-1", "direct")
+
+    async def test_total_deadline_includes_final_unread_verification(self) -> None:
+        responses = iter([_group_response(), _read_response(), _group_response("read")])
+        calls = []
+        cancelled = asyncio.Event()
+
+        async def handler(request):
+            calls.append(request)
+            if len(calls) < 4:
+                return httpx.Response(200, json=next(responses))
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+
+        original_timeout = asyncio.timeout
+        client = self._client(handler)
+        with patch("src.infrastructure.external.jira_notification_client.asyncio.timeout", side_effect=lambda seconds: original_timeout(0.03)) as timeout:
+            with self.assertRaises(JiraNotificationsUnavailable):
+                await client.mark_read(_grant(), "notification-1", "group-1", "direct")
+            timeout.assert_called_once_with(20)
+        self.assertEqual(4, len(calls))
+        self.assertTrue(cancelled.is_set())
+
+    async def test_mutation_errors_and_malformed_acknowledgement_do_not_report_success(self) -> None:
+        for payload in [{}, _read_response(True), {"errors": [{"message": "private"}], **_read_response("OK")}]:
+            responses = iter([_group_response(), payload])
+            client = self._client(lambda request: httpx.Response(200, json=next(responses)))
+            with self.assertRaises(JiraNotificationsUnavailable) as raised:
+                await client.mark_read(_grant(), "notification-1", "group-1", "direct")
+            self.assertNotIn("private", str(raised.exception))
+
+    async def test_auth_failure_on_mutation_requires_reconnection(self) -> None:
+        responses = iter([
+            httpx.Response(200, json=_group_response()),
+            httpx.Response(200, json={"errors": [{"extensions": {"statusCode": 403}}]}),
+        ])
+        with self.assertRaises(JiraNotificationsReconnectRequired):
+            await self._client(lambda request: next(responses)).mark_read(_grant(), "notification-1", "group-1", "direct")
+
+    async def test_read_validation_and_expired_grants_prevent_network_calls(self) -> None:
+        calls = []
+        client = self._client(lambda request: calls.append(request))
+        for target in [("", "group-1", "direct"), ("id", "g\n", "direct"), ("id", "g", "all"), ("x" * 2049, "g", "direct")]:
+            with self.assertRaises(ValueError):
+                await client.mark_read(_grant(), *target)
+        with self.assertRaises(JiraNotificationsReconnectRequired):
+            await client.mark_read(replace(_grant(), expires_at=datetime.now(timezone.utc)), "id", "g", "direct")
+        self.assertEqual(calls, [])
+
+    async def test_cancellation_before_mutation_prevents_write(self) -> None:
+        async def handler(request):
+            raise asyncio.CancelledError()
+
+        with self.assertRaises(asyncio.CancelledError):
+            await self._client(handler).mark_read(_grant(), "notification-1", "group-1", "direct")

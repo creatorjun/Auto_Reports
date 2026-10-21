@@ -8,6 +8,14 @@ export function jiraNotificationItems(pages: JiraNotificationPage[]): JiraNotifi
   return [...items.values()]
 }
 
+export function jiraNotificationReadKey(item: Pick<JiraNotification, 'id' | 'group_id'>): string {
+  return JSON.stringify([item.group_id, item.id])
+}
+
+export function applyJiraNotificationReads(page: JiraNotificationPage, confirmed: ReadonlySet<string>): JiraNotificationPage {
+  return { ...page, items: page.items.map((item) => !item.is_read && confirmed.has(jiraNotificationReadKey(item)) ? { ...item, is_read: true } : item) }
+}
+
 export function safeJiraNotificationUrl(value: string | null): string | null {
   if (!value) return null
   try {

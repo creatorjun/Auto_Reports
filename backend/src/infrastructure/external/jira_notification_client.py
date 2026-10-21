@@ -2,7 +2,7 @@
 import asyncio
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 from typing import Literal
 from urllib.parse import urljoin, urlsplit
@@ -47,6 +47,22 @@ query JiraUserNotifications($filter: InfluentsNotificationFilter, $first: Int, $
 """
 _UNAVAILABLE = "Jira notifications are temporarily unavailable"
 _RECONNECT = "Jira login must be renewed to view notifications"
+_GROUP_QUERY = """
+query JiraNotificationReadState($groupId: String!, $filter: InfluentsNotificationFilter, $routing: String) {
+  notifications {
+    notificationGroup(groupId: $groupId, filter: $filter, first: 30, collabContextRoutingAri: $routing) {
+      nodes { notificationId category readState timestamp entityModel { cloudId } }
+    }
+  }
+}
+"""
+_MARK_READ = """
+mutation MarkJiraNotificationRead($groupId: String!, $notificationId: String!, $category: InfluentsNotificationCategory!, $routing: String) {
+  notifications {
+    markNotificationsByGroupIdAsRead(groupId: $groupId, beforeInclusive: $notificationId, category: $category, collabContextRoutingAri: $routing)
+  }
+}
+"""
 
 
 class _TextParser(HTMLParser):
@@ -104,6 +120,98 @@ class JiraNotificationClient(JiraNotificationSourcePort):
             raise ValueError("Invalid notification category")
         if cursor is not None and (not isinstance(cursor, str) or not cursor or len(cursor) > 4096):
             raise ValueError("Invalid notification cursor")
+        filters = {"productFilter": "jira", "workspaceId": grant.cloud_id}
+        if category is not None:
+            filters["categoryFilter"] = category
+        try:
+            async with asyncio.timeout(20):
+                data = await self._request(grant, _QUERY, "JiraUserNotifications", {
+                    "filter": filters, "first": 30, "after": cursor,
+                    "routing": f"ari:cloud:platform::site/{grant.cloud_id}",
+                })
+            return self._page(data, grant.cloud_id, category, cursor)
+        except (httpx.HTTPError, TimeoutError):
+            raise JiraNotificationsUnavailable(_UNAVAILABLE) from None
+        except (KeyError, TypeError, ValueError, OverflowError):
+            raise JiraNotificationsUnavailable(_UNAVAILABLE) from None
+
+    async def mark_read(
+        self, grant: JiraUserGrant, notification_id: str, group_id: str,
+        category: Literal["direct", "watching"],
+    ) -> None:
+        if category not in {"direct", "watching"} or any(
+            not isinstance(value, str) or not value or len(value) > 2048
+            or re.search(r"[\s\x00-\x1f\x7f]", value)
+            for value in (notification_id, group_id)
+        ):
+            raise ValueError("Invalid notification read target")
+        routing = f"ari:cloud:platform::site/{grant.cloud_id}"
+        variables = {
+            "groupId": group_id, "routing": routing,
+            "filter": {"productFilter": "jira", "workspaceId": grant.cloud_id, "categoryFilter": category},
+        }
+        try:
+            async with asyncio.timeout(20):
+                before = await self._request(grant, _GROUP_QUERY, "JiraNotificationReadState", variables)
+                _, selected_timestamp = self._group_read_state(before, grant.cloud_id, notification_id, category)
+                unread_cutoff = (selected_timestamp + timedelta(milliseconds=1)).astimezone(timezone.utc).isoformat(timespec="milliseconds")
+                result = await self._request(grant, _MARK_READ, "MarkJiraNotificationRead", {
+                    "groupId": group_id, "notificationId": notification_id,
+                    "category": category, "routing": routing,
+                })
+                acknowledged = result["data"]["notifications"]["markNotificationsByGroupIdAsRead"]
+                if acknowledged is not None and not isinstance(acknowledged, str):
+                    raise ValueError("Invalid notification mutation response")
+                after = await self._request(grant, _GROUP_QUERY, "JiraNotificationReadState", variables)
+                is_read, _ = self._group_read_state(after, grant.cloud_id, notification_id, category)
+                if not is_read:
+                    raise JiraNotificationsUnavailable(_UNAVAILABLE)
+                unread = await self._request(grant, _GROUP_QUERY, "JiraNotificationReadState", {
+                    **variables,
+                    "filter": {
+                        **variables["filter"], "readStateFilter": "unread",
+                        "beforeTimestamp": unread_cutoff,
+                    },
+                })
+                if self._group_nodes(unread):
+                    raise JiraNotificationsUnavailable(_UNAVAILABLE)
+        except (httpx.HTTPError, TimeoutError, KeyError, TypeError, ValueError, OverflowError):
+            raise JiraNotificationsUnavailable(_UNAVAILABLE) from None
+
+    def _group_read_state(
+        self, data: dict, cloud_id: str, notification_id: str, category: str,
+    ) -> tuple[bool, datetime]:
+        nodes = self._group_nodes(data)
+        found = None
+        seen = set()
+        for node in nodes:
+            if not isinstance(node, dict):
+                raise ValueError("Invalid notification group item")
+            item_id = self._string(node["notificationId"], 2048)
+            model = node.get("entityModel")
+            if (
+                item_id in seen or node["category"] != category or node["readState"] not in {"read", "unread"}
+                or model is not None and (not isinstance(model, dict) or model.get("cloudId") not in {None, cloud_id})
+            ):
+                raise ValueError("Invalid notification group state")
+            seen.add(item_id)
+            if item_id == notification_id:
+                timestamp = datetime.fromisoformat(self._string(node["timestamp"], 64).replace("Z", "+00:00"))
+                if timestamp.tzinfo is None:
+                    raise ValueError("Invalid notification timestamp")
+                found = (node["readState"] == "read", timestamp)
+        if found is None:
+            raise JiraNotificationsUnavailable(_UNAVAILABLE)
+        return found
+
+    @staticmethod
+    def _group_nodes(data: dict) -> list:
+        nodes = data["data"]["notifications"]["notificationGroup"]["nodes"]
+        if not isinstance(nodes, list) or len(nodes) > 30:
+            raise ValueError("Invalid notification group response")
+        return nodes
+
+    async def _request(self, grant: JiraUserGrant, query: str, operation: str, variables: dict) -> dict:
         if (
             grant.expires_at.tzinfo is None
             or grant.expires_at <= datetime.now(timezone.utc)
@@ -114,41 +222,23 @@ class JiraNotificationClient(JiraNotificationSourcePort):
             raise JiraNotificationsReconnectRequired(_RECONNECT)
         if self._closed:
             raise JiraNotificationsUnavailable(_UNAVAILABLE)
-        filters = {"productFilter": "jira", "workspaceId": grant.cloud_id}
-        if category is not None:
-            filters["categoryFilter"] = category
-        try:
-            async with asyncio.timeout(20):
-                async with self._client.stream(
-                    "POST",
-                    "https://api.atlassian.com/graphql",
-                    headers={"Authorization": f"Bearer {grant.access_token}", "Accept": "application/json"},
-                    json={
-                        "query": _QUERY,
-                        "operationName": "JiraUserNotifications",
-                        "variables": {
-                            "filter": filters,
-                            "first": 30,
-                            "after": cursor,
-                            "routing": f"ari:cloud:platform::site/{grant.cloud_id}",
-                        },
-                    },
-                ) as response:
-                    if response.status_code in {401, 403}:
-                        raise JiraNotificationsReconnectRequired(_RECONNECT)
-                    if response.status_code != 200:
-                        raise JiraNotificationsUnavailable(_UNAVAILABLE)
-                    content = bytearray()
-                    async for chunk in response.aiter_bytes():
-                        content.extend(chunk)
-                        if len(content) > 2_000_000:
-                            raise JiraNotificationsUnavailable(_UNAVAILABLE)
-                    data = json.loads(content)
-            return self._page(data, grant.cloud_id, category, cursor)
-        except (httpx.HTTPError, TimeoutError):
-            raise JiraNotificationsUnavailable(_UNAVAILABLE) from None
-        except (KeyError, TypeError, ValueError, OverflowError):
-            raise JiraNotificationsUnavailable(_UNAVAILABLE) from None
+        async with self._client.stream(
+            "POST", "https://api.atlassian.com/graphql",
+            headers={"Authorization": f"Bearer {grant.access_token}", "Accept": "application/json"},
+            json={"query": query, "operationName": operation, "variables": variables},
+        ) as response:
+            if response.status_code in {401, 403}:
+                raise JiraNotificationsReconnectRequired(_RECONNECT)
+            if response.status_code != 200:
+                raise JiraNotificationsUnavailable(_UNAVAILABLE)
+            content = bytearray()
+            async for chunk in response.aiter_bytes():
+                content.extend(chunk)
+                if len(content) > 2_000_000:
+                    raise JiraNotificationsUnavailable(_UNAVAILABLE)
+            data = json.loads(content)
+        self._check_errors(data)
+        return data
 
     async def aclose(self) -> None:
         if not self._closed:
@@ -162,18 +252,6 @@ class JiraNotificationClient(JiraNotificationSourcePort):
         category: Literal["direct", "watching"] | None,
         previous_cursor: str | None,
     ) -> JiraNotificationPage:
-        if not isinstance(data, dict):
-            raise ValueError("Invalid notification response")
-        errors = data.get("errors")
-        if errors:
-            if isinstance(errors, list) and any(
-                isinstance(error, dict)
-                and isinstance(error.get("extensions"), dict)
-                and str(error["extensions"].get("statusCode")) in {"401", "403"}
-                for error in errors
-            ):
-                raise JiraNotificationsReconnectRequired(_RECONNECT)
-            raise JiraNotificationsUnavailable(_UNAVAILABLE)
         feed = data["data"]["notifications"]["notificationFeed"]
         nodes = feed["nodes"]
         info = feed["pageInfo"]
@@ -190,6 +268,21 @@ class JiraNotificationClient(JiraNotificationSourcePort):
         if len({item.id for item in items}) != len(items) or len({item.group_id for item in items}) != len(items):
             raise ValueError("Duplicate notification groups")
         return JiraNotificationPage(items=items, next_cursor=next_cursor)
+
+    @staticmethod
+    def _check_errors(data: object) -> None:
+        if not isinstance(data, dict):
+            raise ValueError("Invalid notification response")
+        errors = data.get("errors")
+        if errors:
+            if isinstance(errors, list) and any(
+                isinstance(error, dict)
+                and isinstance(error.get("extensions"), dict)
+                and str(error["extensions"].get("statusCode")) in {"401", "403"}
+                for error in errors
+            ):
+                raise JiraNotificationsReconnectRequired(_RECONNECT)
+            raise JiraNotificationsUnavailable(_UNAVAILABLE)
 
     def _item(
         self,

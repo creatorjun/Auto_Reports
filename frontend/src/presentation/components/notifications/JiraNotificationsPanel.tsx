@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/notifications/JiraNotificationsPanel.tsx
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { ExternalLink, Loader2, RefreshCw, X } from 'lucide-react'
+import { Check, ExternalLink, Loader2, RefreshCw, X } from 'lucide-react'
 import type { JiraNotification, JiraNotificationCategory } from '@/domain/JiraNotification'
 import { RequestError } from '@/application/errors/RequestError'
 import { safeJiraNotificationUrl } from '@/application/services/jiraNotifications'
@@ -12,7 +12,7 @@ import { useAuthStore } from '@/presentation/state/authStore'
 const categories = [{ value: 'all', label: '전체' }, { value: 'direct', label: '직접' }, { value: 'watching', label: '관심' }] as const
 const timestamp = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
-function NotificationItem({ item }: { item: JiraNotification }) {
+function NotificationItem({ item, pending, error, onRead }: { item: JiraNotification; pending: boolean; error: string | null; onRead: (item: JiraNotification) => Promise<void> }) {
   const url = safeJiraNotificationUrl(item.url)
   const date = new Date(item.created_at)
   const content = <>
@@ -31,7 +31,12 @@ function NotificationItem({ item }: { item: JiraNotification }) {
   </>
   const className = 'block rounded-xl px-4 py-3'
   return <li data-notification-id={item.id} className="border-t border-apple-divider/60 first:border-t-0">
-    {url ? <a href={url} target="_blank" rel="noopener noreferrer" className={`${className} hover:bg-apple-gray focus-visible:outline-brand-500`}>{content}</a> : <div className={className}>{content}</div>}
+    {url ? <a href={url} target="_blank" rel="noopener noreferrer" onClick={() => void onRead(item)} onAuxClick={(event) => { if (event.button === 1) void onRead(item) }} className={`${className} hover:bg-apple-gray focus-visible:outline-brand-500`}>{content}</a> : <div className={className}>{content}</div>}
+    <div className="flex flex-wrap items-center justify-end gap-2 px-4 pb-3">
+      {error && <p role="alert" className="w-full text-caption text-red-600">{error}</p>}
+      {item.is_read ? <span className="inline-flex items-center gap-1 text-caption text-apple-light"><Check size={13} aria-hidden="true" />읽음</span>
+        : <button type="button" disabled={pending || !item.group_id} onClick={() => void onRead(item)} aria-label={`${item.title} 읽음 처리`} className="inline-flex items-center gap-1.5 rounded-lg border border-apple-divider px-2.5 py-1.5 text-caption text-apple-mid hover:bg-apple-gray focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50">{pending ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Check size={13} aria-hidden="true" />}{pending ? '처리 중...' : error ? '읽음 처리 재시도' : '읽음 처리'}</button>}
+    </div>
   </li>
 }
 
@@ -81,7 +86,7 @@ export default function JiraNotificationsPanel({ id, trigger, sessionToken, side
     <section ref={panel} id={id} role="dialog" aria-modal="false" aria-labelledby={`${id}-title`} tabIndex={-1}
       className={`fixed inset-x-3 bottom-4 z-50 flex max-h-[calc(100dvh-2rem)] min-w-0 flex-col overflow-hidden whitespace-normal rounded-2xl border border-apple-divider bg-apple-surface shadow-apple-lg outline-none sm:right-auto sm:w-[420px] ${sidebarCollapsed ? 'xl:left-16 3xl:left-20' : 'xl:left-64 2xl:left-[17rem] 3xl:left-[19rem]'}`}>
       <div className="flex items-start justify-between gap-3 border-b border-apple-divider/60 px-4 py-4">
-        <div><h2 id={`${id}-title`} className="text-section-title font-semibold text-apple-dark">Jira 알림</h2><p className="mt-1 text-caption text-apple-mid">읽음 상태는 조회 시점 기준</p></div>
+        <div><h2 id={`${id}-title`} className="text-section-title font-semibold text-apple-dark">Jira 알림</h2><p className="mt-1 text-caption text-apple-mid">Jira의 알림과 읽음 상태를 확인합니다.</p></div>
         <div className="flex shrink-0 items-center gap-1">
           <button type="button" disabled={query.isFetching || reconnect.isPending} onClick={() => void query.refresh()} aria-label="Jira 알림 새로고침" className="rounded-lg p-2 text-apple-mid hover:bg-apple-gray focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-40"><RefreshCw size={17} className={query.isFetching ? 'animate-spin' : ''} aria-hidden="true" /></button>
           <button type="button" onClick={onClose} aria-label="Jira 알림 닫기" className="rounded-lg p-2 text-apple-mid hover:bg-apple-gray focus-visible:ring-2 focus-visible:ring-brand-500"><X size={18} aria-hidden="true" /></button>
@@ -93,10 +98,10 @@ export default function JiraNotificationsPanel({ id, trigger, sessionToken, side
           : query.isError ? <div role="alert" className="space-y-3 px-5 py-8 text-center"><p className="text-label text-red-600">{error}</p><button type="button" onClick={() => void query.refresh()} disabled={query.isFetching} className="rounded-lg border border-apple-divider px-4 py-2 text-control text-apple-dark hover:bg-apple-gray disabled:opacity-50">다시 불러오기</button></div>
           : query.isPending ? <p role="status" className="flex items-center justify-center gap-2 px-5 py-10 text-label text-apple-mid"><Loader2 size={17} className="animate-spin" aria-hidden="true" />Jira 알림을 불러오는 중...</p>
           : query.items.length === 0 ? <p role="status" className="px-5 py-10 text-center text-label text-apple-mid">표시할 Jira 알림이 없습니다.</p>
-          : <ul aria-label="Jira 알림 목록">{query.items.map((item) => <NotificationItem key={item.id} item={item} />)}</ul>}
+          : <ul aria-label="Jira 알림 목록">{query.items.map((item) => <NotificationItem key={item.id} item={item} pending={query.isMarkingRead(item)} error={query.readError(item)} onRead={query.markRead} />)}</ul>}
         {query.hasMore && <div className="border-t border-apple-divider/60 p-3"><button type="button" disabled={query.isFetching} onClick={query.loadMore} className="w-full rounded-xl border border-apple-divider py-2.5 text-control text-apple-mid hover:bg-apple-gray disabled:opacity-40">{query.isFetching ? '불러오는 중...' : '더 보기'}</button></div>}
       </div>
-      <p className="border-t border-apple-divider/60 px-4 py-3 text-caption text-apple-mid">알림을 열어도 Jira의 읽음 상태는 변경되지 않습니다.</p>
+      <p className="border-t border-apple-divider/60 px-4 py-3 text-caption text-apple-mid">알림을 열거나 읽음 처리하면 Jira에도 반영됩니다. 묶음은 선택한 알림까지 읽음 처리됩니다.</p>
     </section>
   )
 }

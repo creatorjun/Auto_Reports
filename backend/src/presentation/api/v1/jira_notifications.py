@@ -12,7 +12,12 @@ from src.application.services.auth_service import AuthService
 from src.application.use_cases.jira_notifications import JiraNotificationsUseCase
 from src.domain.entities.auth_identity import AuthIdentity
 from src.presentation.api.deps import get_api_services, get_auth
-from src.presentation.schemas.jira_notification_schema import JiraNotificationSchema, JiraNotificationsSchema
+from src.presentation.schemas.jira_notification_schema import (
+    JiraNotificationReadRequest,
+    JiraNotificationReadSchema,
+    JiraNotificationSchema,
+    JiraNotificationsSchema,
+)
 
 router = APIRouter(prefix="/jira/notifications", tags=["jira-notifications"])
 _bearer = HTTPBearer(auto_error=False)
@@ -65,9 +70,34 @@ async def list_notifications(
     return JiraNotificationsSchema(
         connection_status="connected",
         items=tuple(JiraNotificationSchema(
-            id=item.id, title=item.title, message=item.message, url=item.url,
+            id=item.id, group_id=item.group_id, title=item.title, message=item.message, url=item.url,
             actor=item.actor_name, created_at=item.created_at, category=item.category,
             is_read=item.is_read, group_size=item.group_size,
         ) for item in page.items),
         next_cursor=page.next_cursor,
+    )
+
+
+@router.post("/read", response_model=JiraNotificationReadSchema)
+async def mark_notification_read(
+    body: JiraNotificationReadRequest,
+    response: Response,
+    identity: AuthIdentity = Depends(require_jira_identity),
+    use_case: JiraNotificationsUseCase = Depends(get_jira_notifications),
+) -> JiraNotificationReadSchema:
+    response.headers.update(_NO_STORE)
+    try:
+        await use_case.mark_read(identity, body.notification_id, body.group_id, body.category)
+    except JiraNotificationsReconnectRequired:
+        return JiraNotificationReadSchema(
+            connection_status="reconnect_required", notification_id=body.notification_id,
+            group_id=body.group_id, is_read=False,
+        )
+    except JiraNotificationsUnavailable as error:
+        raise HTTPException(
+            503, "Jira 알림을 읽음 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.", headers=_NO_STORE,
+        ) from error
+    return JiraNotificationReadSchema(
+        connection_status="connected", notification_id=body.notification_id,
+        group_id=body.group_id, is_read=True,
     )

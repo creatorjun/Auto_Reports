@@ -25,5 +25,15 @@ class JiraNotificationSourcePort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def mark_read(
+        self,
+        grant: JiraUserGrant,
+        notification_id: str,
+        group_id: str,
+        category: Literal["direct", "watching"],
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def aclose(self) -> None:
         raise NotImplementedError

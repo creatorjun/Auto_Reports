@@ -1,15 +1,18 @@
 # backend/src/application/use_cases/jira_notifications.py
 import asyncio
-from typing import Literal
+from collections.abc import Awaitable, Callable
+from typing import Literal, TypeVar
 
 from src.application.ports.jira_notification_port import (
     JiraNotificationSourcePort,
     JiraNotificationsReconnectRequired,
     JiraNotificationsUnavailable,
 )
-from src.application.ports.jira_user_grant_port import JiraUserGrantStorePort
+from src.application.ports.jira_user_grant_port import JiraUserGrant, JiraUserGrantStorePort
 from src.domain.entities.auth_identity import AuthIdentity
 from src.domain.entities.jira_notification import JiraNotificationPage
+
+T = TypeVar("T")
 
 
 class JiraNotificationsUseCase:
@@ -22,6 +25,15 @@ class JiraNotificationsUseCase:
         self, identity: AuthIdentity, category: Literal["direct", "watching"] | None = None,
         cursor: str | None = None,
     ) -> JiraNotificationPage:
+        return await self._with_grant(identity, lambda grant: self._source.fetch(grant, category=category, cursor=cursor))
+
+    async def mark_read(
+        self, identity: AuthIdentity, notification_id: str, group_id: str,
+        category: Literal["direct", "watching"],
+    ) -> None:
+        await self._with_grant(identity, lambda grant: self._source.mark_read(grant, notification_id, group_id, category))
+
+    async def _with_grant(self, identity: AuthIdentity, operation: Callable[[JiraUserGrant], Awaitable[T]]) -> T:
         if identity.auth_provider != "jira":
             raise PermissionError("Jira login is required")
         grant_id = identity.jira_grant_id
@@ -35,12 +47,12 @@ class JiraNotificationsUseCase:
                 async with self._slots:
                     if await self._grants.get(grant_id, identity) is None:
                         raise JiraNotificationsReconnectRequired()
-                    page = await self._source.fetch(grant, category=category, cursor=cursor)
+                    result = await operation(grant)
+                    if await self._grants.get(grant_id, identity) is None:
+                        raise JiraNotificationsReconnectRequired()
         except JiraNotificationsReconnectRequired:
             await self._grants.revoke(grant_id, identity)
             raise
         except TimeoutError as error:
             raise JiraNotificationsUnavailable() from error
-        if await self._grants.get(grant_id, identity) is None:
-            raise JiraNotificationsReconnectRequired()
-        return page
+        return result
