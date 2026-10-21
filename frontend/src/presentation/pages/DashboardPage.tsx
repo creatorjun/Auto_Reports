@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/DashboardPage.tsx
 import { lazy, Suspense, useCallback, useEffect, useState, useMemo, useRef, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { BarChart2, ShieldAlert, Activity, CalendarRange, RefreshCw, Download, History } from 'lucide-react'
+import { useParams } from 'react-router-dom'
+import { BarChart2, ShieldAlert, Activity, CalendarRange, RefreshCw, Download } from 'lucide-react'
 import { useAnnualReport, useLatestReport, useReportById } from '@/presentation/hooks/useReport'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useDashboardData } from '@/presentation/hooks/useDashboardData'
@@ -226,7 +226,6 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
 
   const exportActions = !exportSelection && (
         <div className="flex flex-wrap items-center justify-end gap-3">
-          {isAnnual && <span className="text-caption text-apple-mid">선택 연도 · 현재 필터</span>}
           <select
             aria-label="다운로드 형식"
             value={exportFormat}
@@ -554,9 +553,6 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-content flex-col gap-5 3xl:max-w-none">
-      {(year || data?.scope === 'annual') && <div className="flex flex-wrap items-center justify-end gap-3">
-        <Link to="/history" className="flex items-center gap-2 rounded-xl border border-apple-divider bg-apple-surface px-4 py-2.5 text-control text-apple-mid hover:bg-apple-gray"><History size={16} />보고서 히스토리</Link>
-      </div>}
       {year ? <AnnualReportGenerate year={annualYear} loading={isLoading} /> : !data && <DashboardGenerateForm loading={isLoading} />}
       {isLoading && <LoadingSpinner text="보고서 로딩 중..." />}
       {error && year && !data ? (

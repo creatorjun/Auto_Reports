@@ -1,7 +1,7 @@
 // frontend/src/presentation/pages/SlaViolationPage.tsx
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AlarmClock, History, Loader2, RefreshCw } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { AlarmClock, Loader2, RefreshCw } from 'lucide-react'
 import type { SlaViolationPeriod } from '@/domain/SlaViolationReport'
 import { SLA_PERIOD_LABELS, slaDateRange, slaToday } from '@/application/services/slaViolationReport'
 import { RequestError } from '@/application/errors/RequestError'
@@ -59,7 +59,6 @@ export default function SlaViolationPage() {
         <div>
           <h1 className="text-page-title font-semibold tracking-tight text-apple-dark">SLA 위반</h1>
         </div>
-        <Link to="/history#sla-violations" className="flex items-center gap-2 rounded-xl border border-apple-divider bg-apple-surface px-4 py-2.5 text-control text-apple-mid hover:bg-apple-gray"><History size={16} />보고서 히스토리</Link>
       </header>
 
       <form onSubmit={generate} className="rounded-2xl border border-apple-divider bg-apple-surface p-4 shadow-sm sm:p-5">

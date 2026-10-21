@@ -40,7 +40,7 @@
 | `/audit-logs` | AuditLogPage | ProtectedRoute + SuperadminRoute | 관리자 감사로그 |
 | `*` | Navigate | — | `/login`으로 이동 |
 
-로그인·정책·관리자 연결·storage preview를 제외한 실제 페이지는 `ProtectedRoute → Layout → Outlet` 아래에 있습니다. 대시보드 버튼은 `/history`, SLA 위반 버튼은 `/history#sla-violations`로 이동합니다. SLA 현황에는 생성 기간 선택이나 저장 이력이 없습니다. 메뉴명 변경 후에도 내부 `/sla-dashboard`, `/sla-violations` 등의 주소는 유지합니다. C-Level 경로는 없습니다.
+로그인·정책·관리자 연결·storage preview를 제외한 실제 페이지는 `ProtectedRoute → Layout → Outlet` 아래에 있습니다. 보고서 히스토리 이동 버튼은 모든 페이지에서 표시하지 않으며 `/history`와 `/history#sla-violations` 주소로 직접 접근할 수 있습니다. SLA 현황에는 생성 기간 선택이나 저장 이력이 없습니다. 메뉴명 변경 후에도 내부 `/sla-dashboard`, `/sla-violations` 등의 주소는 유지합니다. C-Level 경로는 없습니다.
 
 ## 인증과 로딩
 
