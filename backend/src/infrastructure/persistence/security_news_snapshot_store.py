@@ -99,7 +99,10 @@ class SqliteSecurityNewsSnapshotStore(SecurityNewsSnapshotPort):
         try:
             return await asyncio.shield(task)
         except asyncio.CancelledError:
-            await task
+            try:
+                await task
+            except Exception:
+                pass
             raise
 
     async def load(self) -> SecurityNewsStoredSnapshot | None:

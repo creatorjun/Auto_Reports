@@ -2,6 +2,7 @@
 import asyncio
 import sqlite3
 import tempfile
+import threading
 import unittest
 from contextlib import closing
 from dataclasses import replace
@@ -142,6 +143,30 @@ class SecurityNewsSnapshotStoreTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(previous_success, snapshot.refreshed_at)
         await self.manual(restarted)
         self.assertEqual(["cisa-kev"], [call.args[0] for call in other.fetch.await_args_list])
+
+    async def test_shutdown_during_failed_store_write_preserves_cancellation_without_fetching(self) -> None:
+        service, source, store = self.service()
+        await service.initialize()
+        entered, release = threading.Event(), threading.Event()
+
+        def failed_save(snapshot):
+            entered.set()
+            release.wait(timeout=5)
+            raise OSError("storage failure during shutdown")
+
+        store._save = failed_save
+        await service.get_snapshot(refresh=True)
+        self.assertTrue(await asyncio.to_thread(entered.wait, 5))
+        closing = asyncio.create_task(service.aclose())
+        try:
+            await asyncio.sleep(0)
+            self.assertTrue(service._closed)
+            self.assertGreater(service._task.cancelling(), 0)
+        finally:
+            release.set()
+            await asyncio.wait_for(closing, timeout=5)
+        self.assertTrue(service._task.cancelled())
+        source.fetch.assert_not_awaited()
 
     async def test_store_failure_does_not_trigger_get_or_unreserved_automatic_collection(self) -> None:
         store = AsyncMock()
