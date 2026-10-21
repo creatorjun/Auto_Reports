@@ -505,6 +505,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
         <RecentIssuesWidget
           key={report.id}
           tablePreferenceKey="dashboard:recent-issues"
+          commentsReportId={report.id}
           paginationResetKey={JSON.stringify([
             effectiveIssueTypes === null ? null : [...effectiveIssueTypes].sort(),
             effectiveStatuses === null ? null : [...effectiveStatuses].sort(),

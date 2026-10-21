@@ -95,12 +95,13 @@ class SlaDashboardUseCase:
         issue_key: str,
         offset: int = 0,
         limit: int = _RECENT_COMMENT_LIMIT,
+        report_id: int | None = None,
     ) -> SlaDashboardCommentPage:
         if offset < 0:
             raise ValueError("Comment offset must be nonnegative")
         if limit < 1:
             raise ValueError("Comment limit must be positive")
-        normalized_key = await self._require_recent_issue(issue_key)
+        normalized_key = await self._require_recent_issue(issue_key, report_id)
         comments = await self._jira.get_issue_comments(
             normalized_key,
             max_results=limit + 1,
@@ -123,8 +124,9 @@ class SlaDashboardUseCase:
         issue_key: str,
         comment_id: str,
         attachment_id: str,
+        report_id: int | None = None,
     ) -> JiraAttachmentContent:
-        normalized_key = await self._require_recent_issue(issue_key)
+        normalized_key = await self._require_recent_issue(issue_key, report_id)
         if not comment_id.isdigit():
             raise EntityNotFoundError("Comment", comment_id)
         comment = await self._jira.get_issue_comment(normalized_key, comment_id)
@@ -138,9 +140,13 @@ class SlaDashboardUseCase:
             raise EntityNotFoundError("Comment image", attachment_id)
         return await self._jira.get_attachment_content(attachment_id)
 
-    async def _require_recent_issue(self, issue_key: str) -> str:
+    async def _require_recent_issue(
+        self,
+        issue_key: str,
+        report_id: int | None = None,
+    ) -> str:
         normalized_key = issue_key.upper()
-        details = await self._recent_issue_details()
+        details = await self._recent_issue_details(report_id)
         recent_keys = {
             detail.key.upper()
             for detail in details
@@ -150,8 +156,17 @@ class SlaDashboardUseCase:
             raise EntityNotFoundError("Recent issue", issue_key)
         return normalized_key
 
-    async def _recent_issue_details(self) -> list[RecentIssueDetail]:
-        report = await self._reports.get_latest()
+    async def _recent_issue_details(
+        self,
+        report_id: int | None = None,
+    ) -> list[RecentIssueDetail]:
+        if report_id is not None and report_id < 1:
+            raise ValueError("Report id must be positive")
+        report = (
+            await self._reports.get_latest()
+            if report_id is None
+            else await self._reports.get_by_id(report_id)
+        )
         if report is None:
             return []
         widget = report.widgets.get(WidgetId.RECENT_ISSUES)

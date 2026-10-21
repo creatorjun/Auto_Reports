@@ -602,7 +602,7 @@ test('recent issue list centers body content without cell dividers', () => {
   const mobileCard = table.match(/function MobileIssueCard[\s\S]*?\n}\n\nexport default/)?.[0] ?? ''
   const tableCells = [...tbody.matchAll(/<td className="([^"]+)"/g)]
 
-  assert.equal(tableCells.length, 8)
+  assert.equal(tableCells.length, 9)
   for (const cell of tableCells) assert.match(cell[1], /\btext-center\b/)
   assert.doesNotMatch(tbody, /\bborder-r\b|\bborder-b\b/)
   assert.match(table, /className="flex flex-col items-center[^\"]*text-center/)
@@ -691,6 +691,10 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
     path.join(source, 'presentation/components/sla/SlaIssueActivityTable.tsx'),
     'utf8',
   )
+  const comments = fs.readFileSync(
+    path.join(source, 'presentation/components/common/IssueCommentsPanel.tsx'),
+    'utf8',
+  )
   const api = fs.readFileSync(
     path.join(source, 'infrastructure/api/slaDashboardApi.ts'),
     'utf8',
@@ -714,13 +718,14 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
   assert.match(table, /aria-expanded=/)
   assert.match(table, /useState<Set<string>>\(\(\) => new Set\(\)\)/)
   assert.match(table, /expanded=\{!collapsedKeys\.has\(issue\.key\)\}/)
-  assert.match(table, /useSlaIssueComments/)
-  assert.match(table, /최근 작성된 댓글/)
-  assert.match(table, /최신 5개부터 표시/)
-  assert.match(table, /최신 \$\{data\.length\}개 · 최신순/)
+  assert.match(table, /<IssueCommentsPanel issueKey=\{issue\.key\}/)
+  assert.match(comments, /useSlaIssueComments/)
+  assert.match(comments, /최근 작성된 댓글/)
+  assert.match(comments, /최신 5개부터 표시/)
+  assert.match(comments, /최신 \$\{data\.length\}개 · 최신순/)
   assert.match(table, /table-fixed/)
-  assert.match(table, /object-left-top/)
-  assert.match(table, /comment\.images\.map/)
+  assert.match(comments, /object-left-top/)
+  assert.match(comments, /comment\.images\.map/)
   assert.match(table, /<IssueTypeIcon type=\{issue\.type\} \/>/)
   assert.match(api, /getCommentImage/)
   for (const filename of [
@@ -739,7 +744,7 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
   assert.doesNotMatch(issueTypeIcon, /AlertTriangle|Headset|KeyRound|Lightbulb|ShieldAlert/)
   assert.match(api, /responseType: 'blob'/)
   assert.match(api, /createBinaryContent\(response\.data\)/)
-  assert.match(table, /content\.createObjectUrl\(\)/)
+  assert.match(comments, /content\.createObjectUrl\(\)/)
 })
 
 test('portrait displays use the compact navigation and SLA card layout', () => {

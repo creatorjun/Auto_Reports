@@ -148,8 +148,8 @@ export interface SearchGateway {
 
 export interface SlaDashboardGateway {
   getIssues: () => Promise<SlaDashboardIssue[]>
-  getComments: (issueKey: string, offset?: number, limit?: number) => Promise<SlaDashboardCommentPage>
-  getCommentImage: (issueKey: string, commentId: string, attachmentId: string) => Promise<BinaryContent>
+  getComments: (issueKey: string, offset?: number, limit?: number, reportId?: number) => Promise<SlaDashboardCommentPage>
+  getCommentImage: (issueKey: string, commentId: string, attachmentId: string, reportId?: number) => Promise<BinaryContent>
 }
 
 export interface DashboardExportGateway {

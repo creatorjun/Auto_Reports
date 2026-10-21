@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, call
 import httpx
 from fastapi import FastAPI
 
+from src.application.ports.jira_port import JiraAttachmentContent
 from src.domain.entities.sla_dashboard import SlaDashboardCommentPage
 from src.presentation.api.v1.deps import get_sla_dashboard_use_case
 from src.presentation.api.v1.sla_dashboard import router
@@ -91,3 +92,55 @@ class SlaDashboardApiTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(502, response.status_code)
         self.assertEqual("Jira 댓글을 불러오지 못했습니다.", response.json()["detail"])
+
+    async def test_passes_selected_report_to_comments_and_image_requests(self) -> None:
+        self.use_case.get_comment_image.return_value = JiraAttachmentContent(
+            b"image", "image/png",
+        )
+
+        comments = await self.client.get(
+            "/api/v1/sla-dashboard/issues/TACEA-4501/comments",
+            params={"report_id": 7, "limit": 10},
+        )
+        image = await self.client.get(
+            "/api/v1/sla-dashboard/issues/TACEA-4501/comments/10001/images/10017",
+            params={"report_id": 7},
+        )
+
+        self.assertEqual(200, comments.status_code)
+        self.assertEqual(200, image.status_code)
+        self.assertEqual(b"image", image.content)
+        self.use_case.list_recent_comments.assert_awaited_once_with(
+            "TACEA-4501", offset=0, limit=10, report_id=7,
+        )
+        self.use_case.get_comment_image.assert_awaited_once_with(
+            "TACEA-4501", "10001", "10017", report_id=7,
+        )
+
+    async def test_image_without_report_keeps_latest_report_lookup(self) -> None:
+        self.use_case.get_comment_image.return_value = JiraAttachmentContent(
+            b"image", "image/png",
+        )
+
+        response = await self.client.get(
+            "/api/v1/sla-dashboard/issues/TACEA-4501/comments/10001/images/10017"
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.use_case.get_comment_image.assert_awaited_once_with(
+            "TACEA-4501", "10001", "10017",
+        )
+
+    async def test_rejects_invalid_report_ids_for_comments_and_images(self) -> None:
+        for suffix in ("comments", "comments/10001/images/10017"):
+            for report_id in ("0", "-1", "1.5", "invalid"):
+                with self.subTest(suffix=suffix, report_id=report_id):
+                    response = await self.client.get(
+                        f"/api/v1/sla-dashboard/issues/TACEA-4501/{suffix}",
+                        params={"report_id": report_id},
+                    )
+
+                    self.assertEqual(422, response.status_code)
+
+        self.use_case.list_recent_comments.assert_not_awaited()
+        self.use_case.get_comment_image.assert_not_awaited()

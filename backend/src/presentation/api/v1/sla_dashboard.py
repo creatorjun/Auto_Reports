@@ -26,10 +26,17 @@ async def list_recent_comments(
     issue_key: str,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=5, ge=1),
+    report_id: int | None = Query(default=None, ge=1),
     use_case: SlaDashboardUseCase = Depends(get_sla_dashboard_use_case),
 ):
     try:
-        return await use_case.list_recent_comments(issue_key, offset=offset, limit=limit)
+        report_scope = {} if report_id is None else {"report_id": report_id}
+        return await use_case.list_recent_comments(
+            issue_key,
+            offset=offset,
+            limit=limit,
+            **report_scope,
+        )
     except RuntimeError as error:
         raise HTTPException(
             status_code=502,
@@ -45,13 +52,16 @@ async def get_comment_image(
     issue_key: str,
     comment_id: str,
     attachment_id: str,
+    report_id: int | None = Query(default=None, ge=1),
     use_case: SlaDashboardUseCase = Depends(get_sla_dashboard_use_case),
 ):
     try:
+        report_scope = {} if report_id is None else {"report_id": report_id}
         image = await use_case.get_comment_image(
             issue_key,
             comment_id,
             attachment_id,
+            **report_scope,
         )
     except RuntimeError as error:
         raise HTTPException(

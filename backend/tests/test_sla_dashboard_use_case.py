@@ -26,9 +26,13 @@ from src.infrastructure.external.jira_client import JiraClient
 class FakeReports:
     def __init__(self, report: Report | None) -> None:
         self.report = report
+        self.reports_by_id: dict[int, Report] = {}
 
     async def get_latest(self) -> Report | None:
         return self.report
+
+    async def get_by_id(self, report_id: int) -> Report | None:
+        return self.reports_by_id.get(report_id)
 
 
 class FakeJira:
@@ -393,6 +397,68 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
                     await self.use_case.list_recent_comments(issue_key, offset=5)
                 with self.assertRaises(EntityNotFoundError):
                     await self.use_case.get_comment_image(issue_key, "10001", "10017")
+
+        self.assertEqual([], self.jira.comment_requests)
+        self.assertEqual([], self.jira.single_comment_requests)
+        self.assertEqual([], self.jira.attachment_requests)
+
+    async def test_selected_report_allows_its_recent_issue_comments_and_images(self) -> None:
+        self.reports.reports_by_id[7] = latest_report(recent_detail("TACEA-4400"))
+        self.jira.comments = [{
+            "id": "10001",
+            "body": "과거 보고서 이슈의 최신 댓글",
+            "created": "2026-10-21T10:00:00.000+0900",
+            "renderedBody": '<img src="/rest/api/3/attachment/content/10017">',
+        }]
+
+        page = await self.use_case.list_recent_comments("tacea-4400", report_id=7)
+        image = await self.use_case.get_comment_image(
+            "tacea-4400", "10001", "10017", report_id=7,
+        )
+
+        self.assertEqual(["10001"], [comment.id for comment in page.comments])
+        self.assertEqual("과거 보고서 이슈의 최신 댓글", page.comments[0].body)
+        self.assertEqual(b"image", image.data)
+        self.assertEqual([("TACEA-4400", 6, 0)], self.jira.comment_requests)
+        self.assertEqual([("TACEA-4400", "10001")], self.jira.single_comment_requests)
+        self.assertEqual(["10017"], self.jira.attachment_requests)
+
+    async def test_selected_report_rejects_foreign_unlisted_and_missing_issues(self) -> None:
+        self.reports.reports_by_id[7] = latest_report(
+            recent_detail("TACEA-4400"), recent_detail("OTHER-1"),
+        )
+        for issue_key, report_id in (
+            ("TACEA-4501", 7),
+            ("OTHER-1", 7),
+            ("TACEA-4400/other", 7),
+            ("TACEA-4400", 99),
+            ("TACEA-4400", None),
+        ):
+            with self.subTest(issue_key=issue_key, report_id=report_id):
+                with self.assertRaises(EntityNotFoundError):
+                    await self.use_case.list_recent_comments(
+                        issue_key, report_id=report_id,
+                    )
+                with self.assertRaises(EntityNotFoundError):
+                    await self.use_case.get_comment_image(
+                        issue_key, "10001", "10017", report_id=report_id,
+                    )
+
+        self.assertEqual([], self.jira.comment_requests)
+        self.assertEqual([], self.jira.single_comment_requests)
+        self.assertEqual([], self.jira.attachment_requests)
+
+    async def test_rejects_nonpositive_report_ids_before_requesting_jira(self) -> None:
+        for report_id in (0, -1):
+            with self.subTest(report_id=report_id):
+                with self.assertRaises(ValueError):
+                    await self.use_case.list_recent_comments(
+                        "TACEA-4501", report_id=report_id,
+                    )
+                with self.assertRaises(ValueError):
+                    await self.use_case.get_comment_image(
+                        "TACEA-4501", "10001", "10017", report_id=report_id,
+                    )
 
         self.assertEqual([], self.jira.comment_requests)
         self.assertEqual([], self.jira.single_comment_requests)

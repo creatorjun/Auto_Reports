@@ -1,6 +1,6 @@
 # API Reference
 
-문서 기준: 2026-10-20. SLA 일일 알림 수동 트리거를 포함합니다.
+문서 기준: 2026-10-21. SLA 일일 알림 수동 트리거와 보고서별 최근 이슈 댓글 조회를 포함합니다.
 
 재배포 보고서는 기존 보호 라우트 인증 규칙을 적용하는 `GET /api/v1/redeployments/latest`로 최신 저장본을 조회하고, `POST /api/v1/redeployments`로 현재 시점 재생성을 요청합니다. 스키마·오류·수집 기준은 [재배포 보고서](09_redeployment_report.md)를 참고하세요.
 
@@ -53,7 +53,7 @@ Markdown·텍스트·CSV 등 원본 미리보기도 파일 조회 실패 시 로
 | GET | `/trigger/{job_id}/status` | path id | pending/running/done/error 상태 |
 | GET | `/trigger/{job_id}/stream?_t=...` | path id와 token | SSE status/done/error/timeout |
 | GET | `/sla-dashboard/issues` | 없음 | 최신 보고서의 최근 이슈 티켓별 생성·최종 업데이트·상태 |
-| GET | `/sla-dashboard/issues/{issue_key}/comments?offset=0&limit=5` | 최근 이슈 key, 0 이상의 offset(기본값 0), 1 이상의 limit(기본값 5) | 최신순 댓글 최대 limit개의 `comments`와 `next_offset` |
+| GET | `/sla-dashboard/issues/{issue_key}/comments?offset=0&limit=5` | 최근 이슈 key, 0 이상의 offset(기본값 0), 1 이상의 limit(기본값 5), 선택 report_id(1 이상) | 최신순 댓글 최대 limit개의 `comments`와 `next_offset` |
 
 대시보드 생성은 `{"period":"week","date":"2026-10-09"}` 형식으로 요청합니다. `period`는 `week`, `month`, `year`이며 `date`와 함께 전달해야 합니다. KST 기준 주간은 해당 주 월요일~기준일, 월간은 해당 달 전체, 연간은 해당 연도 전체로 기간을 계산합니다. 예시 기준일이면 각각 2026-10-05~2026-10-09, 2026-10-01~2026-10-31, 2026-01-01~2026-12-31이며 종료일 전체를 포함하도록 Jira 쿼리는 다음 날 00:00 미만을 사용합니다. 미래 기준일, 잘못된 기간, 두 필드 중 하나만 전달하거나 기존 `start_date`/`end_date`와 혼용하면 422입니다. 현재 월·연의 종료일은 미래일 수 있지만 실제 생성 시점에 조회 가능한 Jira 데이터만 집계합니다. SLA 현황도 같은 주·월·연간 기간 정책을 사용합니다.
 
@@ -61,9 +61,9 @@ Markdown·텍스트·CSV 등 원본 미리보기도 파일 조회 실패 시 로
 
 이력 목록은 standard와 annual을 모두 포함하고 `/reports/latest`는 standard만 조회합니다. 주기 갱신은 같은 ID의 데이터를 바꿀 수 있으므로 일반 보고서 ID 조회를 불변 SLA 이력과 동일하게 취급하지 않습니다.
 
-장기 이슈 목록은 최신 일반 보고서의 w7 티켓 집합을 기준으로 Jira의 현재 `created`, `updated`, `status`를 조회합니다. `updated`는 댓글 생성·수정·삭제를 포함한 Jira 최종 업데이트 시각이며, 댓글 본문은 Jira 문서 형식을 일반 텍스트로 변환해 반환합니다. 댓글 endpoint는 최신 보고서에 포함되지 않은 티켓 key를 404로 거부합니다.
+장기 이슈 목록은 최신 일반 보고서의 w7 티켓 집합을 기준으로 Jira의 현재 `created`, `updated`, `status`를 조회합니다. `updated`는 댓글 생성·수정·삭제를 포함한 Jira 최종 업데이트 시각이며, 댓글 본문은 Jira 문서 형식을 일반 텍스트로 변환해 반환합니다. 댓글 endpoint는 `report_id`를 지정하면 해당 저장 보고서의 w7 티켓 집합을 기준으로 조회하고, 생략하면 최신 일반 보고서를 사용합니다. 보고서가 없거나 해당 집합에 포함되지 않은 티켓 key, 다른 프로젝트 key는 404로 거부합니다.
 
-댓글 응답은 `comments` 배열과 `next_offset`을 가진 객체이며, `limit`을 생략하면 최대 5개를 반환합니다. 이어지는 댓글이 있으면 `next_offset`은 `offset + limit`이고 마지막 댓글까지 조회하면 `null`입니다. 다음 요청의 `offset`에 이 값을 전달하는 조회도 지원하지만, 장기 이슈 화면의 `댓글 더보기`는 `offset=0`을 유지하고 `limit=5`, `10`, `15` 순으로 늘려 최신 댓글부터 누적 범위를 다시 조회합니다. 음수 `offset`이나 1 미만의 `limit`은 422로 거부합니다.
+댓글 응답은 `comments` 배열과 `next_offset`을 가진 객체이며, `limit`을 생략하면 최대 5개를 반환합니다. 이어지는 댓글이 있으면 `next_offset`은 `offset + limit`이고 마지막 댓글까지 조회하면 `null`입니다. 다음 요청의 `offset`에 이 값을 전달하는 조회도 지원하지만, 장기 이슈 및 대시보드 최근 이슈 화면의 `댓글 더보기`는 `offset=0`을 유지하고 `limit=5`, `10`, `15` 순으로 늘려 최신 댓글부터 누적 범위를 다시 조회합니다. 대시보드는 현재 보고서의 ID를 `report_id`로 전달하므로 과거·연간 보고서의 이슈도 현재 Jira 댓글을 조회할 수 있습니다. 음수 `offset`이나 1 미만의 `limit`·`report_id`는 422로 거부합니다.
 
 댓글 목록 조회는 서버의 Jira 응답 캐시를 사용하지 않고 요청마다 Jira에 작성 시각 최신순(`orderBy=-created`)으로 조회합니다. 프론트엔드 댓글 query의 `staleTime`은 2분이며, 더보기를 누르면 늘어난 `limit`으로 새 요청을 보내고 성공한 최신 응답으로 표시 목록을 갱신합니다. 실패하면 이전에 표시한 댓글을 유지합니다.
 
@@ -77,7 +77,7 @@ SLA 차트는 month 필수, 처리일 유형 차트는 month 불가입니다. �
 
 ### 장기 이슈 댓글 이미지
 
-`GET /sla-dashboard/issues/{issue_key}/comments/{comment_id}/images/{attachment_id}`는 해당 최신 보고서 티켓과 댓글에 연결된 이미지인지 확인한 뒤 바이너리로 반환합니다. 보호 API의 Bearer 인증을 사용하고 `Cache-Control: private, max-age=120`을 반환합니다. 임의 첨부 ID나 최신 티켓 집합 밖의 키는 허용하지 않습니다. 원본 공급자 실패는 502입니다.
+`GET /sla-dashboard/issues/{issue_key}/comments/{comment_id}/images/{attachment_id}`는 선택 `report_id`가 가리키는 보고서(생략 시 최신 일반 보고서)의 티켓과 댓글에 연결된 이미지인지 확인한 뒤 바이너리로 반환합니다. 보호 API의 Bearer 인증을 사용하고 `Cache-Control: private, max-age=120`을 반환합니다. 임의 첨부 ID나 해당 보고서 티켓 집합 밖의 키는 허용하지 않습니다. 원본 공급자 실패는 502입니다.
 
 ## 전체 이슈
 

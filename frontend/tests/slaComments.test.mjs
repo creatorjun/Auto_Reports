@@ -25,7 +25,7 @@ function loadSource(relative, dependencies = {}) {
 
 const queryKeys = loadSource('src/presentation/config/queryKeys.ts')
 
-function hookOptions(getComments, issueKey = 'TAC-42') {
+function hookOptions(getComments, issueKey = 'TAC-42', reportId) {
   const hook = loadSource('src/presentation/hooks/useSlaDashboard.ts', {
     '@tanstack/react-query': { useInfiniteQuery: (options) => options },
     '@/presentation/config/queryKeys': queryKeys,
@@ -33,7 +33,7 @@ function hookOptions(getComments, issueKey = 'TAC-42') {
       useApplicationServices: () => ({ slaDashboard: { getComments } }),
     },
   })
-  return hook.useSlaIssueComments(issueKey, true)
+  return hook.useSlaIssueComments(issueKey, true, reportId)
 }
 
 function comments(count) {
@@ -201,8 +201,46 @@ test('comment API forwards cumulative limits and keeps the five-comment default'
   })
   assert.deepEqual(await slaDashboardApi.getComments('TAC-42'), response)
   assert.deepEqual(await slaDashboardApi.getComments('TAC/42', 0, 15), response)
+  assert.deepEqual(await slaDashboardApi.getComments('TAC/42', 0, 10, 72), response)
   assert.deepEqual(calls, [
     ['/sla-dashboard/issues/TAC-42/comments', { params: { offset: 0, limit: 5 } }],
     ['/sla-dashboard/issues/TAC%2F42/comments', { params: { offset: 0, limit: 15 } }],
+    ['/sla-dashboard/issues/TAC%2F42/comments', { params: { offset: 0, limit: 10, report_id: 72 } }],
   ])
+})
+
+test('comment image API carries report scope and preserves unscoped binary requests', async () => {
+  const calls = []
+  const blob = new Blob(['image'])
+  const content = { createObjectUrl: () => ({ url: 'blob:comment', close() {} }) }
+  const { slaDashboardApi } = loadSource('src/infrastructure/api/slaDashboardApi.ts', {
+    './client': { default: { get: async (...args) => { calls.push(args); return { data: blob } } } },
+    './binaryContent': { createBinaryContent: (value) => { assert.equal(value, blob); return content } },
+  })
+  assert.equal(await slaDashboardApi.getCommentImage('TAC/42', 'comment/1', 'image/2', 72), content)
+  assert.equal(await slaDashboardApi.getCommentImage('TAC-42', '1', '2'), content)
+  assert.deepEqual(calls, [
+    ['/sla-dashboard/issues/TAC%2F42/comments/comment%2F1/images/image%2F2', { responseType: 'blob', params: { report_id: 72 } }],
+    ['/sla-dashboard/issues/TAC-42/comments/1/images/2', { responseType: 'blob' }],
+  ])
+})
+
+test('comment queries separate reports and default latest scope for the same issue', async (t) => {
+  const calls = []
+  const service = async (...args) => { calls.push(args); return { comments: [], next_offset: null } }
+  const latest = hookOptions(service)
+  const first = hookOptions(service, 'TAC-42', 72)
+  const second = hookOptions(service, 'TAC-42', 73)
+  assert.deepEqual(latest.queryKey, ['sla-dashboard', 'comments', 'TAC-42', 'latest'])
+  const client = new QueryClient({ defaultOptions: { queries: { gcTime: 0 } } })
+  t.after(() => client.clear())
+  client.setQueryData(latest.queryKey, 'latest')
+  client.setQueryData(first.queryKey, 'report 72')
+  client.setQueryData(second.queryKey, 'report 73')
+  assert.equal(client.getQueryData(latest.queryKey), 'latest')
+  assert.equal(client.getQueryData(first.queryKey), 'report 72')
+  assert.equal(client.getQueryData(second.queryKey), 'report 73')
+  await first.queryFn({ pageParam: 5 })
+  await second.queryFn({ pageParam: 10 })
+  assert.deepEqual(calls, [['TAC-42', 0, 5, 72], ['TAC-42', 0, 10, 73]])
 })

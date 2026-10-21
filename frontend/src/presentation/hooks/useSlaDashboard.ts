@@ -15,11 +15,11 @@ export function useSlaDashboardIssues() {
   })
 }
 
-export function useSlaIssueComments(issueKey: string, enabled: boolean) {
+export function useSlaIssueComments(issueKey: string, enabled: boolean, reportId?: number) {
   const { slaDashboard } = useApplicationServices()
   return useInfiniteQuery({
-    queryKey: QUERY_KEYS.slaDashboardComments(issueKey),
-    queryFn: ({ pageParam }) => slaDashboard.getComments(issueKey, 0, pageParam),
+    queryKey: QUERY_KEYS.slaDashboardComments(issueKey, reportId),
+    queryFn: ({ pageParam }) => slaDashboard.getComments(issueKey, 0, pageParam, reportId),
     initialPageParam: 5,
     getNextPageParam: (lastPage) => lastPage.next_offset === null ? undefined : lastPage.next_offset + 5,
     maxPages: 1,

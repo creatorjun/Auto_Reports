@@ -1,5 +1,6 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import { Fragment, useState, useRef, useCallback, useMemo, useEffect, useId } from 'react'
+import { ChevronDown, MessageSquare } from 'lucide-react'
 import { useJira } from '@/presentation/context/JiraContext'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
@@ -11,6 +12,7 @@ import type { IssueColumn, IssueColumnFilters } from '@/domain/IssueColumnSearch
 import ColumnSearchInput from '@/presentation/components/common/ColumnSearchInput'
 import { ISSUE_COLUMNS } from '@/presentation/config/issueColumns'
 import { useTablePreferences } from '@/presentation/hooks/useTablePreferences'
+import IssueCommentsPanel from '@/presentation/components/common/IssueCommentsPanel'
 
 const COLS = ISSUE_COLUMNS.map((column) => column.key)
 type ColKey = IssueColumn
@@ -30,6 +32,7 @@ const DEFAULT_FRACS: Record<ColKey, number> = {
 interface Props {
   title?: string
   tablePreferenceKey?: string
+  commentsReportId?: number
   details: RecentIssue[]
   emptyMessage?: string
   paginationResetKey?: string
@@ -95,40 +98,96 @@ function sortIssues(items: RecentIssue[], key: ColKey, dir: SortDir): RecentIssu
   })
 }
 
-function MobileIssueCard({ issue, jiraBase }: { issue: RecentIssue; jiraBase: string }) {
-  const jiraUrl = `${jiraBase}/browse/${issue.key}`
-  const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
+function useDesktopCommentsLayout(enabled: boolean) {
+  const [isDesktop, setIsDesktop] = useState(() => typeof window === 'undefined' || !window.matchMedia
+    ? true
+    : window.matchMedia('(min-width: 768px)').matches)
+  useEffect(() => {
+    if (!enabled || typeof window === 'undefined' || !window.matchMedia) return
+    const media = window.matchMedia('(min-width: 768px)')
+    const update = () => setIsDesktop(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [enabled])
+  return isDesktop
+}
+
+function CommentsToggle({ issueKey, expanded, panelId, onToggle }: {
+  issueKey: string
+  expanded: boolean
+  panelId: string
+  onToggle: () => void
+}) {
   return (
-    <div
-      onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
-      className="flex flex-col items-center gap-2 px-4 py-3 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
+    <button
+      type="button"
+      aria-label={`${issueKey} 댓글 ${expanded ? '접기' : '보기'}`}
+      aria-expanded={expanded}
+      aria-controls={expanded ? panelId : undefined}
+      onClick={(event) => { event.stopPropagation(); onToggle() }}
+      className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg px-2 text-control font-medium text-brand-600 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
     >
-      <div className="flex max-w-full flex-wrap items-center justify-center gap-2">
-        <span className="font-mono text-caption text-blue-500 flex-shrink-0">{issue.key}</span>
-        <StatusBadge status={issue.status} size="xs" />
-      </div>
-      <p className="w-full break-words text-body text-apple-dark leading-snug">{issue.summary}</p>
-      <span className="text-caption text-apple-mid">티켓 타입 · <IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></span>
-      <div className="flex flex-wrap items-center justify-center gap-2 text-caption text-apple-light">
-        <span>{issue.reporter}</span>
-        <span className="text-apple-divider">·</span>
-        <span>{issue.tac_team}</span>
-      </div>
-      <div className="flex max-w-full items-start justify-center gap-1 text-caption text-apple-light">
-        <span className="shrink-0">TAC 담당자</span>
-        <span className="min-w-0 break-words font-medium text-apple-dark">{issue.tac_assignee ?? '-'}</span>
-      </div>
-      <div className="flex items-center justify-center gap-1 text-caption text-apple-light">
-        <span className="tabular-nums">{createdDate}</span>
-        <span className="text-apple-divider">·</span>
-        <span className="tabular-nums font-medium text-amber-600">{issue.elapsed_days}일 경과</span>
-      </div>
-    </div>
+      {expanded ? <ChevronDown size={14} aria-hidden="true" className="rotate-180 shrink-0" /> : <MessageSquare size={14} aria-hidden="true" className="shrink-0" />}
+      {expanded ? '댓글접기' : '댓글보기'}
+    </button>
   )
 }
 
-export default function ResolutionTimeChart({ title = '최근 이슈 현황', tablePreferenceKey, details, paginationResetKey, columnFilters, onColumnFilterChange, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
+function MobileIssueCard({ issue, jiraBase, commentsReportId, expanded, panelId, onToggle, showPanel }: {
+  issue: RecentIssue
+  jiraBase: string
+  commentsReportId?: number
+  expanded: boolean
+  panelId: string
+  onToggle: () => void
+  showPanel: boolean
+}) {
+  const jiraUrl = `${jiraBase}/browse/${issue.key}`
+  const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
+  return (
+    <>
+      <div
+        onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
+        className="flex flex-col items-center gap-2 px-4 py-3 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
+      >
+        <div className="flex max-w-full flex-wrap items-center justify-center gap-2">
+          <span className="font-mono text-caption text-blue-500 flex-shrink-0">{issue.key}</span>
+          <StatusBadge status={issue.status} size="xs" />
+        </div>
+        <p className="w-full break-words text-body text-apple-dark leading-snug">{issue.summary}</p>
+        <span className="text-caption text-apple-mid">티켓 타입 · <IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></span>
+        <div className="flex flex-wrap items-center justify-center gap-2 text-caption text-apple-light">
+          <span>{issue.reporter}</span>
+          <span className="text-apple-divider">·</span>
+          <span>{issue.tac_team}</span>
+        </div>
+        <div className="flex max-w-full items-start justify-center gap-1 text-caption text-apple-light">
+          <span className="shrink-0">TAC 담당자</span>
+          <span className="min-w-0 break-words font-medium text-apple-dark">{issue.tac_assignee ?? '-'}</span>
+        </div>
+        <div className="flex items-center justify-center gap-1 text-caption text-apple-light">
+          <span className="tabular-nums">{createdDate}</span>
+          <span className="text-apple-divider">·</span>
+          <span className="tabular-nums font-medium text-amber-600">{issue.elapsed_days}일 경과</span>
+        </div>
+        {commentsReportId !== undefined && <CommentsToggle issueKey={issue.key} expanded={expanded} panelId={panelId} onToggle={onToggle} />}
+      </div>
+      {showPanel && commentsReportId !== undefined && (
+        <div id={panelId} className="px-3 pb-4">
+          <IssueCommentsPanel issueKey={issue.key} reportId={commentsReportId} />
+        </div>
+      )}
+    </>
+  )
+}
+
+export default function ResolutionTimeChart({ title = '최근 이슈 현황', tablePreferenceKey, commentsReportId, details, paginationResetKey, columnFilters, onColumnFilterChange, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
   const exportMode = useDashboardExportMode()
+  const commentsEnabled = commentsReportId !== undefined && !exportMode
+  const isDesktopCommentsLayout = useDesktopCommentsLayout(commentsEnabled)
+  const commentsId = useId()
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
   const { jiraBase } = useJira()
   const [page,    setPage]    = useState(1)
   const { sort, setSort, widths: fracs, setWidths: setFracs } = useTablePreferences(exportMode ? undefined : tablePreferenceKey, DEFAULT_FRACS, TABLE_MIN_COL_FRAC)
@@ -148,6 +207,15 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
     setSort((previous) => ({ key: col, direction: previous?.key === col && previous.direction === 'asc' ? 'desc' : 'asc' }))
     setPage(1)
   }, [setSort])
+
+  const toggleComments = (issueKey: string) => {
+    setExpandedKeys((current) => {
+      const next = new Set(current)
+      if (next.has(issueKey)) next.delete(issueKey)
+      else next.add(issueKey)
+      return next
+    })
+  }
 
   const resize = useCallback((leftCol: ColKey, rightCol: ColKey, df: number) => {
     setFracs((prev) => {
@@ -197,13 +265,21 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
         {!exportMode && onColumnFilterChange && <div className="grid grid-cols-2 gap-3 border-b border-apple-divider p-4">{headers.map(({ key, label }) => <label key={key} className="text-control-label font-semibold text-apple-mid">{label}{searchInput(key, label, true)}</label>)}</div>}
         {pageItems.length === 0 && <p className="p-6 text-center text-label text-apple-light">{noResultsMessage}</p>}
         {pageItems.map((issue) => (
-          <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase} />
+          <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase}
+            commentsReportId={commentsEnabled ? commentsReportId : undefined}
+            expanded={expandedKeys.has(issue.key)}
+            panelId={`${commentsId}-mobile-${issue.key}`}
+            onToggle={() => toggleComments(issue.key)}
+            showPanel={commentsEnabled && !isDesktopCommentsLayout && expandedKeys.has(issue.key)} />
         ))}
       </div>
 
       <div data-pdf-desktop="" className="hidden md:block overflow-x-auto">
-        <table data-pdf-table-layout="recent" ref={tableRef} className="w-full min-w-[1160px] text-body border-collapse" style={{ tableLayout: 'fixed' }}>
-          <colgroup>{COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * 100).toFixed(2)}%` }} />)}</colgroup>
+        <table data-pdf-table-layout="recent" ref={tableRef} className={`w-full ${commentsEnabled ? 'min-w-[1280px]' : 'min-w-[1160px]'} text-body border-collapse`} style={{ tableLayout: 'fixed' }}>
+          <colgroup>
+            {COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * (commentsEnabled ? 90 : 100)).toFixed(2)}%` }} />)}
+            {commentsEnabled && <col style={{ width: '10%' }} />}
+          </colgroup>
           <thead className="bg-apple-gray/60">
             <tr className="border-b-2 border-apple-divider text-label text-apple-mid">
               {headers.map(({ key, label, rightCol }) => (
@@ -216,33 +292,48 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
                   {rightCol && <ResizeHandle tableWidth={getTableWidth()} onDrag={(df) => resize(key, rightCol, df)} />}
                 </th>
               ))}
+              {commentsEnabled && <th scope="col" className="px-3 py-3 text-center font-semibold">댓글</th>}
             </tr>
           </thead>
           <tbody>
-            {visibleItems.length === 0 && <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-apple-light">{noResultsMessage}</td></tr>}
+            {visibleItems.length === 0 && <tr><td colSpan={headers.length + (commentsEnabled ? 1 : 0)} className="px-4 py-10 text-center text-apple-light">{noResultsMessage}</td></tr>}
             {visibleItems.map((issue) => {
               const jiraUrl = `${jiraBase}/browse/${issue.key}`
               const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
+              const expanded = expandedKeys.has(issue.key)
+              const panelId = `${commentsId}-desktop-${issue.key}`
               return (
-                <tr key={issue.key} onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
-                  className="cursor-pointer transition-colors hover:bg-gray-50">
-                  <td className="px-3 py-2 text-center" data-pdf-link={jiraUrl}><span className="block break-all font-mono text-label text-blue-500">{issue.key}</span></td>
-                  <td className="px-3 py-2 text-center"><span className="block break-words text-apple-primary">{issue.summary}</span></td>
-                  <td className="overflow-hidden px-3 py-2 text-center"><IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></td>
-                  <td className="overflow-hidden px-3 py-2 text-center">
-                    <StatusBadge status={issue.status} size="md" />
-                  </td>
-                  <td className="px-3 py-2 text-center"><span className="block break-words text-label text-apple-light">{issue.reporter}</span></td>
-                  <td className="px-3 py-2 text-center"><span className="block break-words text-label text-apple-light">{issue.tac_team}</span></td>
-                  <td className="px-3 py-2 text-center"><span className="block break-words text-label text-apple-light">{issue.tac_assignee ?? '-'}</span></td>
-                  <td className="px-3 py-2 text-center text-apple-light" data-pdf-value={`${createdDate}\n(${issue.elapsed_days}일 경과)`}>
-                    <div className="flex flex-wrap items-center justify-center gap-x-1">
-                      <span className="break-all tabular-nums">{createdDate}</span>
-                      <span className="text-caption text-apple-divider">·</span>
-                      <span className="break-all tabular-nums">{issue.elapsed_days}일</span>
-                    </div>
-                  </td>
-                </tr>
+                <Fragment key={issue.key}>
+                  <tr onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
+                    className="cursor-pointer transition-colors hover:bg-gray-50">
+                    <td className="px-3 py-2 text-center" data-pdf-link={jiraUrl}><span className="block break-all font-mono text-label text-blue-500">{issue.key}</span></td>
+                    <td className="px-3 py-2 text-center"><span className="block break-words text-apple-primary">{issue.summary}</span></td>
+                    <td className="overflow-hidden px-3 py-2 text-center"><IssueTypeBadge type={issueTypeLabel(issue.type)} className="max-w-full whitespace-normal break-words" /></td>
+                    <td className="overflow-hidden px-3 py-2 text-center">
+                      <StatusBadge status={issue.status} size="md" />
+                    </td>
+                    <td className="px-3 py-2 text-center"><span className="block break-words text-label text-apple-light">{issue.reporter}</span></td>
+                    <td className="px-3 py-2 text-center"><span className="block break-words text-label text-apple-light">{issue.tac_team}</span></td>
+                    <td className="px-3 py-2 text-center"><span className="block break-words text-label text-apple-light">{issue.tac_assignee ?? '-'}</span></td>
+                    <td className="px-3 py-2 text-center text-apple-light" data-pdf-value={`${createdDate}\n(${issue.elapsed_days}일 경과)`}>
+                      <div className="flex flex-wrap items-center justify-center gap-x-1">
+                        <span className="break-all tabular-nums">{createdDate}</span>
+                        <span className="text-caption text-apple-divider">·</span>
+                        <span className="break-all tabular-nums">{issue.elapsed_days}일</span>
+                      </div>
+                    </td>
+                    {commentsEnabled && <td className="px-2 py-2 text-center">
+                      <CommentsToggle issueKey={issue.key} expanded={expanded} panelId={panelId} onToggle={() => toggleComments(issue.key)} />
+                    </td>}
+                  </tr>
+                  {commentsEnabled && isDesktopCommentsLayout && expanded && (
+                    <tr>
+                      <td colSpan={headers.length + 1} className="px-4 pb-4 pt-1">
+                        <div id={panelId}><IssueCommentsPanel issueKey={issue.key} reportId={commentsReportId} /></div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               )
             })}
           </tbody>
