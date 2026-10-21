@@ -1,14 +1,17 @@
 # backend/src/application/services/snapshot_personal_data.py
 import re
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Iterator
 
 from src.domain.entities.jira_identity_history import JiraIdentityHistory, JiraUserValue, SnapshotPerson
+from src.domain.entities.personal_data import PersonalDataProfile
 
 REDACTED_PERSON = "개인정보 삭제"
+UPDATING_PERSON = "사용자 정보 갱신 필요"
 PERSON_FIELDS = ("reporter", "assignee", "tac_assignee", "tac_team")
-_EMPTY_NAMES = frozenset({"", "미지정", "알 수 없음", REDACTED_PERSON})
+_EMPTY_NAMES = frozenset({"", "미지정", "알 수 없음", REDACTED_PERSON, UPDATING_PERSON})
 
 
 def is_person_name(value: object) -> bool:
@@ -23,6 +26,19 @@ def utc(value: datetime) -> datetime:
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
+def person_retrieved_at(payload: dict, field: str, generated_at: datetime) -> datetime:
+    field_times = payload.get("personal_data_field_retrieved_at")
+    values = [field_times.get(field)] if isinstance(field_times, dict) else []
+    values.append(payload.get("personal_data_retrieved_at"))
+    for value in values:
+        if isinstance(value, str):
+            try:
+                return utc(datetime.fromisoformat(value))
+            except ValueError:
+                pass
+    return utc(generated_at)
+
+
 def snapshot_people(payload: object, generated_at: datetime) -> Iterator[SnapshotPerson]:
     if isinstance(payload, list):
         for item in payload:
@@ -30,18 +46,11 @@ def snapshot_people(payload: object, generated_at: datetime) -> Iterator[Snapsho
     elif isinstance(payload, dict):
         key = payload.get("key")
         if isinstance(key, str) and key:
-            retrieved_at = utc(generated_at)
-            raw_time = payload.get("personal_data_retrieved_at")
-            if isinstance(raw_time, str):
-                try:
-                    retrieved_at = min(retrieved_at, utc(datetime.fromisoformat(raw_time)))
-                except ValueError:
-                    pass
             for field in PERSON_FIELDS:
                 name = payload.get(field)
                 if is_person_name(name):
                     account_id = payload.get(f"{field}_account_id")
-                    yield SnapshotPerson(key, field, name, account_id if valid_account_id(account_id) else None, retrieved_at, payload)
+                    yield SnapshotPerson(key, field, name, account_id if valid_account_id(account_id) else None, person_retrieved_at(payload, field, generated_at), payload)
         for value in payload.values():
             if isinstance(value, (dict, list)):
                 yield from snapshot_people(value, generated_at)
@@ -61,11 +70,11 @@ def aggregate_gaps(payload: object) -> int:
     return gaps + sum(aggregate_gaps(value) for value in payload.values() if isinstance(value, (dict, list)))
 
 
-def erase_snapshot_people(payload: object, account_ids: set[str]) -> bool:
+def _change_snapshot_people(payload: object, change: Callable[[dict, str], bool]) -> bool:
     if isinstance(payload, list):
         changed = False
         for item in payload:
-            changed = erase_snapshot_people(item, account_ids) or changed
+            changed = _change_snapshot_people(item, change) or changed
         return changed
     if not isinstance(payload, dict):
         return False
@@ -77,15 +86,58 @@ def erase_snapshot_people(payload: object, account_ids: set[str]) -> bool:
     changed = False
     if isinstance(payload.get("key"), str):
         for field in PERSON_FIELDS:
-            if payload.get(f"{field}_account_id") in account_ids and is_person_name(payload.get(field)):
-                payload[field] = REDACTED_PERSON
-                changed = True
+            changed = change(payload, field) or changed
     for value in tuple(payload.values()):
         if isinstance(value, (dict, list)):
-            changed = erase_snapshot_people(value, account_ids) or changed
+            changed = _change_snapshot_people(value, change) or changed
     if changed and can_rebuild:
         payload["by_assignee"] = dict(Counter(item.get("assignee") for item in details if isinstance(item, dict)))
     return changed
+
+
+def _mask_snapshot_people(payload: object, account_ids: set[str], label: str) -> bool:
+    def change(item: dict, field: str) -> bool:
+        value = item.get(field)
+        if item.get(f"{field}_account_id") in account_ids and value != label and (
+            is_person_name(value) or value in (REDACTED_PERSON, UPDATING_PERSON)
+        ):
+            item[field] = label
+            return True
+        return False
+    return _change_snapshot_people(payload, change)
+
+
+def erase_snapshot_people(payload: object, account_ids: set[str]) -> bool:
+    return _mask_snapshot_people(payload, account_ids, REDACTED_PERSON)
+
+
+def mark_snapshot_people_updated(payload: object, account_ids: set[str]) -> bool:
+    return _mask_snapshot_people(payload, account_ids, UPDATING_PERSON)
+
+
+def refresh_snapshot_people(
+    payload: object, profiles: dict[str, PersonalDataProfile], generated_at: datetime,
+    *, only_if_older: bool = False,
+) -> bool:
+    def change(item: dict, field: str) -> bool:
+        profile = profiles.get(item.get(f"{field}_account_id"))
+        if profile is None or field not in item:
+            return False
+        retrieved_at = utc(profile.retrieved_at)
+        if only_if_older and item.get(field) not in (REDACTED_PERSON, UPDATING_PERSON) and (
+            person_retrieved_at(item, field, generated_at) >= retrieved_at
+        ):
+            return False
+        times = item.get("personal_data_field_retrieved_at")
+        field_times = dict(times) if isinstance(times, dict) else {}
+        stamp = retrieved_at.isoformat()
+        if item[field] == profile.display_name and field_times.get(field) == stamp:
+            return False
+        item[field] = profile.display_name
+        field_times[field] = stamp
+        item["personal_data_field_retrieved_at"] = field_times
+        return True
+    return _change_snapshot_people(payload, change)
 
 
 def user_at(history: JiraIdentityHistory, field_id: str, as_of: datetime) -> JiraUserValue | None:

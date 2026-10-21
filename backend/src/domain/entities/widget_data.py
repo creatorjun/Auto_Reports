@@ -114,6 +114,7 @@ class RecentIssueDetail:
     tac_team_account_id: str | None = None
     tac_assignee_account_id: str | None = None
     personal_data_retrieved_at: str | None = None
+    personal_data_field_retrieved_at: dict[str, str] | None = None
 
 
 @dataclass
@@ -271,6 +272,7 @@ class RedeploymentIssueDetail:
     partners: list[str] = field(default_factory=list)
     assignee_account_id: str | None = None
     personal_data_retrieved_at: str | None = None
+    personal_data_field_retrieved_at: dict[str, str] | None = None
 
 
 @dataclass

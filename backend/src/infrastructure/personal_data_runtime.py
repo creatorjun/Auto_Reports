@@ -12,6 +12,7 @@ from src.domain.entities.auth_identity import AuthIdentity
 from src.domain.entities.personal_data import PersonalDataAccount
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.personal_data_client import AtlassianPersonalDataClient
+from src.infrastructure.external.jira_personal_data_client import JiraPersonalDataClient
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.personal_data_repository import PersonalDataRepository
 from src.infrastructure.persistence.personal_data_snapshot_store import PersonalDataSnapshotStore
@@ -31,7 +32,14 @@ class _Snapshots(PersonalDataSnapshotPort):
     async def erase_personal_data(self, account_ids: tuple[str, ...]) -> int:
         async with self._database.session() as session:
             count = await PersonalDataSnapshotStore(session).erase_personal_data(account_ids)
-        if self._clear_caches:
+        if count and self._clear_caches:
+            await self._clear_caches()
+        return count
+
+    async def mark_personal_data_updated(self, account_ids: tuple[str, ...]) -> int:
+        async with self._database.session() as session:
+            count = await PersonalDataSnapshotStore(session).mark_personal_data_updated(account_ids)
+        if count and self._clear_caches:
             await self._clear_caches()
         return count
 
@@ -43,10 +51,14 @@ class _Snapshots(PersonalDataSnapshotPort):
 class PersonalDataRuntime(PersonalDataProfilePort, PersonalDataReportingPort):
     def __init__(self, settings: Settings, database: Database, clear_caches: Callable[[], Awaitable[None]] | None = None) -> None:
         self._database = database
-        self._repository = PersonalDataRepository(database, settings.jwt_secret, settings.jira_privacy_owner_account_id)
+        self._repository = PersonalDataRepository(
+            database, settings.jwt_secret, settings.jira_privacy_owner_account_id,
+            on_profiles_refreshed=clear_caches, on_actions_staged=clear_caches,
+        )
         self._snapshots = _Snapshots(database, clear_caches)
         self._reporter = AtlassianPersonalDataClient(settings.jira_oauth_client_id, settings.jira_oauth_client_secret, self._repository)
-        self._use_case = ReportPersonalDataUseCase(self._repository, self._reporter, self._snapshots)
+        self._profiles = JiraPersonalDataClient(settings.jira_base_url, settings.jira_email, settings.jira_api_token)
+        self._use_case = ReportPersonalDataUseCase(self._repository, self._reporter, self._snapshots, self._profiles)
         self._lock = asyncio.Lock()
 
     async def register_identity(self, identity: AuthIdentity) -> AuthIdentity:
@@ -75,6 +87,7 @@ class PersonalDataRuntime(PersonalDataProfilePort, PersonalDataReportingPort):
                 and status["unreported_accounts"] == 0 and status["due_accounts"] == 0
                 and not status["account_states"].get("pending_closed")
                 and not status["account_states"].get("pending_updated")
+                and not status["account_states"].get("updated")
             ),
         }
 
@@ -87,8 +100,14 @@ class PersonalDataRuntime(PersonalDataProfilePort, PersonalDataReportingPort):
                 if not acquired:
                     return {"status": "already_running"}
                 now = datetime.now(timezone.utc)
+                retry_not_before = None
                 try:
-                    await self._use_case.erase_pending()
+                    status = await self._repository.status()
+                    retry_not_before = datetime.fromisoformat(status["next_attempt_at"]) if status["next_attempt_at"] else None
+                    retry_scheduled = retry_not_before is not None and retry_not_before > now
+                    await self._use_case.erase_pending(refresh_profiles=not retry_scheduled)
+                    if retry_scheduled:
+                        return {"status": "retry_scheduled", "next_attempt_at": status["next_attempt_at"]}
                     await self._repository.register_accounts(await self._snapshots.collect_accounts())
                     status = await self._repository.status()
                     if not status["owner_authorized"]:
@@ -96,17 +115,19 @@ class PersonalDataRuntime(PersonalDataProfilePort, PersonalDataReportingPort):
                     if status["next_attempt_at"] and datetime.fromisoformat(status["next_attempt_at"]) > now:
                         return {"status": "retry_scheduled", "next_attempt_at": status["next_attempt_at"]}
                     result = await self._use_case.execute()
+                    completed_status = await self._repository.status()
                 except PersonalDataReportingFailure as error:
                     now = datetime.now(timezone.utc)
-                    retry_at = now + timedelta(seconds=error.retry_after_seconds)
+                    retry_at = max(now + timedelta(seconds=error.retry_after_seconds), retry_not_before or now)
                     await self._repository.record_attempt(now, error=error.code, next_attempt_at=retry_at)
                     logger.warning("Personal data reporting deferred: %s", error.code)
                     return {"status": error.code, "next_attempt_at": retry_at.isoformat()}
                 except Exception:
                     now = datetime.now(timezone.utc)
-                    await self._repository.record_attempt(now, error="reporting_processing_failed", next_attempt_at=now + timedelta(minutes=5))
+                    await self._repository.record_attempt(now, error="reporting_processing_failed", next_attempt_at=max(now + timedelta(minutes=5), retry_not_before or now))
                     logger.error("Personal data reporting processing failed")
                     return {"status": "reporting_processing_failed"}
-                if result["reported_accounts"] > 0:
+                pending = any(completed_status["account_states"].get(state) for state in ("pending_closed", "pending_updated", "updated"))
+                if not pending and (result["reported_accounts"] > 0 or completed_status["last_error"]):
                     await self._repository.record_attempt(datetime.now(timezone.utc))
                 return {"status": "ok", **result}

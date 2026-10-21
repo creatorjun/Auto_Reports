@@ -7,13 +7,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.ports.personal_data_port import PersonalDataSnapshotPort
-from src.application.services.snapshot_personal_data import aggregate_gaps, erase_snapshot_people, snapshot_people
-from src.domain.entities.personal_data import PersonalDataAccount
+from src.application.services.snapshot_personal_data import aggregate_gaps, erase_snapshot_people, mark_snapshot_people_updated, refresh_snapshot_people, snapshot_people
+from src.domain.entities.personal_data import PersonalDataAccount, PersonalDataProfile
 from src.infrastructure.persistence.models import ReportORM
 from src.infrastructure.persistence.issue_management_snapshot_repository import IssueManagementSnapshotORM
 from src.infrastructure.persistence.personal_data_suppression import lock_personal_data_writes
+from src.infrastructure.persistence.personal_data_models import PersonalDataAccountORM
 from src.infrastructure.persistence.redeployment_repository_impl import RedeploymentReportORM
 from src.infrastructure.persistence.sla_violation_models import SlaViolationReportORM
+from src.infrastructure.persistence.sla_status_snapshot_repository import SlaStatusSnapshotORM
 
 
 @dataclass
@@ -38,6 +40,7 @@ class PersonalDataSnapshotStore(PersonalDataSnapshotPort):
             (SlaViolationReportORM, "sla", "payload", "generated_at"),
             (RedeploymentReportORM, "redeployment", "payload", "generated_at"),
             (IssueManagementSnapshotORM, "issue_management", "payload", "synced_at"),
+            (SlaStatusSnapshotORM, "sla_status", "payload", "generated_at"),
         ):
             statement = select(model).order_by(model.id)
             if lock:
@@ -79,6 +82,38 @@ class PersonalDataSnapshotStore(PersonalDataSnapshotPort):
                 if document.kind == "dashboard":
                     report_ids.append(document.row_id)
         self.erased_report_ids = tuple(report_ids)
+        await self._session.flush()
+        return affected
+
+    async def mark_personal_data_updated(self, account_ids: tuple[str, ...]) -> int:
+        if not account_ids:
+            return 0
+        await lock_personal_data_writes(self._session)
+        result = await self._session.execute(select(PersonalDataAccountORM.account_id).where(
+            PersonalDataAccountORM.account_id.in_(account_ids),
+            PersonalDataAccountORM.status.in_(("updated", "pending_updated")),
+        ))
+        eligible = set(result.scalars().all())
+        if not eligible:
+            return 0
+        affected = 0
+        for document in await self.documents(lock=True):
+            if mark_snapshot_people_updated(document.payload, eligible):
+                setattr(document.row, document.attribute, document.payload)
+                affected += 1
+        await self._session.flush()
+        return affected
+
+    async def refresh_personal_data(self, profiles: tuple[PersonalDataProfile, ...]) -> int:
+        if not profiles:
+            return 0
+        await lock_personal_data_writes(self._session)
+        profile_map = {profile.account_id: profile for profile in profiles}
+        affected = 0
+        for document in await self.documents(lock=True):
+            if refresh_snapshot_people(document.payload, profile_map, document.generated_at):
+                setattr(document.row, document.attribute, document.payload)
+                affected += 1
         await self._session.flush()
         return affected
 

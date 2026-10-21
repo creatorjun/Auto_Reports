@@ -47,3 +47,6 @@ class SlaStatusSnapshotSchema(BaseModel):
     ticket_count: int = Field(ge=0)
     sla_count: int = Field(ge=0)
     tickets: tuple[SlaStatusTicketSchema, ...]
+    refresh_in_progress: bool = False
+    stale: bool = False
+    refresh_error: str | None = None

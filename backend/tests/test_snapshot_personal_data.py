@@ -6,7 +6,7 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 from sqlalchemy import create_engine, delete, select
@@ -14,8 +14,9 @@ from sqlalchemy.orm import Session
 
 from src.application.ports.jira_identity_history_port import JiraIdentityHistoryUnavailable
 from src.application.services.snapshot_identity_backfill import backfill_snapshot_identities
-from src.application.services.snapshot_personal_data import REDACTED_PERSON, aggregate_gaps, erase_snapshot_people, resolve_snapshot_account, snapshot_people
+from src.application.services.snapshot_personal_data import REDACTED_PERSON, UPDATING_PERSON, aggregate_gaps, erase_snapshot_people, mark_snapshot_people_updated, refresh_snapshot_people, resolve_snapshot_account, snapshot_people
 from src.domain.entities.jira_identity_history import JiraIdentityHistory, JiraUserChange, JiraUserValue
+from src.domain.entities.personal_data import PersonalDataProfile
 from src.domain.entities.redeployment_report import REDEPLOYMENT_START, RedeploymentReport, RedeploymentTicket
 from src.domain.entities.report import NewReport
 from src.domain.entities.widget import WidgetResult
@@ -25,12 +26,15 @@ from src.infrastructure.external.jira_identity_history_source import JiraIdentit
 from src.infrastructure.external.jira_user_identity import jira_account_id
 from src.infrastructure.persistence.personal_data_snapshot_store import PersonalDataSnapshotStore
 from src.infrastructure.persistence.personal_data_models import PersonalDataAccountORM
+from src.infrastructure.persistence.personal_data_repository import PersonalDataRepository
+from src.infrastructure.persistence.personal_data_suppression import suppress_erased_people
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.models import ReportORM
 from src.infrastructure.persistence.redeployment_repository_impl import RedeploymentReportORM, RedeploymentRepositoryImpl
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.sla_violation_models import SlaViolationReportORM
 from src.infrastructure.persistence.sla_violation_repository_impl import SlaViolationRepositoryImpl
+from src.infrastructure.persistence.widget_serializer import deserialize_widget, serialize_widget
 from tests.test_sla_violation_workflow import sample_report
 
 NOW = datetime(2026, 10, 16, tzinfo=timezone.utc)
@@ -111,6 +115,60 @@ class SnapshotPersonalDataTest(unittest.TestCase):
         self.assertIsNone(jira_account_id({"displayName": "A", "accountId": "bad/value"}))
         self.assertIsNone(jira_account_id({"displayName": "A", "accountId": "unknown"}))
 
+    def test_updated_marker_relabels_legacy_redaction_without_changing_other_users(self):
+        payload = {"latest_issues": [
+            {"key": "TACEA-1", "assignee": REDACTED_PERSON, "assignee_account_id": "account-a"},
+            {"key": "TACEA-2", "assignee": REDACTED_PERSON, "assignee_account_id": "account-b"},
+        ], "by_assignee": {REDACTED_PERSON: 2}}
+        self.assertTrue(mark_snapshot_people_updated(payload, {"account-a"}))
+        self.assertEqual({UPDATING_PERSON: 1, REDACTED_PERSON: 1}, payload["by_assignee"])
+        self.assertEqual((), tuple(snapshot_people(payload, NOW)))
+        self.assertFalse(mark_snapshot_people_updated(payload, {"account-a"}))
+        self.assertTrue(erase_snapshot_people(payload, {"account-a"}))
+        self.assertEqual({REDACTED_PERSON: 2}, payload["by_assignee"])
+
+    def test_profile_refresh_restores_masked_fields_and_keeps_other_user_retrieval_time(self):
+        old_time = NOW - timedelta(days=30)
+        payload = {"total": 2, "latest_issues": [
+            {"key": "TACEA-1", "assignee": REDACTED_PERSON, "assignee_account_id": "account-a", "reporter": "보고자", "reporter_account_id": "account-b", "personal_data_retrieved_at": old_time.isoformat(), "hours": 8},
+            {"key": "TACEA-2", "assignee": UPDATING_PERSON, "assignee_account_id": "account-a", "personal_data_retrieved_at": old_time.isoformat(), "hours": 4},
+        ], "by_assignee": {REDACTED_PERSON: 1, UPDATING_PERSON: 1}}
+        profiles = {"account-a": PersonalDataProfile("account-a", "최신 이름", NOW)}
+        self.assertTrue(refresh_snapshot_people(payload, profiles, old_time))
+        self.assertEqual({"최신 이름": 2}, payload["by_assignee"])
+        self.assertEqual(2, payload["total"])
+        self.assertEqual([8, 4], [item["hours"] for item in payload["latest_issues"]])
+        people = list(snapshot_people(payload, old_time))
+        self.assertEqual([NOW, NOW], [person.retrieved_at for person in people if person.account_id == "account-a"])
+        self.assertEqual([old_time], [person.retrieved_at for person in people if person.account_id == "account-b"])
+        self.assertEqual(old_time.isoformat(), payload["latest_issues"][0]["personal_data_retrieved_at"])
+        self.assertFalse(refresh_snapshot_people(payload, profiles, old_time))
+
+    def test_actual_field_and_common_retrieval_times_take_priority_over_report_creation(self):
+        old_time = NOW - timedelta(days=30)
+        later = NOW + timedelta(hours=1)
+        payload = {"key": "TACEA-1", "reporter": "A", "reporter_account_id": "account-a", "assignee": "B", "assignee_account_id": "account-b", "personal_data_retrieved_at": NOW.isoformat(), "personal_data_field_retrieved_at": {"reporter": later.isoformat()}}
+        people = {person.field: person for person in snapshot_people(payload, old_time)}
+        self.assertEqual(later, people["reporter"].retrieved_at)
+        self.assertEqual(NOW, people["assignee"].retrieved_at)
+        payload["personal_data_field_retrieved_at"]["reporter"] = "invalid"
+        self.assertEqual(NOW, next(snapshot_people(payload, old_time)).retrieved_at)
+
+    def test_late_snapshot_is_corrected_but_newer_jira_data_is_kept(self):
+        profiles = {"account-a": PersonalDataProfile("account-a", "검증된 이름", NOW)}
+        old = {"key": "TACEA-1", "reporter": "이전 이름", "reporter_account_id": "account-a", "personal_data_retrieved_at": (NOW - timedelta(seconds=1)).isoformat()}
+        fresh = {**old, "reporter": "그 뒤 이름", "personal_data_retrieved_at": (NOW + timedelta(seconds=1)).isoformat()}
+        self.assertTrue(refresh_snapshot_people(old, profiles, NOW, only_if_older=True))
+        self.assertEqual("검증된 이름", old["reporter"])
+        self.assertFalse(refresh_snapshot_people(fresh, profiles, NOW, only_if_older=True))
+        self.assertEqual("그 뒤 이름", fresh["reporter"])
+
+    def test_field_retrieval_metadata_survives_widget_serialization(self):
+        detail = RecentIssueDetail("TACEA-1", "제목", "개선", "할 일", 0, "2026-10-01", 15, reporter="현재 이름", reporter_account_id="account-a", personal_data_field_retrieved_at={"reporter": NOW.isoformat()})
+        widget = WidgetResult("최근", 1, "query", RecentIssueWidgetData([detail]))
+        restored = deserialize_widget(WidgetId.RECENT_ISSUES, serialize_widget(widget))
+        self.assertEqual({"reporter": NOW.isoformat()}, restored.data.issue_details[0].personal_data_field_retrieved_at)
+
 
 class SnapshotBackfillTest(unittest.IsolatedAsyncioTestCase):
     async def test_backfill_changes_only_id_metadata_and_fetches_each_issue_once(self):
@@ -139,7 +197,7 @@ class SnapshotBackfillTest(unittest.IsolatedAsyncioTestCase):
         session = SimpleNamespace(execute=AsyncMock(), flush=AsyncMock(), get_bind=lambda: SimpleNamespace(dialect=SimpleNamespace(name="sqlite")))
         def result(statement):
             table = str(statement)
-            values = sla_rows if "sla_violation_reports" in table else issue_rows if "issue_management_snapshots" in table else [] if "redeployment_reports" in table else rows
+            values = sla_rows if "sla_violation_reports" in table else issue_rows if "issue_management_snapshots" in table else [] if "redeployment_reports" in table or "sla_status_snapshots" in table else rows
             return Mock(scalars=lambda: Mock(all=lambda: values))
         session.execute.side_effect = result
         store = PersonalDataSnapshotStore(session)
@@ -183,6 +241,31 @@ class IdentityHistorySourceTest(unittest.IsolatedAsyncioTestCase):
 
 
 class SnapshotSuppressionTest(unittest.IsolatedAsyncioTestCase):
+    async def test_status_specific_masking_and_active_profile_blocks_late_old_names(self):
+        engine = create_engine("sqlite:///:memory:")
+        PersonalDataAccountORM.__table__.create(engine)
+        session = Session(engine)
+        try:
+            for account_id, status, name in [
+                ("updated", "updated", None), ("pending-updated", "pending_updated", None),
+                ("closed", "closed", None), ("pending-closed", "pending_closed", None),
+                ("active", "active", "현재 이름"),
+            ]:
+                session.add(PersonalDataAccountORM(account_id=account_id, display_name=name, oldest_retrieved_at=NOW - timedelta(days=30) if status == "active" else NOW, profile_retrieved_at=NOW if status == "active" else None, profile_version=2, status=status))
+            session.commit()
+            bridge = SimpleNamespace(get_bind=session.get_bind, execute=AsyncMock(side_effect=session.execute))
+            payload = {"issues": [{"key": "TACEA-" + account_id, "reporter": "이전 이름", "reporter_account_id": account_id, "personal_data_retrieved_at": (NOW - timedelta(days=1)).isoformat()} for account_id in ["updated", "pending-updated", "closed", "pending-closed", "active"]]}
+            self.assertTrue(await suppress_erased_people(bridge, payload))
+            self.assertEqual([UPDATING_PERSON, UPDATING_PERSON, REDACTED_PERSON, REDACTED_PERSON, "현재 이름"], [item["reporter"] for item in payload["issues"]])
+            self.assertEqual({"reporter": NOW.isoformat()}, payload["issues"][-1]["personal_data_field_retrieved_at"])
+            self.assertFalse(await suppress_erased_people(bridge, payload))
+            unknown_time = {"key": "TACEA-old", "reporter": "오래된 이름", "reporter_account_id": "active"}
+            self.assertTrue(await suppress_erased_people(bridge, unknown_time))
+            self.assertEqual("현재 이름", unknown_time["reporter"])
+        finally:
+            session.close()
+            engine.dispose()
+
     async def test_saved_sla_snapshot_and_return_value_suppress_deleted_account_names(self):
         engine = create_engine("sqlite:///:memory:")
         PersonalDataAccountORM.__table__.create(engine)
@@ -270,3 +353,40 @@ class SnapshotPostgresTest(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(task.done())
         saved = await asyncio.wait_for(task, 5)
         self.assertEqual(REDACTED_PERSON, saved.tickets[0].reporter)
+
+    async def test_refresh_write_lock_corrects_a_snapshot_collected_before_the_profile_refresh(self):
+        async with self.database.session() as session:
+            account = await session.get(PersonalDataAccountORM, "snapshot-account")
+            account.status = "updated"
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        saving = asyncio.Event()
+        original = PersonalDataSnapshotStore.refresh_personal_data
+        async def hold_refresh(store, profiles):
+            entered.set()
+            await release.wait()
+            return await original(store, profiles)
+        async def generate_old_snapshot():
+            async with self.database.session() as session:
+                saving.set()
+                detail = RecentIssueDetail("TACEA-1", "summary", "개선", "할 일", 0, "2026-10-01", 15, reporter="이전 이름", reporter_account_id="snapshot-account", personal_data_retrieved_at=(NOW - timedelta(days=1)).isoformat())
+                new = NewReport(NOW.date(), NOW.date(), str(NOW.date()), {WidgetId.RECENT_ISSUES: WidgetResult("최근", 1, "query", RecentIssueWidgetData([detail]))})
+                saved = await ReportRepositoryImpl(session).save(new)
+                self.saved_ids[ReportORM].append(saved.id)
+                return saved
+        repository = PersonalDataRepository(self.database, "test-secret", "owner")
+        with patch.object(PersonalDataSnapshotStore, "refresh_personal_data", hold_refresh):
+            refresh_task = asyncio.create_task(repository.apply_refreshed_profiles((PersonalDataProfile("snapshot-account", "최신 이름", NOW),)))
+            await asyncio.wait_for(entered.wait(), 5)
+            save_task = asyncio.create_task(generate_old_snapshot())
+            try:
+                await asyncio.wait_for(saving.wait(), 5)
+                await asyncio.sleep(0.05)
+                self.assertFalse(save_task.done())
+            finally:
+                release.set()
+            self.assertEqual(1, await asyncio.wait_for(refresh_task, 5))
+            saved = await asyncio.wait_for(save_task, 5)
+        detail = saved.widgets[WidgetId.RECENT_ISSUES].data.issue_details[0]
+        self.assertEqual("최신 이름", detail.reporter)
+        self.assertEqual({"reporter": NOW.isoformat()}, detail.personal_data_field_retrieved_at)

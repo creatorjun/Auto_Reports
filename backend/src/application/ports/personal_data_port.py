@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 from src.domain.entities.auth_identity import AuthIdentity
-from src.domain.entities.personal_data import PersonalDataAccount, PersonalDataAction, PersonalDataReportResult
+from src.domain.entities.personal_data import PersonalDataAccount, PersonalDataAction, PersonalDataProfile, PersonalDataReportResult
 
 
 class PersonalDataProfilePort(ABC):
@@ -33,10 +33,16 @@ class PersonalDataSnapshotPort(ABC):
     async def erase_personal_data(self, account_ids: tuple[str, ...]) -> int: ...
 
     @abstractmethod
+    async def mark_personal_data_updated(self, account_ids: tuple[str, ...]) -> int: ...
+
+    @abstractmethod
     async def coverage(self) -> dict[str, int]: ...
 
 
 class PersonalDataRepositoryPort(ABC):
+    @abstractmethod
+    async def apply_refreshed_profiles(self, profiles: tuple[PersonalDataProfile, ...]) -> int: ...
+
     @abstractmethod
     async def record_result(self, account_ids: tuple[str, ...], actions: tuple[PersonalDataAction, ...], checked_at: datetime, next_report_at: datetime) -> None: ...
 
@@ -69,3 +75,8 @@ class PersonalDataReportingFailure(RuntimeError):
 class PersonalDataReporterPort(ABC):
     @abstractmethod
     async def report(self, accounts: tuple[PersonalDataAccount, ...]) -> PersonalDataReportResult: ...
+
+
+class PersonalDataUserSourcePort(ABC):
+    @abstractmethod
+    async def get_profile(self, account_id: str) -> PersonalDataProfile: ...

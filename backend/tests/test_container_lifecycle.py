@@ -10,6 +10,7 @@ from src.application.ports.email_port import EmailPort
 from src.application.ports.issue_notification_renderer_port import IssueNotificationRendererPort
 from src.application.ports.sla_violation_port import SlaViolationSourcePort
 from src.application.ports.sla_digest_port import SlaDigestSourcePort, SlaDigestRendererPort
+from src.application.ports.sla_status_snapshot_port import SlaStatusSnapshotPort
 from src.bootstrap.container import Container
 from src.infrastructure.config.settings import Settings
 from src.domain.entities.security_news import SecurityNewsItem
@@ -33,6 +34,9 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.redeployment_source = AsyncMock()
         self.digest_source = AsyncMock(spec=SlaDigestSourcePort)
         self.digest_source.fetch_entries.return_value = ()
+        self.sla_snapshots = AsyncMock(spec=SlaStatusSnapshotPort)
+        self.sla_snapshots.load.return_value = None
+        self.sla_snapshots.save.side_effect = lambda project_key, snapshot: snapshot
 
     def create_container(self, ai: AiPort | None) -> Container:
         with (
@@ -41,6 +45,7 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
             patch("src.bootstrap.container.SlaViolationJiraSource", return_value=self.sla_source),
             patch("src.bootstrap.container.RedeploymentJiraSource", return_value=self.redeployment_source),
             patch("src.bootstrap.container.SlaDigestJiraSource", return_value=self.digest_source),
+            patch("src.bootstrap.container.SlaStatusSnapshotRepository", return_value=self.sla_snapshots),
         ):
             return Container(self.settings, Mock())
 
@@ -70,6 +75,8 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
             result = await container.sla_status.get_snapshot()
             self.assertEqual(0, result.ticket_count)
             self.digest_source.fetch_entries.assert_awaited_once_with()
+            self.sla_snapshots.load.assert_awaited_once_with(self.settings.project_key)
+            self.sla_snapshots.save.assert_awaited_once_with(self.settings.project_key, result)
             self.assertIsNone(container._notify_todo)
         finally:
             await container.aclose()

@@ -63,6 +63,7 @@ def _deserialize_ticket(payload: dict) -> SlaViolationTicket:
         assignee_account_id=payload.get("assignee_account_id"),
         tac_assignee_account_id=payload.get("tac_assignee_account_id"),
         personal_data_retrieved_at=payload.get("personal_data_retrieved_at"),
+        personal_data_field_retrieved_at=payload.get("personal_data_field_retrieved_at"),
         current_status=payload["current_status"],
         status_durations=tuple(SlaStatusDuration(**duration) for duration in durations) if durations is not None else None,
         breaches=tuple(

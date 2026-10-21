@@ -34,6 +34,11 @@ class SlaStatusTicket:
     status_durations_basis: Literal["resolution_sla"] = "resolution_sla"
     status_duration_calendar: str | None = None
     warnings: tuple[str, ...] = ()
+    reporter_account_id: str | None = None
+    assignee_account_id: str | None = None
+    tac_assignee_account_id: str | None = None
+    personal_data_retrieved_at: str | None = None
+    personal_data_field_retrieved_at: dict[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -43,3 +48,6 @@ class SlaStatusSnapshot:
     ticket_count: int
     sla_count: int
     tickets: tuple[SlaStatusTicket, ...]
+    refresh_in_progress: bool = False
+    stale: bool = False
+    refresh_error: str | None = None

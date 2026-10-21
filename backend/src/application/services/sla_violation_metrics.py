@@ -101,6 +101,7 @@ def build_sla_ticket(issue: SlaViolationIssue, generated_at: datetime) -> SlaVio
         assignee_account_id=issue.assignee_account_id,
         tac_assignee_account_id=issue.tac_assignee_account_id,
         personal_data_retrieved_at=issue.personal_data_retrieved_at,
+        personal_data_field_retrieved_at=issue.personal_data_field_retrieved_at,
         current_status=issue.current_status,
         status_durations=durations,
         breaches=tuple(breaches),

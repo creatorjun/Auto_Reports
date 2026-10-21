@@ -48,6 +48,15 @@ def detailed_issue(key: str = "TACEA-1", **overrides) -> SlaViolationIssue:
     ), **overrides)
 
 
+async def wait_for_refresh(use_case: SlaStatusUseCase):
+    async with asyncio.timeout(1):
+        while True:
+            result = await use_case.get_snapshot()
+            if not result.refresh_in_progress:
+                return result
+            await asyncio.sleep(0.001)
+
+
 class SlaStatusUseCaseTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.source = AsyncMock(spec=SlaDigestSourcePort)
@@ -139,8 +148,11 @@ class SlaStatusUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.clock.return_value = 60
         self.now.return_value = datetime(2026, 10, 21, 14, 31, tzinfo=KST)
         refreshed = await self.use_case.get_snapshot()
-        self.assertIsNot(result, refreshed)
-        self.assertEqual(self.now.return_value, refreshed.generated_at)
+        self.assertTrue(refreshed.refresh_in_progress)
+        self.assertTrue(refreshed.stale)
+        self.assertEqual(result.tickets, refreshed.tickets)
+        completed = await wait_for_refresh(self.use_case)
+        self.assertEqual(self.now.return_value, completed.generated_at)
         self.assertEqual(2, self.source.fetch_entries.await_count)
 
     async def test_refresh_ignores_cache_and_simultaneous_requests_share_collection(self) -> None:
@@ -158,11 +170,12 @@ class SlaStatusUseCaseTest(unittest.IsolatedAsyncioTestCase):
         second = asyncio.create_task(self.use_case.get_snapshot(refresh=True))
         third = asyncio.create_task(self.use_case.get_snapshot())
         await asyncio.sleep(0)
-        release.set()
         results = await asyncio.gather(first, second, third)
-        self.assertTrue(all(result is results[0] for result in results))
-        self.assertIsNot(cached, results[0])
-        self.assertEqual(1000, results[0].tickets[0].slas[0].remaining_millis)
+        self.assertTrue(all(result.refresh_in_progress for result in results))
+        self.assertTrue(all(result.tickets == cached.tickets for result in results))
+        release.set()
+        completed = await wait_for_refresh(self.use_case)
+        self.assertEqual(1000, completed.tickets[0].slas[0].remaining_millis)
         self.assertEqual(2, self.source.fetch_entries.await_count)
 
     async def test_collection_failure_is_shared_and_not_cached_as_empty(self) -> None:
@@ -187,12 +200,16 @@ class SlaStatusUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, (await self.use_case.get_snapshot()).ticket_count)
         self.assertEqual(2, self.source.fetch_entries.await_count)
 
-    async def test_failed_refresh_does_not_report_cached_success_for_that_request(self) -> None:
+    async def test_failed_refresh_keeps_saved_result_and_reports_error(self) -> None:
         cached = await self.use_case.get_snapshot()
         self.source.fetch_entries.side_effect = RuntimeError("Jira unavailable")
-        with self.assertRaises(SlaStatusSourceError):
-            await self.use_case.get_snapshot(refresh=True)
-        self.assertIs(cached, await self.use_case.get_snapshot())
+        pending = await self.use_case.get_snapshot(refresh=True)
+        self.assertTrue(pending.refresh_in_progress)
+        completed = await wait_for_refresh(self.use_case)
+        self.assertEqual(cached.tickets, completed.tickets)
+        self.assertTrue(completed.stale)
+        self.assertIsNotNone(completed.refresh_error)
+        self.assertNotIn("Jira unavailable", completed.refresh_error)
 
     async def test_total_deadline_cancels_source_preserves_cache_and_allows_new_retry(self) -> None:
         use_case = SlaStatusUseCase(self.source, clock=self.clock, now=self.now, timeout_seconds=0.02)
@@ -207,13 +224,15 @@ class SlaStatusUseCaseTest(unittest.IsolatedAsyncioTestCase):
                 cancelled.set()
 
         self.source.fetch_entries.side_effect = slow_source
-        with self.assertRaises(SlaStatusSourceError) as error:
-            await asyncio.wait_for(use_case.get_snapshot(refresh=True), 0.5)
-        self.assertIsInstance(error.exception.__cause__, TimeoutError)
+        pending = await asyncio.wait_for(use_case.get_snapshot(refresh=True), 0.5)
+        self.assertEqual(cached.tickets, pending.tickets)
+        completed = await wait_for_refresh(use_case)
         self.assertTrue(cancelled.is_set())
-        self.assertIs(cached, await use_case.get_snapshot())
+        self.assertEqual(cached.tickets, completed.tickets)
+        self.assertIsNotNone(completed.refresh_error)
         self.source.fetch_entries.side_effect = None
-        self.assertIsNot(cached, await use_case.get_snapshot(refresh=True))
+        await use_case.get_snapshot(refresh=True)
+        self.assertIsNone((await wait_for_refresh(use_case)).refresh_error)
         self.assertEqual(3, self.source.fetch_entries.await_count)
 
     def test_collection_timeout_must_be_positive(self) -> None:
@@ -381,7 +400,8 @@ class SlaStatusDetailsTest(unittest.IsolatedAsyncioTestCase):
         ):
             with self.subTest(issue=issue.key):
                 self.details.fetch_details.return_value = (issue,)
-                result = await self.use_case.get_snapshot(refresh=True)
+                await self.use_case.get_snapshot(refresh=True)
+                result = await wait_for_refresh(self.use_case)
                 self.assertEqual((0, 0), (result.ticket_count, result.sla_count))
 
     async def test_details_failure_fails_whole_snapshot_and_can_retry(self) -> None:
@@ -419,7 +439,8 @@ class SlaStatusDetailsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(datetime(2026, 10, 21, 11, 1, tzinfo=KST), result.generated_at)
         self.source.fetch_entries.return_value = ()
         self.now.side_effect = None
-        result = await self.use_case.get_snapshot(refresh=True)
+        await self.use_case.get_snapshot(refresh=True)
+        result = await wait_for_refresh(self.use_case)
         self.assertEqual(0, result.ticket_count)
         self.assertEqual(1, self.details.fetch_details.await_count)
 

@@ -17,6 +17,13 @@ class PersonalDataAction:
 
 
 @dataclass(frozen=True)
+class PersonalDataProfile:
+    account_id: str
+    display_name: str
+    retrieved_at: datetime
+
+
+@dataclass(frozen=True)
 class PersonalDataReportResult:
     actions: tuple[PersonalDataAction, ...] = ()
     cycle_period_seconds: int = 604800

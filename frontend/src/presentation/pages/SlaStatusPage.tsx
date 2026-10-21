@@ -28,7 +28,7 @@ export default function SlaStatusPage() {
   }
   const collectionStatus = snapshot ? `수집 시각 ${slaTimestamp(snapshot.generated_at)} (KST)` : query.refreshing ? '최초 데이터를 불러오고 있습니다.' : '아직 수집된 데이터가 없습니다.'
   const error = query.refreshError ?? query.error
-  const errorText = error instanceof RequestError && typeof error.detail === 'string' ? error.detail : 'SLA 현황을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+  const errorText = typeof error === 'string' ? error : error instanceof RequestError && typeof error.detail === 'string' ? error.detail : 'SLA 현황을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-content flex-col gap-5 3xl:max-w-none">

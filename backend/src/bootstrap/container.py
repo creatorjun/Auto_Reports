@@ -45,6 +45,7 @@ from src.infrastructure.factories.jira_factory import JiraFactory
 from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.issue_management_snapshot_repository import IssueManagementSnapshotRepository
+from src.infrastructure.persistence.sla_status_snapshot_repository import SlaStatusSnapshotRepository
 from src.infrastructure.personal_data_runtime import PersonalDataRuntime
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.security_news_translation_cache import SqliteNewsTranslationCache
@@ -185,7 +186,10 @@ class Container:
             base_url=settings.jira_base_url, email=settings.jira_email,
             api_token=settings.jira_api_token, project_key=settings.project_key,
         )
-        self.sla_status = SlaStatusUseCase(self._sla_status_source, details=self._sla_violation_source)
+        self.sla_status = SlaStatusUseCase(
+            self._sla_status_source, details=self._sla_violation_source,
+            snapshots=SlaStatusSnapshotRepository(database), project_key=settings.project_key,
+        )
         self._sla_digest_source = (
             self._sla_status_source
             if self._notify_todo is not None and settings.notify_sla_digest_enabled

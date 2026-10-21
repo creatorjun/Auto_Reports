@@ -33,6 +33,9 @@ export interface SlaStatusSnapshot {
   ticket_count: number
   sla_count: number
   tickets: SlaStatusTicket[]
+  refresh_in_progress: boolean
+  stale: boolean
+  refresh_error: string | null
 }
 
 export type SlaStatusScope = 'all' | 'urgent' | 'running' | 'paused'

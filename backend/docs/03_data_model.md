@@ -90,9 +90,13 @@ site_id 외래키와 hostname, role, CPU core/thread, memory/disk 용량, OS, IP
 
 ### 개인정보 보고 데이터
 
-`personal_data_accounts`는 Jira 계정 ID를 기본키로 서버 표시 이름, 가장 오래된 보유 데이터 조회 시각, 마지막·다음 보고 시각, 프로필 버전과 갱신·삭제 상태를 저장합니다. `personal_data_reporting_grants`는 앱 소유자의 암호화된 refresh token, 다음 재시도 시각과 마지막 보고 성공·오류를 저장합니다. 직원 OAuth 토큰은 이 테이블에 저장하지 않습니다.
+`personal_data_accounts`는 Jira 계정 ID를 기본키로 서버 표시 이름, 해당 프로필을 실제 조회한 `profile_retrieved_at`, 가장 오래된 보유 데이터 조회 시각, 마지막·다음 보고 시각, 프로필 버전과 갱신·삭제 상태를 저장합니다. `personal_data_reporting_grants`는 앱 소유자의 암호화된 refresh token, 다음 재시도 시각과 마지막 보고 성공·오류를 저장합니다. 직원 OAuth 토큰은 이 테이블에 저장하지 않습니다.
 
-보고서 JSON에는 사용자 필드별 `*_account_id`와 `personal_data_retrieved_at`을 추가하며 기존 화면 집계는 유지합니다. Atlassian의 정정·삭제 응답은 해당 계정의 이름을 삭제 표시로 바꾸고 세션 버전을 올립니다. 자세한 처리 범위와 이력 보완은 [Jira 로그인](11_jira_login.md)을 참고하세요.
+보고서 JSON에는 사용자 필드별 `*_account_id`, 기본 조회 시각 `personal_data_retrieved_at`과 필드별 조회 시각 `personal_data_field_retrieved_at`을 저장하며 기존 화면 집계는 유지합니다. Atlassian의 `updated` 응답은 Jira에서 최신 이름을 다시 조회해 해당 사용자 필드와 조회 시각만 갱신하고, `closed` 응답은 이름을 삭제 표시로 바꿉니다. 자세한 처리 범위와 이력 보완은 [Jira 로그인](11_jira_login.md)을 참고하세요.
+
+### sla_status_snapshots
+
+프로젝트별 SLA 위반 임박 현황의 마지막 성공 결과를 한 행으로 저장합니다. `project_key`는 고유 키, `generated_at`은 실제 수집 시각이며 `payload` JSONB에 티켓·SLA 값·상태별 체류시간·개인정보 수집 메타데이터를 보관합니다. 더 오래된 결과는 최신 저장본을 덮어쓰지 않습니다. 최초 조회에서 복원하고 기존 결과를 즉시 반환하면서 필요한 갱신을 백그라운드로 실행합니다. 갱신 실패 시 마지막 저장본을 유지하며 저장·복원에 개인정보 처리 잠금과 최신 프로필 반영을 적용합니다. 자세한 동작은 [SLA 현황](15_sla_status.md)을 참고하세요.
 
 ### DB 밖의 데이터
 
@@ -116,7 +120,7 @@ widget ID는 영속성 계약으로 유지합니다. `0013_reorder_dashboard_wid
 
 ## Migration
 
-마이그레이션은 `backend/alembic/versions`에 있으며 현재 head는 `0020`입니다. `0014`는 annual scope, `0017`은 SLA, `0018`은 재배포, `0019`는 개인정보 보고 계정·소유자 연결 테이블, `0020`은 전체 이슈의 마지막 저장본 테이블을 추가합니다. Docker backend entrypoint는 서버 시작 전에 head까지 적용합니다. 백업·배포 절차는 [운영 가이드](10_operations.md)를 참고하세요.
+마이그레이션은 `backend/alembic/versions`에 있으며 현재 head는 `0022`입니다. `0014`는 annual scope, `0017`은 SLA, `0018`은 재배포, `0019`는 개인정보 보고 계정·소유자 연결 테이블, `0020`은 전체 이슈의 마지막 저장본, `0021`은 SLA 현황의 마지막 저장본, `0022`는 개인정보 프로필 조회 시각을 추가합니다. Docker backend entrypoint는 서버 시작 전에 head까지 적용합니다. 백업·배포 절차는 [운영 가이드](10_operations.md)를 참고하세요.
 
 `0016_remove_c_level_reports.py`는 제거된 C-Level 기능의 `c_level_comments`, `c_level_snapshots` 테이블과 저장된 데이터를 삭제합니다. 기존 DB의 revision을 인식할 수 있도록 `0015` 생성 이력은 유지합니다. `0016`을 downgrade하면 빈 테이블 구조만 복원되며 삭제된 데이터는 복구되지 않습니다. 기존 보고서·사이트·파일 데이터와 감사로그는 유지합니다.
 

@@ -14,6 +14,9 @@ export function useSlaStatus() {
     queryKey: SLA_STATUS_QUERY_KEY,
     queryFn: ({ signal }) => slaStatus.getSnapshot(false, signal),
     staleTime: 60_000,
+    refetchOnMount: 'always',
+    refetchInterval: (state) => state.state.data?.refresh_in_progress ? 2000 : false,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     retry: false,
   })
@@ -30,7 +33,7 @@ export function useSlaStatus() {
     retry: false,
   })
   useEffect(() => () => refreshController.current?.abort(), [])
-  const refreshing = query.isFetching || mutation.isPending
+  const refreshing = query.isFetching || mutation.isPending || (query.data?.refresh_in_progress === true && !query.isError)
   const refresh = () => {
     if (refreshing || refreshPending.current) return
     refreshPending.current = true
@@ -38,5 +41,6 @@ export function useSlaStatus() {
     refreshController.current = controller
     mutation.mutate(controller)
   }
-  return { ...query, refresh, refreshing, refreshError: mutation.error }
+  const mutationError = mutation.error && query.dataUpdatedAt <= mutation.submittedAt ? mutation.error : null
+  return { ...query, refresh, refreshing, refreshError: mutationError ?? query.data?.refresh_error ?? null }
 }

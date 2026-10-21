@@ -33,6 +33,7 @@ class RedeploymentTicket:
     assignee_account_id: str | None = None
     reporter_account_id: str | None = None
     personal_data_retrieved_at: str | None = None
+    personal_data_field_retrieved_at: dict[str, str] | None = None
 
 
 @dataclass(frozen=True)

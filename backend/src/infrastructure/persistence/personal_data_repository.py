@@ -1,6 +1,7 @@
 # backend/src/infrastructure/persistence/personal_data_repository.py
 import hmac
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import replace
 from datetime import datetime, timezone
 
@@ -8,10 +9,13 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from src.application.ports.personal_data_port import PersonalDataProfilePort, PersonalDataRepositoryPort, PersonalDataReportingFailure
+from src.application.services.snapshot_personal_data import is_person_name, utc, valid_account_id
 from src.domain.entities.auth_identity import AuthIdentity
-from src.domain.entities.personal_data import PersonalDataAccount, PersonalDataAction
+from src.domain.entities.personal_data import PersonalDataAccount, PersonalDataAction, PersonalDataProfile
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.personal_data_models import PersonalDataAccountORM, PersonalDataGrantORM
+from src.infrastructure.persistence.personal_data_snapshot_store import PersonalDataSnapshotStore
+from src.infrastructure.persistence.personal_data_suppression import lock_personal_data_writes
 from src.infrastructure.security.personal_data_cipher import PersonalDataCipher
 
 
@@ -20,21 +24,30 @@ def _aware(value: datetime | None) -> datetime | None:
 
 
 class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort):
-    def __init__(self, database: Database, server_secret: str, owner_account_id: str) -> None:
+    def __init__(
+        self, database: Database, server_secret: str, owner_account_id: str,
+        on_profiles_refreshed: Callable[[], Awaitable[None]] | None = None,
+        on_actions_staged: Callable[[], Awaitable[None]] | None = None,
+    ) -> None:
         self._database = database
         self._server_secret = server_secret
         self._owner_account_id = owner_account_id
+        self._on_profiles_refreshed = on_profiles_refreshed
+        self._on_actions_staged = on_actions_staged
 
     async def record_result(self, account_ids: tuple[str, ...], actions: tuple[PersonalDataAction, ...], checked_at: datetime, next_report_at: datetime) -> None:
+        staged = False
         async with self._database.session() as session:
+            await lock_personal_data_writes(session)
             for action in actions:
-                await session.execute(update(PersonalDataAccountORM).where(
+                result = await session.execute(update(PersonalDataAccountORM).where(
                     PersonalDataAccountORM.account_id == action.account_id,
                     PersonalDataAccountORM.status == "active",
                 ).values(
-                    display_name=None, status=f"pending_{action.status}",
+                    display_name=None, profile_retrieved_at=None, status=f"pending_{action.status}",
                     profile_version=PersonalDataAccountORM.profile_version + 1,
                 ))
+                staged = result.rowcount > 0 or staged
                 if action.status == "closed":
                     await session.execute(update(PersonalDataGrantORM).where(
                         PersonalDataGrantORM.account_id == action.account_id,
@@ -42,6 +55,8 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
             await session.execute(update(PersonalDataAccountORM).where(
                 PersonalDataAccountORM.account_id.in_(account_ids),
             ).values(last_reported_at=checked_at, next_report_at=next_report_at))
+        if staged and self._on_actions_staged is not None:
+            await self._on_actions_staged()
 
     @staticmethod
     def _account_id(identity: AuthIdentity) -> str:
@@ -56,7 +71,9 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
     async def register_identity(self, identity: AuthIdentity) -> AuthIdentity:
         account_id = self._account_id(identity)
         now = datetime.now(timezone.utc)
+        refreshed = False
         async with self._database.session() as session:
+            await lock_personal_data_writes(session)
             await session.execute(insert(PersonalDataAccountORM).values(
                 account_id=account_id, display_name=None, oldest_retrieved_at=now,
                 profile_version=1, status="active", next_report_at=now,
@@ -67,11 +84,48 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
             if row.status in {"closed", "pending_closed", "pending_updated"}:
                 raise ValueError("Jira profile is unavailable")
             if row.status == "updated":
+                await PersonalDataSnapshotStore(session).refresh_personal_data((PersonalDataProfile(account_id, identity.display_name, now),))
                 row.oldest_retrieved_at = now
                 row.next_report_at = row.next_report_at or now
+                refreshed = True
             row.display_name = identity.display_name
+            row.profile_retrieved_at = now
             row.status = "active"
-            return replace(identity, profile_version=row.profile_version)
+            registered = replace(identity, profile_version=row.profile_version)
+        if refreshed and self._on_profiles_refreshed is not None:
+            await self._on_profiles_refreshed()
+        return registered
+
+    async def apply_refreshed_profiles(self, profiles: tuple[PersonalDataProfile, ...]) -> int:
+        if not profiles:
+            return 0
+        if len({profile.account_id for profile in profiles}) != len(profiles) or any(
+            not valid_account_id(profile.account_id) or not is_person_name(profile.display_name)
+            or len(profile.display_name) > 200 or profile.display_name != profile.display_name.strip()
+            or profile.retrieved_at.tzinfo is None
+            for profile in profiles
+        ):
+            raise ValueError("Invalid refreshed personal data profiles")
+        profile_map = {profile.account_id: profile for profile in profiles}
+        async with self._database.session() as session:
+            await lock_personal_data_writes(session)
+            result = await session.execute(select(PersonalDataAccountORM).where(
+                PersonalDataAccountORM.account_id.in_(profile_map),
+                PersonalDataAccountORM.status.in_(("updated", "pending_updated")),
+            ).order_by(PersonalDataAccountORM.account_id).with_for_update())
+            rows = result.scalars().all()
+            if not rows:
+                return 0
+            await PersonalDataSnapshotStore(session).refresh_personal_data(tuple(profile_map[row.account_id] for row in rows))
+            for row in rows:
+                profile = profile_map[row.account_id]
+                row.display_name = profile.display_name
+                row.profile_retrieved_at = utc(profile.retrieved_at)
+                row.oldest_retrieved_at = utc(profile.retrieved_at)
+                row.status = "active"
+        if self._on_profiles_refreshed is not None:
+            await self._on_profiles_refreshed()
+        return len(rows)
 
     async def resolve_identity(self, identity: AuthIdentity) -> AuthIdentity:
         account_id = self._account_id(identity)
@@ -84,17 +138,30 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
     async def register_accounts(self, accounts: tuple[PersonalDataAccount, ...]) -> None:
         now = datetime.now(timezone.utc)
         async with self._database.session() as session:
+            await lock_personal_data_writes(session)
+            records = (await session.execute(select(PersonalDataAccountORM).where(
+                PersonalDataAccountORM.account_id.in_(tuple(account.account_id for account in accounts)),
+            ).order_by(PersonalDataAccountORM.account_id).with_for_update())).scalars().all()
+            existing = {record.account_id: record for record in records}
+            snapshot_times = None
             for account in accounts:
                 if account.account_id == "unknown" or not re.fullmatch(r"[a-zA-Z0-9:_-]{1,128}", account.account_id):
                     continue
+                retrieved_at = utc(account.updated_at)
+                current = existing.get(account.account_id)
+                if current is not None and current.status == "active" and current.profile_retrieved_at is not None and retrieved_at < utc(current.oldest_retrieved_at):
+                    if snapshot_times is None:
+                        snapshot_times = {item.account_id: utc(item.updated_at) for item in await PersonalDataSnapshotStore(session).collect_accounts()}
+                    profile_time = utc(current.profile_retrieved_at)
+                    retrieved_at = min(profile_time, snapshot_times.get(account.account_id, profile_time))
                 statement = insert(PersonalDataAccountORM).values(
                     account_id=account.account_id, display_name=None,
-                    oldest_retrieved_at=account.updated_at, profile_version=1,
+                    oldest_retrieved_at=retrieved_at, profile_version=1,
                     status="active", next_report_at=now,
                 )
                 await session.execute(statement.on_conflict_do_update(
                     index_elements=["account_id"],
-                    set_={"oldest_retrieved_at": func.least(PersonalDataAccountORM.oldest_retrieved_at, account.updated_at)},
+                    set_={"oldest_retrieved_at": func.least(PersonalDataAccountORM.oldest_retrieved_at, statement.excluded.oldest_retrieved_at)},
                     where=PersonalDataAccountORM.status == "active",
                 ))
 
@@ -114,18 +181,24 @@ class PersonalDataRepository(PersonalDataProfilePort, PersonalDataRepositoryPort
             return tuple(PersonalDataAction(row.account_id, row.status.removeprefix("pending_")) for row in rows)
 
     async def stage_actions(self, actions: tuple[PersonalDataAction, ...]) -> None:
+        staged = False
         async with self._database.session() as session:
+            await lock_personal_data_writes(session)
             for action in actions:
-                await session.execute(update(PersonalDataAccountORM).where(
+                result = await session.execute(update(PersonalDataAccountORM).where(
                     PersonalDataAccountORM.account_id == action.account_id,
                     PersonalDataAccountORM.status == "active",
                 ).values(
-                    display_name=None, status=f"pending_{action.status}",
+                    display_name=None, profile_retrieved_at=None, status=f"pending_{action.status}",
                     profile_version=PersonalDataAccountORM.profile_version + 1,
                 ))
+                staged = result.rowcount > 0 or staged
+        if staged and self._on_actions_staged is not None:
+            await self._on_actions_staged()
 
     async def finish_actions(self, actions: tuple[PersonalDataAction, ...]) -> None:
         async with self._database.session() as session:
+            await lock_personal_data_writes(session)
             for action in actions:
                 await session.execute(update(PersonalDataAccountORM).where(
                     PersonalDataAccountORM.account_id == action.account_id,

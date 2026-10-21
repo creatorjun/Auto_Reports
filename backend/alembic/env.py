@@ -13,6 +13,7 @@ import src.infrastructure.persistence.sla_violation_models
 import src.infrastructure.persistence.redeployment_repository_impl
 import src.infrastructure.persistence.personal_data_models
 import src.infrastructure.persistence.issue_management_snapshot_repository
+import src.infrastructure.persistence.sla_status_snapshot_repository
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / ".env")
 

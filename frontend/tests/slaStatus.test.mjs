@@ -50,7 +50,7 @@ function rows() {
     ticket({ key: 'TAC-3', status: '보류중', assignee: '미지정', slas: [sla({ sla_id: 'resolution', sla_name: '해결시간', remaining_percent: 29.999, paused: true })] }),
   ]
 }
-function snapshot(tickets = rows()) { return { generated_at: '2026-10-21T03:00:00Z', threshold_percent: 30, ticket_count: tickets.length, sla_count: tickets.reduce((sum, ticket) => sum + ticket.slas.length, 0), tickets } }
+function snapshot(tickets = rows()) { return { generated_at: '2026-10-21T03:00:00Z', threshold_percent: 30, ticket_count: tickets.length, sla_count: tickets.reduce((sum, ticket) => sum + ticket.slas.length, 0), tickets, refresh_in_progress: false, stale: false, refresh_error: null } }
 function query(overrides = {}) { return { data: snapshot(), error: null, refreshError: null, refreshing: false, refresh() {}, ...overrides } }
 const currentReport = { setCurrentReport() {} }
 function renderPage(t, state) {
@@ -255,4 +255,70 @@ test('leaving immediately after a refresh click does not start an unowned reques
   await until(() => !!state.observed.data)
   await act(async () => { state.observed.refresh(); state.unmount() })
   assert.deepEqual(calls, [false])
+})
+
+test('stored snapshots display immediately and poll only while the server refresh runs before replacing the result', async (t) => {
+  const calls = []
+  const stored = { ...snapshot(), refresh_in_progress: true, stale: true }
+  const completed = { ...snapshot([ticket()]), generated_at: '2026-10-21T04:00:00Z' }
+  const pending = deferred()
+  const state = setupHook(t, { getSnapshot(refresh) { calls.push(refresh); return calls.length === 1 ? Promise.resolve(stored) : pending.promise } })
+  await until(() => state.observed.data?.refresh_in_progress)
+  assert.deepEqual(state.observed.data.tickets, stored.tickets)
+  assert.equal(state.observed.refreshing, true)
+  const cached = state.client.getQueryCache().find({ queryKey: ['sla-status'] })
+  assert.equal(cached.options.refetchOnMount, 'always')
+  assert.equal(cached.options.refetchInterval(cached), 2000)
+  assert.equal(cached.options.refetchIntervalInBackground, false)
+  act(() => state.observed.refresh())
+  assert.deepEqual(calls, [false])
+  const poll = state.client.refetchQueries({ queryKey: ['sla-status'] })
+  await until(() => calls.length === 2)
+  assert.deepEqual(state.observed.data.tickets, stored.tickets)
+  await act(async () => { pending.resolve(completed); await poll })
+  await until(() => state.observed.data.generated_at === completed.generated_at && !state.observed.refreshing)
+  assert.deepEqual(calls, [false, false])
+  assert.equal(cached.options.refetchInterval(cached), false)
+})
+
+test('manual refresh accepts an immediate stored result, polls completion and exposes safe server failure without discarding rows', async (t) => {
+  const calls = []
+  const original = snapshot()
+  const refreshing = { ...original, refresh_in_progress: true, stale: true }
+  const failed = { ...original, stale: true, refresh_error: '최신 SLA 수집에 실패했습니다. 다시 시도해 주세요.' }
+  const responses = [original, refreshing, failed]
+  const state = setupHook(t, { async getSnapshot(refresh) { calls.push(refresh); return responses.shift() } })
+  await until(() => !!state.observed.data)
+  act(() => state.observed.refresh())
+  await until(() => state.observed.data.refresh_in_progress && calls.length === 2)
+  assert.equal(state.observed.refreshing, true)
+  assert.deepEqual(state.observed.data.tickets, original.tickets)
+  await act(async () => state.client.refetchQueries({ queryKey: ['sla-status'] }))
+  await until(() => state.observed.refreshError === failed.refresh_error)
+  assert.equal(state.observed.refreshing, false)
+  assert.deepEqual(state.observed.data.tickets, original.tickets)
+  assert.equal(state.observed.data.generated_at, original.generated_at)
+  assert.deepEqual(calls, [false, true, false])
+  const cached = state.client.getQueryCache().find({ queryKey: ['sla-status'] })
+  assert.equal(cached.options.refetchInterval(cached), false)
+})
+
+test('background result updates retain selected filters, sort and expanded details while server errors remain visible', (t) => {
+  const original = snapshot([ticket({ key: 'TAC-1' }), ticket({ key: 'TAC-2', status: '보류중' })])
+  const { view, update } = renderPage(t, query({ data: original }))
+  act(() => selectByOption(view, '분석중').props.onChange({ target: { value: '분석중' } }))
+  act(() => selectByOption(view, 'remaining_millis').props.onChange({ target: { value: 'remaining_millis' } }))
+  act(() => view.root.findByProps({ 'aria-label': 'TAC-1 상세 펼치기' }).props.onClick())
+  update({ data: { ...original, refresh_in_progress: true, stale: true }, refreshing: true })
+  assert.deepEqual(visibleKeys(view), ['TAC-1'])
+  assert.match(text(view), /완료될 때까지 기존 데이터를 표시/)
+  const newer = { ...snapshot([ticket({ key: 'TAC-1', summary: '새로운 제목' })]), generated_at: '2026-10-21T04:00:00Z' }
+  update({ data: newer, refreshing: false })
+  assert.equal(selectByOption(view, '분석중').props.value, '분석중')
+  assert.equal(selectByOption(view, 'remaining_millis').props.value, 'remaining_millis')
+  assert.equal(view.root.findByProps({ 'aria-label': 'TAC-1 상세 접기' }).props['aria-expanded'], true)
+  assert.match(text(view), /새로운 제목/)
+  update({ refreshError: '최신 SLA 수집에 실패했습니다.' })
+  assert.match(text(view), /최신 SLA 수집에 실패했습니다/)
+  assert.deepEqual(visibleKeys(view), ['TAC-1'])
 })

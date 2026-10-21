@@ -57,6 +57,7 @@ class SlaViolationIssue:
     assignee_account_id: str | None = None
     tac_assignee_account_id: str | None = None
     personal_data_retrieved_at: str | None = None
+    personal_data_field_retrieved_at: dict[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -95,6 +96,7 @@ class SlaViolationTicket:
     assignee_account_id: str | None = None
     tac_assignee_account_id: str | None = None
     personal_data_retrieved_at: str | None = None
+    personal_data_field_retrieved_at: dict[str, str] | None = None
 
 
 @dataclass(frozen=True)
