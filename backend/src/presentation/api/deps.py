@@ -14,6 +14,7 @@ from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
+from src.application.use_cases.sla_status import SlaStatusUseCase
 from src.application.use_cases.sla_violation_report import SlaViolationReportUseCase
 from src.application.use_cases.redeployment_report import RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
@@ -43,6 +44,7 @@ class ApiServices:
     get_redeployment: Callable[[], AsyncContextManager[RedeploymentReportUseCase]] | None = None
     notify_sla_digest: NotifySlaDigestUseCase | None = None
     security_news: SecurityNewsUseCase | None = None
+    sla_status: SlaStatusUseCase | None = None
 
 
 def get_api_services(request: Request) -> ApiServices:
@@ -85,5 +87,14 @@ def get_sla_digest_use_case(request: Request) -> NotifySlaDigestUseCase:
     if use_case is None:
         raise HTTPException(
             status_code=503, detail="SLA 일일 알림이 비활성화되어 있습니다.", headers={"Cache-Control": "no-store"},
+        )
+    return use_case
+
+
+def get_sla_status_use_case(request: Request) -> SlaStatusUseCase:
+    use_case = get_api_services(request).sla_status
+    if use_case is None:
+        raise HTTPException(
+            status_code=503, detail="SLA 현황 조회가 준비되지 않았습니다.", headers={"Cache-Control": "no-store"},
         )
     return use_case

@@ -4,7 +4,7 @@
 
 ## 현재 상태와 적용 순서
 
-Rovo Automation 어댑터, 집계 기반 분석 입력, 결과 검증 및 합성 데이터 검증 명령을 소스에 구현했습니다. **운영 서버에는 아직 배포·활성화하지 않았고 실제 Rovo 왕복도 검증하지 않았습니다.** 현재 작업 계정은 TACEA의 Automation 생성 권한이 없어 규칙을 만들지 못했습니다. 사용자가 선택한 진행 방식은 앱 구현을 받은 뒤 관리자가 이 절차를 직접 적용하는 것입니다.
+Rovo Automation 어댑터, 집계 기반 분석 입력, 결과 검증 및 합성 데이터 검증 명령을 구현했습니다. **코드 배포와 분석 활성화는 별도이며 실제 Rovo 왕복은 아직 검증하지 않았습니다.** 현재 작업 계정은 TACEA의 Automation 생성 권한이 없어 규칙을 만들지 못했습니다. 관리자 설정과 합성 검증 전에는 `AI_PROVIDER=rovo_automation`, `AI_ENABLED=false`로 운영하며 관리자가 이 절차를 적용한 뒤 분석을 활성화합니다.
 
 당시 화면은 로컬 점검 자료 [automation-permission-blocked.png](../../output/rovo-automation-validation/automation-permission-blocked.png)에 있습니다. `output/*-validation/`은 Git 제외 경로이므로 저장소를 새로 받은 환경에는 이 자료가 없을 수 있습니다.
 

@@ -68,6 +68,7 @@ def create_app(settings: Settings) -> FastAPI:
                     security_news=container.security_news,
                     audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir)),
                     notify_sla_digest=container.notify_sla_digest,
+                    sla_status=container.sla_status,
                 )
                 scheduler = create_scheduler(
                     schedule_cron=settings.schedule_cron,

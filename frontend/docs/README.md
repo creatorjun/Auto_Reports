@@ -1,8 +1,8 @@
 # Frontend 문서 인덱스
 
-문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+문서 기준: 2026-10-21.
 
-2026-10-14 소스 기준입니다. [루트 README](../../README.md)에 전체 구성과 실행 방법이 있습니다.
+현재 소스의 화면·계약을 정리합니다. [루트 README](../../README.md)에 전체 구성과 실행 방법이 있습니다.
 
 | 문서 | 내용 |
 |---|---|
@@ -21,10 +21,12 @@
 | [컴포넌트](components.md) | 공통 필터, 표, 차트, 내보내기·미리보기 |
 | [보안 뉴스](../../backend/docs/13_security_news.md) | 공개 보안 정보 검색·필터, 출처 상태와 갱신 범위 |
 
-백엔드 계약: [API](../../backend/docs/02_api_reference.md), [SLA 현황](../../backend/docs/08_sla_violation_report.md), [재배포 현황](../../backend/docs/09_redeployment_report.md), [감사로그](../../backend/docs/07_audit_logs.md), [운영](../../backend/docs/10_operations.md).
+백엔드 계약: [API](../../backend/docs/02_api_reference.md), [SLA 위반](../../backend/docs/08_sla_violation_report.md), [재배포 현황](../../backend/docs/09_redeployment_report.md), [감사로그](../../backend/docs/07_audit_logs.md), [운영](../../backend/docs/10_operations.md).
+
+집중 관리 항목은 **SLA 현황 → SLA 위반 → 재배포 현황** 순서입니다. `/sla-status`의 SLA 현황은 잔여율 0% 이상 30% 미만인 미위반 티켓의 현재 수집 스냅샷이며, `/sla-violations`의 SLA 위반은 기간별로 생성·저장한 보고서입니다. 사용과 필터 기준은 [사용 가이드](USER_GUIDE.md), 조회·갱신 경계는 [데이터 흐름](data-flow.md)을 참고하세요.
 
 ## 검증
 
 frontend 디렉터리에서 `pnpm install --frozen-lockfile`, `node --test tests/*.test.mjs`, `pnpm build`를 실행합니다. `pnpm test` 단일 스크립트는 없으며 전체 회귀 검사는 Node 명령을 사용합니다. 기능별 명령은 [의존성 문서](DEPENDENCIES.md#검증-명령)에 정리했습니다.
 
-PDF·Excel은 대시보드·저장 보고서·연간 보고서·전체 이슈에서 지원합니다. 내보내기 시작 시 조건과 전체 일치 행을 고정하고 페이지 번호로 제한하지 않습니다. 독립 SLA 현황·재배포 현황 페이지에 전용 PDF·Excel 내보내기는 없습니다.
+PDF·Excel은 대시보드·저장 보고서·연간 보고서·전체 이슈에서 지원합니다. 내보내기 시작 시 조건과 전체 일치 행을 고정하고 페이지 번호로 제한하지 않습니다. 독립 SLA 현황·SLA 위반·재배포 현황 페이지에 전용 PDF·Excel 내보내기는 없습니다.

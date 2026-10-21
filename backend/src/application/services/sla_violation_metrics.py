@@ -54,7 +54,7 @@ def _timeline(issue: SlaViolationIssue, as_of: datetime) -> list[tuple[datetime,
     return intervals
 
 
-def _ticket(issue: SlaViolationIssue, generated_at: datetime) -> SlaViolationTicket:
+def build_sla_ticket(issue: SlaViolationIssue, generated_at: datetime) -> SlaViolationTicket:
     warnings = list(issue.warnings)
     intervals = None
     durations = None
@@ -132,7 +132,7 @@ def build_sla_violation_report(
         if issue.key in seen:
             raise ValueError(f"중복 티켓이 수집되었습니다: {issue.key}")
         seen.add(issue.key)
-        tickets.append(_ticket(issue, generated_at))
+        tickets.append(build_sla_ticket(issue, generated_at))
     tickets.sort(key=lambda ticket: (ticket.created_at, ticket.key), reverse=True)
     warning_count = sum(bool(ticket.warnings) for ticket in tickets)
     return SlaViolationReport(

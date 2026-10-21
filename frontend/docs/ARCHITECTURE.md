@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-문서 기준: 2026-10-16.
+문서 기준: 2026-10-21.
 
 ## 의존성 규칙
 
@@ -80,9 +80,11 @@ pnpm build
 
 ## 현재 기능별 계산 경계
 
-대시보드의 `application/services/dashboardData.ts`, 재배포의 `application/services/redeploymentReport.ts`, SLA의 `domain/SlaViolationFilters.ts`·`SlaViolationOverview.ts`·`SlaViolationSort.ts`가 화면과 독립적으로 계산합니다. SLA 요약과 차트 선택은 저장 보고서만 사용하므로 컴포넌트에서 별도 Jira 요청을 만들지 않습니다. 연간 일부 차트 상세는 `ReportGateway.getChartIssues`를 통해 현재 Jira를 조회하는 별도 계약입니다.
+대시보드의 `application/services/dashboardData.ts`, 재배포의 `application/services/redeploymentReport.ts`, SLA 위반의 `domain/SlaViolationFilters.ts`·`SlaViolationOverview.ts`·`SlaViolationSort.ts`가 화면과 독립적으로 계산합니다. SLA 위반 요약과 차트 선택은 저장 보고서만 사용하므로 컴포넌트에서 별도 Jira 요청을 만들지 않습니다. 연간 일부 차트 상세는 `ReportGateway.getChartIssues`를 통해 현재 Jira를 조회하는 별도 계약입니다.
 
-주·월·연 날짜 계산은 `domain/ReportPeriod.ts`와 `application/services/reportPeriod.ts`를 공유합니다. 일반 보고서 생성은 layout 소유 SSE 구독, SLA·재배포 생성은 각 query mutation의 HTTP 응답으로 완료합니다. 같은 완료 추적 방식으로 설명하지 않습니다.
+SLA 현황은 `domain/SLAStatus.ts`의 현재 스냅샷을 사용합니다. `application/services/slaStatus.ts`가 위젯·검색·상태·SLA 단계 필터와 정렬을 계산하고 `SlaStatusGateway`가 조회 계약을 정의합니다. `infrastructure/api/slaStatusApi.ts`를 `main.tsx`에서 주입하며 `useSlaStatus`가 60초 query 캐시, 수동 강제 새로고침, 요청 취소와 마지막 성공 데이터를 관리합니다. `SlaStatusPage`와 `components/sla-status`는 표시만 담당하며 기간별 저장 보고서를 만들지 않습니다.
+
+주·월·연 날짜 계산은 `domain/ReportPeriod.ts`와 `application/services/reportPeriod.ts`를 공유합니다. 일반 보고서 생성은 layout 소유 SSE 구독, SLA 위반·재배포 생성은 각 query mutation의 HTTP 응답으로 완료합니다. SLA 현황은 기간 생성 흐름에 참여하지 않습니다.
 
 테마와 3단계 글자 크기·굵기는 단일 디자인 토큰에서 정의하고, 배지 색상은 의미별 mapping으로 참조합니다. 표의 너비·정렬 영속화는 Presentation의 `useTablePreferences`가 담당하며 Domain 계산이나 API payload에 넣지 않습니다.
 

@@ -12,6 +12,7 @@ import { searchApi } from '@/infrastructure/api/searchApi'
 import { siteApi } from '@/infrastructure/api/siteApi'
 import { slaDashboardApi } from '@/infrastructure/api/slaDashboardApi'
 import { slaViolationApi } from '@/infrastructure/api/slaViolationApi'
+import { slaStatusApi } from '@/infrastructure/api/slaStatusApi'
 import { redeploymentApi } from '@/infrastructure/api/redeploymentApi'
 import { issueManagementApi } from '@/infrastructure/api/issueManagementApi'
 import { securityNewsApi } from '@/infrastructure/api/securityNewsApi'
@@ -36,6 +37,7 @@ configureHttpClient({
     useAuthStore.getState().clearAuth()
     queryClient.removeQueries({ queryKey: ['me'] })
     queryClient.removeQueries({ queryKey: ['audit-logs'] })
+    queryClient.removeQueries({ queryKey: ['sla-status'] })
   },
   redirectToLogin: () => {
     window.location.href = '/login'
@@ -54,6 +56,7 @@ const services = {
   search: searchApi,
   slaDashboard: slaDashboardApi,
   slaViolations: slaViolationApi,
+  slaStatus: slaStatusApi,
   redeployments: redeploymentApi,
   issueManagement: issueManagementApi,
   securityNews: securityNewsApi,

@@ -20,7 +20,7 @@
 | `ISSUE_TYPES` | `["인시던트","개선","CVE","서비스 요청","H/W 장애 요청","승인된 서비스 요청","라이선스"]` | Jira 프로젝트 유형 목록 조회 실패 시 사용할 대시보드 토글 기본값 |
 | `ACTIVE_STATUSES` | 사내 기본 목록 | 활성 상태 JSON list |
 | `CLOSED_STATUSES` | 사내 기본 목록 | 종료 상태 JSON list |
-| `SLA_THRESHOLD_DAYS` | `30` | 일반 대시보드의 지연 분류 기준. SLA 현황의 `breached=true` 판정을 대체하지 않음 |
+| `SLA_THRESHOLD_DAYS` | `30` | 일반 대시보드의 지연 분류 기준. SLA 위반의 `breached=true` 판정을 대체하지 않음 |
 | `SLA_INITIAL_RESPONSE_FIELD_ID` | `customfield_12152` | 최초 응답 field |
 | `SLA_RESOLUTION_FIELD_ID` | `customfield_12151` | 해결 SLA field |
 | `SLA_RESOLUTION_PAUSE_STATUSES` | `["결과 대기 중","자료 요청 중","보류 중"]` | 상태별 해결 SLA 시간 계산에서 제외할 상태. Jira 정지 조건 변경 시 함께 갱신하며 계산 합계는 Jira 원본 사용 시간으로 검증 |
@@ -87,7 +87,7 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 
 Settings 기본값과 `.env.example`은 구분합니다. 예제는 `LOGIN=true`, 별도의 `ISSUE_TYPES` 목록 등 일부 값을 명시적으로 덮어씁니다. `AI_ENABLED=true`라도 Gemini key가 비어 있으면 클라이언트를 초기화하지 않고 분석 결과를 null로 반환합니다. 현재 Gemini 분석은 일반·연간 보고서의 종합 분석이고 SLA별 Rovo/A2A 분석이 아닙니다.
 
-APScheduler는 숫자 요일을 월요일=0으로 해석합니다. 재배포 현황의 매일 08시 KST 작업은 코드에 별도로 등록하며 `SCHEDULE_CRON`, `TZ`, `REFRESH_REPORT_ENABLED`와 독립적입니다. SLA 현황은 수동 생성만 제공합니다. 전체 이슈 동기화 간격과 재배포 시작일 2026-01-01은 환경 변수 설정이 아닙니다.
+APScheduler는 숫자 요일을 월요일=0으로 해석합니다. 재배포 현황의 매일 08시 KST 작업은 코드에 별도로 등록하며 `SCHEDULE_CRON`, `TZ`, `REFRESH_REPORT_ENABLED`와 독립적입니다. SLA 위반은 수동 생성만 제공합니다. 전체 이슈 동기화 간격과 재배포 시작일 2026-01-01은 환경 변수 설정이 아닙니다.
 
 LibreOffice는 문서 PDF 변환에 사용하며 실행 파일이 없으면 변환 endpoint가 명시적 오류를 반환합니다.
 

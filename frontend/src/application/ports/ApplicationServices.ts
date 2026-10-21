@@ -12,6 +12,7 @@ import type { ChartIssuesRequest, ChartIssuesResult } from '@/domain/ReportChart
 import type { SearchResult } from '@/domain/Search'
 import type { SecurityNewsSnapshot } from '@/domain/SecurityNews'
 import type { SlaDashboardCommentPage, SlaDashboardIssue } from '@/domain/SlaDashboard'
+import type { SlaStatusSnapshot } from '@/domain/SLAStatus'
 import type { SlaViolationReport, SlaViolationReportSummary, SlaViolationRequest } from '@/domain/SlaViolationReport'
 import type {
   DeploymentNodePayload,
@@ -164,6 +165,10 @@ export interface SlaViolationGateway {
   getHistory: (limit?: number, offset?: number, signal?: CancellationSignal) => Promise<SlaViolationReportSummary[]>
 }
 
+export interface SlaStatusGateway {
+  getSnapshot: (refresh?: boolean, signal?: CancellationSignal) => Promise<SlaStatusSnapshot>
+}
+
 export interface ApplicationServices {
   previewParser: PreviewParserPort
   dashboardExport: DashboardExportGateway
@@ -176,6 +181,7 @@ export interface ApplicationServices {
   search: SearchGateway
   slaDashboard: SlaDashboardGateway
   slaViolations: SlaViolationGateway
+  slaStatus: SlaStatusGateway
   redeployments: RedeploymentGateway
   issueManagement: { getIssues: () => Promise<IssueManagementSnapshot> }
   securityNews: SecurityNewsGateway

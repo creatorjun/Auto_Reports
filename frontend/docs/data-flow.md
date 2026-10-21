@@ -1,6 +1,6 @@
 # Frontend Data Flow
 
-문서 기준: 2026-10-16.
+문서 기준: 2026-10-21.
 
 ## 공통 요청
 
@@ -18,13 +18,29 @@ Page/Component → Presentation hook → Application gateway
 |---|---|
 | 일반 대시보드 | DashboardGenerateForm → period/date → ReportGateway.trigger → job_id → SSE 또는 polling → report_id → 최신 일반 query 갱신 |
 | 연간 전용 | 연도 생성 버튼 → start_date/end_date → 같은 job 흐름 → annual query 갱신 |
-| SLA 현황 | period/date → SlaViolationGateway.generate → 수집·DB 저장이 완료된 응답 → 최신·ID 캐시 설정 및 이력 무효화 |
+| SLA 현황 | useSlaStatus → SlaStatusGateway.getSnapshot → GET /sla-status → 현재 스냅샷 → query 캐시와 화면 표시; 수동 새로고침은 refresh=true |
+| SLA 위반 | period/date → SlaViolationGateway.generate → 수집·DB 저장이 완료된 응답 → 최신·ID 캐시 설정 및 이력 무효화 |
 | 재배포 현황 | 서버 08시 작업 또는 generate → 당일 DB upsert → 최신 응답; 화면은 60초마다 최신 저장본 조회 |
 | 전체 이슈 | 서버 시작 시 DB 마지막 목록 복원 → getIssues로 즉시 반환 및 필요 시 백그라운드 갱신 → 기존 목록을 유지하며 화면 2초/30초 polling; 페이지 이탈 후 메모리 캐시는 1시간 유지 |
 
-일반 job 구독은 Layout이 소유합니다. SSE 연결 실패 시 adapter가 backoff polling으로 전환하고 종료 시 연결·타이머를 회수합니다. SLA·재배포는 SSE가 아닌 장기 HTTP 요청이며 최신 조회만으로 Jira 수집을 시작하지 않습니다.
+일반 job 구독은 Layout이 소유합니다. SSE 연결 실패 시 adapter가 backoff polling으로 전환하고 종료 시 연결·타이머를 회수합니다. SLA 위반·재배포 생성은 SSE가 아닌 장기 HTTP 요청이며 최신 저장본 조회만으로 Jira 수집을 시작하지 않습니다. SLA 현황의 일반 조회는 60초 캐시가 없거나 만료되면 현재 값을 수집하며 `refresh=true`는 캐시를 우회합니다. 성공 결과에는 수집 시각을 표시하고 실패하면 마지막 성공 데이터를 유지합니다.
 
-## SLA 화면 계산
+## SLA 현황 계산
+
+```text
+SlaStatusPage → useSlaStatus → SlaStatusGateway → slaStatusApi
+  → GET /sla-status → SLAStatus.ts 현재 수집 스냅샷
+  → 잔여율 0% 이상 30% 미만인 미위반 고유 티켓
+  → 전체/잔여 10% 미만/진행 중 SLA 포함/일시정지 SLA 포함 위젯
+  → 위젯 범위 AND 검색 AND 현재 상태 AND SLA 단계
+  → 잔여율 낮은 순 정렬 → 티켓당 한 행
+  → 잔여율·시간·상태·담당자·최대 체류 단계
+  → 펼침: 해결시간 SLA 기준 표시 대상 전체 상태별 체류시간 + 목표·사용·잔여
+```
+
+표시 계산은 `application/services/slaStatus.ts`가 담당합니다. 위젯 건수는 전체 수집 결과를 기준으로 유지하고 필터는 목록에 적용합니다. 하나의 티켓에 진행 중·일시정지 SLA가 함께 있으면 두 위젯에 모두 포함될 수 있으므로 범위별 건수의 합을 전체로 사용하지 않습니다. 최대 체류 단계·상태별 시간은 기존 SLA 표시 정책대로 닫힘·결과 대기 중·자료 요청 중·보류 중을 제외합니다. SLA 현황에는 생성 기간·보고서 ID·저장 이력이 없습니다.
+
+## SLA 위반 화면 계산
 
 ```text
 저장 보고서 tickets

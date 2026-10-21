@@ -1,6 +1,6 @@
 # Frontend Domain Models
 
-문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+문서 기준: 2026-10-21.
 
 `src/domain`은 순수 TypeScript 모델과 필터 정책을 포함하며 React, axios, Zustand에 의존하지 않습니다.
 
@@ -25,6 +25,7 @@
 | `AuditLog.ts` | 감사 이벤트, 검색 조건과 페이지 |
 | `ReportPeriod.ts` | week/month/year 및 기간 요청 모델 |
 | `ReportChartDetails.ts` | 현재 Jira 차트 상세 요청·응답과 저장본 비교 메타데이터 |
+| `SLAStatus.ts` | 현재 수집 스냅샷, 고유 티켓·SLA 잔여율/시간·일시정지 상태·상태별 체류시간과 화면 필터/정렬 모델 |
 | `SlaViolationReport.ts` | 저장 기간, 티켓·위반 이벤트·상태별 시간·경고 |
 | `SlaViolationFilters.ts` | 기본 상태 제외, 유형·상태·반기 교집합 |
 | `SlaViolationOverview.ts` | 고유 티켓 카드, 현재 상태 분포, KST 생성 추이와 상세 검색 |
@@ -64,6 +65,8 @@ widget ID는 화면에서 데이터가 처음 렌더링되는 순서를 따릅�
 ## 보고서 범위와 SLA·재배포
 
 `ReportSummary.scope`는 standard/annual, `report_year`는 연간 전용 연도입니다. 대시보드의 연간 생성도 standard이며 annual 전용 메뉴와 별도입니다. `ReportChartDetails`는 현재 Jira 상세(`source=current_jira`)를 표현하므로 저장 차트와 다른 시점일 수 있습니다.
+
+`SlaStatusSnapshot`은 수집 시각과 잔여율 `0 <= x < 30%`인 미위반 티켓의 현재 값을 전달합니다. 기간·보고서 ID·저장 이력 계약은 없으며 이미 위반한 티켓은 수집 대상에서 제외합니다. `SlaStatusTicket`은 고유 티켓당 하나이고 조건에 맞는 SLA들을 포함합니다. 진행 중·일시정지 SLA가 함께 있는 티켓은 두 범위에 모두 포함될 수 있습니다. `application/services/slaStatus.ts`가 위젯 건수, 검색·현재 상태·SLA 단계의 교집합과 정렬을 순수 함수로 계산합니다. 기본 정렬은 표시 대상 SLA의 최소 잔여율이 낮은 순서입니다. 상태별 체류시간은 서버가 제공한 해결시간 SLA 기준 값을 사용하며 프런트엔드에서 실제 경과시간으로 대체하지 않습니다.
 
 `SlaViolationReport`는 티켓 생성일이 선택 기간에 속하고 생성 시점에 위반 이력이 확인된 티켓의 스냅샷입니다. 같은 SLA 반복 위반은 카드·목록에서 한 티켓으로 계산하고 동시 위반은 교집합입니다. 상태 분포는 저장 현재 상태, 추이는 KST 생성월/일입니다. 닫힘 체류 구간 제외는 표시 정책이며 저장값을 지우지 않습니다.
 

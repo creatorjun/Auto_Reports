@@ -23,6 +23,7 @@ from src.application.use_cases.refresh_report import RefreshReportUseCase
 from src.application.use_cases.search import SearchUseCase
 from src.application.use_cases.site_use_cases import SiteUseCase
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
+from src.application.use_cases.sla_status import SlaStatusUseCase
 from src.application.use_cases.sla_violation_report import SlaViolationReportUseCase
 from src.application.use_cases.redeployment_report import RedeploymentGenerationInProgress, RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
@@ -172,11 +173,13 @@ class Container:
             if smtp and settings.notify_todo_enabled and settings.notify_todo_to
             else None
         )
+        self._sla_status_source = SlaDigestJiraSource(
+            base_url=settings.jira_base_url, email=settings.jira_email,
+            api_token=settings.jira_api_token, project_key=settings.project_key,
+        )
+        self.sla_status = SlaStatusUseCase(self._sla_status_source, details=self._sla_violation_source)
         self._sla_digest_source = (
-            SlaDigestJiraSource(
-                base_url=settings.jira_base_url, email=settings.jira_email,
-                api_token=settings.jira_api_token, project_key=settings.project_key,
-            )
+            self._sla_status_source
             if self._notify_todo is not None and settings.notify_sla_digest_enabled
             else None
         )
@@ -221,6 +224,7 @@ class Container:
     async def _clear_personal_data_caches(self) -> None:
         await self.issue_management.clear_personal_data_cache()
         await self._jira.clear_personal_data_cache()
+        await self.sla_status.clear_personal_data_cache()
         await self._cache.aclose()
 
     @asynccontextmanager
@@ -314,8 +318,8 @@ class Container:
         async with AsyncExitStack() as stack:
             stack.push_async_callback(self._jira.aclose)
             stack.push_async_callback(self._sla_violation_source.aclose)
-            if self._sla_digest_source is not None:
-                stack.push_async_callback(self._sla_digest_source.aclose)
+            stack.push_async_callback(self._sla_status_source.aclose)
+            stack.push_async_callback(self.sla_status.aclose)
             stack.push_async_callback(self._redeployment_source.aclose)
             if self._ai is not None:
                 stack.push_async_callback(self._ai.aclose)

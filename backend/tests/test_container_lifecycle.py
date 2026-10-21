@@ -59,6 +59,34 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(container.security_news._closed)
         self.assertTrue(container._security_news_source._client.is_closed)
         self.assertIsNone(container._news_translation)
+        self.digest_source.aclose.assert_awaited_once_with()
+
+    async def test_sla_status_is_available_without_email_and_never_sends_notifications(self) -> None:
+        container = self.create_container(None)
+        try:
+            self.assertFalse(container.sla_digest_enabled)
+            result = await container.sla_status.get_snapshot()
+            self.assertEqual(0, result.ticket_count)
+            self.digest_source.fetch_entries.assert_awaited_once_with()
+            self.assertIsNone(container._notify_todo)
+        finally:
+            await container.aclose()
+        self.digest_source.aclose.assert_awaited_once_with()
+
+    async def test_sla_status_stops_before_shared_source_and_invalidates_personal_data(self) -> None:
+        container = self.create_container(None)
+        container.issue_management.clear_personal_data_cache = AsyncMock()
+        self.jira.clear_personal_data_cache = AsyncMock()
+        container.sla_status.clear_personal_data_cache = AsyncMock()
+        try:
+            await container._clear_personal_data_caches()
+            container.sla_status.clear_personal_data_cache.assert_awaited_once_with()
+            events = []
+            container.sla_status.aclose = AsyncMock(side_effect=lambda: events.append("status"))
+            self.digest_source.aclose.side_effect = lambda: events.append("source")
+        finally:
+            await container.aclose()
+        self.assertEqual(["status", "source"], events)
 
     async def test_news_translation_is_independent_of_report_ai_and_closes_worker_before_dependencies(self) -> None:
         self.settings.ai_enabled = False

@@ -11,6 +11,7 @@ from urllib.parse import quote
 import httpx
 
 from src.application.ports.sla_violation_port import SlaViolationSourcePort
+from src.application.ports.sla_status_port import SlaStatusDetailsPort
 from src.domain.entities.sla_clock import SlaClockCalendar
 from src.infrastructure.external.jira_sla_calendar import calendar_ids_for_project, parse_clock_calendar
 from src.infrastructure.external.jira_user_identity import jira_account_id
@@ -109,7 +110,7 @@ def _cycle_timing(cycle: dict, label: str, warnings: list[str]) -> tuple[int | N
     return goal, elapsed, max(0, difference)
 
 
-class SlaViolationJiraSource(SlaViolationSourcePort):
+class SlaViolationJiraSource(SlaViolationSourcePort, SlaStatusDetailsPort):
     def __init__(
         self,
         base_url: str,
@@ -230,6 +231,49 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
             cycles = self._cycles(fields, warnings)
             if any(cycle.breached for cycle in cycles):
                 selected.append((raw, created, cycles, warnings))
+        return await self._enrich(selected)
+
+    async def fetch_details(self, keys: tuple[str, ...]) -> tuple[SlaViolationIssue, ...]:
+        self._ensure_open()
+        if any(not re.fullmatch(r"[A-Z][A-Z0-9_]*-\d+", key) for key in keys):
+            raise ValueError("Invalid SLA status issue key")
+        if not keys:
+            return ()
+        async with self._fetch_lock:
+            self._ensure_open()
+            task = asyncio.create_task(self._load_details(tuple(dict.fromkeys(keys))))
+            self._tasks.add(task)
+            try:
+                return await task
+            finally:
+                self._tasks.discard(task)
+
+    async def _load_details(self, keys: tuple[str, ...]) -> tuple[SlaViolationIssue, ...]:
+        selected = []
+        for index in range(0, len(keys), 100):
+            batch = keys[index:index + 100]
+            quoted_keys = ", ".join(f'"{key}"' for key in batch)
+            jql = f'project = "{self._project_key}" AND key IN ({quoted_keys}) AND statusCategory != Done ORDER BY key ASC'
+            for raw in await self._search(jql):
+                if raw["key"] not in batch:
+                    raise RuntimeError("Jira SLA status returned an unrequested issue")
+                fields = raw.get("fields")
+                if not isinstance(fields, dict):
+                    raise RuntimeError("Jira SLA status issue fields are invalid")
+                status = fields.get("status")
+                if not isinstance(status, dict):
+                    raise RuntimeError("Jira SLA status issue status is invalid")
+                category = status.get("statusCategory", {})
+                if isinstance(category, dict) and category.get("key") == "done":
+                    continue
+                created = _date(fields.get("created"))
+                if created is None:
+                    raise RuntimeError("Jira SLA status creation timestamp is invalid")
+                warnings: list[str] = []
+                selected.append((raw, created, self._cycles(fields, warnings), warnings))
+        return await self._enrich(selected)
+
+    async def _enrich(self, selected: list) -> tuple[SlaViolationIssue, ...]:
         assets: dict[tuple[str, str], str | None] = {}
         project_ids = {
             str(project["id"])
@@ -312,9 +356,12 @@ class SlaViolationJiraSource(SlaViolationSourcePort):
             raw = fields[field]
             if raw is None:
                 continue
-            if not isinstance(raw, dict) or not isinstance(raw.get("completedCycles", []), list):
+            if not isinstance(raw, dict):
                 raise RuntimeError(f"Jira {metric} SLA data is invalid")
-            cycles = [(cycle, False) for cycle in raw.get("completedCycles", [])]
+            completed = raw.get("completedCycles")
+            if completed is not None and not isinstance(completed, list):
+                raise RuntimeError(f"Jira {metric} SLA data is invalid")
+            cycles = [(cycle, False) for cycle in completed or []]
             if raw.get("ongoingCycle") is not None:
                 cycles.append((raw["ongoingCycle"], True))
             for cycle, ongoing in cycles:

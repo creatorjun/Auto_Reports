@@ -337,13 +337,39 @@ class SlaViolationJiraSourceTest(unittest.IsolatedAsyncioTestCase):
                     await self.collect(handler)
 
     async def test_invalid_sla_data_fails_instead_of_hiding_violations(self) -> None:
-        for value in ("invalid", {"completedCycles": "invalid"}, {"ongoingCycle": {"breached": "true"}}):
+        for value in (
+            "invalid", {"completedCycles": "invalid"}, {"completedCycles": {}},
+            {"completedCycles": False}, {"completedCycles": 0},
+            {"ongoingCycle": {"breached": "true"}},
+        ):
             with self.subTest(value=value):
                 def handler(request: httpx.Request) -> httpx.Response:
                     return httpx.Response(200, json={"issues": [issue(customfield_12152=value)], "isLast": True})
 
                 with self.assertRaisesRegex(RuntimeError, "SLA.*invalid"):
                     await self.collect(handler)
+
+    async def test_null_completed_cycles_preserve_ongoing_violation_selection(self) -> None:
+        candidates = [
+            issue("TACEA-1", customfield_12152={"completedCycles": None}, customfield_12151={
+                "completedCycles": None, "ongoingCycle": {"breached": True},
+            }),
+            issue("TACEA-2", customfield_12152={"completedCycles": None}, customfield_12151={
+                "completedCycles": None, "ongoingCycle": {"breached": False},
+            }),
+            issue("TACEA-3", customfield_12152={"completedCycles": None}),
+        ]
+
+        def handler(request):
+            data = {"issues": candidates, "isLast": True} if request.method == "POST" else history_page()
+            return httpx.Response(200, json=data)
+
+        result = await self.collect(handler)
+        self.assertEqual(["TACEA-1"], [item.key for item in result])
+        self.assertEqual(1, len(result[0].cycles))
+        self.assertEqual("resolution", result[0].cycles[0].metric)
+        self.assertTrue(result[0].cycles[0].ongoing)
+        self.assertTrue(result[0].cycles[0].breached)
 
     async def test_requests_configured_fields_and_always_refreshes(self) -> None:
         searches = []

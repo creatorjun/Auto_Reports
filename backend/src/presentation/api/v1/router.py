@@ -13,6 +13,7 @@ from src.presentation.api.v1 import (
     security_news,
     sites,
     sla_dashboard,
+    sla_status,
     sla_violations,
     storage,
     trigger,
@@ -36,6 +37,7 @@ _protected.include_router(search.router)
 _protected.include_router(security_news.router)
 _protected.include_router(sites.router)
 _protected.include_router(sla_dashboard.router)
+_protected.include_router(sla_status.router)
 _protected.include_router(sla_violations.router)
 _protected.include_router(storage.router)
 _protected.include_router(partners.router)

@@ -35,7 +35,7 @@ const EVENT_LABELS: Record<string, string> = {
   LOGIN_SUCCESS: '로그인 성공', LOGIN_FAILED: '로그인 실패', LOGIN_FAIL: '로그인 실패',
   LOGOUT: '로그아웃', TOKEN_REFRESH: '세션 갱신', REFRESH_SUCCESS: '세션 갱신',
   REPORT_TRIGGER: '보고서 생성', REPORT_DELETE: '보고서 삭제',
-  SLA_VIOLATION_REPORT_CREATE: 'SLA 현황 보고서 생성',
+  SLA_VIOLATION_REPORT_CREATE: 'SLA 위반 보고서 생성',
   FILE_UPLOAD: '파일 업로드', FILE_DELETE: '파일 삭제', FILE_MOVE: '파일 이동',
   FILE_DOWNLOAD: '파일 다운로드', FOLDER_CREATE: '폴더 생성', FOLDER_DELETE: '폴더 삭제',
   CHUNKED_INIT: '분할 업로드 시작', CHUNKED_COMPLETE: '분할 업로드 완료', CHUNKED_ABORT: '분할 업로드 취소',

@@ -12,7 +12,8 @@
 | [환경 설정](04_environment_and_config.md) | 실제 설정 기본값, Compose 적용, 스케줄과 선택 기능 |
 | [검수 기준](05_issue_catalog.md) | 유지할 구조적 계약과 기능별 회귀 검사 |
 | [감사로그](07_audit_logs.md) | 관리자 권한, 기록, 보존·이전 |
-| [SLA 현황](08_sla_violation_report.md) | 생성·집계·저장, 요약·차트·필터, 티켓 상세 |
+| [SLA 현황](15_sla_status.md) | 잔여율 30% 미만의 위반 임박 티켓과 상태별 체류시간 |
+| [SLA 위반](08_sla_violation_report.md) | 생성·집계·저장, 요약·차트·필터, 티켓 상세 |
 | [재배포 현황](09_redeployment_report.md) | 수집 기준, 원인·월별 탐색, 매일 08시 KST 갱신 |
 | [운영·배포](10_operations.md) | 실행, 백업, migration, 배포와 검증 |
 | [Jira 로그인](11_jira_login.md) | OAuth 앱 등록, 기존 관리자 로그인, JWT 자동 로그인과 검증 |

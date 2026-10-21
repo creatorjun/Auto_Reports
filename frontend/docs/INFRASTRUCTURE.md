@@ -1,6 +1,6 @@
 # Frontend Infrastructure
 
-문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+문서 기준: 2026-10-21.
 
 Infrastructure는 `src/infrastructure/api`의 HTTP adapter와 `src/infrastructure/export`의 PDF·Excel 생성 adapter 및 `src/infrastructure/preview`의 파일 해석 adapter를 포함합니다. React hook과 Zustand store는 이 레이어에 두지 않습니다.
 
@@ -29,7 +29,8 @@ client는 Presentation store를 직접 import하지 않습니다. `main.tsx`가 
 | `partnerApi.ts` | `PartnerGateway` | 파트너 조직, 멤버, 이슈 조회 |
 | `searchApi.ts` | `SearchGateway` | Jira 이슈 검색과 base URL 조회 |
 | `slaDashboardApi.ts` | `SlaDashboardGateway` | 최신 보고서 기반 이슈 활동과 offset에 따른 티켓별 댓글 페이지 조회 |
-| `slaViolationApi.ts` | `SlaViolationGateway` | SLA 생성, 최신·ID·이력 조회 |
+| `slaStatusApi.ts` | `SlaStatusGateway` | SLA 현황의 현재 수집 스냅샷 조회와 강제 새로고침 |
+| `slaViolationApi.ts` | `SlaViolationGateway` | SLA 위반 보고서 생성, 최신·ID·이력 조회 |
 | `redeploymentApi.ts` | `RedeploymentGateway` | 최신 재배포 조회·갱신 |
 | `issueManagementApi.ts` | `ApplicationServices.issueManagement` | 전체 이슈 동기화 스냅샷 조회 |
 | `auditLogApi.ts` | `AuditLogGateway` | 관리자 감사로그 조건 조회 |
@@ -39,7 +40,9 @@ client는 Presentation store를 직접 import하지 않습니다. `main.tsx`가 
 
 TanStack Query 기반 hook은 `src/presentation/hooks`에 있으며 `useApplicationServices()`로 위 gateway를 주입받습니다.
 
-일반 보고서의 `watchJob`은 SSE와 polling 전환을 소유합니다. SLA·재배포 생성 요청은 최대 10분 HTTP timeout을 사용하며 별도 job stream이 없습니다. 취소 가능한 조회는 Application의 `CancellationSignal`을 받아 HTTP 취소로 연결합니다.
+일반 보고서의 `watchJob`은 SSE와 polling 전환을 소유합니다. SLA 위반·재배포 생성 요청은 최대 10분 HTTP timeout을 사용하며 별도 job stream이 없습니다. 취소 가능한 조회는 Application의 `CancellationSignal`을 받아 HTTP 취소로 연결합니다.
+
+`SlaStatusGateway.getSnapshot(refresh, signal)`은 `slaStatusApi.ts`에서 `GET /sla-status`로 연결합니다. 일반 조회는 서버의 60초 캐시를 사용하며 수동 새로고침은 `refresh=true`를 보내 강제로 다시 수집합니다. adapter의 timeout은 120초이며 취소 신호를 그대로 전달합니다. 응답은 `domain/SLAStatus.ts`의 `SlaStatusSnapshot`입니다. 기간별 생성·DB 보고서 저장·히스토리 API와 별도 계약입니다.
 
 `reportApi`는 연간 보고서와 차트 상세도 조회합니다. `slaDashboardApi`는 댓글 이미지 바이너리 조회를 지원합니다. 파일 변환 요청은 150초 timeout, 바이너리는 `BinaryContent`와 명시적 object URL 해제를 사용합니다.
 

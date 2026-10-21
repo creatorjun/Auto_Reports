@@ -1,6 +1,6 @@
 # Frontend Directory
 
-문서 기준: 2026-10-14 · 구현 커밋 `e280b75`.
+문서 기준: 2026-10-21.
 
 주요 구조이며 전체 파일 목록은 저장소 소스를 기준으로 합니다.
 
@@ -18,7 +18,7 @@ frontend/
     ├── application/
     │   ├── errors/                RequestError
     │   ├── ports/                 ApplicationServices, AuthSessionPort, PreviewParserPort
-    │   └── services/              dashboardData, reportPeriod, slaViolationReport,
+    │   └── services/              dashboardData, reportPeriod, slaStatus, slaViolationReport,
     │                              redeploymentReport, auditLog
     ├── infrastructure/
     │   ├── api/                   인증·보고서·SLA·재배포·전체 이슈·감사·관리 adapter
@@ -45,7 +45,9 @@ frontend/
 | 라우트·권한 | `src/app/router.tsx`, `src/presentation/components/auth` |
 | 색상·글꼴 크기·굵기 | `src/presentation/config/designTokens.json`, `issueBadgeColors.ts` |
 | 브랜드 | `src/presentation/components/common/BrandLogo.tsx`, `src/assets` |
-| SLA 요약·검색·추이 | `src/domain/SlaViolationOverview.ts`, `src/presentation/components/sla-violations` |
+| SLA 현황 모델·계산 | `src/domain/SLAStatus.ts`, `src/application/services/slaStatus.ts` |
+| SLA 현황 조회·화면 | `src/infrastructure/api/slaStatusApi.ts`, `src/presentation/hooks/useSlaStatus.ts`, `src/presentation/pages/SlaStatusPage.tsx`, `src/presentation/components/sla-status` |
+| SLA 위반 요약·검색·추이 | `src/domain/SlaViolationOverview.ts`, `src/presentation/components/sla-violations` |
 | 재배포 집계·선택 | `src/application/services/redeploymentReport.ts`, `src/presentation/pages/RedeploymentPage.tsx` |
 | API 계약 | `src/application/ports/ApplicationServices.ts` → `src/infrastructure/api` → `src/main.tsx` |
 | 공통 표 저장 설정 | `src/presentation/hooks/useTablePreferences.ts` |
