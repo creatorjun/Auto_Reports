@@ -196,7 +196,7 @@ test('generation stays pending through job completion and loads the exact saved 
   assert.deepEqual(state.client.getQueryData(['reports', 2]), created)
   assert.equal(state.client.getQueryState(['reports', 'list', 0, 20]).isInvalidated, true)
   assert.deepEqual(state.navigation, ['/reports/2'])
-  assert.match(state.ui.triggerMessage, /히스토리에 저장/)
+  assert.equal(state.ui.triggerMessage, null)
 })
 
 test('request failure unlocks generation and preserves the displayed report', async (t) => {

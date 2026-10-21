@@ -65,7 +65,6 @@ export function ReportGenerationProvider({ children }: { children: ReactNode }) 
         client.setQueryData(QUERY_KEYS.latestReport(), report)
       }
       finish()
-      setTriggerMessage(`보고서를 생성하고 히스토리에 저장했습니다. (#${reportId})`)
       if (report.scope === 'standard' && (pathRef.current === '/' || /^\/reports\/\d+$/.test(pathRef.current))) navigate(`/reports/${reportId}`)
     } catch {
       if (mountedRef.current) fail('보고서는 생성되었지만 화면을 불러오지 못했습니다. 히스토리에서 확인해 주세요.')
