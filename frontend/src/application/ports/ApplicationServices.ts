@@ -12,7 +12,7 @@ import type { RedeploymentReport } from '@/domain/RedeploymentReport'
 import type { ChartIssuesRequest, ChartIssuesResult } from '@/domain/ReportChartDetails'
 import type { SearchResult } from '@/domain/Search'
 import type { SecurityNewsSnapshot } from '@/domain/SecurityNews'
-import type { SlaDashboardCommentPage, SlaDashboardIssue } from '@/domain/SlaDashboard'
+import type { SlaDashboardCommentPage, SlaDashboardDescription, SlaDashboardIssue } from '@/domain/SlaDashboard'
 import type { SlaStatusSnapshot } from '@/domain/SLAStatus'
 import type { SlaViolationReport, SlaViolationReportSummary, SlaViolationRequest } from '@/domain/SlaViolationReport'
 import type {
@@ -150,6 +150,8 @@ export interface SearchGateway {
 
 export interface SlaDashboardGateway {
   getIssues: () => Promise<SlaDashboardIssue[]>
+  getDescription: (issueKey: string, reportId: number, signal?: CancellationSignal) => Promise<SlaDashboardDescription>
+  getDescriptionImage: (issueKey: string, attachmentId: string, reportId: number, signal?: CancellationSignal) => Promise<BinaryContent>
   getComments: (issueKey: string, offset?: number, limit?: number, reportId?: number) => Promise<SlaDashboardCommentPage>
   getCommentImage: (issueKey: string, commentId: string, attachmentId: string, reportId?: number) => Promise<BinaryContent>
 }

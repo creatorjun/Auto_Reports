@@ -9,16 +9,25 @@ from src.domain.entities.sla_dashboard import (
     SlaDashboardComment,
     SlaDashboardCommentImage,
     SlaDashboardCommentPage,
+    SlaDashboardDescription,
     SlaDashboardIssue,
 )
 from src.presentation.schemas.sla_dashboard_schema import (
     SlaDashboardCommentSchema,
     SlaDashboardCommentPageSchema,
     SlaDashboardIssueSchema,
+    SlaDashboardDescriptionSchema,
 )
 
 
 class SlaDashboardSchemaTest(unittest.TestCase):
+    def test_serializes_description_without_jira_urls_or_raw_html_fields(self) -> None:
+        description = SlaDashboardDescription("본문\n- 항목", (SlaDashboardCommentImage("10017", "캡처"),))
+        self.assertEqual(
+            {"body": "본문\n- 항목", "images": [{"attachment_id": "10017", "alt": "캡처"}]},
+            SlaDashboardDescriptionSchema.model_validate(description).model_dump(mode="json"),
+        )
+
     def test_serializes_domain_issue(self) -> None:
         issue = SlaDashboardIssue(
             key="TACEA-4500",

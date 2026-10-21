@@ -77,6 +77,12 @@ class JiraComment:
 
 
 @dataclass(frozen=True)
+class JiraIssueDescription:
+    body: str
+    images: tuple[JiraCommentImage, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class JiraAttachmentContent:
     data: bytes
     media_type: str
@@ -148,6 +154,9 @@ class JiraPort(ABC):
         jql: str,
         max_results: int | None = MAX_RESULTS,
     ) -> list[JiraIssue]: ...
+
+    @abstractmethod
+    async def get_issue_description(self, issue_key: str) -> JiraIssueDescription | None: ...
 
     @abstractmethod
     async def get_issue_comments(

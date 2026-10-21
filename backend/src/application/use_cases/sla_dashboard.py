@@ -14,6 +14,7 @@ from src.domain.entities.sla_dashboard import (
     SlaDashboardComment,
     SlaDashboardCommentImage,
     SlaDashboardCommentPage,
+    SlaDashboardDescription,
     SlaDashboardIssue,
 )
 from src.domain.entities.widget_data import RecentIssueDetail, RecentIssueWidgetData
@@ -89,6 +90,26 @@ class SlaDashboardUseCase:
             result,
             key=lambda issue: (not issue.created, issue.created, issue.key),
         )
+
+    async def get_issue_description(
+        self, issue_key: str, report_id: int | None = None,
+    ) -> SlaDashboardDescription:
+        normalized_key = await self._require_recent_issue(issue_key, report_id)
+        description = await self._jira.get_issue_description(normalized_key)
+        if description is None:
+            raise EntityNotFoundError("Issue description", issue_key)
+        return SlaDashboardDescription(
+            body=description.body,
+            images=tuple(SlaDashboardCommentImage(image.attachment_id, image.alt) for image in description.images),
+        )
+
+    async def get_description_image(
+        self, issue_key: str, attachment_id: str, report_id: int | None = None,
+    ) -> JiraAttachmentContent:
+        description = await self.get_issue_description(issue_key, report_id)
+        if not attachment_id.isdigit() or attachment_id not in {image.attachment_id for image in description.images}:
+            raise EntityNotFoundError("Description image", attachment_id)
+        return await self._jira.get_attachment_content(attachment_id)
 
     async def list_recent_comments(
         self,

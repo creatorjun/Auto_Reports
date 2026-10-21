@@ -50,6 +50,10 @@ export function canViewAuditLogs(me: MeResponse | undefined): boolean {
   return me?.login_required === true && me.is_superadmin === true
 }
 
+export function canViewSiteManagement(me: MeResponse | undefined): boolean {
+  return me?.login_required === true && me.is_superadmin === true
+}
+
 export function canViewJiraNotifications(me: MeResponse | undefined): boolean {
   return me?.login_required === true && me.auth_provider === 'jira'
 }

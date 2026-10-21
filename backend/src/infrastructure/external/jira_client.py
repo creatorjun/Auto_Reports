@@ -18,6 +18,7 @@ from src.application.ports.jira_port import (
     JiraCommentImage,
     JiraChartIssuePage,
     JiraIssue,
+    JiraIssueDescription,
     JiraIssueField,
     JiraStatusChange,
     JiraPort,
@@ -82,8 +83,9 @@ _ATTACHMENT_ID_PATTERN = re.compile(
 
 
 class _CommentImageParser(HTMLParser):
-    def __init__(self) -> None:
+    def __init__(self, default_alt: str = "댓글 첨부 이미지") -> None:
         super().__init__(convert_charrefs=True)
+        self._default_alt = default_alt
         self.images: list[JiraCommentImage] = []
         self._seen: set[str] = set()
 
@@ -103,7 +105,7 @@ class _CommentImageParser(HTMLParser):
         self.images.append(
             JiraCommentImage(
                 attachment_id=attachment_id,
-                alt=values.get("alt") or values.get("title") or "댓글 첨부 이미지",
+                alt=values.get("alt") or values.get("title") or self._default_alt,
             )
         )
 
@@ -117,6 +119,8 @@ def _adf_text(value: object) -> str:
         return ""
     node_type = value.get("type", "")
     attrs = value.get("attrs") or {}
+    if not isinstance(attrs, dict):
+        attrs = {}
     if node_type == "text":
         return str(value.get("text", ""))
     if node_type == "hardBreak":
@@ -125,6 +129,21 @@ def _adf_text(value: object) -> str:
         return str(attrs.get("text") or attrs.get("displayName") or "")
     if node_type == "emoji":
         return str(attrs.get("text") or attrs.get("shortName") or "")
+    if node_type in {"bulletList", "orderedList"}:
+        order = attrs.get("order", 1)
+        if type(order) is not int or order < 0:
+            order = 1
+        items = []
+        for index, item in enumerate(value.get("content") or []):
+            if not isinstance(item, dict):
+                continue
+            lines = _adf_text(item.get("content") or []).strip().splitlines()
+            prefix = f"{order + index}. " if node_type == "orderedList" else "- "
+            items.append(prefix + (lines[0] if lines else "") + "".join(f"\n{' ' * len(prefix)}{line}" for line in lines[1:]))
+        return "\n".join(items) + "\n"
+    if node_type == "tableRow":
+        cells = [_adf_text(cell).strip().replace("\n", " / ") for cell in value.get("content") or []]
+        return " | ".join(cells) + "\n"
     content = _adf_text(value.get("content") or [])
     if node_type == "listItem":
         return f"- {content.strip()}\n"
@@ -133,10 +152,10 @@ def _adf_text(value: object) -> str:
     return content
 
 
-def _comment_images(value: object) -> tuple[JiraCommentImage, ...]:
+def _comment_images(value: object, default_alt: str = "댓글 첨부 이미지") -> tuple[JiraCommentImage, ...]:
     if not isinstance(value, str) or not value:
         return ()
-    parser = _CommentImageParser()
+    parser = _CommentImageParser(default_alt)
     parser.feed(value)
     parser.close()
     return tuple(parser.images)
@@ -574,6 +593,34 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
             f"{_REDEPLOYMENT_PARTNER_FIELD}"
         ).split(","))
         return await self._get_mapped_issues(jql, max_results, fields)
+
+    async def get_issue_description(self, issue_key: str) -> JiraIssueDescription | None:
+        encoded_key = quote(issue_key, safe="")
+        url = f"{self._base_url}/rest/api/3/issue/{encoded_key}"
+        try:
+            response = await self._client.get(url, params={"fields": "description", "expand": "renderedFields"})
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            if not isinstance(data, dict) or not isinstance(data.get("fields"), dict) or "description" not in data["fields"]:
+                raise ValueError("Invalid Jira issue description")
+            description = data["fields"]["description"]
+            rendered = data.get("renderedFields")
+            if description is not None and not isinstance(description, (str, dict)):
+                raise ValueError("Invalid Jira issue description")
+            if rendered is not None and not isinstance(rendered, dict):
+                raise ValueError("Invalid Jira rendered description")
+            rendered_description = rendered.get("description") if rendered else None
+            if rendered_description is not None and not isinstance(rendered_description, str):
+                raise ValueError("Invalid Jira rendered description")
+            return JiraIssueDescription(
+                body=_adf_text(description).strip(),
+                images=_comment_images(rendered_description, "본문 첨부 이미지"),
+            )
+        except (httpx.HTTPError, ValueError, TypeError, RecursionError) as error:
+            logger.error("Jira 본문 조회 실패")
+            raise RuntimeError("Jira description request failed") from error
 
     async def get_issue_comments(
         self,

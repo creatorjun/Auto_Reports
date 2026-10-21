@@ -2,8 +2,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, ShieldCheck, ChevronUp, Newspaper, UserRound } from 'lucide-react'
-import { canViewAuditLogs } from '@/domain/Auth'
+import { canViewAuditLogs, canViewSiteManagement } from '@/domain/Auth'
 import { useMe } from '@/presentation/hooks/useAuth'
+import { useAuthStore } from '@/presentation/state/authStore'
 import { FOCUS_MANAGEMENT_LABEL, FOCUS_MANAGEMENT_LINKS, isFocusManagementPath } from '@/presentation/config/focusManagement'
 
 const tabs = [
@@ -22,6 +23,8 @@ interface Props {
 
 export default function MobileTabBar({ onOpenAccount, accountExpanded = false }: Props) {
   const me = useMe()
+  const { accessToken } = useAuthStore()
+  const siteManagementVisible = !!accessToken && !me.isPending && !me.isError && canViewSiteManagement(me.data)
   const { pathname } = useLocation()
   const [expanded, setExpanded] = useState(false)
   const menuId = useId()
@@ -29,8 +32,9 @@ export default function MobileTabBar({ onOpenAccount, accountExpanded = false }:
   const trigger = useRef<HTMLButtonElement>(null)
   useEffect(() => { setExpanded(false) }, [pathname])
   useEffect(() => { if (expanded) menu.current?.querySelector('a')?.focus() }, [expanded])
+  const reportTabs = tabs.filter((item) => item.to !== '/sites' || siteManagementVisible)
   const visibleTabs = !me.isError && canViewAuditLogs(me.data)
-    ? [...tabs, { to: '/audit-logs', label: '감사로그', icon: <ShieldCheck size={20} /> }] : tabs
+    ? [...reportTabs, { to: '/audit-logs', label: '감사로그', icon: <ShieldCheck size={20} /> }] : reportTabs
 
   return (
     <div className="xl:hidden" onKeyDown={(event) => {

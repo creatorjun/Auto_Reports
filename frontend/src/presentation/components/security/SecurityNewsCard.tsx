@@ -43,7 +43,7 @@ export default function SecurityNewsCard({ item, sourceName, language = 'ko' }: 
         })}
         {item.cve_ids.length > 6 && <span className="text-caption text-apple-light">외 {item.cve_ids.length - 6}개</span>}
       </div>
-      <p className="mt-3 line-clamp-4 break-words text-label leading-relaxed text-apple-mid">{display.summary || '원문에서 취약점 정보와 대응 방법을 확인해 주세요.'}</p>
+      {display.summary && <p className="mt-3 line-clamp-4 break-words text-label leading-relaxed text-apple-mid">{display.summary}</p>}
       {(item.vendor || item.product) && <p className="mt-3 break-words text-caption text-apple-mid"><span className="font-medium text-apple-dark">관련 제품</span> · {[item.vendor, item.product].filter(Boolean).join(' / ')}</p>}
       {isKev && item.due_date && <p className="mt-2 text-caption text-apple-mid">미 연방기관 조치 기한 · {securityDateLabel(item.due_date)}</p>}
       <div className="mt-auto flex flex-wrap items-end justify-between gap-3 pt-5 text-caption">

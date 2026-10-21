@@ -166,7 +166,7 @@ test('expanding a ticket shows SLA-based durations and separates calendar age wi
   act(() => button.props.onClick())
   assert.equal(button.props['aria-expanded'], true)
   assert.match(text(view), /상태별 체류시간/)
-  assert.match(text(view), /해결시간 SLA 기준/)
+  assert.equal(view.root.findByProps({ title: '해결시간 SLA 기준' }).type, 'th')
   assert.match(text(view), /생성 후 달력 경과일/)
   assert.match(text(view), /40일/)
   assert.match(text(view), /9시간 30분/)
@@ -311,7 +311,7 @@ test('background result updates retain selected filters, sort and expanded detai
   act(() => view.root.findByProps({ 'aria-label': 'TAC-1 상세 펼치기' }).props.onClick())
   update({ data: { ...original, refresh_in_progress: true, stale: true }, refreshing: true })
   assert.deepEqual(visibleKeys(view), ['TAC-1'])
-  assert.match(text(view), /완료될 때까지 기존 데이터를 표시/)
+  assert.match(text(view), /최신 SLA를 불러오는 중입니다/)
   const newer = { ...snapshot([ticket({ key: 'TAC-1', summary: '새로운 제목' })]), generated_at: '2026-10-21T04:00:00Z' }
   update({ data: newer, refreshing: false })
   assert.equal(selectByOption(view, '분석중').props.value, '분석중')

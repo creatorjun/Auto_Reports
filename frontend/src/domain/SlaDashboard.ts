@@ -26,3 +26,8 @@ export interface SlaDashboardCommentImage {
   attachment_id: string
   alt: string
 }
+
+export interface SlaDashboardDescription {
+  body: string
+  images: SlaDashboardCommentImage[]
+}

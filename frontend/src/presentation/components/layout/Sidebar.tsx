@@ -4,7 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, Newspaper, Bell, UserRound, X } from 'lucide-react'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout, useMe } from '@/presentation/hooks/useAuth'
-import { canViewAuditLogs, canViewJiraNotifications } from '@/domain/Auth'
+import { canViewAuditLogs, canViewJiraNotifications, canViewSiteManagement } from '@/domain/Auth'
 import JiraNotificationsPanel from '@/presentation/components/notifications/JiraNotificationsPanel'
 import ThemeToggle from './ThemeToggle'
 import { ANNUAL_REPORT_YEARS } from '@/presentation/config/annualReports'
@@ -55,6 +55,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen = false, o
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
   const me = useMe()
   const profile = accessToken && !me.isError ? me.data : undefined
+  const siteManagementVisible = !me.isPending && canViewSiteManagement(profile)
   const accountLabel = profile?.login_required
     ? profile.auth_provider === 'jira'
       ? profile.email_address?.trim() || '이메일 비공개'
@@ -97,7 +98,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen = false, o
       </button>
 
       <div className="flex min-h-0 flex-col gap-0.5 flex-1 overflow-y-auto">
-        {reportLinks.map((item) => {
+        {reportLinks.filter((item) => item.to !== '/sites' || siteManagementVisible).map((item) => {
           if (item.children) {
             const expanded = expandedGroups.has(item.id) && !sidebarCollapsed
             const controlsId = `${submenuId}-${item.id}`

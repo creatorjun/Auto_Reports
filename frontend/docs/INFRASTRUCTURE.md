@@ -28,7 +28,7 @@ client는 Presentation store를 직접 import하지 않습니다. `main.tsx`가 
 | `siteApi.ts` | `SiteGateway` | 사이트 aggregate와 하위 이력 관리 |
 | `partnerApi.ts` | `PartnerGateway` | 파트너 조직, 멤버, 이슈 조회 |
 | `searchApi.ts` | `SearchGateway` | Jira 이슈 검색과 base URL 조회 |
-| `slaDashboardApi.ts` | `SlaDashboardGateway` | 최신 보고서 기반 이슈 활동과 offset에 따른 티켓별 댓글 페이지 조회 |
+| `slaDashboardApi.ts` | `SlaDashboardGateway` | 보고서 범위 내 티켓 본문·첨부 이미지, 최신 보고서 기반 이슈 활동과 offset에 따른 댓글 페이지 조회 |
 | `slaStatusApi.ts` | `SlaStatusGateway` | SLA 현황의 현재 수집 스냅샷 조회와 강제 새로고침 |
 | `slaViolationApi.ts` | `SlaViolationGateway` | SLA 위반 보고서 생성, 최신·ID·이력 조회 |
 | `redeploymentApi.ts` | `RedeploymentGateway` | 최신 재배포 조회·갱신 |

@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/charts/ResolutionTimeChart.tsx
 import { Fragment, useState, useRef, useCallback, useMemo, useEffect, useId } from 'react'
-import { ChevronDown, MessageSquare } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { useJira } from '@/presentation/context/JiraContext'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
 import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
@@ -12,7 +12,7 @@ import type { IssueColumn, IssueColumnFilters } from '@/domain/IssueColumnSearch
 import ColumnSearchInput from '@/presentation/components/common/ColumnSearchInput'
 import { ISSUE_COLUMNS } from '@/presentation/config/issueColumns'
 import { useTablePreferences } from '@/presentation/hooks/useTablePreferences'
-import IssueCommentsPanel from '@/presentation/components/common/IssueCommentsPanel'
+import IssueDetailsPanel from '@/presentation/components/common/IssueDetailsPanel'
 
 const COLS = ISSUE_COLUMNS.map((column) => column.key)
 type ColKey = IssueColumn
@@ -98,7 +98,7 @@ function sortIssues(items: RecentIssue[], key: ColKey, dir: SortDir): RecentIssu
   })
 }
 
-function useDesktopCommentsLayout(enabled: boolean) {
+function useDesktopDetailsLayout(enabled: boolean) {
   const [isDesktop, setIsDesktop] = useState(() => typeof window === 'undefined' || !window.matchMedia
     ? true
     : window.matchMedia('(min-width: 768px)').matches)
@@ -113,7 +113,7 @@ function useDesktopCommentsLayout(enabled: boolean) {
   return isDesktop
 }
 
-function CommentsToggle({ issueKey, expanded, panelId, onToggle }: {
+function DetailsToggle({ issueKey, expanded, panelId, onToggle }: {
   issueKey: string
   expanded: boolean
   panelId: string
@@ -122,14 +122,13 @@ function CommentsToggle({ issueKey, expanded, panelId, onToggle }: {
   return (
     <button
       type="button"
-      aria-label={`${issueKey} 댓글 ${expanded ? '접기' : '보기'}`}
+      aria-label={`${issueKey} 상세 ${expanded ? '접기' : '펼치기'}`}
       aria-expanded={expanded}
       aria-controls={expanded ? panelId : undefined}
       onClick={(event) => { event.stopPropagation(); onToggle() }}
-      className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg px-2 text-control font-medium text-brand-600 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+      className="rounded-lg p-2 text-apple-mid hover:bg-apple-gray focus-visible:ring-2 focus-visible:ring-brand-500"
     >
-      {expanded ? <ChevronDown size={14} aria-hidden="true" className="rotate-180 shrink-0" /> : <MessageSquare size={14} aria-hidden="true" className="shrink-0" />}
-      {expanded ? '댓글접기' : '댓글보기'}
+      <ChevronDown size={18} aria-hidden="true" className={expanded ? 'rotate-180' : ''} />
     </button>
   )
 }
@@ -171,11 +170,11 @@ function MobileIssueCard({ issue, jiraBase, commentsReportId, expanded, panelId,
           <span className="text-apple-divider">·</span>
           <span className="tabular-nums font-medium text-amber-600">{issue.elapsed_days}일 경과</span>
         </div>
-        {commentsReportId !== undefined && <CommentsToggle issueKey={issue.key} expanded={expanded} panelId={panelId} onToggle={onToggle} />}
+        {commentsReportId !== undefined && <DetailsToggle issueKey={issue.key} expanded={expanded} panelId={panelId} onToggle={onToggle} />}
       </div>
       {showPanel && commentsReportId !== undefined && (
         <div id={panelId} className="px-3 pb-4">
-          <IssueCommentsPanel issueKey={issue.key} reportId={commentsReportId} />
+          <IssueDetailsPanel issueKey={issue.key} reportId={commentsReportId} />
         </div>
       )}
     </>
@@ -184,9 +183,9 @@ function MobileIssueCard({ issue, jiraBase, commentsReportId, expanded, panelId,
 
 export default function ResolutionTimeChart({ title = '최근 이슈 현황', tablePreferenceKey, commentsReportId, details, paginationResetKey, columnFilters, onColumnFilterChange, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
   const exportMode = useDashboardExportMode()
-  const commentsEnabled = commentsReportId !== undefined && !exportMode
-  const isDesktopCommentsLayout = useDesktopCommentsLayout(commentsEnabled)
-  const commentsId = useId()
+  const detailsEnabled = commentsReportId !== undefined && !exportMode
+  const isDesktopDetailsLayout = useDesktopDetailsLayout(detailsEnabled)
+  const detailsId = useId()
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
   const { jiraBase } = useJira()
   const [page,    setPage]    = useState(1)
@@ -208,7 +207,7 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
     setPage(1)
   }, [setSort])
 
-  const toggleComments = (issueKey: string) => {
+  const toggleDetails = (issueKey: string) => {
     setExpandedKeys((current) => {
       const next = new Set(current)
       if (next.has(issueKey)) next.delete(issueKey)
@@ -266,19 +265,19 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
         {pageItems.length === 0 && <p className="p-6 text-center text-label text-apple-light">{noResultsMessage}</p>}
         {pageItems.map((issue) => (
           <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase}
-            commentsReportId={commentsEnabled ? commentsReportId : undefined}
+            commentsReportId={detailsEnabled ? commentsReportId : undefined}
             expanded={expandedKeys.has(issue.key)}
-            panelId={`${commentsId}-mobile-${issue.key}`}
-            onToggle={() => toggleComments(issue.key)}
-            showPanel={commentsEnabled && !isDesktopCommentsLayout && expandedKeys.has(issue.key)} />
+            panelId={`${detailsId}-mobile-${issue.key}`}
+            onToggle={() => toggleDetails(issue.key)}
+            showPanel={detailsEnabled && !isDesktopDetailsLayout && expandedKeys.has(issue.key)} />
         ))}
       </div>
 
       <div data-pdf-desktop="" className="hidden md:block overflow-x-auto">
-        <table data-pdf-table-layout="recent" ref={tableRef} className={`w-full ${commentsEnabled ? 'min-w-[1280px]' : 'min-w-[1160px]'} text-body border-collapse`} style={{ tableLayout: 'fixed' }}>
+        <table data-pdf-table-layout="recent" ref={tableRef} className={`w-full ${detailsEnabled ? 'min-w-[1220px]' : 'min-w-[1160px]'} text-body border-collapse`} style={{ tableLayout: 'fixed' }}>
           <colgroup>
-            {COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * (commentsEnabled ? 90 : 100)).toFixed(2)}%` }} />)}
-            {commentsEnabled && <col style={{ width: '10%' }} />}
+            {COLS.map((col) => <col key={col} style={{ width: `${(fracs[col] * (detailsEnabled ? 95 : 100)).toFixed(2)}%` }} />)}
+            {detailsEnabled && <col style={{ width: '5%' }} />}
           </colgroup>
           <thead className="bg-apple-gray/60">
             <tr className="border-b-2 border-apple-divider text-label text-apple-mid">
@@ -292,16 +291,16 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
                   {rightCol && <ResizeHandle tableWidth={getTableWidth()} onDrag={(df) => resize(key, rightCol, df)} />}
                 </th>
               ))}
-              {commentsEnabled && <th scope="col" className="px-3 py-3 text-center font-semibold">댓글</th>}
+              {detailsEnabled && <th scope="col"><span className="sr-only">상세</span></th>}
             </tr>
           </thead>
           <tbody>
-            {visibleItems.length === 0 && <tr><td colSpan={headers.length + (commentsEnabled ? 1 : 0)} className="px-4 py-10 text-center text-apple-light">{noResultsMessage}</td></tr>}
+            {visibleItems.length === 0 && <tr><td colSpan={headers.length + (detailsEnabled ? 1 : 0)} className="px-4 py-10 text-center text-apple-light">{noResultsMessage}</td></tr>}
             {visibleItems.map((issue) => {
               const jiraUrl = `${jiraBase}/browse/${issue.key}`
               const createdDate = issue.created ? issue.created.slice(0, 10) : '-'
               const expanded = expandedKeys.has(issue.key)
-              const panelId = `${commentsId}-desktop-${issue.key}`
+              const panelId = `${detailsId}-desktop-${issue.key}`
               return (
                 <Fragment key={issue.key}>
                   <tr onClick={() => window.open(jiraUrl, '_blank', 'noreferrer')}
@@ -322,14 +321,14 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
                         <span className="break-all tabular-nums">{issue.elapsed_days}일</span>
                       </div>
                     </td>
-                    {commentsEnabled && <td className="px-2 py-2 text-center">
-                      <CommentsToggle issueKey={issue.key} expanded={expanded} panelId={panelId} onToggle={() => toggleComments(issue.key)} />
+                    {detailsEnabled && <td className="px-2 py-2 text-center">
+                      <DetailsToggle issueKey={issue.key} expanded={expanded} panelId={panelId} onToggle={() => toggleDetails(issue.key)} />
                     </td>}
                   </tr>
-                  {commentsEnabled && isDesktopCommentsLayout && expanded && (
+                  {detailsEnabled && commentsReportId !== undefined && isDesktopDetailsLayout && expanded && (
                     <tr>
                       <td colSpan={headers.length + 1} className="px-4 pb-4 pt-1">
-                        <div id={panelId}><IssueCommentsPanel issueKey={issue.key} reportId={commentsReportId} /></div>
+                        <div id={panelId}><IssueDetailsPanel issueKey={issue.key} reportId={commentsReportId} /></div>
                       </td>
                     </tr>
                   )}

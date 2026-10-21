@@ -215,6 +215,8 @@ test('summary widgets replace duplicate tabs with accessible buttons that select
   const view = renderPage(t, query({ data: snapshot({ items: rows }) }))
   assert.equal(view.root.findAllByProps({ role: 'tablist' }).length, 0)
   assert.equal(view.root.findAllByProps({ role: 'tab' }).length, 0)
+  assert.equal(view.root.findByType('h1').children.join(''), '보안 뉴스')
+  assert.doesNotMatch(plainText(view), /공개 보안 정보를 한곳에서|마지막 수집 시도|위젯을 선택하면|같은 CVE가 여러 출처|게시일 기준 ·|원문 링크는 새 창|출처별 공개 자료의 일부/)
   const results = view.root.findByProps({ id: 'security-news-results' })
   assert.equal(results.props['aria-label'], '보안 정보 검색 결과')
   assert.equal(results.props['aria-labelledby'], undefined)
@@ -334,27 +336,28 @@ test('language toggle changes only card presentation and preserves search result
   assert.equal(reads, 0)
 })
 
-test('translation status exposes progress completion and paused counts without blocking original content', () => {
+test('translation controls keep concise active status and escaped error details without repeated guides', () => {
   const Controls = load('presentation/components/security/SecurityNewsTranslationControls').default
   const render = (state) => renderToStaticMarkup(React.createElement(Controls, { language: 'ko', onLanguageChange() {}, translation: state }))
   const active = render(translation({ translating: true, translated_count: 3, pending_count: 22 }))
-  assert.match(active, /한국어 번역 중/)
-  assert.match(active, /번역 완료 3건 · 대기 22건/)
-  assert.match(active, /준비되는 대로 자동으로 반영/)
+  assert.match(active, /번역 중 · 22건/)
+  assert.doesNotMatch(active, /번역 완료|준비되는 대로|원문으로 표시/)
   const paused = render(translation({ enabled: false, translated_count: 7, pending_count: 18, message: '<제공 서비스 일시 중단>' }))
-  assert.match(paused, /한국어 번역 일시 대기/)
-  assert.match(paused, /번역 완료 7건 · 대기 18건/)
-  assert.match(paused, /&lt;제공 서비스 일시 중단&gt;/)
-  assert.match(render(translation()), /한국어 번역 완료/)
-  assert.match(render(undefined), /한국어 번역이 없는 항목은 원문으로 표시/)
+  assert.match(paused, /번역 일시 대기 · 18건/)
+  assert.match(paused, /title="&lt;제공 서비스 일시 중단&gt;"/)
+  for (const normal of [render(translation()), render(undefined)]) {
+    assert.match(normal, /표시 언어/)
+    assert.doesNotMatch(normal, /번역 완료|원문으로 표시|role="status"/)
+  }
 })
 
 test('source failures disclose missing success instead of showing a false valid zero count', () => {
   const Sources = load('presentation/components/security/SecurityNewsSources').default
   const html = renderToStaticMarkup(React.createElement(Sources, { sources: [{ ...source, status: 'error', last_success_at: null, count: 0, error: '일시적인 연결 오류', warning: '최근 일부 자료만 제공' }], refreshing: false }))
   assert.match(html, /수집 실패/)
-  assert.match(html, /수집에 성공한 기록이 없습니다/)
-  assert.doesNotMatch(html, /보관 중 0개/)
+  assert.match(html, /수집 기록 없음/)
+  assert.doesNotMatch(html, /0개 ·/)
+  assert.match(html, /일시적인 연결 오류/)
   assert.match(html, /최근 일부 자료만 제공/)
 })
 
@@ -363,7 +366,7 @@ test('page keeps saved cards visible when refresh or polling fails and disables 
   const state = query({ refreshError: new Error('offline'), isError: true, refreshing: true, canRefresh: false, refresh: () => { refreshes += 1 } })
   const view = renderPage(t, state)
   assert.equal(view.root.findAllByType('article').length, 1)
-  assert.match(plainText(view), /기존 자료를 유지합니다/)
+  assert.match(plainText(view), /업데이트 실패 · 기존 자료 표시/)
   const button = view.root.findAllByType('button').find((node) => node.props['aria-busy'] === true)
   assert.equal(button.props.disabled, true)
   assert.equal(refreshes, 0)
@@ -371,9 +374,9 @@ test('page keeps saved cards visible when refresh or polling fails and disables 
 
 test('429 refresh rejection and initial failure have readable Korean recovery copy', (t) => {
   const view = renderPage(t, query({ data: undefined, isError: true, refreshError: new RequestError(429, 'rate limit') }))
-  assert.match(plainText(view), /방금 업데이트를 요청했습니다/)
+  assert.match(plainText(view), /업데이트 요청 대기/)
   assert.match(plainText(view), /다시 조회/)
-  assert.doesNotMatch(plainText(view), /공개 보안 정보를 수집하고 있습니다/)
+  assert.doesNotMatch(plainText(view), /보안 뉴스 로딩 중/)
 })
 
 test('gateway uses authenticated application client and passes cancellation only to GET', async () => {

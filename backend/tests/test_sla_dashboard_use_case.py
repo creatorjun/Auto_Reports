@@ -12,7 +12,9 @@ from src.application.errors import EntityNotFoundError
 from src.application.ports.jira_port import (
     JiraAttachmentContent,
     JiraComment,
+    JiraCommentImage,
     JiraIssue,
+    JiraIssueDescription,
     JiraIssueField,
 )
 from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
@@ -44,6 +46,12 @@ class FakeJira:
         self.single_comment_requests: list[tuple[str, str]] = []
         self.attachment_requests: list[str] = []
         self.attachment = JiraAttachmentContent(b"image", "image/png")
+        self.description = JiraIssueDescription("본문", (JiraCommentImage("10017", "본문 캡처"),))
+        self.description_requests: list[str] = []
+
+    async def get_issue_description(self, issue_key: str) -> JiraIssueDescription | None:
+        self.description_requests.append(issue_key)
+        return self.description
 
     async def get_issues(
         self,
@@ -142,6 +150,57 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
             jira=self.jira,
             project_key="TACEA",
         )
+
+    async def test_loads_plain_description_and_only_its_referenced_images(self) -> None:
+        description = await self.use_case.get_issue_description("tacea-4501")
+        image = await self.use_case.get_description_image("tacea-4501", "10017")
+        self.assertEqual("본문", description.body)
+        self.assertEqual("10017", description.images[0].attachment_id)
+        self.assertEqual("본문 캡처", description.images[0].alt)
+        self.assertEqual(b"image", image.data)
+        self.assertEqual(["TACEA-4501", "TACEA-4501"], self.jira.description_requests)
+        self.assertEqual(["10017"], self.jira.attachment_requests)
+        for attachment_id in ("99999", "../10017", "invalid"):
+            with self.subTest(attachment_id=attachment_id), self.assertRaises(EntityNotFoundError):
+                await self.use_case.get_description_image("TACEA-4501", attachment_id)
+        self.assertEqual(["10017"], self.jira.attachment_requests)
+
+    async def test_description_and_images_use_selected_report_membership(self) -> None:
+        self.reports.reports_by_id[7] = latest_report(recent_detail("TACEA-4400"))
+        description = await self.use_case.get_issue_description("tacea-4400", report_id=7)
+        await self.use_case.get_description_image("tacea-4400", "10017", report_id=7)
+        self.assertEqual("본문", description.body)
+        self.assertEqual(["TACEA-4400", "TACEA-4400"], self.jira.description_requests)
+        self.assertEqual(["10017"], self.jira.attachment_requests)
+        for issue_key, report_id in (("TACEA-4501", 7), ("OTHER-1", 7), ("TACEA-4400/other", 7), ("TACEA-4400", 99), ("TACEA-4400", None)):
+            with self.subTest(issue_key=issue_key, report_id=report_id):
+                with self.assertRaises(EntityNotFoundError):
+                    await self.use_case.get_issue_description(issue_key, report_id=report_id)
+                with self.assertRaises(EntityNotFoundError):
+                    await self.use_case.get_description_image(issue_key, "10017", report_id=report_id)
+        self.assertEqual(["TACEA-4400", "TACEA-4400"], self.jira.description_requests)
+
+    async def test_description_rechecks_current_image_references_and_missing_issue(self) -> None:
+        await self.use_case.get_description_image("TACEA-4501", "10017")
+        self.jira.description = JiraIssueDescription("이미지가 삭제된 본문")
+        with self.assertRaises(EntityNotFoundError):
+            await self.use_case.get_description_image("TACEA-4501", "10017")
+        self.jira.description = None
+        with self.assertRaises(EntityNotFoundError):
+            await self.use_case.get_issue_description("TACEA-4501")
+        with self.assertRaises(EntityNotFoundError):
+            await self.use_case.get_description_image("TACEA-4501", "10017")
+        self.assertEqual(["10017"], self.jira.attachment_requests)
+
+    async def test_description_rejects_nonpositive_report_id_before_jira(self) -> None:
+        for report_id in (0, -1):
+            with self.subTest(report_id=report_id):
+                with self.assertRaises(ValueError):
+                    await self.use_case.get_issue_description("TACEA-4501", report_id=report_id)
+                with self.assertRaises(ValueError):
+                    await self.use_case.get_description_image("TACEA-4501", "10017", report_id=report_id)
+        self.assertEqual([], self.jira.description_requests)
+        self.assertEqual([], self.jira.attachment_requests)
 
     async def test_lists_latest_report_issues_with_live_activity_fields(self) -> None:
         self.jira.issues = [JiraIssue(

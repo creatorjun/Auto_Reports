@@ -6,7 +6,7 @@ import httpx
 from fastapi import FastAPI
 
 from src.application.ports.jira_port import JiraAttachmentContent
-from src.domain.entities.sla_dashboard import SlaDashboardCommentPage
+from src.domain.entities.sla_dashboard import SlaDashboardCommentImage, SlaDashboardCommentPage, SlaDashboardDescription
 from src.presentation.api.v1.deps import get_sla_dashboard_use_case
 from src.presentation.api.v1.sla_dashboard import router
 
@@ -26,6 +26,43 @@ class SlaDashboardApiTest(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.client.aclose()
+
+    async def test_description_and_image_pass_selected_report_and_serialize_safe_shape(self) -> None:
+        self.use_case.get_issue_description.return_value = SlaDashboardDescription(
+            "본문\n- 항목", (SlaDashboardCommentImage("10017", "본문 캡처"),),
+        )
+        self.use_case.get_description_image.return_value = JiraAttachmentContent(b"image", "image/png")
+        for query, scope in (("", {}), ("?report_id=7", {"report_id": 7})):
+            with self.subTest(query=query):
+                description = await self.client.get(f"/api/v1/sla-dashboard/issues/TACEA-4501/description{query}")
+                image = await self.client.get(f"/api/v1/sla-dashboard/issues/TACEA-4501/description/images/10017{query}")
+                self.assertEqual(200, description.status_code)
+                self.assertEqual({"body": "본문\n- 항목", "images": [{"attachment_id": "10017", "alt": "본문 캡처"}]}, description.json())
+                self.assertEqual(200, image.status_code)
+                self.assertEqual(b"image", image.content)
+                self.assertEqual("image/png", image.headers["content-type"])
+                self.assertEqual("private, max-age=120", image.headers["cache-control"])
+                self.use_case.get_issue_description.assert_awaited_with("TACEA-4501", **scope)
+                self.use_case.get_description_image.assert_awaited_with("TACEA-4501", "10017", **scope)
+
+    async def test_description_failures_are_502_without_upstream_details(self) -> None:
+        self.use_case.get_issue_description.side_effect = RuntimeError("private Jira response")
+        self.use_case.get_description_image.side_effect = RuntimeError("private image response")
+        for suffix, message in (("description", "Jira 본문을 불러오지 못했습니다."), ("description/images/10017", "Jira 본문 이미지를 불러오지 못했습니다.")):
+            with self.subTest(suffix=suffix):
+                response = await self.client.get(f"/api/v1/sla-dashboard/issues/TACEA-4501/{suffix}")
+                self.assertEqual(502, response.status_code)
+                self.assertEqual({"detail": message}, response.json())
+                self.assertNotIn("private", response.text)
+
+    async def test_description_rejects_invalid_report_ids(self) -> None:
+        for suffix in ("description", "description/images/10017"):
+            for report_id in ("0", "-1", "1.5", "invalid"):
+                with self.subTest(suffix=suffix, report_id=report_id):
+                    response = await self.client.get(f"/api/v1/sla-dashboard/issues/TACEA-4501/{suffix}", params={"report_id": report_id})
+                    self.assertEqual(422, response.status_code)
+        self.use_case.get_issue_description.assert_not_awaited()
+        self.use_case.get_description_image.assert_not_awaited()
 
     async def test_passes_default_and_next_offsets_and_serializes_page(self) -> None:
         for query in ("", "?offset=5", "?offset=10"):

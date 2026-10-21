@@ -16,7 +16,7 @@
 | `Report.ts` | `ReportSummary`, `ReportDetail`, `WidgetResult`, `AiAnalysis` |
 | `Search.ts` | Jira·Confluence 검색 표시용 `SearchResult` |
 | `Site.ts` | 사이트 aggregate, 하위 이력, create/update payload |
-| `SlaDashboard.ts` | 최근 이슈 활동, 댓글과 댓글 페이지 표시 계약 |
+| `SlaDashboard.ts` | 최근 이슈 활동, 본문·첨부 이미지, 댓글과 댓글 페이지 표시 계약 |
 | `Storage.ts` | `StorageItem`, `StorageFile`, `StorageQuota` |
 | `Dashboard.ts` | SLA·월별·상태별 widget 표시 모델 |
 | `DashboardExport.ts` | PDF·Excel 형식, 문서 메타데이터, 섹션, 지표·텍스트·SVG 차트·표 블록과 차트 수치 데이터 |

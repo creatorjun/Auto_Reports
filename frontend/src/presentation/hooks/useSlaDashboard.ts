@@ -28,3 +28,13 @@ export function useSlaIssueComments(issueKey: string, enabled: boolean, reportId
     staleTime: 1000 * 60 * 2,
   })
 }
+
+export function useSlaIssueDescription(issueKey: string, reportId: number) {
+  const { slaDashboard } = useApplicationServices()
+  return useQuery({
+    queryKey: QUERY_KEYS.slaDashboardDescription(issueKey, reportId),
+    queryFn: ({ signal }) => slaDashboard.getDescription(issueKey, reportId, signal),
+    staleTime: 1000 * 60 * 2,
+    retry: false,
+  })
+}

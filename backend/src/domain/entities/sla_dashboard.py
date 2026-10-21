@@ -19,6 +19,12 @@ class SlaDashboardCommentImage:
 
 
 @dataclass(frozen=True)
+class SlaDashboardDescription:
+    body: str
+    images: tuple[SlaDashboardCommentImage, ...]
+
+
+@dataclass(frozen=True)
 class SlaDashboardComment:
     id: str
     author: str

@@ -30,14 +30,13 @@ export default function SecurityNewsSources({ sources, refreshing }: { sources: 
                   {url ? <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 break-words text-control font-semibold text-apple-dark hover:text-brand-600">{source.name}<ExternalLink size={12} aria-hidden="true" /></a> : <span className="text-control font-semibold text-apple-dark">{source.name}</span>}
                   <span className={statusClasses[source.status]}>{statusLabels[source.status]}</span>
                 </div>
-                <p className="mt-3 text-caption text-apple-mid">{source.last_success_at ? `보관 중 ${source.count.toLocaleString('ko-KR')}개 · 마지막 성공 ${securityDateLabel(source.last_success_at, true)}` : '수집에 성공한 기록이 없습니다.'}</p>
+                <p className="mt-3 text-caption text-apple-mid">{source.last_success_at ? `${source.count.toLocaleString('ko-KR')}개 · ${securityDateLabel(source.last_success_at, true)}` : '수집 기록 없음'}</p>
                 {source.error && <p className="mt-2 break-words text-caption text-amber-700">{source.error}</p>}
                 {source.warning && <p className="mt-2 break-words text-caption text-apple-mid">{source.warning}</p>}
               </div>
             )
           })}
         </div>
-        <p className="mt-4 text-caption leading-relaxed text-apple-mid">출처별 공개 자료의 일부를 모아 표시합니다. NVD는 최근 7일 내 최신 200건을 최소 2시간 간격으로 확인하며, 다른 출처는 화면 이용 중 약 15분 간격으로 확인합니다. 수집 실패 시 마지막으로 받은 자료를 유지합니다.</p>
       </div>
     </details>
   )

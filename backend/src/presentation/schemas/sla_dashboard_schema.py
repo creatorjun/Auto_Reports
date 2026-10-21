@@ -20,6 +20,13 @@ class SlaDashboardCommentImageSchema(BaseModel):
     alt: str
 
 
+class SlaDashboardDescriptionSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    body: str
+    images: tuple[SlaDashboardCommentImageSchema, ...]
+
+
 class SlaDashboardCommentSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

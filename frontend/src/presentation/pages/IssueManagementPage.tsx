@@ -110,7 +110,6 @@ export default function IssueManagementPage() {
         </button>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <span className="text-caption text-apple-mid">현재 필터 · 컬럼 검색 · 표 전체 포함</span>
         <select aria-label="다운로드 형식" value={exportFormat} onChange={(event) => setExportFormat(event.target.value as DashboardExportFormat)} disabled={exportSnapshot !== null}
           className="rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-control font-medium text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-60">
           <option value="pdf">PDF</option>

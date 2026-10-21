@@ -5,6 +5,7 @@ from src.application.use_cases.sla_dashboard import SlaDashboardUseCase
 from src.presentation.api.v1.deps import get_sla_dashboard_use_case
 from src.presentation.schemas.sla_dashboard_schema import (
     SlaDashboardCommentPageSchema,
+    SlaDashboardDescriptionSchema,
     SlaDashboardIssueSchema,
 )
 
@@ -16,6 +17,44 @@ async def list_recent_issues(
     use_case: SlaDashboardUseCase = Depends(get_sla_dashboard_use_case),
 ):
     return await use_case.list_recent_issues()
+
+
+@router.get(
+    "/issues/{issue_key}/description",
+    response_model=SlaDashboardDescriptionSchema,
+)
+async def get_issue_description(
+    issue_key: str,
+    report_id: int | None = Query(default=None, ge=1),
+    use_case: SlaDashboardUseCase = Depends(get_sla_dashboard_use_case),
+):
+    try:
+        report_scope = {} if report_id is None else {"report_id": report_id}
+        return await use_case.get_issue_description(issue_key, **report_scope)
+    except RuntimeError as error:
+        raise HTTPException(status_code=502, detail="Jira 본문을 불러오지 못했습니다.") from error
+
+
+@router.get(
+    "/issues/{issue_key}/description/images/{attachment_id}",
+    response_class=Response,
+)
+async def get_description_image(
+    issue_key: str,
+    attachment_id: str,
+    report_id: int | None = Query(default=None, ge=1),
+    use_case: SlaDashboardUseCase = Depends(get_sla_dashboard_use_case),
+):
+    try:
+        report_scope = {} if report_id is None else {"report_id": report_id}
+        image = await use_case.get_description_image(issue_key, attachment_id, **report_scope)
+    except RuntimeError as error:
+        raise HTTPException(status_code=502, detail="Jira 본문 이미지를 불러오지 못했습니다.") from error
+    return Response(
+        content=image.data,
+        media_type=image.media_type,
+        headers={"Cache-Control": "private, max-age=120"},
+    )
 
 
 @router.get(

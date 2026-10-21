@@ -1,6 +1,6 @@
 # API Reference
 
-문서 기준: 2026-10-21. SLA 일일 알림 수동 트리거와 보고서별 최근 이슈 댓글 조회를 포함합니다.
+문서 기준: 2026-10-21. SLA 일일 알림 수동 트리거와 보고서별 최근 이슈 본문·댓글 조회를 포함합니다.
 
 재배포 보고서는 기존 보호 라우트 인증 규칙을 적용하는 `GET /api/v1/redeployments/latest`로 최신 저장본을 조회하고, `POST /api/v1/redeployments`로 현재 시점 재생성을 요청합니다. 스키마·오류·수집 기준은 [재배포 보고서](09_redeployment_report.md)를 참고하세요.
 
@@ -53,6 +53,8 @@ Markdown·텍스트·CSV 등 원본 미리보기도 파일 조회 실패 시 로
 | GET | `/trigger/{job_id}/status` | path id | pending/running/done/error 상태 |
 | GET | `/trigger/{job_id}/stream?_t=...` | path id와 token | SSE status/done/error/timeout |
 | GET | `/sla-dashboard/issues` | 없음 | 최신 보고서의 최근 이슈 티켓별 생성·최종 업데이트·상태 |
+| GET | `/sla-dashboard/issues/{issue_key}/description` | 최근 이슈 key, 선택 report_id(1 이상) | 현재 Jira 본문의 `body`와 참조 이미지 `images` |
+| GET | `/sla-dashboard/issues/{issue_key}/description/images/{attachment_id}` | 최근 이슈 key, 본문 이미지 ID, 선택 report_id(1 이상) | 본문에 연결된 이미지 바이너리 |
 | GET | `/sla-dashboard/issues/{issue_key}/comments?offset=0&limit=5` | 최근 이슈 key, 0 이상의 offset(기본값 0), 1 이상의 limit(기본값 5), 선택 report_id(1 이상) | 최신순 댓글 최대 limit개의 `comments`와 `next_offset` |
 
 대시보드 생성은 `{"period":"week","date":"2026-10-14"}` 형식으로 요청합니다. `period`는 `week`, `month`, `year`이며 `date`와 함께 전달해야 합니다. KST 기준 주간은 해당 주 월요일~일요일 전체, 월간은 해당 달 전체, 연간은 해당 연도 전체로 기간을 계산합니다. 예시 기준일이면 각각 2026-10-12~2026-10-18, 2026-10-01~2026-10-31, 2026-01-01~2026-12-31이며 종료일 전체를 포함하도록 Jira 쿼리는 다음 날 00:00 미만을 사용합니다. 주간은 일요일 전체를 포함하고 다음 월요일인 2026-10-19 00:00은 제외합니다. 미래 기준일, 잘못된 기간, 두 필드 중 하나만 전달하거나 기존 `start_date`/`end_date`와 혼용하면 422입니다. 현재 주·월·연의 종료일은 미래일 수 있지만 실제 생성 시점에 조회 가능한 Jira 데이터만 집계합니다. SLA 위반도 같은 주·월·연간 기간 정책을 사용합니다.
@@ -75,7 +77,9 @@ SLA 차트는 month 필수, 처리일 유형 차트는 month 불가입니다. �
 
 응답은 `issues`, `snapshot_count`, `current_count`, `source_total`, `source_total_exact`, `collection_limit`, `truncated`, `queried_at`, `snapshot_at`, `source=current_jira`입니다. 저장 차트의 수치와 현재 Jira 상세가 다를 수 있으며 보고서 자체를 갱신하지 않습니다. 없는 보고서는 404, Jira 수집 실패는 502입니다.
 
-### 장기 이슈 댓글 이미지
+### 이슈 본문과 첨부 이미지
+
+`GET /sla-dashboard/issues/{issue_key}/description`은 해당 보고서의 최근 이슈 집합을 확인한 뒤 Jira의 현재 본문을 조회합니다. 응답의 `body`는 문단·목록·표를 일반 텍스트로 변환하며 `images`는 본문에 참조된 첨부 이미지 ID와 대체 텍스트입니다. 보고서에 본문을 저장하지 않습니다. 본문이 없는 경우 빈 문자열과 빈 이미지 목록을 반환하며, 없는 티켓과 보고서 범위 밖의 요청은 404입니다. `/description/images/{attachment_id}`도 현재 본문의 이미지인지 확인한 뒤 기존 이미지 크기·종류 제한을 적용해 반환합니다. 보호 API 인증 및 선택 `report_id` 범위는 댓글과 동일합니다.
 
 `GET /sla-dashboard/issues/{issue_key}/comments/{comment_id}/images/{attachment_id}`는 선택 `report_id`가 가리키는 보고서(생략 시 최신 일반 보고서)의 티켓과 댓글에 연결된 이미지인지 확인한 뒤 바이너리로 반환합니다. 보호 API의 Bearer 인증을 사용하고 `Cache-Control: private, max-age=120`을 반환합니다. 임의 첨부 ID나 해당 보고서 티켓 집합 밖의 키는 허용하지 않습니다. 원본 공급자 실패는 502입니다.
 
