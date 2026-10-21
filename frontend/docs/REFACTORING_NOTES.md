@@ -18,6 +18,9 @@
 | 현재 SLA 주의 티켓과 저장 위반 보고서의 혼동 | `/sla-status` 현재 스냅샷과 `/sla-violations` 기간별 저장 이력의 모델·gateway·query 분리 |
 | 페이지별 색상·타이포그래피 불일치 | designTokens.json, 공통 배지, 3단계 크기·굵기 |
 | 표 재진입 시 설정 유실 | useTablePreferences의 목록별 localStorage 검증·복원 |
+| UI에 연간 집계 범위·다중 업로드 정책 혼합 | reportPeriod·storageUploads Application service |
+| 로그아웃·검색 종료 뒤 늦은 응답 반영 | HTTP 인증 세대 검사, Presentation 세션 버전·요청 identity 검사 |
+| 보고서 구독 종료 후 polling 지속 | subscription 소유 취소 신호·단일 fallback·종료 뒤 callback 차단 |
 
 대시보드 필터 메타데이터는 보고서가 바뀔 때 계산하고 선택 조건의 결과는 useMemo로 보관합니다. 전체 이슈·컬럼 검색은 조건이 없으면 원본 목록을 재사용하므로 호출자가 배열이나 행을 변경해서는 안 됩니다. 정렬과 내보내기는 별도 배열/스냅샷을 사용합니다.
 

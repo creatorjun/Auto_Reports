@@ -114,7 +114,12 @@ export function endAuthSession(operation: () => Promise<void>): Promise<void> {
 }
 
 client.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const isSessionTeardown = res.config.method === 'post'
+      && ['/auth/logout', '/auth/jira/forget'].includes(res.config.url ?? '')
+    if (!isSessionTeardown && (res.config as SessionRequestConfig)._authGeneration !== authGeneration) throw sessionChanged()
+    return res
+  },
   async (err) => {
     const original: SessionRequestConfig | undefined = err.config
     const status = err.response?.status

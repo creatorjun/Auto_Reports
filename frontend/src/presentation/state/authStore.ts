@@ -6,6 +6,7 @@ interface AuthState {
   loginRequired: boolean
   username: string | null
   sessionReady: boolean
+  sessionVersion: number
   setAuth: (token: string, username: string) => void
   setLoginRequired: (v: boolean) => void
   clearAuth: () => void
@@ -20,7 +21,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
   loginRequired: true,
   username: null,
   sessionReady: false,
+  sessionVersion: 0,
   setAuth: (token, username) => set({ accessToken: token, username, sessionReady: true }),
   setLoginRequired: (value) => set(value ? { loginRequired: value } : { loginRequired: value, sessionReady: true }),
-  clearAuth: () => set({ accessToken: null, username: null, loginRequired: true, sessionReady: true }),
+  clearAuth: () => set((state) => ({ accessToken: null, username: null, loginRequired: true, sessionReady: true, sessionVersion: state.sessionVersion + 1 })),
 }))

@@ -12,6 +12,7 @@ import {
   useStorageQuota,
   useUploadFiles,
   QuotaExceededError,
+  UploadBatchError,
   type DuplicateFile,
 } from '@/presentation/hooks/useStorage'
 import { RequestError } from '@/application/errors/RequestError'
@@ -93,14 +94,25 @@ export default function StoragePage() {
   const [quotaError, setQuotaError] = useState<{ available: number; needed: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const feedbackTimer = useRef<number | null>(null)
+  const fileCheck = useRef<symbol | null>(null)
+  const active = useRef(true)
+  const currentFolder = useRef(folder)
+  currentFolder.current = folder
+  const [checkingFiles, setCheckingFiles] = useState(false)
 
-  useEffect(() => () => {
-    if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current)
+  useEffect(() => {
+    active.current = true
+    return () => {
+      active.current = false
+      fileCheck.current = null
+      if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current)
+    }
   }, [])
 
   useEffect(() => {
     setSelectedNames(new Set())
     setShowSelectionDelete(false)
+    setPendingFiles(null)
   }, [folder])
 
   useEffect(() => {
@@ -115,22 +127,27 @@ export default function StoragePage() {
   const previewableFiles = (data ?? []).filter(item => !item.is_dir && isPreviewable(item.name)).map(item => item.name)
 
   const handleFiles = useCallback(async (files: FileList | null) => {
-    if (!files || files.length === 0) return
+    if (!files || files.length === 0 || fileCheck.current || isUploading || pendingFiles) return
+    const request = Symbol()
+    fileCheck.current = request
+    setCheckingFiles(true)
     const list = Array.from(files)
-    const checked = await checkDuplicates(list)
-    const hasDuplicates = checked.some(d => d.exists)
-    if (hasDuplicates) {
-      setPendingFiles(checked)
-    } else {
-      try {
-        await upload(list, false)
-      } catch (e) {
-        if (e instanceof QuotaExceededError) {
-          setQuotaError({ available: e.available, needed: e.needed })
-        }
+    try {
+      const checked = await checkDuplicates(list)
+      if (!active.current || fileCheck.current !== request || currentFolder.current !== folder) return
+      if (checked.some(d => d.exists)) setPendingFiles(checked)
+      else await upload(list, false)
+    } catch (error) {
+      if (!active.current || currentFolder.current !== folder) return
+      if (error instanceof QuotaExceededError) setQuotaError({ available: error.available, needed: error.needed })
+      else {
+        setStorageFeedback({ type: 'error', message: error instanceof UploadBatchError ? `업로드 실패: ${error.failedNames.join(', ')}` : '파일 확인 또는 업로드에 실패했습니다. 다시 시도해 주세요.' })
       }
+    } finally {
+      if (active.current && fileCheck.current === request) setCheckingFiles(false)
+      if (fileCheck.current === request) fileCheck.current = null
     }
-  }, [checkDuplicates, upload])
+  }, [checkDuplicates, upload, folder, isUploading, pendingFiles])
 
   const handleOverwriteConfirm = useCallback(async (overwriteAll: boolean) => {
     if (!pendingFiles) return
@@ -141,11 +158,12 @@ export default function StoragePage() {
     try {
       await upload(toUpload, overwriteAll)
     } catch (e) {
+      if (!active.current || currentFolder.current !== folder) return
       if (e instanceof QuotaExceededError) {
         setQuotaError({ available: e.available, needed: e.needed })
-      }
+      } else setStorageFeedback({ type: 'error', message: e instanceof UploadBatchError ? `업로드 실패: ${e.failedNames.join(', ')}` : '업로드에 실패했습니다. 다시 시도해 주세요.' })
     }
-  }, [pendingFiles, upload])
+  }, [pendingFiles, upload, folder])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation()
@@ -313,7 +331,7 @@ export default function StoragePage() {
 
   if (isLoading) return <LoadingSpinner />
 
-  const uploadLabel = isUploading
+  const uploadLabel = checkingFiles && !isUploading ? '파일 확인 중...' : isUploading
     ? uploadingCount > 1 ? `${uploadingCount}개 업로드 중...` : '업로드 중...'
     : '클릭하거나 파일을 드래그하세요'
 
@@ -460,7 +478,7 @@ export default function StoragePage() {
         onDragOver={handleDragOver} onDragEnter={handleDragOver}
         onDragLeave={(e) => { e.preventDefault(); setIsUploadDragging(false) }}
         onDrop={handleDrop}
-        onClick={() => !isUploading && inputRef.current?.click()}
+        onClick={() => !isUploading && !checkingFiles && !pendingFiles && inputRef.current?.click()}
       >
         <input ref={inputRef} type="file" multiple className="hidden"
           onChange={(e) => { handleFiles(e.target.files); e.target.value = '' }} />

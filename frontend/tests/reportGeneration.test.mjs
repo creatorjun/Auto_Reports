@@ -269,12 +269,33 @@ test('annual menu generation keeps annual data separate from the standard dashbo
   assert.deepEqual(state.navigation, [])
 })
 
+for (const scope of ['standard', 'annual']) {
+  test(`leaving the layout during ${scope} cache cancellation discards report completion`, async (t) => {
+    const cancellation = deferred()
+    const report = { ...created, scope, report_year: scope === 'annual' ? 2025 : null }
+    const state = setup(t, { getById: async () => report })
+    let cancelStarted = false
+    state.client.cancelQueries = () => { cancelStarted = true; return cancellation.promise }
+    act(() => state.context.generate({ period: 'year', date: '2026-05-06' }))
+    await until(() => state.stream)
+    act(() => state.stream.callbacks.onComplete(2))
+    await until(() => cancelStarted)
+    state.unmount()
+    state.client.clear()
+    cancellation.resolve()
+    await settle()
+    assert.equal(state.client.getQueryCache().getAll().length, 0)
+    assert.deepEqual(state.navigation, [])
+  })
+}
+
 test('annual menu uses the legacy annual contract with calendar years and current-year cutoff', (t) => {
   const requests = []
   const generation = { generate: (request) => requests.push(request), pending: false, error: null }
+  const { annualReportDateRange } = sourceLoader()('application/services/reportPeriod')
   const load = sourceLoader({
     'presentation/context/ReportGenerationContext': { useReportGeneration: () => generation },
-    'application/services/reportPeriod': { reportToday: () => '2026-10-14' },
+    'application/services/reportPeriod': { annualReportDateRange: (year) => annualReportDateRange(year, '2026-10-14') },
   })
   const AnnualGenerate = load('presentation/components/annual/AnnualReportGenerate').default
   let view
@@ -287,4 +308,19 @@ test('annual menu uses the legacy annual contract with calendar years and curren
     { start_date: '2025-01-01', end_date: '2025-12-31' },
     { start_date: '2026-01-01', end_date: '2026-10-14' },
   ])
+  act(() => view.update(React.createElement(AnnualGenerate, { year: 2027 })))
+  assert.equal(view.root.findByType('button').props.disabled, true)
+  act(() => view.root.findByType('button').props.onClick())
+  assert.equal(requests.length, 2)
+})
+
+test('annual range policy preserves full historical years and the current KST cutoff', () => {
+  const { annualReportDateRange, reportToday } = sourceLoader()('application/services/reportPeriod')
+  const today = reportToday(new Date('2026-12-31T15:00:00Z'))
+  assert.deepEqual(annualReportDateRange(2026, today), { start: '2026-01-01', end: '2026-12-31' })
+  assert.deepEqual(annualReportDateRange(2027, today), { start: '2027-01-01', end: '2027-01-01' })
+  assert.deepEqual(annualReportDateRange(2024, '2026-10-21'), { start: '2024-01-01', end: '2024-12-31' })
+  for (const year of [0, -1, 2026.5, 2027, NaN, Infinity]) {
+    assert.equal(annualReportDateRange(year, '2026-10-21'), null)
+  }
 })

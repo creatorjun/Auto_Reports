@@ -167,17 +167,35 @@ export default function SearchWidget() {
   const [modalQuery,    setModalQuery]    = useState('')
   const [jiraBaseUrl,   setJiraBaseUrl]   = useState('')
   const debounceRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const blurRef        = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef       = useRef<AbortController | null>(null)
+  const requestKindRef = useRef<'suggestions' | 'modal' | null>(null)
   const jiraBaseUrlRef = useRef(DEFAULT_JIRA_BASE_URL)
 
   useEffect(() => {
+    let active = true
     search.getJiraBaseUrl()
       .then((url) => {
+        if (!active) return
         setJiraBaseUrl(url)
         jiraBaseUrlRef.current = url
       })
       .catch(() => {})
+    return () => { active = false }
   }, [search])
+
+  const cancelSearch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = null
+    abortRef.current?.abort()
+    abortRef.current = null
+    requestKindRef.current = null
+  }, [])
+
+  useEffect(() => () => {
+    cancelSearch()
+    if (blurRef.current) clearTimeout(blurRef.current)
+  }, [cancelSearch])
 
   const prependDirectIfNeeded = useCallback(
     (q: string, items: SearchResult[]): SearchResult[] => {
@@ -192,6 +210,7 @@ export default function SearchWidget() {
       if (abortRef.current) abortRef.current.abort()
       const controller = new AbortController()
       abortRef.current = controller
+      requestKindRef.current = 'suggestions'
       setIsLoading(true)
       try {
         const results = await search.search(q, 5, controller.signal)
@@ -213,34 +232,50 @@ export default function SearchWidget() {
   )
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
+    cancelSearch()
+    setIsLoading(false)
+    setSuggestions([])
+    setIsDropdownOpen(false)
+    setActiveIndex(-1)
     if (query.trim().length === 0) {
-      setSuggestions([])
-      setIsDropdownOpen(false)
       return
     }
     debounceRef.current = setTimeout(() => fetchSuggestions(query.trim()), 1000)
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [query, fetchSuggestions])
+    return cancelSearch
+  }, [query, fetchSuggestions, cancelSearch])
 
   const openModal = useCallback(
     async (q: string) => {
+      cancelSearch()
+      const controller = new AbortController()
+      abortRef.current = controller
+      requestKindRef.current = 'modal'
       setIsDropdownOpen(false)
       setModalQuery(q)
+      setModalResults(null)
       setIsLoading(true)
       try {
-        const results = await search.search(q, 5)
+        const results = await search.search(q, 5, controller.signal)
+        if (controller.signal.aborted || abortRef.current !== controller) return
         setModalResults(prependDirectIfNeeded(q, results))
       } catch {
+        if (controller.signal.aborted || abortRef.current !== controller) return
         setModalResults(prependDirectIfNeeded(q, []))
       } finally {
-        setIsLoading(false)
+        if (!controller.signal.aborted && abortRef.current === controller) setIsLoading(false)
       }
     },
-    [prependDirectIfNeeded, search],
+    [cancelSearch, prependDirectIfNeeded, search],
   )
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      cancelSearch()
+      setIsLoading(false)
+      setIsDropdownOpen(false)
+      setActiveIndex(-1)
+      return
+    }
     if (!isDropdownOpen && e.key !== 'Enter') return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -255,8 +290,6 @@ export default function SearchWidget() {
       } else if (query.trim()) {
         openModal(query.trim())
       }
-    } else if (e.key === 'Escape') {
-      setIsDropdownOpen(false)
     }
   }
 
@@ -273,8 +306,21 @@ export default function SearchWidget() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            onFocus={() => suggestions.length > 0 && setIsDropdownOpen(true)}
-            onBlur={() => setTimeout(() => setIsDropdownOpen(false), 150)}
+            onFocus={() => {
+              if (blurRef.current) clearTimeout(blurRef.current)
+              if (suggestions.length > 0) setIsDropdownOpen(true)
+            }}
+            onBlur={() => {
+              if (blurRef.current) clearTimeout(blurRef.current)
+              blurRef.current = setTimeout(() => {
+                if (requestKindRef.current !== 'modal') {
+                  cancelSearch()
+                  setIsLoading(false)
+                }
+                setIsDropdownOpen(false)
+                setActiveIndex(-1)
+              }, 150)
+            }}
             placeholder="JIRA / Confluence 검색"
             className="w-full pl-9 pr-9 py-[0.5625rem] text-control bg-gray-100 rounded-lg border border-transparent focus:border-brand-400 focus:bg-apple-surface focus:outline-none transition-all placeholder-gray-400"
           />
@@ -325,7 +371,7 @@ export default function SearchWidget() {
           results={modalResults}
           query={modalQuery}
           jiraBaseUrl={jiraBaseUrl}
-          onClose={() => setModalResults(null)}
+          onClose={() => { cancelSearch(); setIsLoading(false); setModalResults(null) }}
         />
       )}
     </>

@@ -3,6 +3,7 @@ import client, { getAccessToken } from './client'
 import { createBinaryContent } from './binaryContent'
 import type {
   BinaryContent,
+  CancellationSignal,
   StorageGateway,
   UploadSource,
 } from '@/application/ports/ApplicationServices'
@@ -19,6 +20,7 @@ async function uploadChunked(
   folder = '',
   overwrite = false,
   onProgress?: (percent: number) => void,
+  signal?: CancellationSignal,
 ): Promise<StorageItem> {
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
   const initRes = await client.post<ChunkInitResponse>('/storage/upload/init', {
@@ -26,7 +28,7 @@ async function uploadChunked(
     filename: file.name,
     total_size: file.size,
     overwrite,
-  })
+  }, { signal })
   const { upload_id } = initRes.data
 
   try {
@@ -34,11 +36,13 @@ async function uploadChunked(
       const start = index * CHUNK_SIZE
       const end = Math.min(start + CHUNK_SIZE, file.size)
       const chunk = await file.read(start, end)
+      if (signal?.aborted) throw new Error('Upload cancelled')
       const form = new FormData()
       form.append('file', new File([chunk], file.name, { type: file.mediaType }))
       await client.post('/storage/upload/chunk', form, {
         params: { upload_id, chunk_index: index },
         headers: { 'Content-Type': undefined },
+        signal,
       })
       onProgress?.(Math.round(((index + 1) / totalChunks) * 95))
     }
@@ -46,7 +50,7 @@ async function uploadChunked(
     const response = await client.post<StorageItem>('/storage/upload/complete', {
       upload_id,
       total_chunks: totalChunks,
-    })
+    }, { signal })
     onProgress?.(100)
     return response.data
   } catch (error) {
@@ -105,16 +109,20 @@ export const storageApi: StorageGateway = {
     folder = '',
     overwrite = false,
     onProgress?: (percent: number) => void,
+    signal?: CancellationSignal,
   ): Promise<StorageItem> => {
+    if (signal?.aborted) throw new Error('Upload cancelled')
     if (file.size > CHUNK_SIZE) {
-      return uploadChunked(file, folder, overwrite, onProgress)
+      return uploadChunked(file, folder, overwrite, onProgress, signal)
     }
     const form = new FormData()
     const content = await file.read(0, file.size)
+    if (signal?.aborted) throw new Error('Upload cancelled')
     form.append('file', new File([content], file.name, { type: file.mediaType }))
     const res = await client.post<StorageItem>('/storage/upload', form, {
       params: { folder, overwrite, file_size: file.size },
       headers: { 'Content-Type': undefined },
+      signal,
       onUploadProgress: (e) => {
         if (onProgress && e.total) {
           onProgress(Math.round((e.loaded / e.total) * 100))

@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
+import { useAuthStore } from '@/presentation/state/authStore'
 
 export const SLA_STATUS_QUERY_KEY = ['sla-status'] as const
 
@@ -21,13 +22,13 @@ export function useSlaStatus() {
     retry: false,
   })
   const mutation = useMutation({
-    mutationFn: async (controller: AbortController) => {
+    mutationFn: async ({ controller, sessionVersion }: { controller: AbortController; sessionVersion: number }) => {
       await queryClient.cancelQueries({ queryKey: SLA_STATUS_QUERY_KEY })
-      if (controller.signal.aborted) throw new Error('SLA 조회가 취소되었습니다.')
+      if (controller.signal.aborted || sessionVersion !== useAuthStore.getState().sessionVersion) throw new Error('SLA 조회가 취소되었습니다.')
       return slaStatus.getSnapshot(true, controller.signal)
     },
-    onSuccess: (snapshot, controller) => {
-      if (!controller.signal.aborted) queryClient.setQueryData(SLA_STATUS_QUERY_KEY, snapshot)
+    onSuccess: (snapshot, { controller, sessionVersion }) => {
+      if (!controller.signal.aborted && sessionVersion === useAuthStore.getState().sessionVersion) queryClient.setQueryData(SLA_STATUS_QUERY_KEY, snapshot)
     },
     onSettled: () => { refreshController.current = null; refreshPending.current = false },
     retry: false,
@@ -39,7 +40,7 @@ export function useSlaStatus() {
     refreshPending.current = true
     const controller = new AbortController()
     refreshController.current = controller
-    mutation.mutate(controller)
+    mutation.mutate({ controller, sessionVersion: useAuthStore.getState().sessionVersion })
   }
   const mutationError = mutation.error && query.dataUpdatedAt <= mutation.submittedAt ? mutation.error : null
   return { ...query, refresh, refreshing, refreshError: mutationError ?? query.data?.refresh_error ?? null }

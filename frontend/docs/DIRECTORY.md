@@ -19,7 +19,7 @@ frontend/
     │   ├── errors/                RequestError
     │   ├── ports/                 ApplicationServices, AuthSessionPort, PreviewParserPort
     │   └── services/              dashboardData, reportPeriod, slaStatus, slaViolationReport,
-    │                              redeploymentReport, auditLog
+    │                              redeploymentReport, auditLog, storageUploads
     ├── infrastructure/
     │   ├── api/                   인증·보고서·SLA·재배포·전체 이슈·감사·관리 adapter
     │   ├── export/                PDF·Excel exporter와 문서 직렬화

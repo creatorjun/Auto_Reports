@@ -23,13 +23,14 @@ export const useMe = () => {
 export const useLogin = () => {
   const { auth } = useApplicationServices()
   const queryClient = useQueryClient()
-  const { setAuth, setLoginRequired } = useAuthStore()
+  const { setAuth, setLoginRequired, clearAuth } = useAuthStore()
   return useMutation({
     mutationFn: (request: LoginRequest) => auth.login(request),
     onSuccess: (data, variables) => {
       queryClient.removeQueries({ queryKey: ['me'] })
       queryClient.removeQueries({ queryKey: ['audit-logs'] })
       queryClient.removeQueries({ queryKey: ['jira-notifications'] })
+      clearAuth()
       setAuth(data.access_token, data.display_name ?? data.username ?? variables.username)
       setLoginRequired(true)
       queryClient.invalidateQueries({ queryKey: ['me'] })

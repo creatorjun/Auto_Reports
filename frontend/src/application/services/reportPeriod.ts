@@ -7,6 +7,12 @@ export function reportToday(now = new Date()): string {
   return new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }
 
+export function annualReportDateRange(year: number, today = reportToday()): { start: string; end: string } | null {
+  const currentYear = Number(today.slice(0, 4))
+  if (!Number.isSafeInteger(year) || year <= 0 || !(year <= currentYear)) return null
+  return { start: `${year}-01-01`, end: year === currentYear ? today : `${year}-12-31` }
+}
+
 export function reportDateRange(period: ReportPeriod, selectedDate: string): { start: string; end: string } | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) return null
   const start = new Date(`${selectedDate}T00:00:00Z`)

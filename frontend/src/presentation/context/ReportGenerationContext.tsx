@@ -8,6 +8,7 @@ import { QUERY_KEYS } from '@/presentation/config/queryKeys'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import { useTrigger } from '@/presentation/hooks/useTrigger'
 import { useUiStore } from '@/presentation/state/uiStore'
+import { useAuthStore } from '@/presentation/state/authStore'
 
 interface ReportGenerationValue {
   generate: (request: TriggerParams) => void
@@ -49,25 +50,29 @@ export function ReportGenerationProvider({ children }: { children: ReactNode }) 
     setTriggerMessage(message)
   }
   const completed = async (reportId: number | null) => {
+    const sessionVersion = useAuthStore.getState().sessionVersion
+    const current = () => mountedRef.current && sessionVersion === useAuthStore.getState().sessionVersion
     if (reportId === null) {
       fail('생성된 보고서 번호를 확인하지 못했습니다. 히스토리에서 확인해 주세요.')
       return
     }
     try {
       const report = await reports.getById(reportId)
-      if (!mountedRef.current) return
+      if (!current()) return
       client.setQueryData(QUERY_KEYS.reportById(reportId), report)
       if (report.scope === 'annual' && report.report_year !== null) {
         await client.cancelQueries({ queryKey: QUERY_KEYS.annualReport(report.report_year) })
+        if (!current()) return
         client.setQueryData(QUERY_KEYS.annualReport(report.report_year), report)
       } else {
         await client.cancelQueries({ queryKey: QUERY_KEYS.latestReport() })
+        if (!current()) return
         client.setQueryData(QUERY_KEYS.latestReport(), report)
       }
       finish()
       if (report.scope === 'standard' && (pathRef.current === '/' || /^\/reports\/\d+$/.test(pathRef.current))) navigate(`/reports/${reportId}`)
     } catch {
-      if (mountedRef.current) fail('보고서는 생성되었지만 화면을 불러오지 못했습니다. 히스토리에서 확인해 주세요.')
+      if (current()) fail('보고서는 생성되었지만 화면을 불러오지 못했습니다. 히스토리에서 확인해 주세요.')
     }
   }
   const { mutate } = useTrigger({

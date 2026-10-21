@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
+import { useAuthStore } from '@/presentation/state/authStore'
 
 export const SECURITY_NEWS_QUERY_KEY = ['security-news'] as const
 
@@ -18,8 +19,13 @@ export function useSecurityNews() {
     refetchOnWindowFocus: true,
   })
   const mutation = useMutation({
-    mutationFn: securityNews.refresh,
-    onSuccess: (snapshot) => queryClient.setQueryData(SECURITY_NEWS_QUERY_KEY, snapshot),
+    mutationFn: (sessionVersion: number) => {
+      if (sessionVersion !== useAuthStore.getState().sessionVersion) throw new Error('Session changed')
+      return securityNews.refresh()
+    },
+    onSuccess: (snapshot, sessionVersion) => {
+      if (sessionVersion === useAuthStore.getState().sessionVersion) queryClient.setQueryData(SECURITY_NEWS_QUERY_KEY, snapshot)
+    },
     onSettled: () => { refreshPending.current = false },
   })
   useEffect(() => {
@@ -33,7 +39,7 @@ export function useSecurityNews() {
   const refresh = () => {
     if (!canRefresh || refreshPending.current) return
     refreshPending.current = true
-    mutation.mutate()
+    mutation.mutate(useAuthStore.getState().sessionVersion)
   }
   return { ...query, refresh, refreshing, canRefresh, retryAfterSeconds, refreshError: mutation.error, now }
 }

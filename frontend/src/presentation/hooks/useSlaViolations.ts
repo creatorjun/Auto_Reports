@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SlaViolationRequest } from '@/domain/SlaViolationReport'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
+import { useAuthStore } from '@/presentation/state/authStore'
 
 export const SLA_VIOLATION_KEYS = {
   latest: ['sla-violations', 'latest'] as const,
@@ -36,9 +37,16 @@ export function useGenerateSlaViolationReport() {
   const client = useQueryClient()
   return useMutation({
     mutationFn: (request: SlaViolationRequest) => slaViolations.generate(request),
-    onMutate: async () => { await client.cancelQueries({ queryKey: SLA_VIOLATION_KEYS.latest }) },
-    onSuccess: async (report) => {
+    onMutate: async () => {
+      const sessionVersion = useAuthStore.getState().sessionVersion
       await client.cancelQueries({ queryKey: SLA_VIOLATION_KEYS.latest })
+      if (sessionVersion !== useAuthStore.getState().sessionVersion) throw new Error('Session changed')
+      return sessionVersion
+    },
+    onSuccess: async (report, _, sessionVersion) => {
+      if (sessionVersion !== useAuthStore.getState().sessionVersion) return
+      await client.cancelQueries({ queryKey: SLA_VIOLATION_KEYS.latest })
+      if (sessionVersion !== useAuthStore.getState().sessionVersion) return
       client.setQueryData(SLA_VIOLATION_KEYS.latest, report)
       client.setQueryData(SLA_VIOLATION_KEYS.report(report.id), report)
       await client.invalidateQueries({ queryKey: SLA_VIOLATION_KEYS.history })

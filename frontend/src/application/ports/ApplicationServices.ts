@@ -125,6 +125,7 @@ export interface StorageGateway {
     folder?: string,
     overwrite?: boolean,
     onProgress?: (percent: number) => void,
+    signal?: CancellationSignal,
   ) => Promise<StorageItem>
   readPreview: (name: string, folder?: string) => Promise<BinaryContent>
   convertPreview: (name: string, folder?: string) => Promise<BinaryContent>

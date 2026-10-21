@@ -397,6 +397,42 @@ test('failed requests from the previous login cannot refresh or clear a newer se
   assert.equal(app.store.getState().accessToken, 'new-session')
 })
 
+for (const transition of ['logout', 'login']) {
+  for (const operation of ['getLatest', 'trigger']) {
+    test(`late successful ${operation} responses cannot cross a ${transition} session boundary`, async () => {
+      const app = setup()
+      const { reportApi } = app.load('infrastructure/api/reportApi')
+      const pending = deferred()
+      let started = false
+      let refreshes = 0
+      app.store.getState().setAuth('old-session', 'Old User')
+      app.client.defaults.adapter = async (config) => {
+        if (config.url === '/reports/latest' || config.url === '/trigger/') {
+          started = true
+          await pending.promise
+          return response(config, operation === 'getLatest' ? { id: 42 } : { job_id: 'old-job' })
+        }
+        if (config.url === '/auth/refresh') refreshes++
+        return response(config, { access_token: 'new-session', username: 'New User' })
+      }
+      const request = reportApi[operation]()
+      const rejected = assert.rejects(request, { status: 401, detail: '로그인 상태가 변경되었습니다.' })
+      await until(() => started)
+      if (transition === 'logout') await app.auth.logout()
+      else {
+        const result = await app.auth.login({ username: 'New User', password: 'test-password' })
+        app.store.getState().setAuth(result.access_token, result.username)
+      }
+      pending.resolve()
+      await rejected
+      assert.equal(app.store.getState().accessToken, transition === 'logout' ? null : 'new-session')
+      assert.equal(refreshes, 0)
+      assert.equal(app.redirects, 0)
+      assert.deepEqual((await app.client.get('/current-session')).data, { access_token: 'new-session', username: 'New User' })
+    })
+  }
+}
+
 test('Jira start failures do not trigger refresh and a new login resets prior expiry redirection', async () => {
   const app = setup()
   let refreshes = 0

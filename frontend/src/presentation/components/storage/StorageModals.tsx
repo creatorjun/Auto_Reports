@@ -229,7 +229,7 @@ export function UploadProgressBar({ progressList, totalPercent }: { progressList
     <div className="rounded-xl border border-apple-divider/60 bg-apple-surface p-3 space-y-2 shadow-sm">
       <div className="flex items-center justify-between mb-1">
         <span className="text-caption font-medium text-apple-dark">
-          {progressList.every(p => p.done) ? '업로드 완료 ✓' : `업로드 중... ${totalPercent}%`}
+          {progressList.every(p => p.done || p.failed) ? progressList.some(p => p.failed) ? '일부 파일 업로드 실패' : '업로드 완료 ✓' : `업로드 중... ${totalPercent}%`}
         </span>
         <span className="text-caption text-apple-light">{progressList.filter(p => p.done).length} / {progressList.length}개</span>
       </div>
@@ -246,7 +246,7 @@ export function UploadProgressBar({ progressList, totalPercent }: { progressList
               <div className="flex items-center justify-between mb-0.5">
                 <span className="text-caption text-apple-light truncate max-w-[75%]">{p.name}</span>
                 <span className="text-caption text-apple-light flex-shrink-0">
-                  {p.done ? <span className="text-green-500">완료</span> : `${p.percent}%`}
+                  {p.failed ? <span className="text-red-500">실패</span> : p.done ? <span className="text-green-500">완료</span> : `${p.percent}%`}
                 </span>
               </div>
               <div className="w-full h-1 bg-apple-gray rounded-full overflow-hidden">

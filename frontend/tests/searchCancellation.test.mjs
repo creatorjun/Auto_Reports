@@ -40,7 +40,7 @@ function setup(t) {
   const dependencies = {
     '@/presentation/context/ApplicationServicesContext': { useApplicationServices: () => ({ search }) },
     '@/presentation/config/constants': { DEFAULT_JIRA_BASE_URL: 'https://jira.test' },
-    '@/presentation/components/common/IssueModalShell': { default: ({ children }) => React.createElement('section', null, children) },
+    '@/presentation/components/common/IssueModalShell': { default: ({ title, children, onClose }) => React.createElement('section', { 'aria-label': title, onClose }, children) },
   }
   new Function('require', 'module', 'exports', 'setTimeout', 'clearTimeout', 'window', compiled)(
     (dependency) => Object.hasOwn(dependencies, dependency) ? dependencies[dependency] : require(dependency),
@@ -55,12 +55,29 @@ function setup(t) {
   t.after(() => act(() => view.unmount()))
   return {
     calls,
+    timers,
     view,
-    input(query) {
+    input(query, flush = true) {
       act(() => view.root.findByType('input').props.onChange({ target: { value: query } }))
+      if (flush) this.flushDebounce()
+    },
+    flushDebounce() {
       act(() => {
         for (const [id, timer] of [...timers]) {
           if (timer.delay === 1000 && timers.delete(id)) timer.handler()
+        }
+      })
+    },
+    submit() {
+      act(() => view.root.findByType('input').props.onKeyDown({ key: 'Enter', preventDefault() {} }))
+    },
+    blur() {
+      act(() => view.root.findByType('input').props.onBlur())
+    },
+    flushBlur() {
+      act(() => {
+        for (const [id, timer] of [...timers]) {
+          if (timer.delay === 150 && timers.delete(id)) timer.handler()
         }
       })
     },
@@ -120,4 +137,115 @@ test('a current gateway failure still shows the direct ticket fallback and ends 
   await act(async () => app.calls[0].reject(new Error('Gateway unavailable')))
   assert.match(textOf(app.view), /TACEA-1234 이슈 바로가기/)
   assert.equal(app.loading(), false)
+})
+
+test('editing a query cancels the previous request before the next debounce expires', async (t) => {
+  const app = setup(t)
+  app.input('old query')
+  app.input('new query', false)
+  assert.equal(app.calls[0].signal.aborted, true)
+  await act(async () => app.calls[0].resolve([result('Outdated result')]))
+  assert.doesNotMatch(textOf(app.view), /Outdated result/)
+  app.flushDebounce()
+  assert.equal(app.calls.length, 2)
+  await act(async () => app.calls[1].resolve([result('Newest result')]))
+  assert.match(textOf(app.view), /Newest result/)
+})
+
+test('clearing a query prevents late results from reopening the dropdown', async (t) => {
+  const app = setup(t)
+  app.input('old query')
+  app.input('')
+  assert.equal(app.calls[0].signal.aborted, true)
+  await act(async () => app.calls[0].resolve([result('Outdated result')]))
+  assert.equal(app.calls.length, 1)
+  assert.doesNotMatch(textOf(app.view), /Outdated result/)
+  assert.equal(app.loading(), false)
+})
+
+test('submitting a search cancels suggestions and their pending debounce', async (t) => {
+  const app = setup(t)
+  app.input('old query')
+  app.input('modal query', false)
+  app.submit()
+  app.flushDebounce()
+  assert.equal(app.calls.length, 2)
+  assert.equal(app.calls[0].signal.aborted, true)
+  assert.equal(app.calls[1].query, 'modal query')
+  assert.equal(app.calls[1].signal.aborted, false)
+  await act(async () => app.calls[0].reject(new Error('Cancelled suggestions')))
+  assert.equal(app.loading(), true)
+  await act(async () => app.calls[1].resolve([result('Modal result')]))
+  assert.match(textOf(app.view), /Modal result/)
+  assert.equal(app.view.root.findByType('section').props['aria-label'], '"modal query" 검색 결과')
+})
+
+test('late modal results cannot replace a newer search result or its query', async (t) => {
+  const app = setup(t)
+  app.input('first modal', false)
+  app.submit()
+  app.input('second modal', false)
+  app.submit()
+  assert.equal(app.calls.length, 2)
+  assert.equal(app.calls[0].signal.aborted, true)
+  await act(async () => app.calls[1].resolve([result('Newest modal result')]))
+  await act(async () => app.calls[0].resolve([result('Outdated modal result')]))
+  assert.match(textOf(app.view), /Newest modal result/)
+  assert.doesNotMatch(textOf(app.view), /Outdated modal result/)
+  assert.equal(app.view.root.findByType('section').props['aria-label'], '"second modal" 검색 결과')
+  assert.equal(app.loading(), false)
+})
+
+test('unmounting aborts pending searches and clears focus timers', async (t) => {
+  const app = setup(t)
+  app.input('pending modal', false)
+  app.submit()
+  act(() => app.view.root.findByType('input').props.onBlur())
+  act(() => app.view.unmount())
+  assert.equal(app.calls[0].signal.aborted, true)
+  assert.equal(app.timers.size, 0)
+  await act(async () => app.calls[0].resolve([result('Unmounted result')]))
+  assert.equal(app.view.toJSON(), null)
+})
+
+for (const dismissal of ['Escape', 'blur']) {
+  test(`${dismissal} cancels pending suggestions before a dropdown exists`, async (t) => {
+    const app = setup(t)
+    app.input('pending suggestions')
+    if (dismissal === 'Escape') {
+      act(() => app.view.root.findByType('input').props.onKeyDown({ key: 'Escape', preventDefault() {} }))
+    } else {
+      app.blur()
+      app.flushBlur()
+    }
+    assert.equal(app.calls[0].signal.aborted, true)
+    await act(async () => app.calls[0].resolve([result('Dismissed result')]))
+    assert.doesNotMatch(textOf(app.view), /Dismissed result/)
+    assert.equal(app.loading(), false)
+  })
+
+  test(`${dismissal} removes a queued autocomplete request`, (t) => {
+    const app = setup(t)
+    app.input('queued suggestions', false)
+    if (dismissal === 'Escape') {
+      act(() => app.view.root.findByType('input').props.onKeyDown({ key: 'Escape', preventDefault() {} }))
+    } else {
+      app.blur()
+      app.flushBlur()
+    }
+    app.flushDebounce()
+    assert.equal(app.calls.length, 0)
+  })
+}
+
+test('a queued blur dismissal preserves a newer modal request', async (t) => {
+  const app = setup(t)
+  app.input('modal query', false)
+  app.blur()
+  app.submit()
+  app.flushBlur()
+  assert.equal(app.calls[0].signal.aborted, false)
+  assert.equal(app.loading(), true)
+  await act(async () => app.calls[0].resolve([result('Modal result after blur')]))
+  assert.match(textOf(app.view), /Modal result after blur/)
 })

@@ -23,8 +23,8 @@ function nextDelay(attempt: number): number {
   return Math.round(base + jitter)
 }
 
-async function getJobStatus(jobId: string): Promise<JobStatus> {
-  const response = await client.get<JobStatus>(`/trigger/${jobId}/status`)
+async function getJobStatus(jobId: string, signal: AbortSignal): Promise<JobStatus> {
+  const response = await client.get<JobStatus>(`/trigger/${jobId}/status`, { signal })
   return response.data
 }
 
@@ -45,9 +45,12 @@ function watchJob(
   let attempt = 0
   let elapsed = 0
   let active = true
+  let polling = false
+  const controller = new AbortController()
 
   const close = () => {
     active = false
+    controller.abort()
     source?.close()
     source = null
     if (timer !== null) {
@@ -61,6 +64,8 @@ function watchJob(
   }
 
   const startPolling = () => {
+    if (!active || polling) return
+    polling = true
     const tick = async () => {
       if (!active) return
       if (elapsed >= timeoutMs) {
@@ -69,8 +74,10 @@ function watchJob(
         return
       }
       try {
-        const status = await getJobStatus(jobId)
+        const status = await getJobStatus(jobId, controller.signal)
+        if (!active) return
         callbacks.onStatus?.(status)
+        if (!active) return
         if (status.status === 'done') {
           close()
           callbacks.onComplete(status.report_id)
@@ -87,6 +94,7 @@ function watchJob(
         elapsed += delay
         timer = setTimeout(tick, delay)
       } catch (error) {
+        if (!active) return
         close()
         if (callbacks.onTransportError) {
           callbacks.onTransportError(error)
@@ -106,14 +114,14 @@ function watchJob(
     const eventSource = new EventSource(getJobStreamUrl(jobId))
     source = eventSource
     eventSource.addEventListener('status', (event: MessageEvent) => {
-      if (!active) return
+      if (!active || source !== eventSource) return
       try {
         callbacks.onStatus?.(JSON.parse(event.data) as JobStatus)
       } catch {
       }
     })
     eventSource.addEventListener('done', (event: MessageEvent) => {
-      if (!active) return
+      if (!active || source !== eventSource) return
       try {
         const status = JSON.parse(event.data) as JobStatus
         close()
@@ -128,24 +136,24 @@ function watchJob(
       }
     })
     eventSource.addEventListener('timeout', () => {
-      if (!active) return
+      if (!active || source !== eventSource) return
       close()
       callbacks.onTimeout()
     })
     eventSource.addEventListener('error', () => {
-      if (!active) return
-      eventSource.close()
+      if (!active || source !== eventSource) return
       source = null
+      eventSource.close()
       startPolling()
     })
   }
 
-  startStream()
   deadlineTimer = setTimeout(() => {
     if (!active) return
     close()
     callbacks.onTimeout()
   }, timeoutMs)
+  startStream()
   return { close }
 }
 
