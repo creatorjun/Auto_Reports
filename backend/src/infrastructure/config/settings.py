@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     jira_email: str
     jira_api_token: str
     jira_login_enabled: bool = False
+    jira_login_device_expire_days: int = Field(default=90, ge=1, le=90)
     jira_oauth_client_id: str = ""
     jira_oauth_client_secret: str = ""
     jira_oauth_redirect_uri: str = ""

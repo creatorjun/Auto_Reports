@@ -1,16 +1,25 @@
 # backend/src/application/services/auth_service.py
 import hmac
 import secrets
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from threading import Lock
 from time import monotonic
 
 from src.application.ports.jira_oauth_port import JiraLoginDenied, JiraLoginUnavailable, JiraOAuthPort
+from src.application.ports.jira_login_port import JiraLoginPort
 from src.application.ports.jira_user_grant_port import JiraUserGrantStorePort
 from src.application.ports.personal_data_port import PersonalDataProfilePort, PersonalDataReportingPort
 from src.application.ports.token_service_port import TokenServicePort
 from src.domain.entities.auth_identity import AuthIdentity
+
+
+@dataclass
+class _JiraLoginAttempt:
+    expires_at: float
+    cancelled: bool = False
+    device_token: str | None = field(default=None, repr=False)
+    identity: AuthIdentity | None = field(default=None, repr=False)
 
 
 class AuthService:
@@ -29,6 +38,8 @@ class AuthService:
         reporting: PersonalDataReportingPort | None = None,
         privacy_owner_account_id: str = "",
         jira_grants: JiraUserGrantStorePort | None = None,
+        jira_login: JiraLoginPort | None = None,
+        jira_device_expire_days: int = 90,
     ) -> None:
         self._tokens = tokens
         self.enabled = enabled
@@ -43,8 +54,11 @@ class AuthService:
         self._reporting = reporting
         self._privacy_owner_account_id = privacy_owner_account_id
         self._jira_grants = jira_grants
+        self._jira_login = jira_login
+        self.jira_device_expire_days = jira_device_expire_days
         self._jira_states: dict[str, float] = {}
         self._jira_privacy_states: dict[str, int] = {}
+        self._jira_attempts: dict[str, _JiraLoginAttempt] = {}
         self._jira_state_lock = Lock()
         self.jira_state_expire_seconds = 600
 
@@ -62,12 +76,17 @@ class AuthService:
             self._jira_privacy_states = {
                 key: generation for key, generation in self._jira_privacy_states.items() if key in self._jira_states
             }
-            if len(self._jira_states) >= 1024:
+            self._jira_attempts = {
+                key: attempt for key, attempt in self._jira_attempts.items() if attempt.expires_at > now
+            }
+            if len(self._jira_states) + len(self._jira_attempts) >= 1024:
                 raise JiraLoginUnavailable("Jira login is temporarily unavailable")
             self._jira_states[state] = now + self.jira_state_expire_seconds
             if privacy_generation is not None:
                 self._jira_privacy_states[state] = privacy_generation
         if privacy_generation is not None:
+            return state, self._jira_oauth.authorization_url(state, include_offline=True)
+        if self._jira_login is not None:
             return state, self._jira_oauth.authorization_url(state, include_offline=True)
         return state, self._jira_oauth.authorization_url(state)
 
@@ -84,9 +103,55 @@ class AuthService:
         with self._jira_state_lock:
             expiry = self._jira_states.pop(state, None)
             privacy_generation = self._jira_privacy_states.pop(state, None)
-        if expiry is None or expiry <= monotonic():
-            raise JiraLoginDenied("Expired Jira login state")
+            now = monotonic()
+            if expiry is None or expiry <= now:
+                raise JiraLoginDenied("Expired Jira login state")
+            if privacy_generation is None:
+                self._jira_attempts[state] = _JiraLoginAttempt(now + self.jira_state_expire_seconds)
         return privacy_generation
+
+    async def cancel_jira_login(self, state: str | None) -> None:
+        if not isinstance(state, str) or not state or len(state) > 128:
+            return
+        with self._jira_state_lock:
+            if state in self._jira_privacy_states:
+                return
+            self._jira_states.pop(state, None)
+            attempt = self._jira_attempts.get(state)
+            if attempt is None:
+                return
+            attempt.cancelled = True
+            device_token, identity = attempt.device_token, attempt.identity
+        if device_token is not None:
+            await self.forget_jira_login(device_token)
+        elif identity is not None:
+            await self.logout(identity)
+
+    def _check_jira_attempt(self, attempt: _JiraLoginAttempt) -> None:
+        with self._jira_state_lock:
+            if attempt.cancelled or attempt.expires_at <= monotonic():
+                raise JiraLoginDenied("Jira login was cancelled")
+
+    def jira_login_cancelled(self, state: str | None) -> bool:
+        with self._jira_state_lock:
+            attempt = self._jira_attempts.get(state)
+            return attempt is None or attempt.cancelled
+
+    async def _complete_jira_attempt(
+        self, attempt: _JiraLoginAttempt, identity: AuthIdentity, device_token: str | None,
+    ) -> tuple[AuthIdentity, str | None]:
+        with self._jira_state_lock:
+            attempt.identity, attempt.device_token = identity, device_token
+            cancelled = attempt.cancelled or attempt.expires_at <= monotonic()
+            if not cancelled:
+                attempt.expires_at = monotonic() + self.jira_state_expire_seconds
+        if cancelled:
+            if device_token is not None:
+                await self.forget_jira_login(device_token)
+            else:
+                await self.logout(identity)
+            raise JiraLoginDenied("Jira login was cancelled")
+        return identity, device_token
 
     async def connect_jira_privacy(self, code: str, root_refresh: str | None, generation: int) -> None:
         if not self.jira_enabled or self._reporting is None or not self._privacy_owner_account_id:
@@ -148,12 +213,58 @@ class AuthService:
             await self.logout(identity)
             raise
 
+    async def complete_jira_login(self, code: str, remember_token: str | None, *, state: str) -> tuple[AuthIdentity, str | None]:
+        with self._jira_state_lock:
+            attempt = self._jira_attempts.get(state)
+        if attempt is None:
+            raise JiraLoginDenied("Invalid Jira login state")
+        self._check_jira_attempt(attempt)
+        if self._jira_login is None:
+            identity = await self.authenticate_jira(code)
+            return await self._complete_jira_attempt(attempt, identity, None)
+        if not self.jira_enabled or self._personal_data is None:
+            raise JiraLoginUnavailable("Jira login is not configured")
+        if not code or len(code) > 4096:
+            raise JiraLoginDenied("Invalid Jira authorization code")
+        result = await self._jira_oauth.authenticate_persistent(code)
+        self._check_jira_attempt(attempt)
+        identity = result.identity
+        if identity.auth_provider != "jira" or identity.username in {self.admin_username, self.superadmin_username}:
+            raise JiraLoginDenied("Invalid Jira account identity")
+        try:
+            identity = await self._personal_data.register_identity(identity)
+        except ValueError:
+            raise JiraLoginDenied("Jira account is no longer available") from None
+        self._check_jira_attempt(attempt)
+        identity, device_token = await self._jira_login.finish_login(result.grant, identity, remember_token)
+        return await self._complete_jira_attempt(attempt, identity, device_token)
+
+    async def resume_jira_login(self, remember_token: str | None) -> AuthIdentity | None:
+        if not self.jira_enabled or self._jira_login is None or not remember_token:
+            return None
+        try:
+            return await self._jira_login.resume(remember_token)
+        except JiraLoginDenied:
+            return None
+
+    async def has_remembered_jira_login(self, remember_token: str | None) -> bool:
+        return bool(
+            self.jira_enabled and self._jira_login is not None and remember_token
+            and await self._jira_login.has_device(remember_token)
+        )
+
+    async def forget_jira_login(self, remember_token: str | None) -> None:
+        if self._jira_login is not None and remember_token:
+            await self._jira_login.forget(remember_token)
+
     async def logout(self, identity: AuthIdentity) -> None:
         if self._jira_grants is not None and identity.auth_provider == "jira" and identity.jira_grant_id:
             await self._jira_grants.revoke(identity.jira_grant_id, identity)
 
     async def clear_jira_grants(self) -> None:
-        if self._jira_grants is not None:
+        if self._jira_login is not None:
+            await self._jira_login.reconcile_privacy()
+        elif self._jira_grants is not None:
             await self._jira_grants.clear()
 
     def is_valid_credentials(self, username: str, password: str) -> bool:
@@ -220,7 +331,10 @@ class AuthService:
         if identity.auth_provider == "jira":
             if self._personal_data is None:
                 raise ValueError("Jira profile storage is not configured")
-            return await self._personal_data.resolve_identity(identity)
+            identity = await self._personal_data.resolve_identity(identity)
+            if self._jira_login is not None:
+                identity = await self._jira_login.resolve(identity)
+            return identity
         return identity
 
     def _validate_identity(self, identity: AuthIdentity) -> AuthIdentity:

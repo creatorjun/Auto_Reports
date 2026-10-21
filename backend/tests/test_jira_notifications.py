@@ -10,6 +10,7 @@ import httpx
 from fastapi import FastAPI
 
 from src.application.ports.jira_notification_port import JiraNotificationsReconnectRequired, JiraNotificationsUnavailable
+from src.application.ports.jira_oauth_port import JiraLoginUnavailable
 from src.application.ports.jira_user_grant_port import JiraUserGrant
 from src.application.use_cases.jira_notifications import JiraNotificationsUseCase
 from src.domain.entities.auth_identity import AuthIdentity
@@ -49,6 +50,98 @@ class JiraNotificationsUseCaseTest(unittest.IsolatedAsyncioTestCase):
         result = await self.use_case.execute(self.identity, category="direct", cursor="next", unread_only=True)
         self.assertEqual(notification_page(), result)
         self.source.fetch.assert_awaited_once_with(self.grant, category="direct", cursor="next", unread_only=True)
+
+    async def test_initial_grant_refresh_failure_is_unavailable_without_revoking_connection(self) -> None:
+        operations = (
+            lambda: self.use_case.execute(self.identity),
+            lambda: self.use_case.mark_read(self.identity, "notice-1", "group-1", "direct"),
+            lambda: self.use_case.mark_all_read(self.identity),
+        )
+        with patch.object(self.store, "get", AsyncMock(side_effect=JiraLoginUnavailable("private refresh details"))), patch.object(self.store, "revoke", AsyncMock()) as revoke:
+            for operation in operations:
+                with self.assertRaises(JiraNotificationsUnavailable) as failure:
+                    await operation()
+                self.assertNotIn("private", str(failure.exception))
+                self.assertTrue(failure.exception.__suppress_context__)
+            revoke.assert_not_awaited()
+        self.source.fetch.assert_not_awaited()
+        self.source.mark_read.assert_not_awaited()
+        self.source.mark_all_read.assert_not_awaited()
+        self.assertIsNotNone(await self.store.get(self.identity.jira_grant_id, self.identity))
+
+    async def test_post_request_grant_failure_cannot_return_success_or_revoke_connection(self) -> None:
+        with patch.object(self.store, "get", AsyncMock(side_effect=[self.grant, JiraLoginUnavailable("private refresh details")])), patch.object(self.store, "revoke", AsyncMock()) as revoke:
+            with self.assertRaises(JiraNotificationsUnavailable):
+                await self.use_case.execute(self.identity)
+            revoke.assert_not_awaited()
+        self.source.fetch.assert_awaited_once()
+        self.assertIsNotNone(await self.store.get(self.identity.jira_grant_id, self.identity))
+
+    async def test_grant_lookup_waits_for_slot_and_uses_current_token(self) -> None:
+        self.use_case._slots = asyncio.Semaphore(0)
+        rotated = replace(self.grant, access_token="new-private-access-token")
+        with patch.object(self.store, "get", AsyncMock(return_value=rotated)) as get:
+            task = asyncio.create_task(self.use_case.execute(self.identity))
+            try:
+                await asyncio.sleep(0)
+                get.assert_not_awaited()
+                self.use_case._slots.release()
+                await asyncio.wait_for(task, 1)
+                self.source.fetch.assert_awaited_once_with(rotated, category=None, cursor=None, unread_only=False)
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+    async def test_initial_grant_refresh_is_cancellable_within_request_deadline(self) -> None:
+        cancelled = asyncio.Event()
+
+        async def refresh(*args):
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+
+        self.use_case._slots = asyncio.Semaphore(1)
+        timeout = asyncio.timeout
+        with patch.object(self.store, "get", AsyncMock(side_effect=refresh)), patch("src.application.use_cases.jira_notifications.asyncio.timeout", side_effect=lambda _: timeout(0.01)):
+            with self.assertRaises(JiraNotificationsUnavailable):
+                await self.use_case.execute(self.identity)
+        self.assertTrue(cancelled.is_set())
+        self.source.fetch.assert_not_awaited()
+        await asyncio.wait_for(self.use_case.execute(self.identity), 1)
+        self.assertIsNotNone(await self.store.get(self.identity.jira_grant_id, self.identity))
+
+    async def test_grant_refresh_uses_the_same_eight_request_slots(self) -> None:
+        entered, release = asyncio.Event(), asyncio.Event()
+        active = peak = count = 0
+
+        async def refresh(*args):
+            nonlocal active, peak, count
+            active += 1
+            count += 1
+            peak = max(active, peak)
+            if count == 8:
+                entered.set()
+            try:
+                await release.wait()
+                return self.grant
+            finally:
+                active -= 1
+
+        with patch.object(self.store, "get", AsyncMock(side_effect=refresh)):
+            tasks = [asyncio.create_task(self.use_case.execute(self.identity)) for _ in range(9)]
+            try:
+                await asyncio.wait_for(entered.wait(), 1)
+                await asyncio.sleep(0)
+                self.assertEqual(8, count)
+                release.set()
+                await asyncio.wait_for(asyncio.gather(*tasks), 1)
+                self.assertEqual(8, peak)
+                self.assertEqual(9, self.source.fetch.await_count)
+            finally:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
 
     async def test_read_all_uses_authenticated_grant_and_category_without_fetching_a_page(self) -> None:
         self.source.mark_all_read.return_value = None

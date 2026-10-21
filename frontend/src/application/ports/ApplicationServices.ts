@@ -30,7 +30,8 @@ import type { PreviewParserPort } from '@/application/ports/PreviewParserPort'
 export interface AuthGateway {
   login: (request: LoginRequest) => Promise<TokenResponse>
   providers: () => Promise<AuthProviders>
-  startJira: () => Promise<JiraLoginStartResponse>
+  startJira: (forceAuthorization?: boolean) => Promise<JiraLoginStartResponse>
+  forgetJira: () => Promise<void>
   getJiraPrivacyStatus: () => Promise<JiraPrivacyStatus>
   startJiraPrivacy: () => Promise<JiraLoginStartResponse>
   refresh: () => Promise<TokenResponse>

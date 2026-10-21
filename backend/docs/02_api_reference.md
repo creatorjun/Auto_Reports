@@ -14,10 +14,11 @@ Base URL은 `/api/v1`입니다. `LOGIN=true`일 때 보호 라우트는 `Authori
 |--------|------|------|------|
 | POST | `/auth/login` | username, password | access token과 HttpOnly refresh cookie |
 | POST | `/auth/refresh` | refresh cookie | 새 access token |
-| POST | `/auth/logout` | 없음 | refresh cookie 제거 |
+| POST | `/auth/logout` | refresh cookie | 활성 Jira 세션과 refresh cookie 제거, 기억한 계정은 유지 |
 | GET | `/auth/me` | HttpOnly refresh cookie | username, display_name, auth_provider, login_required, is_superadmin |
-| GET | `/auth/providers` | 없음 | Jira 로그인 사용 가능 여부 |
-| POST | `/auth/jira/start` | 같은 origin 요청 | authorization_url, 10분 HttpOnly state cookie |
+| GET | `/auth/providers` | 없음 | `jira.enabled`, 현재 브라우저의 `jira.remembered`. 세션을 생성하지 않음 |
+| POST | `/auth/jira/start` | 같은 origin 요청 | 기억한 계정의 권한 재검증 후 앱 복귀 URL 또는 최초 승인 URL. `force_authorization: true`는 이전 연결을 해제하고 새 승인 시작 |
+| POST | `/auth/jira/forget` | 같은 origin 요청 | 기억한 브라우저와 활성 세션 해제, 진행 중인 직원 승인 취소, 관련 쿠키 제거 |
 | GET | `/auth/jira/callback` | code, state 및 state cookie | JWT refresh cookie 발급 후 `/login?jira=success`로 303 이동 |
 | GET | `/storage/preview` | folder, name, `_t` | inline file |
 | GET | `/storage/preview-converted` | folder, name, `_t` | LibreOffice 변환 PDF |

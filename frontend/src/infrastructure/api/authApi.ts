@@ -28,11 +28,15 @@ export const authApi = {
     return res.data
   },
 
-  startJira: async (): Promise<JiraLoginStartResponse> => {
+  startJira: async (forceAuthorization = false): Promise<JiraLoginStartResponse> => {
     return startAuthSession(async () => {
-      const res = await client.post<JiraLoginStartResponse>('/auth/jira/start')
+      const res = await client.post<JiraLoginStartResponse>('/auth/jira/start', { force_authorization: forceAuthorization }, { timeout: 65_000 })
       return res.data
     })
+  },
+
+  forgetJira: async (): Promise<void> => {
+    return endAuthSession(async () => { await client.post('/auth/jira/forget') })
   },
 
   getJiraPrivacyStatus: async (): Promise<JiraPrivacyStatus> => {

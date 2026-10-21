@@ -8,6 +8,7 @@ from typing import AsyncIterator
 from src.application.ports.report_cache_port import ReportCachePort
 from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.auth_service import AuthService
+from src.application.services.jira_login_service import JiraLoginService
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
 from src.application.services.security_news_translation import SecurityNewsTranslationService
@@ -44,6 +45,7 @@ from src.infrastructure.factories.ai_factory import AiFactory
 from src.infrastructure.factories.jira_factory import JiraFactory
 from src.infrastructure.factories.widget_collector_factory import WidgetCollectorFactory
 from src.infrastructure.persistence.database import Database
+from src.infrastructure.persistence.jira_login_repository import JiraLoginRepository
 from src.infrastructure.persistence.issue_management_snapshot_repository import IssueManagementSnapshotRepository
 from src.infrastructure.persistence.sla_status_snapshot_repository import SlaStatusSnapshotRepository
 from src.infrastructure.personal_data_runtime import PersonalDataRuntime
@@ -107,7 +109,23 @@ class Container:
         self._analyzer = AiAnalyzer(ai=self._ai, enabled=settings.ai_enabled)
         self.personal_data = PersonalDataRuntime(settings, database, self._clear_personal_data_caches)
         tokens = JwtService(settings)
-        self._jira_user_grants = MemoryJiraUserGrantStore()
+        jira_oauth = JiraOAuthClient(
+            client_id=settings.jira_oauth_client_id,
+            client_secret=settings.jira_oauth_client_secret,
+            redirect_uri=settings.jira_oauth_redirect_uri,
+            jira_base_url=settings.jira_base_url,
+            project_key=settings.project_key,
+        ) if (
+            settings.login and settings.jira_login_enabled
+            and settings.jira_oauth_client_id and settings.jira_oauth_client_secret
+            and settings.jira_oauth_redirect_uri
+        ) else None
+        jira_login = JiraLoginService(
+            JiraLoginRepository(database, settings.jwt_secret), jira_oauth, self.personal_data,
+            session_days=settings.jwt_refresh_expire_days,
+            device_days=settings.jira_login_device_expire_days,
+        ) if jira_oauth is not None else None
+        self._jira_user_grants = jira_login if jira_login is not None else MemoryJiraUserGrantStore()
         self._jira_notification_source = JiraNotificationClient(settings.jira_base_url)
         self.jira_notifications = JiraNotificationsUseCase(self._jira_notification_source, self._jira_user_grants)
         self.auth = AuthService(
@@ -122,19 +140,10 @@ class Container:
             personal_data=self.personal_data,
             reporting=self.personal_data,
             jira_grants=self._jira_user_grants,
+            jira_login=jira_login,
+            jira_device_expire_days=settings.jira_login_device_expire_days,
             privacy_owner_account_id=settings.jira_privacy_owner_account_id,
-            jira_oauth=JiraOAuthClient(
-                client_id=settings.jira_oauth_client_id,
-                client_secret=settings.jira_oauth_client_secret,
-                redirect_uri=settings.jira_oauth_redirect_uri,
-                jira_base_url=settings.jira_base_url,
-                project_key=settings.project_key,
-                grants=self._jira_user_grants,
-            ) if (
-                settings.login and settings.jira_login_enabled
-                and settings.jira_oauth_client_id and settings.jira_oauth_client_secret
-                and settings.jira_oauth_redirect_uri
-            ) else None,
+            jira_oauth=jira_oauth,
         )
         self.storage = StorageUseCase(
             storage=LocalStorageAdapter(settings.storage_dir),

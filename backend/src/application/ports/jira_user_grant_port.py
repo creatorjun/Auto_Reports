@@ -12,6 +12,7 @@ class JiraUserGrant:
     account_id: str
     access_token: str = field(repr=False)
     expires_at: datetime
+    refresh_token: str | None = field(default=None, repr=False)
 
 
 class JiraUserGrantStorePort(ABC):

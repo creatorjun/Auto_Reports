@@ -56,7 +56,7 @@ export default function JiraNotificationsPanel({ id, trigger, sessionToken, side
   const { auth } = useApplicationServices()
   const query = useJiraNotifications(category, unreadOnly)
   const reconnect = useMutation({
-    mutationFn: auth.startJira,
+    mutationFn: () => auth.startJira(),
     onSuccess: ({ authorization_url }) => {
       if (active.current && useAuthStore.getState().accessToken === sessionToken) window.location.assign(authorization_url)
     },

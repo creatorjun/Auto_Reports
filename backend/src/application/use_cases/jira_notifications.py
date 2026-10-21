@@ -8,6 +8,7 @@ from src.application.ports.jira_notification_port import (
     JiraNotificationsReconnectRequired,
     JiraNotificationsUnavailable,
 )
+from src.application.ports.jira_oauth_port import JiraLoginUnavailable
 from src.application.ports.jira_user_grant_port import JiraUserGrant, JiraUserGrantStorePort
 from src.domain.entities.auth_identity import AuthIdentity
 from src.domain.entities.jira_notification import JiraNotificationPage
@@ -44,13 +45,11 @@ class JiraNotificationsUseCase:
         grant_id = identity.jira_grant_id
         if not grant_id:
             raise JiraNotificationsReconnectRequired()
-        grant = await self._grants.get(grant_id, identity)
-        if grant is None:
-            raise JiraNotificationsReconnectRequired()
         try:
             async with asyncio.timeout(35):
                 async with self._slots:
-                    if await self._grants.get(grant_id, identity) is None:
+                    grant = await self._grants.get(grant_id, identity)
+                    if grant is None:
                         raise JiraNotificationsReconnectRequired()
                     result = await operation(grant)
                     if await self._grants.get(grant_id, identity) is None:
@@ -58,6 +57,6 @@ class JiraNotificationsUseCase:
         except JiraNotificationsReconnectRequired:
             await self._grants.revoke(grant_id, identity)
             raise
-        except TimeoutError as error:
-            raise JiraNotificationsUnavailable() from error
+        except (TimeoutError, JiraLoginUnavailable):
+            raise JiraNotificationsUnavailable() from None
         return result

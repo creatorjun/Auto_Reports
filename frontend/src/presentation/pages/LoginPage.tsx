@@ -1,5 +1,5 @@
 // frontend/src/presentation/pages/LoginPage.tsx
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LogIn } from 'lucide-react'
 import BrandLogo from '@/presentation/components/common/BrandLogo'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
@@ -11,6 +11,7 @@ import { jiraLoginError } from '@/application/services/jiraLogin'
 
 export default function LoginPage() {
   const { auth } = useApplicationServices()
+  const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const { isRestoring } = useAuthSession()
   const { accessToken, loginRequired } = useAuthStore()
@@ -21,10 +22,14 @@ export default function LoginPage() {
     retry: false,
   })
   const jiraLogin = useMutation({
-    mutationFn: auth.startJira,
+    mutationFn: (forceAuthorization: boolean) => auth.startJira(forceAuthorization),
     onSuccess: ({ authorization_url }) => window.location.assign(authorization_url),
   })
   const callbackError = jiraLoginError(searchParams.get('jira'))
+  const forgetLogin = useMutation({
+    mutationFn: auth.forgetJira,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['auth-providers'] }),
+  })
 
   if (isRestoring) return <LoadingSpinner text="로그인 확인 중..." />
   if (accessToken || !loginRequired) return <Navigate to="/" replace />
@@ -38,16 +43,36 @@ export default function LoginPage() {
 
         <button
           type="button"
-          onClick={() => jiraLogin.mutate()}
-          disabled={jiraLogin.isPending || !providers.data?.jira.enabled}
+          onClick={() => jiraLogin.mutate(false)}
+          disabled={jiraLogin.isPending || forgetLogin.isPending || !providers.data?.jira.enabled}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-control font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <LogIn size={20} aria-hidden="true" className="shrink-0" />
-          {jiraLogin.isPending ? 'Jira로 이동 중...' : 'Jira 계정으로 로그인'}
+          {jiraLogin.isPending ? '로그인 중...' : providers.data?.jira.remembered ? '이전 Jira 계정으로 로그인' : 'Jira 계정으로 로그인'}
         </button>
+        {providers.data?.jira.remembered && (
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <button
+              type="button"
+              onClick={() => jiraLogin.mutate(true)}
+              disabled={jiraLogin.isPending || forgetLogin.isPending}
+              className="rounded-lg py-2 text-caption text-apple-light transition-colors hover:text-brand-600 disabled:opacity-40"
+            >
+              다른 Jira 계정으로 로그인
+            </button>
+            <button
+              type="button"
+              onClick={() => forgetLogin.mutate()}
+              disabled={jiraLogin.isPending || forgetLogin.isPending}
+              className="rounded-lg py-2 text-caption text-apple-light transition-colors hover:text-brand-600 disabled:opacity-40"
+            >
+              기억한 계정 해제
+            </button>
+          </div>
+        )}
         {providers.isPending && <p className="mt-3 text-center text-caption text-apple-light" role="status">로그인 방법 확인 중...</p>}
         {providers.data && !providers.data.jira.enabled && <p className="mt-3 text-center text-caption text-apple-light">Jira 로그인 연동 설정이 필요합니다.</p>}
-        {(providers.isError || jiraLogin.isError || callbackError) && (
+        {(providers.isError || jiraLogin.isError || forgetLogin.isError || callbackError) && (
           <p className="mt-3 text-center text-caption text-red-500" role="alert">
             {callbackError || 'Jira 로그인에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
           </p>

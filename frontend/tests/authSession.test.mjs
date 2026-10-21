@@ -94,6 +94,133 @@ async function until(predicate) {
   }
 }
 
+function mountJiraLogin(t, app) {
+  const { default: Page } = app.load('presentation/pages/LoginPage')
+  const { ApplicationServicesProvider } = app.load('presentation/context/ApplicationServicesContext')
+  const queries = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+  const navigations = []
+  const previousWindow = globalThis.window
+  globalThis.window = { location: { assign: (url) => navigations.push(url) } }
+  let view
+  act(() => {
+    view = TestRenderer.create(React.createElement(ApplicationServicesProvider, { services: { auth: app.auth } },
+      React.createElement(QueryClientProvider, { client: queries },
+        React.createElement(MemoryRouter, { initialEntries: ['/login'], future: { v7_startTransition: true, v7_relativeSplatPath: true } },
+          React.createElement(Page)))))
+  })
+  t.after(() => { act(() => view.unmount()); queries.clear(); globalThis.window = previousWindow })
+  const button = (label) => view.root.findAllByType('button').find((item) => item.children.filter((child) => typeof child === 'string').join('') === label)
+  return { view, queries, navigations, button }
+}
+
+test('a remembered Jira account does not automatically resume after the ordinary session is rejected', async (t) => {
+  const app = setup()
+  const requests = []
+  app.client.defaults.adapter = async (config) => {
+    requests.push({ url: config.url, method: config.method })
+    if (config.url === '/auth/providers') return response(config, { jira: { enabled: true, remembered: true } })
+    if (config.url === '/auth/refresh' || config.url === '/auth/me') fail(config, 401)
+    throw new Error(`Unexpected remembered-login request ${config.url}`)
+  }
+  const surface = mountJiraLogin(t, app)
+  await until(() => surface.button('이전 Jira 계정으로 로그인'))
+  await settle()
+  assert.equal(app.store.getState().sessionReady, true)
+  assert.equal(app.store.getState().accessToken, null)
+  assert.ok(surface.button('다른 Jira 계정으로 로그인'))
+  assert.ok(surface.button('기억한 계정 해제'))
+  assert.deepEqual(requests.map(({ url }) => url).sort(), ['/auth/me', '/auth/providers', '/auth/refresh'])
+  assert.deepEqual(surface.navigations, [])
+  assert.equal(app.redirects, 0)
+})
+
+test('clicking the remembered Jira account resumes with an explicit request and follows the relative return URL', async (t) => {
+  const app = setup()
+  app.store.getState().clearAuth()
+  const pending = deferred()
+  const starts = []
+  app.client.defaults.adapter = async (config) => {
+    if (config.url === '/auth/providers') return response(config, { jira: { enabled: true, remembered: true } })
+    if (config.url === '/auth/jira/start') {
+      starts.push({ method: config.method, data: JSON.parse(config.data), credentials: config.withCredentials })
+      await pending.promise
+      return response(config, { authorization_url: '/' })
+    }
+    throw new Error(`Unexpected remembered-login request ${config.url}`)
+  }
+  const surface = mountJiraLogin(t, app)
+  await until(() => surface.button('이전 Jira 계정으로 로그인'))
+  assert.equal(starts.length, 0)
+  act(() => surface.button('이전 Jira 계정으로 로그인').props.onClick())
+  await until(() => starts.length === 1 && surface.button('로그인 중...'))
+  assert.ok(surface.view.root.findAllByType('button').every((button) => button.props.disabled))
+  assert.deepEqual(surface.navigations, [])
+  await act(async () => { pending.resolve() })
+  await until(() => surface.navigations.length === 1)
+  assert.deepEqual(starts, [{ method: 'post', data: { force_authorization: false }, credentials: true }])
+  assert.deepEqual(surface.navigations, ['/'])
+  assert.equal(app.store.getState().accessToken, null)
+})
+
+test('choosing a different Jira account forces authorization instead of resuming the remembered account', async (t) => {
+  const app = setup()
+  app.store.getState().clearAuth()
+  const starts = []
+  const authorizationUrl = 'https://auth.atlassian.com/authorize?state=new-account'
+  app.client.defaults.adapter = async (config) => {
+    if (config.url === '/auth/providers') return response(config, { jira: { enabled: true, remembered: true } })
+    if (config.url === '/auth/jira/start') {
+      starts.push({ method: config.method, data: JSON.parse(config.data), credentials: config.withCredentials })
+      return response(config, { authorization_url: authorizationUrl })
+    }
+    throw new Error(`Unexpected account-switch request ${config.url}`)
+  }
+  const surface = mountJiraLogin(t, app)
+  await until(() => surface.button('다른 Jira 계정으로 로그인'))
+  act(() => surface.button('다른 Jira 계정으로 로그인').props.onClick())
+  await until(() => surface.navigations.length === 1)
+  assert.deepEqual(starts, [{ method: 'post', data: { force_authorization: true }, credentials: true }])
+  assert.deepEqual(surface.navigations, [authorizationUrl])
+  assert.equal(app.store.getState().accessToken, null)
+})
+
+test('forgetting a Jira account rechecks providers and resets the login choices without starting authorization', async (t) => {
+  const app = setup()
+  app.store.getState().clearAuth()
+  const pending = deferred()
+  const requests = []
+  let remembered = true
+  app.client.defaults.adapter = async (config) => {
+    requests.push({ url: config.url, method: config.method, credentials: config.withCredentials })
+    if (config.url === '/auth/providers') return response(config, { jira: { enabled: true, remembered } })
+    if (config.url === '/auth/jira/forget') {
+      await pending.promise
+      remembered = false
+      return response(config, {})
+    }
+    throw new Error(`Unexpected forget-account request ${config.url}`)
+  }
+  const surface = mountJiraLogin(t, app)
+  await until(() => surface.button('기억한 계정 해제'))
+  act(() => surface.button('기억한 계정 해제').props.onClick())
+  await until(() => requests.some(({ url }) => url === '/auth/jira/forget') && surface.button('기억한 계정 해제').props.disabled)
+  assert.ok(surface.view.root.findAllByType('button').every((button) => button.props.disabled))
+  assert.equal(requests.filter(({ url }) => url === '/auth/providers').length, 1)
+  await act(async () => { pending.resolve() })
+  await until(() => surface.button('Jira 계정으로 로그인'))
+  assert.equal(surface.button('기억한 계정 해제'), undefined)
+  assert.equal(surface.button('다른 Jira 계정으로 로그인'), undefined)
+  assert.equal(surface.button('Jira 계정으로 로그인').props.disabled, false)
+  assert.equal(surface.queries.getQueryData(['auth-providers']).jira.remembered, false)
+  assert.deepEqual(requests, [
+    { url: '/auth/providers', method: 'get', credentials: true },
+    { url: '/auth/jira/forget', method: 'post', credentials: true },
+    { url: '/auth/providers', method: 'get', credentials: true },
+  ])
+  assert.deepEqual(surface.navigations, [])
+  assert.equal(app.store.getState().accessToken, null)
+})
+
 for (const provider of ['local', 'jira']) {
   test(`${provider} identity stays in memory and refresh restores its name after legacy identity storage is removed`, async () => {
     const entries = new Map([

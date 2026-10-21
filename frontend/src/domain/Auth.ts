@@ -23,7 +23,7 @@ export interface MeResponse {
 }
 
 export interface AuthProviders {
-  jira: { enabled: boolean }
+  jira: { enabled: boolean; remembered?: boolean }
 }
 
 export interface JiraLoginStartResponse {
