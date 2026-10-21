@@ -46,25 +46,26 @@ const jira = { username: 'jira:cloud:account-a', display_name: '동일 이름', 
 function item(overrides = {}) { return { id: 'notification-a', group_id: 'group-a', title: '담당자가 변경되었습니다', message: '실제 Jira 알림', url: 'https://jira.example.test/browse/TAC-1', actor: '동료', created_at: '2026-10-21T03:00:00Z', category: 'direct', is_read: false, group_size: 1, ...overrides } }
 function page(items = [item()], next_cursor = null, connection_status = 'connected') { return { items, next_cursor, connection_status } }
 function readResult(overrides = {}) { return { connection_status: 'connected', notification_id: 'notification-a', group_id: 'group-a', is_read: true, ...overrides } }
+function readAllResult(overrides = {}) { return { connection_status: 'connected', category: 'all', is_read: true, ...overrides } }
 function deferred() { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no }); return { promise, resolve, reject } }
 async function until(predicate) { const deadline = Date.now() + 3000; while (!predicate()) { assert.ok(Date.now() < deadline, 'Timed out waiting for state'); await act(async () => { await new Promise((resolve) => setTimeout(resolve, 15)) }) } }
 function makeStore(token = 'session-a') { return create((set) => ({ accessToken: token, username: '동일 이름', loginRequired: true, setAuth: (accessToken) => set({ accessToken }), clearAuth: () => set({ accessToken: null }), setLoginRequired() {} })) }
 
-function setupHook(t, { me = async () => jira, getNotifications = async () => page(), markRead = async (request) => readResult(request), token = 'session-a' } = {}) {
+function setupHook(t, { me = async () => jira, getNotifications = async () => page(), markRead = async (request) => readResult(request), markAllRead = async (request) => readAllResult(request), token = 'session-a', unreadOnly = false } = {}) {
   const store = makeStore(token)
   const instance = sourceLoader({ 'presentation/state/authStore': { useAuthStore: store } })
   const { ApplicationServicesProvider } = instance('presentation/context/ApplicationServicesContext')
   const { useJiraNotifications } = instance('presentation/hooks/useJiraNotifications')
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
-  let observed, view
-  function Probe({ category }) { observed = useJiraNotifications(category); return null }
-  const element = (category) => React.createElement(ApplicationServicesProvider, { services: { auth: { me }, jiraNotifications: { getNotifications, markRead } } }, React.createElement(QueryClientProvider, { client }, React.createElement(Probe, { category })))
-  act(() => { view = TestRenderer.create(element('all')) })
+  let observed, view, selectedCategory = 'all', selectedUnread = unreadOnly
+  function Probe({ category, unread }) { observed = useJiraNotifications(category, unread); return null }
+  const element = () => React.createElement(ApplicationServicesProvider, { services: { auth: { me }, jiraNotifications: { getNotifications, markRead, markAllRead } } }, React.createElement(QueryClientProvider, { client }, React.createElement(Probe, { category: selectedCategory, unread: selectedUnread })))
+  act(() => { view = TestRenderer.create(element()) })
   t.after(() => { act(() => view.unmount()); client.clear() })
-  return { store, client, category(value) { act(() => view.update(element(value))) }, unmount() { act(() => view.unmount()) }, get observed() { return observed } }
+  return { store, client, category(value) { selectedCategory = value; act(() => view.update(element())) }, unread(value) { selectedUnread = value; act(() => view.update(element())) }, unmount() { act(() => view.unmount()) }, get observed() { return observed } }
 }
 
-function setupSidebar(t, { me = async () => jira, getNotifications = async () => page(), markRead = async (request) => readResult(request), startJira = async () => ({ authorization_url: 'https://auth.example.test/authorize' }), collapsed = false, mobileOpen = false, layout = false } = {}) {
+function setupSidebar(t, { me = async () => jira, getNotifications = async () => page(), markRead = async (request) => readResult(request), markAllRead = async (request) => readAllResult(request), startJira = async () => ({ authorization_url: 'https://auth.example.test/authorize' }), collapsed = false, mobileOpen = false, layout = false } = {}) {
   const previous = { document: globalThis.document, Node: globalThis.Node, window: globalThis.window }
   const listeners = new Map()
   class NodeStub { isConnected = true; focused = 0; focus() { this.focused++ } contains(target) { return target === this } }
@@ -91,7 +92,7 @@ function setupSidebar(t, { me = async () => jira, getNotifications = async () =>
   const trigger = new NodeStub()
   const panel = new NodeStub()
   let view
-  const element = (props) => React.createElement(ApplicationServicesProvider, { services: { auth: { me, startJira, logout: async () => {} }, jiraNotifications: { getNotifications, markRead } } }, React.createElement(QueryClientProvider, { client }, React.createElement(MemoryRouter, null, layout ? React.createElement(Layout) : React.createElement(Sidebar, { collapsed, mobileOpen, setCollapsed: () => {}, ...props }))))
+  const element = (props) => React.createElement(ApplicationServicesProvider, { services: { auth: { me, startJira, logout: async () => {} }, jiraNotifications: { getNotifications, markRead, markAllRead } } }, React.createElement(QueryClientProvider, { client }, React.createElement(MemoryRouter, null, layout ? React.createElement(Layout) : React.createElement(Sidebar, { collapsed, mobileOpen, setCollapsed: () => {}, ...props }))))
   act(() => { view = TestRenderer.create(element(), { createNodeMock: ({ props }) => props.role === 'dialog' ? panel : null }) })
   t.after(() => { act(() => view.unmount()); client.clear(); Object.assign(globalThis, previous) })
   return { view, client, store, trigger, panel, redirects, listeners, update(props) { act(() => view.update(element(props))) }, outside: () => new NodeStub(), open() { act(() => view.root.findByProps({ 'aria-label': 'Jira 알림' }).props.onClick({ currentTarget: trigger })) } }
@@ -119,15 +120,17 @@ test('confirmed reads match both notification and group IDs and leave newer head
 test('notification adapter forwards feed parameters and read identity with cancellation through the shared client', async () => {
   const calls = []
   const response = page()
-  const instance = sourceLoader({ 'infrastructure/api/client': { default: { async get(...args) { calls.push(args); return { data: response } }, async post(...args) { calls.push(args); return { data: readResult() } } } } })
+  const instance = sourceLoader({ 'infrastructure/api/client': { default: { async get(...args) { calls.push(args); return { data: response } }, async post(...args) { calls.push(args); return { data: args[0].endsWith('read-all') ? readAllResult(args[1]) : readResult() } } } } })
   const { jiraNotificationApi } = instance('infrastructure/api/jiraNotificationApi')
   const signal = new AbortController().signal
-  assert.equal(await jiraNotificationApi.getNotifications({ category: 'watching', cursor: 'opaque/+=' }, signal), response)
-  assert.deepEqual(calls, [['/jira/notifications', { params: { category: 'watching', cursor: 'opaque/+=' }, signal }]])
+  assert.equal(await jiraNotificationApi.getNotifications({ category: 'watching', cursor: 'opaque/+=', unread_only: true }, signal), response)
+  assert.deepEqual(calls, [['/jira/notifications', { params: { category: 'watching', cursor: 'opaque/+=', unread_only: true }, signal }]])
   const request = { notification_id: 'notification-a', group_id: 'group-a', category: 'direct' }
   assert.deepEqual(await jiraNotificationApi.markRead(request, signal), readResult())
   assert.deepEqual(calls[1], ['/jira/notifications/read', request, { signal }])
-  assert.deepEqual(Object.keys(jiraNotificationApi), ['getNotifications', 'markRead'])
+  assert.deepEqual(await jiraNotificationApi.markAllRead({ category: 'watching' }, signal), readAllResult({ category: 'watching' }))
+  assert.deepEqual(calls[2], ['/jira/notifications/read-all', { category: 'watching' }, { signal }])
+  assert.deepEqual(Object.keys(jiraNotificationApi), ['getNotifications', 'markRead', 'markAllRead'])
 })
 
 test('feed waits for server identity, and local, guest or failed identity never starts requests', async (t) => {
@@ -155,16 +158,16 @@ test('pagination uses server cursor, deduplicates notifications, stops repeated 
   await until(() => state.observed.items.length === 1)
   act(() => { state.observed.loadMore(); state.observed.loadMore() })
   await until(() => state.observed.items.length === 2)
-  assert.deepEqual(calls, [{ category: 'all' }, { category: 'all', cursor: 'next' }])
+  assert.deepEqual(calls, [{ category: 'all', unread_only: false }, { category: 'all', unread_only: false, cursor: 'next' }])
   assert.equal(state.observed.hasMore, false)
   await act(async () => state.observed.refresh())
-  assert.deepEqual(state.client.getQueryData(['jira-notifications', 'session-a', 'all']).pageParams, [null])
+  assert.deepEqual(state.client.getQueryData(['jira-notifications', 'session-a', 'all', false]).pageParams, [null])
   await until(() => state.observed.items.length === 1 && !state.observed.isFetching)
-  assert.deepEqual(calls.at(-1), { category: 'all' })
+  assert.deepEqual(calls.at(-1), { category: 'all', unread_only: false })
   assert.deepEqual(state.observed.items.map((row) => row.id), ['notification-a'])
   state.category('direct')
   await until(() => calls.at(-1).category === 'direct' && !state.observed.isFetching)
-  assert.deepEqual(calls.at(-1), { category: 'direct' })
+  assert.deepEqual(calls.at(-1), { category: 'direct', unread_only: false })
 })
 
 test('pagination errors and reconnect responses hide all previous notifications', async (t) => {
@@ -182,6 +185,146 @@ test('pagination errors and reconnect responses hide all previous notifications'
   await until(() => state.observed.reconnectRequired)
   assert.deepEqual(state.observed.items, [])
   assert.equal(state.observed.hasMore, false)
+})
+
+test('unread-only is sent for every category and page, and confirmed individual reads disappear without resetting the cursor', async (t) => {
+  const calls = []
+  const state = setupHook(t, { unreadOnly: true, getNotifications: async (request) => {
+    calls.push(request)
+    return request.cursor ? page([item({ id: 'next-unread' })]) : page([item()], 'next')
+  } })
+  await until(() => state.observed.items.length === 1)
+  assert.deepEqual(calls[0], { category: 'all', unread_only: true })
+  await act(async () => state.observed.markRead(item()))
+  await until(() => state.observed.items.length === 0)
+  assert.equal(state.observed.hasMore, true)
+  assert.equal(calls.length, 1)
+  assert.deepEqual(state.client.getQueryData(['jira-notifications', 'session-a', 'all', true]).pageParams, [null])
+  act(() => state.observed.loadMore())
+  await until(() => state.observed.items.length === 1)
+  assert.equal(state.observed.items[0].id, 'next-unread')
+  assert.deepEqual(calls[1], { category: 'all', unread_only: true, cursor: 'next' })
+  for (const category of ['direct', 'watching']) {
+    state.category(category)
+    await until(() => calls.at(-1).category === category && !state.observed.isFetching)
+    assert.equal(calls.at(-1).unread_only, true)
+  }
+  state.unread(false)
+  await until(() => calls.at(-1).unread_only === false && !state.observed.isFetching)
+  assert.deepEqual(calls.at(-1), { category: 'watching', unread_only: false })
+})
+
+test('bulk read covers the server category beyond a fully read first page and reloads every filter without marking new heads read', async (t) => {
+  const pending = deferred()
+  const bulkCalls = []
+  let loads = 0, individualCalls = 0, request
+  const state = setupHook(t, {
+    getNotifications: async () => ++loads === 1 ? page(Array.from({ length: 30 }, (_, i) => item({ id: `read-${i}`, is_read: true })), 'unseen-page') : page([item({ id: 'new-head' }), item({ id: 'old-head', is_read: true })]),
+    markRead: async () => { individualCalls++; return readResult() },
+    markAllRead: (value, signal) => { bulkCalls.push([value, signal]); return pending.promise },
+  })
+  await until(() => state.observed.items.length === 30)
+  assert.equal(state.observed.canMarkAllRead, true)
+  state.client.setQueryDefaults(['jira-notifications'], { gcTime: Infinity })
+  for (const category of ['all', 'direct', 'watching']) for (const unread of [true, false]) {
+    if (category === 'all' && !unread) continue
+    state.client.setQueryData(['jira-notifications', 'session-a', category, unread], { pages: [page()], pageParams: [null] })
+  }
+  state.client.setQueryData(['jira-notifications', 'another-session', 'all', false], { pages: [page()], pageParams: [null] })
+  act(() => { request = state.observed.markAllRead(); void state.observed.markAllRead(); void state.observed.markRead(item()) })
+  assert.deepEqual(bulkCalls.map(([value]) => value), [{ category: 'all' }])
+  assert.equal(individualCalls, 0)
+  assert.equal(state.observed.isMarkingAllRead, true)
+  assert.equal(state.observed.canMarkAllRead, false)
+  await act(async () => { pending.resolve(readAllResult()); await request })
+  await until(() => !state.observed.isMarkingAllRead && state.observed.items.length === 2)
+  assert.equal(loads, 2)
+  assert.deepEqual(state.observed.items.map((value) => [value.id, value.is_read]), [['new-head', false], ['old-head', true]])
+  for (const category of ['all', 'direct', 'watching']) for (const unread of [true, false]) {
+    if (category === 'all' && !unread) continue
+    assert.equal(state.client.getQueryData(['jira-notifications', 'session-a', category, unread]), undefined)
+  }
+  assert.equal(state.client.getQueryData(['jira-notifications', 'another-session', 'all', false]).pages[0].items[0].is_read, false)
+  assert.deepEqual(state.client.getQueryData(['jira-notifications', 'session-a', 'all', false]).pageParams, [null])
+})
+
+test('individual reads block bulk writes until complete and bulk category stays fixed when the user changes tabs', async (t) => {
+  const single = deferred(), bulk = deferred()
+  const calls = [], fetches = []
+  let singleRequest, bulkRequest
+  const state = setupHook(t, { getNotifications: async (value) => { fetches.push(value); return page() }, markRead: () => single.promise, markAllRead: (value) => { calls.push(value); return bulk.promise } })
+  await until(() => state.observed.items.length === 1)
+  act(() => { singleRequest = state.observed.markRead(item()); void state.observed.markAllRead() })
+  assert.equal(calls.length, 0)
+  assert.equal(state.observed.canMarkAllRead, false)
+  await act(async () => { single.resolve(readResult()); await singleRequest })
+  state.category('direct')
+  await until(() => fetches.at(-1).category === 'direct' && !state.observed.isFetching)
+  act(() => { bulkRequest = state.observed.markAllRead() })
+  state.category('watching')
+  await until(() => fetches.at(-1).category === 'watching' && !state.observed.isFetching)
+  assert.equal(state.observed.isMarkingAllRead, true)
+  await act(async () => { bulk.resolve(readAllResult({ category: 'direct' })); await bulkRequest })
+  assert.deepEqual(calls, [{ category: 'direct' }])
+  assert.equal(fetches.at(-1).category, 'watching')
+  assert.equal(state.observed.items[0].is_read, false)
+  assert.equal(state.observed.bulkError, null)
+})
+
+test('failed or unconfirmed bulk results reload actual server state and can be retried even when every returned item is read', async (t) => {
+  for (const outcome of [new Error('timeout'), readAllResult({ is_read: false }), readAllResult({ category: 'direct' })]) {
+    await t.test(outcome instanceof Error ? 'network failure' : JSON.stringify(outcome), async (t) => {
+      let attempts = 0, loads = 0
+      const state = setupHook(t, { getNotifications: async () => page([item({ is_read: ++loads > 1 })]), markAllRead: async () => {
+        if (++attempts === 1) { if (outcome instanceof Error) throw outcome; return outcome }
+        return readAllResult()
+      } })
+      await until(() => state.observed.items.length === 1)
+      await act(async () => state.observed.markAllRead())
+      await until(() => state.observed.items[0]?.is_read)
+      assert.equal(state.observed.bulkError, 'all')
+      assert.equal(state.observed.canMarkAllRead, true)
+      assert.equal(loads, 2)
+      await act(async () => state.observed.markAllRead())
+      assert.equal(state.observed.bulkError, null)
+      assert.equal(loads, 3)
+      assert.equal(attempts, 2)
+    })
+  }
+})
+
+test('bulk reconnect response suppresses stale items and cannot be retried without reconnecting', async (t) => {
+  let requests = 0, loads = 0
+  const state = setupHook(t, { getNotifications: async () => { loads++; return page() }, markAllRead: async () => { requests++; return readAllResult({ connection_status: 'reconnect_required', is_read: false }) } })
+  await until(() => state.observed.items.length === 1)
+  await act(async () => state.observed.markAllRead())
+  assert.equal(state.observed.reconnectRequired, true)
+  assert.deepEqual(state.observed.items, [])
+  assert.equal(state.observed.canMarkAllRead, false)
+  await act(async () => state.observed.markAllRead())
+  assert.equal(requests, 1)
+  assert.equal(loads, 1)
+})
+
+test('session changes cancel bulk requests and late results cannot reset the newer session', async (t) => {
+  for (const fail of [true, false]) {
+    await t.test(fail ? 'late failure' : 'late success', async (t) => {
+      const pending = deferred()
+      let signal, request, loads = 0
+      const state = setupHook(t, { getNotifications: async () => { loads++; return page() }, markAllRead: (_request, value) => { signal = value; return pending.promise } })
+      await until(() => state.observed.items.length === 1)
+      act(() => { request = state.observed.markAllRead() })
+      act(() => state.store.getState().setAuth('session-b'))
+      await until(() => state.observed.items.length === 1 && !state.observed.isFetching)
+      assert.equal(signal.aborted, true)
+      const loadsBeforeCompletion = loads
+      await act(async () => { if (fail) pending.reject(new Error('late failure')); else pending.resolve(readAllResult()); await request })
+      assert.equal(loads, loadsBeforeCompletion)
+      assert.equal(state.observed.items[0].is_read, false)
+      assert.equal(state.observed.isMarkingAllRead, false)
+      assert.equal(state.observed.bulkError, null)
+    })
+  }
 })
 
 test('session token changes cancel old requests and do not expose same-display-name account data', async (t) => {
@@ -206,8 +349,8 @@ test('read waits for confirmation, suppresses duplicate requests and updates eve
   const state = setupHook(t, { markRead: (request, signal) => { calls.push([request, signal]); return pending.promise } })
   await until(() => state.observed.items.length === 1)
   state.client.setQueryDefaults(['jira-notifications'], { gcTime: Infinity })
-  state.client.setQueryData(['jira-notifications', 'session-a', 'watching'], { pages: [page([item(), item({ id: 'newer-head' })]), page([item(), item({ group_id: 'other-group' })])], pageParams: [null, 'next'] })
-  state.client.setQueryData(['jira-notifications', 'another-session', 'all'], { pages: [page()], pageParams: [null] })
+  state.client.setQueryData(['jira-notifications', 'session-a', 'watching', false], { pages: [page([item(), item({ id: 'newer-head' })]), page([item(), item({ group_id: 'other-group' })])], pageParams: [null, 'next'] })
+  state.client.setQueryData(['jira-notifications', 'another-session', 'all', false], { pages: [page()], pageParams: [null] })
   let request
   act(() => { request = state.observed.markRead(item()); void state.observed.markRead(item()) })
   assert.equal(calls.length, 1)
@@ -217,8 +360,8 @@ test('read waits for confirmation, suppresses duplicate requests and updates eve
   await act(async () => { pending.resolve(readResult()); await request })
   await until(() => state.observed.items[0].is_read)
   assert.equal(state.observed.isMarkingRead(item()), false)
-  assert.deepEqual(state.client.getQueryData(['jira-notifications', 'session-a', 'watching']).pages.map((value) => value.items.map((row) => row.is_read)), [[true, false], [true, false]])
-  assert.equal(state.client.getQueryData(['jira-notifications', 'another-session', 'all']).pages[0].items[0].is_read, false)
+  assert.deepEqual(state.client.getQueryData(['jira-notifications', 'session-a', 'watching', false]).pages.map((value) => value.items.map((row) => row.is_read)), [[true, false], [true, false]])
+  assert.equal(state.client.getQueryData(['jira-notifications', 'another-session', 'all', false]).pages[0].items[0].is_read, false)
   await act(async () => state.observed.markRead(item()))
   await act(async () => state.observed.markRead(item({ is_read: true })))
   assert.equal(calls.length, 1)
@@ -333,6 +476,72 @@ test('Sidebar shows identity and Jira notifications above logout, mounts one pan
   act(() => app.listeners.get('pointerdown')({ target: app.outside() }))
   assert.equal(app.view.root.findAllByProps({ role: 'dialog' }).length, 0)
   assert.equal(app.trigger.focused, 2)
+})
+
+test('panel combines unread filtering with the selected category and bulk read uses server state for later arrivals', async (t) => {
+  const bulk = deferred(), fetches = [], writes = []
+  let completed = false, individualWrites = 0
+  const app = setupSidebar(t, {
+    getNotifications: async (request) => {
+      fetches.push(request)
+      const rows = completed ? [item({ id: 'new-arrival' })] : [item(), item({ id: 'already-read', is_read: true })]
+      return page(rows.filter((value) => !request.unread_only || !value.is_read))
+    },
+    markAllRead: (request) => { writes.push(request); return bulk.promise },
+    markRead: async () => { individualWrites++; return readResult() },
+  })
+  await until(() => app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' }).length === 1)
+  app.open()
+  await until(() => app.view.root.findAllByProps({ 'data-notification-id': 'already-read' }).length === 1)
+  assert.ok(JSON.stringify(app.view.toJSON()).includes('선택한 분류의 모든 알림을 읽음 처리합니다.'))
+  act(() => app.view.root.findByProps({ 'aria-label': '읽지 않은 알림만' }).props.onChange({ target: { checked: true } }))
+  await until(() => fetches.at(-1).unread_only === true && app.view.root.findAllByProps({ 'data-notification-id': 'notification-a' }).length === 1)
+  assert.equal(app.view.root.findAllByProps({ 'data-notification-id': 'already-read' }).length, 0)
+  act(() => app.view.root.findAllByType('button').find((node) => node.children.includes('직접')).props.onClick())
+  await until(() => fetches.at(-1).category === 'direct' && app.view.root.findAllByProps({ 'data-notification-id': 'notification-a' }).length === 1)
+  assert.deepEqual(fetches.at(-1), { category: 'direct', unread_only: true })
+  act(() => app.view.root.findByProps({ 'aria-label': '모두 읽음 처리' }).props.onClick())
+  assert.deepEqual(writes, [{ category: 'direct' }])
+  assert.equal(app.view.root.findByProps({ 'aria-label': '모두 읽음 처리' }).props.disabled, true)
+  assert.equal(app.view.root.findByProps({ 'aria-label': `${item().title} 읽음 처리` }).props.disabled, true)
+  act(() => app.view.root.findByProps({ 'data-notification-id': 'notification-a' }).findByType('a').props.onClick())
+  assert.equal(individualWrites, 0)
+  await act(async () => { completed = true; bulk.resolve(readAllResult({ category: 'direct' })) })
+  await until(() => app.view.root.findAllByProps({ 'data-notification-id': 'new-arrival' }).length === 1 && !app.view.root.findByProps({ 'aria-label': '모두 읽음 처리' }).props.disabled)
+  assert.ok(app.view.root.findByProps({ 'data-notification-id': 'new-arrival' }).findAllByType('span').some((node) => node.children.includes('읽지 않음')))
+})
+
+test('unread panel removes individually read items immediately and keeps bulk access when the connected result is empty', async (t) => {
+  const app = setupSidebar(t)
+  await until(() => app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' }).length === 1)
+  app.open()
+  await until(() => app.view.root.findAllByProps({ 'data-notification-id': 'notification-a' }).length === 1)
+  act(() => app.view.root.findByProps({ 'aria-label': '읽지 않은 알림만' }).props.onChange({ target: { checked: true } }))
+  await until(() => app.view.root.findAllByProps({ 'data-notification-id': 'notification-a' }).length === 1)
+  act(() => app.view.root.findByProps({ 'aria-label': `${item().title} 읽음 처리` }).props.onClick())
+  await until(() => app.view.root.findAllByProps({ 'data-notification-id': 'notification-a' }).length === 0)
+  assert.ok(JSON.stringify(app.view.toJSON()).includes('읽지 않은 Jira 알림이 없습니다.'))
+  assert.equal(app.view.root.findByProps({ 'aria-label': '모두 읽음 처리' }).props.disabled, false)
+})
+
+test('closing a bulk operation aborts it and ignores its late success after reopening the panel', async (t) => {
+  const bulk = deferred()
+  let signal, loads = 0
+  const app = setupSidebar(t, { getNotifications: async () => { loads++; return page() }, markAllRead: (_request, value) => { signal = value; return bulk.promise } })
+  await until(() => app.view.root.findAllByProps({ 'aria-label': 'Jira 알림' }).length === 1)
+  app.open()
+  await until(() => !app.view.root.findByProps({ 'aria-label': '모두 읽음 처리' }).props.disabled)
+  act(() => app.view.root.findByProps({ 'aria-label': '모두 읽음 처리' }).props.onClick())
+  act(() => app.view.root.findByProps({ 'aria-label': 'Jira 알림 닫기' }).props.onClick())
+  assert.equal(signal.aborted, true)
+  await until(() => app.client.getQueriesData({ queryKey: ['jira-notifications'] }).length === 0)
+  app.open()
+  await until(() => app.view.root.findAllByProps({ 'data-notification-id': 'notification-a' }).length === 1)
+  const loadsBeforeCompletion = loads
+  await act(async () => bulk.resolve(readAllResult()))
+  assert.equal(loads, loadsBeforeCompletion)
+  assert.ok(JSON.stringify(app.view.toJSON()).includes('읽지 않음'))
+  assert.equal(app.view.root.findByProps({ 'aria-label': '모두 읽음 처리' }).props.disabled, false)
 })
 
 test('read button supports linkless notifications, pending feedback and retry without changing unread state on failure', async (t) => {

@@ -43,7 +43,111 @@ class JiraNotificationsUseCaseTest(unittest.IsolatedAsyncioTestCase):
     async def test_uses_only_the_authenticated_users_grant(self) -> None:
         result = await self.use_case.execute(self.identity, category="watching", cursor="cursor-one")
         self.assertEqual(notification_page(), result)
-        self.source.fetch.assert_awaited_once_with(self.grant, category="watching", cursor="cursor-one")
+        self.source.fetch.assert_awaited_once_with(self.grant, category="watching", cursor="cursor-one", unread_only=False)
+
+    async def test_unread_filter_is_forwarded_upstream_with_pagination(self) -> None:
+        result = await self.use_case.execute(self.identity, category="direct", cursor="next", unread_only=True)
+        self.assertEqual(notification_page(), result)
+        self.source.fetch.assert_awaited_once_with(self.grant, category="direct", cursor="next", unread_only=True)
+
+    async def test_read_all_uses_authenticated_grant_and_category_without_fetching_a_page(self) -> None:
+        self.source.mark_all_read.return_value = None
+        for category in (None, "direct", "watching"):
+            with self.subTest(category=category):
+                self.assertIsNone(await self.use_case.mark_all_read(self.identity, category=category))
+                self.source.mark_all_read.assert_awaited_with(self.grant, category=category)
+        self.assertEqual(3, self.source.mark_all_read.await_count)
+        self.source.fetch.assert_not_awaited()
+        self.source.mark_read.assert_not_awaited()
+
+    async def test_read_all_rejects_other_accounts_sites_and_missing_grants(self) -> None:
+        for identity in (replace(self.identity, username="jira:cloud:other"), replace(self.identity, username="jira:other:user-one"), replace(self.identity, jira_grant_id=None)):
+            with self.assertRaises(JiraNotificationsReconnectRequired):
+                await self.use_case.mark_all_read(identity)
+        with self.assertRaises(PermissionError):
+            await self.use_case.mark_all_read(AuthIdentity("admin", "관리자"))
+        self.source.mark_all_read.assert_not_awaited()
+        self.assertIsNotNone(await self.store.get(self.identity.jira_grant_id, self.identity))
+
+    async def test_read_all_rechecks_grant_before_and_after_mutation(self) -> None:
+        self.use_case._slots = asyncio.Semaphore(0)
+        task = asyncio.create_task(self.use_case.mark_all_read(self.identity))
+        try:
+            await asyncio.sleep(0)
+            await self.store.revoke(self.identity.jira_grant_id, self.identity)
+            self.use_case._slots.release()
+            with self.assertRaises(JiraNotificationsReconnectRequired):
+                await task
+            self.source.mark_all_read.assert_not_awaited()
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        grant_id = await self.store.put(self.grant, self.identity)
+        self.identity = replace(self.identity, jira_grant_id=grant_id)
+
+        async def mark_all_read(*args, **kwargs):
+            await self.store.clear()
+
+        self.source.mark_all_read.side_effect = mark_all_read
+        with self.assertRaises(JiraNotificationsReconnectRequired):
+            await self.use_case.mark_all_read(self.identity)
+
+    async def test_read_all_transient_error_preserves_grant_but_auth_error_revokes_it(self) -> None:
+        self.source.mark_all_read.side_effect = JiraNotificationsUnavailable("private upstream data")
+        with self.assertRaises(JiraNotificationsUnavailable):
+            await self.use_case.mark_all_read(self.identity)
+        self.assertIsNotNone(await self.store.get(self.identity.jira_grant_id, self.identity))
+        self.source.mark_all_read.side_effect = JiraNotificationsReconnectRequired()
+        with self.assertRaises(JiraNotificationsReconnectRequired):
+            await self.use_case.mark_all_read(self.identity)
+        self.assertIsNone(await self.store.get(self.identity.jira_grant_id, self.identity))
+
+    async def test_read_all_timeout_covers_queue_and_cancels_inflight_request(self) -> None:
+        timeout = asyncio.timeout
+        self.use_case._slots = asyncio.Semaphore(0)
+        with patch("src.application.use_cases.jira_notifications.asyncio.timeout", side_effect=lambda _: timeout(0.01)):
+            with self.assertRaises(JiraNotificationsUnavailable):
+                await self.use_case.mark_all_read(self.identity)
+        self.source.mark_all_read.assert_not_awaited()
+        self.use_case._slots.release()
+        cancelled = asyncio.Event()
+
+        async def mark_all_read(*args, **kwargs):
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+
+        self.source.mark_all_read.side_effect = mark_all_read
+        with patch("src.application.use_cases.jira_notifications.asyncio.timeout", side_effect=lambda _: timeout(0.01)):
+            with self.assertRaises(JiraNotificationsUnavailable):
+                await self.use_case.mark_all_read(self.identity)
+        self.assertTrue(cancelled.is_set())
+        self.source.mark_all_read.side_effect = None
+        await asyncio.wait_for(self.use_case.mark_all_read(self.identity), 1)
+        self.assertIsNotNone(await self.store.get(self.identity.jira_grant_id, self.identity))
+
+    async def test_cancelled_read_all_propagates_and_releases_capacity(self) -> None:
+        entered = asyncio.Event()
+
+        async def mark_all_read(*args, **kwargs):
+            entered.set()
+            await asyncio.Event().wait()
+
+        self.use_case._slots = asyncio.Semaphore(1)
+        self.source.mark_all_read.side_effect = mark_all_read
+        task = asyncio.create_task(self.use_case.mark_all_read(self.identity))
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+            self.source.mark_all_read.side_effect = None
+            await asyncio.wait_for(self.use_case.mark_all_read(self.identity), 1)
+            self.assertIsNotNone(await self.store.get(self.identity.jira_grant_id, self.identity))
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
 
     async def test_other_account_cannot_reuse_grant_or_fetch_data(self) -> None:
         intruder = replace(self.identity, username="jira:cloud:user-two")
@@ -204,7 +308,7 @@ class JiraNotificationsUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.source.mark_read.assert_not_awaited()
         self.assertIsNotNone(await self.store.get(self.identity.jira_grant_id, self.identity))
 
-    async def test_fetch_and_read_share_eight_upstream_slots(self) -> None:
+    async def test_fetch_read_and_read_all_share_eight_upstream_slots(self) -> None:
         entered, release = asyncio.Event(), asyncio.Event()
         active = peak = count = 0
 
@@ -223,7 +327,16 @@ class JiraNotificationsUseCaseTest(unittest.IsolatedAsyncioTestCase):
 
         self.source.fetch.side_effect = operation
         self.source.mark_read.side_effect = operation
-        tasks = [asyncio.create_task(self.use_case.execute(self.identity) if index % 2 else self.use_case.mark_read(self.identity, f"notice-{index}", "group-1", "direct")) for index in range(9)]
+        self.source.mark_all_read.side_effect = operation
+        tasks = []
+        for index in range(9):
+            if index % 3 == 0:
+                pending = self.use_case.execute(self.identity)
+            elif index % 3 == 1:
+                pending = self.use_case.mark_read(self.identity, f"notice-{index}", "group-1", "direct")
+            else:
+                pending = self.use_case.mark_all_read(self.identity)
+            tasks.append(asyncio.create_task(pending))
         try:
             await asyncio.wait_for(entered.wait(), 1)
             await asyncio.sleep(0)
@@ -280,7 +393,7 @@ class JiraNotificationsApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(200, response.status_code)
         self.assertEqual("no-store", response.headers["cache-control"])
         self.auth.resolve_access_identity.assert_awaited_once_with("app-session")
-        self.use_case.execute.assert_awaited_once_with(self.identity, category="direct", cursor="cursor")
+        self.use_case.execute.assert_awaited_once_with(self.identity, category="direct", cursor="cursor", unread_only=False)
         payload = response.json()
         self.assertEqual("connected", payload["connection_status"])
         self.assertEqual("담당자", payload["items"][0]["actor"])
@@ -315,9 +428,72 @@ class JiraNotificationsApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("items", response.json())
 
     async def test_filter_and_cursor_are_bounded_before_upstream_requests(self) -> None:
-        for suffix in ("?category=invalid", "?cursor=", "?cursor=%00", "?cursor=" + "a" * 4097):
+        for suffix in ("?category=invalid", "?cursor=", "?cursor=%00", "?cursor=" + "a" * 4097, "?unread_only=invalid"):
             self.assertEqual(422, (await self.client.get("/api/v1/jira/notifications" + suffix, headers=self.headers)).status_code)
         self.use_case.execute.assert_not_awaited()
+
+    async def test_unread_query_forwards_category_cursor_and_flag(self) -> None:
+        for flag, expected in (("true", True), ("false", False)):
+            with self.subTest(flag=flag):
+                response = await self.client.get(f"/api/v1/jira/notifications?category=watching&cursor=next&unread_only={flag}", headers=self.headers)
+                self.assertEqual(200, response.status_code)
+                self.assertEqual("no-store", response.headers["cache-control"])
+                self.assertEqual("next-page", response.json()["next_cursor"])
+                self.use_case.execute.assert_awaited_with(self.identity, category="watching", cursor="next", unread_only=expected)
+
+    async def test_read_all_success_uses_current_identity_and_selected_category(self) -> None:
+        for category in ("all", "direct", "watching"):
+            with self.subTest(category=category):
+                response = await self.client.post("/api/v1/jira/notifications/read-all", headers=self.headers, json={"category": category})
+                self.assertEqual(200, response.status_code)
+                self.assertEqual("no-store", response.headers["cache-control"])
+                self.assertEqual({"connection_status": "connected", "category": category, "is_read": True}, response.json())
+                self.use_case.mark_all_read.assert_awaited_with(self.identity, category=None if category == "all" else category)
+                for private in ("app-session", "opaque", "user-one", "access_token"):
+                    self.assertNotIn(private, response.text)
+        self.assertEqual(3, self.use_case.mark_all_read.await_count)
+        self.use_case.execute.assert_not_awaited()
+        self.use_case.mark_read.assert_not_awaited()
+
+    async def test_read_all_rejects_local_guest_missing_and_expired_sessions(self) -> None:
+        body = {"category": "all"}
+        self.auth.resolve_access_identity.return_value = AuthIdentity("admin", "관리자")
+        self.assertEqual(403, (await self.client.post("/api/v1/jira/notifications/read-all", headers=self.headers, json=body)).status_code)
+        self.auth.enabled = False
+        self.assertEqual(403, (await self.client.post("/api/v1/jira/notifications/read-all", headers=self.headers, json=body)).status_code)
+        self.auth.enabled = True
+        self.assertEqual(401, (await self.client.post("/api/v1/jira/notifications/read-all?token=app-session", json=body)).status_code)
+        self.auth.resolve_access_identity.side_effect = ValueError("private profile deleted")
+        response = await self.client.post("/api/v1/jira/notifications/read-all", headers=self.headers, json=body)
+        self.assertEqual(401, response.status_code)
+        self.assertEqual("no-store", response.headers["cache-control"])
+        self.assertNotIn("private", response.text)
+        self.use_case.mark_all_read.assert_not_awaited()
+
+    async def test_read_all_body_requires_category_and_forbids_scope_or_identity_injection(self) -> None:
+        invalid = [{}, None, [], "all"]
+        invalid.extend({"category": value} for value in (None, 1, True, [], "", "invalid", " all", "all\n"))
+        invalid.extend({"category": "all", key: "injected"} for key in ("user_id", "account_id", "grant_id", "cloud_id", "access_token", "cursor", "unread_only"))
+        for body in invalid:
+            with self.subTest(body=body):
+                self.assertEqual(422, (await self.client.post("/api/v1/jira/notifications/read-all", headers=self.headers, json=body)).status_code)
+        self.use_case.mark_all_read.assert_not_awaited()
+
+    async def test_read_all_reconnect_is_not_success_and_keeps_app_session(self) -> None:
+        self.use_case.mark_all_read.side_effect = JiraNotificationsReconnectRequired()
+        response = await self.client.post("/api/v1/jira/notifications/read-all", headers=self.headers, json={"category": "direct"})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("no-store", response.headers["cache-control"])
+        self.assertEqual({"connection_status": "reconnect_required", "category": "direct", "is_read": False}, response.json())
+
+    async def test_read_all_failure_is_safe_and_never_reports_success(self) -> None:
+        self.use_case.mark_all_read.side_effect = JiraNotificationsUnavailable("private GraphQL access_token")
+        response = await self.client.post("/api/v1/jira/notifications/read-all", headers=self.headers, json={"category": "all"})
+        self.assertEqual(503, response.status_code)
+        self.assertEqual("no-store", response.headers["cache-control"])
+        self.assertNotIn("private", response.text)
+        self.assertNotIn("access_token", response.text)
+        self.assertNotIn("is_read", response.json())
 
     async def test_read_success_uses_authenticated_identity_and_is_not_cacheable(self) -> None:
         body = {"notification_id": "notice-1", "group_id": "group-1", "category": "watching"}

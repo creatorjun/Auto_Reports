@@ -12,7 +12,7 @@ import { useAuthStore } from '@/presentation/state/authStore'
 const categories = [{ value: 'all', label: '전체' }, { value: 'direct', label: '직접' }, { value: 'watching', label: '관심' }] as const
 const timestamp = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
-function NotificationItem({ item, pending, error, onRead }: { item: JiraNotification; pending: boolean; error: string | null; onRead: (item: JiraNotification) => Promise<void> }) {
+function NotificationItem({ item, pending, disabled, error, onRead }: { item: JiraNotification; pending: boolean; disabled: boolean; error: string | null; onRead: (item: JiraNotification) => Promise<void> }) {
   const url = safeJiraNotificationUrl(item.url)
   const date = new Date(item.created_at)
   const content = <>
@@ -35,7 +35,7 @@ function NotificationItem({ item, pending, error, onRead }: { item: JiraNotifica
     <div className="flex flex-wrap items-center justify-end gap-2 px-4 pb-3">
       {error && <p role="alert" className="w-full text-caption text-red-600">{error}</p>}
       {item.is_read ? <span className="inline-flex items-center gap-1 text-caption text-apple-light"><Check size={13} aria-hidden="true" />읽음</span>
-        : <button type="button" disabled={pending || !item.group_id} onClick={() => void onRead(item)} aria-label={`${item.title} 읽음 처리`} className="inline-flex items-center gap-1.5 rounded-lg border border-apple-divider px-2.5 py-1.5 text-caption text-apple-mid hover:bg-apple-gray focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50">{pending ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Check size={13} aria-hidden="true" />}{pending ? '처리 중...' : error ? '읽음 처리 재시도' : '읽음 처리'}</button>}
+        : <button type="button" disabled={pending || disabled || !item.group_id} onClick={() => void onRead(item)} aria-label={`${item.title} 읽음 처리`} className="inline-flex items-center gap-1.5 rounded-lg border border-apple-divider px-2.5 py-1.5 text-caption text-apple-mid hover:bg-apple-gray focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50">{pending ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Check size={13} aria-hidden="true" />}{pending ? '처리 중...' : error ? '읽음 처리 재시도' : '읽음 처리'}</button>}
     </div>
   </li>
 }
@@ -50,10 +50,11 @@ interface Props {
 
 export default function JiraNotificationsPanel({ id, trigger, sessionToken, sidebarCollapsed = false, onClose }: Props) {
   const [category, setCategory] = useState<JiraNotificationCategory>('all')
+  const [unreadOnly, setUnreadOnly] = useState(false)
   const panel = useRef<HTMLElement>(null)
   const active = useRef(true)
   const { auth } = useApplicationServices()
-  const query = useJiraNotifications(category)
+  const query = useJiraNotifications(category, unreadOnly)
   const reconnect = useMutation({
     mutationFn: auth.startJira,
     onSuccess: ({ authorization_url }) => {
@@ -88,18 +89,26 @@ export default function JiraNotificationsPanel({ id, trigger, sessionToken, side
       <div className="flex items-start justify-between gap-3 border-b border-apple-divider/60 px-4 py-4">
         <div><h2 id={`${id}-title`} className="text-section-title font-semibold text-apple-dark">Jira 알림</h2><p className="mt-1 text-caption text-apple-mid">Jira의 알림과 읽음 상태를 확인합니다.</p></div>
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" disabled={query.isFetching || reconnect.isPending} onClick={() => void query.refresh()} aria-label="Jira 알림 새로고침" className="rounded-lg p-2 text-apple-mid hover:bg-apple-gray focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-40"><RefreshCw size={17} className={query.isFetching ? 'animate-spin' : ''} aria-hidden="true" /></button>
+          <button type="button" disabled={query.isFetching || query.isMarkingAllRead || reconnect.isPending} onClick={() => void query.refresh()} aria-label="Jira 알림 새로고침" className="rounded-lg p-2 text-apple-mid hover:bg-apple-gray focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-40"><RefreshCw size={17} className={query.isFetching ? 'animate-spin' : ''} aria-hidden="true" /></button>
           <button type="button" onClick={onClose} aria-label="Jira 알림 닫기" className="rounded-lg p-2 text-apple-mid hover:bg-apple-gray focus-visible:ring-2 focus-visible:ring-brand-500"><X size={18} aria-hidden="true" /></button>
         </div>
       </div>
       <div role="group" aria-label="Jira 알림 분류" className="flex gap-2 border-b border-apple-divider/60 px-4 py-3">{categories.map(({ value, label }) => <button key={value} type="button" aria-pressed={category === value} onClick={() => setCategory(value)} className={`rounded-lg px-3 py-1.5 text-control font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${category === value ? 'bg-brand-50 text-brand-700' : 'text-apple-mid hover:bg-apple-gray'}`}>{label}</button>)}</div>
+      <div className="space-y-2 border-b border-apple-divider/60 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-caption text-apple-dark"><input type="checkbox" checked={unreadOnly} onChange={(event) => setUnreadOnly(event.target.checked)} aria-label="읽지 않은 알림만" className="h-4 w-4 rounded accent-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500" />읽지 않은 알림만</label>
+          <button type="button" disabled={!query.canMarkAllRead} onClick={() => void query.markAllRead()} aria-label="모두 읽음 처리" className="inline-flex items-center gap-1.5 rounded-lg border border-apple-divider px-2.5 py-1.5 text-caption text-apple-mid hover:bg-apple-gray focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50">{query.isMarkingAllRead ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Check size={13} aria-hidden="true" />}{query.isMarkingAllRead ? '처리 중...' : '모두 읽음 처리'}</button>
+        </div>
+        <p className="text-caption text-apple-mid">선택한 분류의 모든 알림을 읽음 처리합니다.</p>
+        {query.bulkError && !query.reconnectRequired && <p role="alert" className="text-caption text-red-600">{categories.find(({ value }) => value === query.bulkError)?.label} 알림의 모두 읽음 처리 결과를 확인하지 못했습니다. 최신 상태를 확인하고 다시 시도해 주세요.</p>}
+      </div>
       <div className="min-h-0 overflow-y-auto overscroll-contain" aria-busy={query.isFetching}>
         {query.reconnectRequired ? <div className="space-y-3 px-5 py-8 text-center"><p className="text-label text-apple-dark">Jira 알림을 보려면 다시 로그인해 주세요.</p><p className="text-caption text-apple-mid">현재 Jira 계정으로 알림 조회 권한을 연결합니다.</p><button type="button" disabled={reconnect.isPending} onClick={() => reconnect.mutate()} className="rounded-xl bg-brand-600 px-4 py-2.5 text-control font-medium text-white hover:bg-brand-700 disabled:opacity-50">{reconnect.isPending ? 'Jira로 이동 중...' : 'Jira 다시 로그인'}</button>{reconnect.isError && <p role="alert" className="text-caption text-red-600">Jira 로그인에 연결하지 못했습니다. 다시 시도해 주세요.</p>}</div>
           : query.isError ? <div role="alert" className="space-y-3 px-5 py-8 text-center"><p className="text-label text-red-600">{error}</p><button type="button" onClick={() => void query.refresh()} disabled={query.isFetching} className="rounded-lg border border-apple-divider px-4 py-2 text-control text-apple-dark hover:bg-apple-gray disabled:opacity-50">다시 불러오기</button></div>
           : query.isPending ? <p role="status" className="flex items-center justify-center gap-2 px-5 py-10 text-label text-apple-mid"><Loader2 size={17} className="animate-spin" aria-hidden="true" />Jira 알림을 불러오는 중...</p>
-          : query.items.length === 0 ? <p role="status" className="px-5 py-10 text-center text-label text-apple-mid">표시할 Jira 알림이 없습니다.</p>
-          : <ul aria-label="Jira 알림 목록">{query.items.map((item) => <NotificationItem key={item.id} item={item} pending={query.isMarkingRead(item)} error={query.readError(item)} onRead={query.markRead} />)}</ul>}
-        {query.hasMore && <div className="border-t border-apple-divider/60 p-3"><button type="button" disabled={query.isFetching} onClick={query.loadMore} className="w-full rounded-xl border border-apple-divider py-2.5 text-control text-apple-mid hover:bg-apple-gray disabled:opacity-40">{query.isFetching ? '불러오는 중...' : '더 보기'}</button></div>}
+          : query.items.length === 0 ? <p role="status" className="px-5 py-10 text-center text-label text-apple-mid">{query.hasMore ? '더 보기로 다음 알림을 확인하세요.' : unreadOnly ? '읽지 않은 Jira 알림이 없습니다.' : '표시할 Jira 알림이 없습니다.'}</p>
+          : <ul aria-label="Jira 알림 목록">{query.items.map((item) => <NotificationItem key={item.id} item={item} pending={query.isMarkingRead(item)} disabled={query.isMarkingAllRead} error={query.readError(item)} onRead={query.markRead} />)}</ul>}
+        {query.hasMore && <div className="border-t border-apple-divider/60 p-3"><button type="button" disabled={query.isFetching || query.isMarkingAllRead} onClick={query.loadMore} className="w-full rounded-xl border border-apple-divider py-2.5 text-control text-apple-mid hover:bg-apple-gray disabled:opacity-40">{query.isFetching ? '불러오는 중...' : '더 보기'}</button></div>}
       </div>
       <p className="border-t border-apple-divider/60 px-4 py-3 text-caption text-apple-mid">알림을 열거나 읽음 처리하면 Jira에도 반영됩니다. 묶음은 선택한 알림까지 읽음 처리됩니다.</p>
     </section>

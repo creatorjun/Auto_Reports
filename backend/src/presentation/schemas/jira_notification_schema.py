@@ -39,3 +39,15 @@ class JiraNotificationReadSchema(BaseModel):
     notification_id: str
     group_id: str
     is_read: bool
+
+
+class JiraNotificationsReadAllRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: Literal["all", "direct", "watching"]
+
+
+class JiraNotificationsReadAllSchema(BaseModel):
+    connection_status: Literal["connected", "reconnect_required"]
+    category: Literal["all", "direct", "watching"]
+    is_read: bool

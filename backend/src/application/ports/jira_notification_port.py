@@ -21,6 +21,7 @@ class JiraNotificationSourcePort(ABC):
         grant: JiraUserGrant,
         category: Literal["direct", "watching"] | None = None,
         cursor: str | None = None,
+        unread_only: bool = False,
     ) -> JiraNotificationPage:
         raise NotImplementedError
 
@@ -31,6 +32,14 @@ class JiraNotificationSourcePort(ABC):
         notification_id: str,
         group_id: str,
         category: Literal["direct", "watching"],
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def mark_all_read(
+        self,
+        grant: JiraUserGrant,
+        category: Literal["direct", "watching"] | None = None,
     ) -> None:
         raise NotImplementedError
 

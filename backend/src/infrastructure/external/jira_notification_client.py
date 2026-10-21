@@ -63,6 +63,13 @@ mutation MarkJiraNotificationRead($groupId: String!, $notificationId: String!, $
   }
 }
 """
+_MARK_ALL_READ = """
+mutation MarkAllJiraNotificationsRead($category: InfluentsNotificationCategory, $product: String, $workspaceId: String, $routing: String) {
+  notifications {
+    markNotificationsAsRead(category: $category, product: $product, workspaceId: $workspaceId, collabContextRoutingAri: $routing)
+  }
+}
+"""
 
 
 class _TextParser(HTMLParser):
@@ -115,14 +122,19 @@ class JiraNotificationClient(JiraNotificationSourcePort):
         grant: JiraUserGrant,
         category: Literal["direct", "watching"] | None = None,
         cursor: str | None = None,
+        unread_only: bool = False,
     ) -> JiraNotificationPage:
         if category not in {None, "direct", "watching"}:
             raise ValueError("Invalid notification category")
         if cursor is not None and (not isinstance(cursor, str) or not cursor or len(cursor) > 4096):
             raise ValueError("Invalid notification cursor")
+        if not isinstance(unread_only, bool):
+            raise ValueError("Invalid notification read filter")
         filters = {"productFilter": "jira", "workspaceId": grant.cloud_id}
         if category is not None:
             filters["categoryFilter"] = category
+        if unread_only:
+            filters["readStateFilter"] = "unread"
         try:
             async with asyncio.timeout(20):
                 data = await self._request(grant, _QUERY, "JiraUserNotifications", {
@@ -133,6 +145,36 @@ class JiraNotificationClient(JiraNotificationSourcePort):
         except (httpx.HTTPError, TimeoutError):
             raise JiraNotificationsUnavailable(_UNAVAILABLE) from None
         except (KeyError, TypeError, ValueError, OverflowError):
+            raise JiraNotificationsUnavailable(_UNAVAILABLE) from None
+
+    async def mark_all_read(
+        self, grant: JiraUserGrant, category: Literal["direct", "watching"] | None = None,
+    ) -> None:
+        if category not in {None, "direct", "watching"}:
+            raise ValueError("Invalid notification category")
+        routing = f"ari:cloud:platform::site/{grant.cloud_id}"
+        cutoff = (datetime.now(timezone.utc) + timedelta(milliseconds=1)).isoformat(timespec="milliseconds")
+        filters = {
+            "productFilter": "jira", "workspaceId": grant.cloud_id,
+            "readStateFilter": "unread", "beforeTimestamp": cutoff,
+        }
+        if category is not None:
+            filters["categoryFilter"] = category
+        try:
+            async with asyncio.timeout(20):
+                result = await self._request(grant, _MARK_ALL_READ, "MarkAllJiraNotificationsRead", {
+                    "category": category, "product": "jira", "workspaceId": grant.cloud_id, "routing": routing,
+                })
+                acknowledged = result["data"]["notifications"]["markNotificationsAsRead"]
+                if acknowledged is not None and not isinstance(acknowledged, str):
+                    raise ValueError("Invalid notification mutation response")
+                unread = await self._request(grant, _QUERY, "JiraUserNotifications", {
+                    "filter": filters, "first": 30, "after": None, "routing": routing,
+                })
+                page = self._page(unread, grant.cloud_id, category, None)
+                if page.items or page.next_cursor is not None:
+                    raise JiraNotificationsUnavailable(_UNAVAILABLE)
+        except (httpx.HTTPError, TimeoutError, KeyError, TypeError, ValueError, OverflowError):
             raise JiraNotificationsUnavailable(_UNAVAILABLE) from None
 
     async def mark_read(

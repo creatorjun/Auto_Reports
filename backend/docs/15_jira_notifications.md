@@ -12,7 +12,7 @@
 
 ## 화면과 API
 
-`GET /api/v1/jira/notifications?category=all|direct|watching&cursor=...`를 앱 Bearer 세션으로 호출합니다. 사용자 ID·다른 사용자 token을 파라미터로 받지 않습니다.
+`GET /api/v1/jira/notifications?category=all|direct|watching&unread_only=true|false&cursor=...`를 앱 Bearer 세션으로 호출합니다. 사용자 ID·다른 사용자 token을 파라미터로 받지 않습니다. `unread_only`는 기본값이 `false`이며 `true`일 때 Jira의 `readStateFilter: unread`를 적용합니다. 미읽음 전용 조회의 커서를 따로 관리하므로 아직 불러오지 않은 페이지의 미읽음 알림도 조회할 수 있습니다.
 
 - `connected`: 알림 목록과 다음 페이지 cursor를 반환합니다. 빈 목록은 정상 조회 결과입니다.
 - `reconnect_required`: Jira 연결이 만료되었거나 서버 재시작 등으로 연결이 없습니다. 앱 세션을 종료하지 않고 Jira 재로그인을 안내합니다.
@@ -23,7 +23,11 @@
 
 `POST /api/v1/jira/notifications/read`에 `notification_id`, `group_id`, `category`를 전달합니다. 서버는 현재 사용자의 연결로 `notificationGroup`에서 해당 알림의 그룹·사이트·분류를 확인한 뒤 `markNotificationsByGroupIdAsRead`를 호출합니다. `beforeInclusive`를 선택한 알림 ID로 고정해 그보다 새로운 알림은 읽음 처리하지 않습니다. 반환 문자열의 의미를 추정하지 않고 같은 그룹을 다시 조회해 선택한 알림의 `readState`가 `read`임을 확인합니다. 이어 선택 시각 이전의 미읽음 알림이 남아 있지 않은지도 확인해야 성공 응답을 반환합니다. 시각 경계에서 선택한 알림을 빠뜨리지 않도록 조회 상한에 1ms를 더하며, 같은 시각의 새 알림 때문에 확인에 실패할 수 있어도 이를 임의로 읽음 처리하지 않습니다. 각 조회는 30개로 제한하며 알림이 이동하거나 확인되지 않으면 실패로 처리합니다. 실패 시 새로고침 후 다시 시도할 수 있습니다.
 
-성공 응답은 `connection_status: connected`, 대상 ID·그룹과 `is_read: true`입니다. 연결 만료는 `reconnect_required`와 `is_read: false`, 확인 실패는 HTTP 503입니다. 프런트는 확인된 ID·그룹 쌍만 갱신하고 같은 그룹에 새로 도착한 알림에는 읽음 상태를 전파하지 않습니다. 중복 클릭, 세션 변경과 늦은 응답도 분리합니다. 전체 읽음·미확인 수 초기화 요청은 보내지 않습니다.
+성공 응답은 `connection_status: connected`, 대상 ID·그룹과 `is_read: true`입니다. 연결 만료는 `reconnect_required`와 `is_read: false`, 확인 실패는 HTTP 503입니다. 프런트는 확인된 ID·그룹 쌍만 갱신하고 같은 그룹에 새로 도착한 알림에는 읽음 상태를 전파하지 않습니다. 중복 클릭, 세션 변경과 늦은 응답도 분리합니다. 미읽음 전용 화면에서는 읽음 처리한 항목이 목록에서 사라집니다.
+
+`POST /api/v1/jira/notifications/read-all`은 `category: all|direct|watching`을 받습니다. 현재 사용자·Jira 사이트·선택한 분류에 한해 `markNotificationsAsRead`를 호출하며 화면에 불러온 첫 페이지에 한정하지 않습니다. 서버에서 `product: jira`, 현재 `workspaceId`와 사이트 routing을 고정하고 사용자나 사이트 ID는 요청 본문으로 받지 않습니다. mutation 후 요청 시작 시각 이전의 미읽음 알림이 남아 있지 않은지 Jira에 재조회해 확인합니다. 성공 응답은 `connection_status: connected`, 처리한 `category`, `is_read: true`이며, 연결 만료와 확인 실패는 단건 읽음 처리와 같은 규칙을 따릅니다.
+
+화면의 `모두 읽음 처리` 버튼은 선택한 분류의 전체 알림에 적용됩니다. 처리 중 중복 요청을 차단하며 완료 후 관련 목록을 Jira에서 다시 조회합니다. 새로 도착한 알림까지 브라우저에서 임의로 읽음으로 바꾸지 않습니다. 오류가 발생하면 최신 상태를 다시 조회하고 재시도를 안내합니다. `미확인 수 초기화`는 별도로 호출하지 않습니다.
 
 ## 운영
 
@@ -34,5 +38,5 @@
 ## 공급자 근거
 
 - [Atlassian GraphQL API](https://developer.atlassian.com/platform/atlassian-graphql-api/graphql/): OAuth endpoint, schema 탐색과 필드별 scope.
-- 공식 endpoint의 introspection에서 조회·mutation의 `notifications`가 `read:jira-work`를 지원함을 확인했습니다. `notificationGroup`, `markNotificationsByGroupIdAsRead`, `beforeInclusive`, `collabContextRoutingAri`와 외부 OAuth 지원도 확인했습니다. 스키마 계약 검증과 실제 로그인 계정의 데이터 검증은 구분합니다.
+- 공식 endpoint의 introspection에서 조회·mutation의 `notifications`가 `read:jira-work`를 지원함을 확인했습니다. `notificationGroup`, `markNotificationsByGroupIdAsRead`, `markNotificationsAsRead`, `beforeInclusive`, `readStateFilter`, `collabContextRoutingAri`와 외부 OAuth 지원도 확인했습니다. 스키마 계약 검증과 실제 로그인 계정의 데이터 검증은 구분합니다.
 - [Atlassian 인앱 알림 안내](https://support.atlassian.com/atlassian-cloud/kb/overview-of-in-app-notifications-in-atlassian-cloud-products/): 직접·관심 알림과 읽음·미확인 상태의 차이.

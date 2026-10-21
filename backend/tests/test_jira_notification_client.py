@@ -68,6 +68,10 @@ def _read_response(value=None) -> dict:
     return {"data": {"notifications": {"markNotificationsByGroupIdAsRead": value}}}
 
 
+def _all_read_response(value=None) -> dict:
+    return {"data": {"notifications": {"markNotificationsAsRead": value}}}
+
+
 def _empty_group_response() -> dict:
     return {"data": {"notifications": {"notificationGroup": {"nodes": []}}}}
 
@@ -121,6 +125,33 @@ class JiraNotificationClientTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second.items, ())
         self.assertEqual([request.headers["Authorization"] for request in requests], ["Bearer token-one", "Bearer token-two"])
         self.assertNotIn("categoryFilter", json.loads(requests[0].content)["variables"]["filter"])
+        self.assertNotIn("readStateFilter", json.loads(requests[0].content)["variables"]["filter"])
+
+    async def test_unread_filter_is_preserved_when_loading_the_next_page(self) -> None:
+        requests = []
+        responses = iter([_response(has_next=True, cursor="next-unread"), _response(nodes=[])])
+
+        def handler(request):
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, json=next(responses))
+
+        client = self._client(handler)
+        first = await client.fetch(_grant(), "direct", unread_only=True)
+        second = await client.fetch(_grant(), "direct", first.next_cursor, unread_only=True)
+        self.assertFalse(first.items[0].is_read)
+        self.assertEqual((), second.items)
+        self.assertEqual([None, "next-unread"], [body["variables"]["after"] for body in requests])
+        self.assertTrue(all(body["variables"]["filter"] == {
+            "productFilter": "jira", "workspaceId": "cloud-1", "categoryFilter": "direct", "readStateFilter": "unread",
+        } for body in requests))
+
+    async def test_invalid_unread_filters_do_not_contact_jira(self) -> None:
+        calls = []
+        client = self._client(lambda request: calls.append(request))
+        for value in (None, "true", 0, 1):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                await client.fetch(_grant(), unread_only=value)
+        self.assertEqual([], calls)
 
     async def test_watching_category_is_passed_and_preserved(self) -> None:
         node = _node()
@@ -515,3 +546,144 @@ class JiraNotificationClientTests(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaises(asyncio.CancelledError):
             await self._client(handler).mark_read(_grant(), "notification-1", "group-1", "direct")
+
+    async def test_bulk_read_scopes_mutation_and_readback_to_current_site_and_category(self) -> None:
+        for category in (None, "direct", "watching"):
+            with self.subTest(category=category):
+                requests = []
+                responses = iter([_all_read_response(), _response(nodes=[])])
+
+                def handler(request):
+                    requests.append(request)
+                    return httpx.Response(200, json=next(responses))
+
+                started = datetime.now(timezone.utc)
+                await self._client(handler).mark_all_read(_grant(), category)
+                finished = datetime.now(timezone.utc)
+                bodies = [json.loads(request.content) for request in requests]
+                self.assertEqual(["MarkAllJiraNotificationsRead", "JiraUserNotifications"], [body["operationName"] for body in bodies])
+                self.assertEqual({
+                    "category": category, "product": "jira", "workspaceId": "cloud-1",
+                    "routing": "ari:cloud:platform::site/cloud-1",
+                }, bodies[0]["variables"])
+                self.assertIn("markNotificationsAsRead(", bodies[0]["query"])
+                self.assertNotIn("markNotificationsByIdsAsRead", bodies[0]["query"])
+                self.assertTrue(all(request.headers["Authorization"] == "Bearer user-token" for request in requests))
+                self.assertEqual(30, bodies[1]["variables"]["first"])
+                self.assertIsNone(bodies[1]["variables"]["after"])
+                filters = bodies[1]["variables"]["filter"]
+                self.assertEqual("jira", filters["productFilter"])
+                self.assertEqual("cloud-1", filters["workspaceId"])
+                self.assertEqual("unread", filters["readStateFilter"])
+                self.assertEqual(category, filters.get("categoryFilter"))
+                self.assertRegex(filters["beforeTimestamp"], r"\.\d{3}\+00:00$")
+                cutoff = datetime.fromisoformat(filters["beforeTimestamp"])
+                self.assertGreater(cutoff, started)
+                self.assertLessEqual(cutoff, finished + timedelta(milliseconds=1))
+
+    async def test_bulk_read_accepts_nullable_string_only_after_empty_readback(self) -> None:
+        for value in (None, "", "OK", "provider-request-id"):
+            with self.subTest(acknowledgement=value):
+                responses = iter([_all_read_response(value), _response(nodes=[])])
+                client = self._client(lambda request: httpx.Response(200, json=next(responses)))
+                await client.mark_all_read(_grant())
+
+    async def test_bulk_read_rejects_remaining_unread_and_incomplete_empty_page(self) -> None:
+        other_site, other_category = _node(), _node()
+        other_site["headNotification"]["entityModel"]["cloudId"] = "other-cloud"
+        other_category["headNotification"]["category"] = "watching"
+        for readback in (
+            _response(), _response(nodes=[], has_next=True, cursor="remaining-page"),
+            _response([other_site]), _response([other_category]), {},
+            {"errors": [{"message": "private failure"}], **_response(nodes=[])},
+        ):
+            with self.subTest(readback=readback):
+                responses = iter([_all_read_response("OK"), readback])
+                client = self._client(lambda request: httpx.Response(200, json=next(responses)))
+                with self.assertRaises(JiraNotificationsUnavailable) as raised:
+                    await client.mark_all_read(_grant(), "direct")
+                self.assertNotIn("private", str(raised.exception))
+
+    async def test_bulk_read_does_not_trust_acknowledgement_or_provider_errors(self) -> None:
+        for payload in ({}, _all_read_response(True), {"errors": [{"message": "private failure"}], **_all_read_response("OK")}):
+            requests = []
+
+            def handler(request):
+                requests.append(request)
+                return httpx.Response(200, json=payload)
+
+            with self.subTest(payload=payload), self.assertRaises(JiraNotificationsUnavailable):
+                await self._client(handler).mark_all_read(_grant())
+            self.assertEqual(1, len(requests))
+
+    async def test_bulk_read_preserves_new_notifications_for_the_next_feed_fetch(self) -> None:
+        started = datetime.now(timezone.utc)
+        new_node = _node()
+        new_node["headNotification"]["timestamp"] = (started + timedelta(seconds=1)).isoformat()
+        new_node["headNotification"]["readState"] = "unread"
+        requests = []
+
+        def handler(request):
+            body = json.loads(request.content)
+            requests.append(body)
+            if body["operationName"] == "MarkAllJiraNotificationsRead":
+                return httpx.Response(200, json=_all_read_response())
+            cutoff = body["variables"]["filter"].get("beforeTimestamp")
+            if cutoff is not None:
+                self.assertLess(datetime.fromisoformat(cutoff), datetime.fromisoformat(new_node["headNotification"]["timestamp"]))
+                return httpx.Response(200, json=_response(nodes=[]))
+            return httpx.Response(200, json=_response([new_node]))
+
+        client = self._client(handler)
+        with patch("src.infrastructure.external.jira_notification_client.datetime", wraps=datetime) as clock:
+            clock.now.return_value = started
+            await client.mark_all_read(_grant())
+        fresh = await client.fetch(_grant(), unread_only=True)
+        self.assertEqual(1, len(fresh.items))
+        self.assertFalse(fresh.items[0].is_read)
+        self.assertNotIn("beforeTimestamp", requests[-1]["variables"]["filter"])
+
+    async def test_bulk_read_auth_denial_on_either_request_requires_reconnection(self) -> None:
+        for denied_stage in (0, 1):
+            responses = [httpx.Response(200, json=_all_read_response())] * denied_stage
+            responses.append(httpx.Response(200, json={"errors": [{"extensions": {"statusCode": 403}}]}))
+            pending = iter(responses)
+            with self.subTest(stage=denied_stage), self.assertRaises(JiraNotificationsReconnectRequired):
+                await self._client(lambda request: next(pending)).mark_all_read(_grant())
+
+    async def test_bulk_read_invalid_category_or_expired_grant_never_contacts_jira(self) -> None:
+        requests = []
+        client = self._client(lambda request: requests.append(request))
+        with self.assertRaises(ValueError):
+            await client.mark_all_read(_grant(), "all")
+        with self.assertRaises(JiraNotificationsReconnectRequired):
+            await client.mark_all_read(replace(_grant(), expires_at=datetime.now(timezone.utc)))
+        self.assertEqual([], requests)
+
+    async def test_bulk_read_deadline_includes_verification_and_cancellation_propagates(self) -> None:
+        requests = []
+        cancelled = asyncio.Event()
+
+        async def handler(request):
+            requests.append(request)
+            if len(requests) == 1:
+                return httpx.Response(200, json=_all_read_response())
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+
+        original_timeout = asyncio.timeout
+        client = self._client(handler)
+        with patch("src.infrastructure.external.jira_notification_client.asyncio.timeout", side_effect=lambda seconds: original_timeout(0.03)) as timeout:
+            with self.assertRaises(JiraNotificationsUnavailable):
+                await client.mark_all_read(_grant())
+            timeout.assert_called_once_with(20)
+        self.assertEqual(2, len(requests))
+        self.assertTrue(cancelled.is_set())
+
+        async def abort(request):
+            raise asyncio.CancelledError()
+
+        with self.assertRaises(asyncio.CancelledError):
+            await self._client(abort).mark_all_read(_grant())

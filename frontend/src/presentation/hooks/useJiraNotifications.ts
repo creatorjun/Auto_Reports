@@ -10,7 +10,7 @@ import { useMe } from './useAuth'
 
 export const JIRA_NOTIFICATIONS_QUERY_KEY = ['jira-notifications'] as const
 
-export function useJiraNotifications(category: JiraNotificationCategory) {
+export function useJiraNotifications(category: JiraNotificationCategory, unreadOnly = false) {
   const { jiraNotifications } = useApplicationServices()
   const accessToken = useAuthStore((state) => state.accessToken)
   const me = useMe()
@@ -19,27 +19,34 @@ export function useJiraNotifications(category: JiraNotificationCategory) {
   const refreshing = useRef(false)
   const active = useRef(true)
   const readRequests = useRef(new Map<string, AbortController>())
+  const bulkRequest = useRef<AbortController | null>(null)
   const confirmedReads = useRef(new Set<string>())
   const [reading, setReading] = useState<ReadonlySet<string>>(new Set())
   const [readErrors, setReadErrors] = useState<Record<string, string>>({})
   const [readReconnect, setReadReconnect] = useState(false)
+  const [markingAll, setMarkingAll] = useState(false)
+  const [bulkError, setBulkError] = useState<JiraNotificationCategory | null>(null)
   useEffect(() => {
     active.current = true
     setReading(new Set())
     setReadErrors({})
     setReadReconnect(false)
+    setMarkingAll(false)
+    setBulkError(null)
     return () => {
       active.current = false
       for (const controller of readRequests.current.values()) controller.abort()
       readRequests.current.clear()
+      bulkRequest.current?.abort()
+      bulkRequest.current = null
       confirmedReads.current.clear()
     }
   }, [accessToken])
-  const queryKey = [...JIRA_NOTIFICATIONS_QUERY_KEY, accessToken, category]
+  const queryKey = [...JIRA_NOTIFICATIONS_QUERY_KEY, accessToken, category, unreadOnly]
   const query = useInfiniteQuery({
     queryKey,
     queryFn: async ({ signal, pageParam }) => {
-      const page = await jiraNotifications.getNotifications({ category, ...(pageParam ? { cursor: pageParam } : {}) }, signal)
+      const page = await jiraNotifications.getNotifications({ category, unread_only: unreadOnly, ...(pageParam ? { cursor: pageParam } : {}) }, signal)
       return applyJiraNotificationReads(page, confirmedReads.current)
     },
     initialPageParam: null as string | null,
@@ -53,7 +60,7 @@ export function useJiraNotifications(category: JiraNotificationCategory) {
   const reconnectRequired = allowed && (readReconnect || (!query.isError && !!query.data?.pages.some((page) => page.connection_status === 'reconnect_required')))
   const visible = allowed && !query.isError && !reconnectRequired
   const refresh = async () => {
-    if (!allowed || query.isFetching || refreshing.current) return
+    if (!allowed || query.isFetching || refreshing.current || bulkRequest.current) return
     refreshing.current = true
     confirmedReads.current.clear()
     try {
@@ -63,11 +70,11 @@ export function useJiraNotifications(category: JiraNotificationCategory) {
     }
   }
   const loadMore = () => {
-    if (visible && query.hasNextPage && !query.isFetching) void query.fetchNextPage({ cancelRefetch: false })
+    if (visible && query.hasNextPage && !query.isFetching && !bulkRequest.current) void query.fetchNextPage({ cancelRefetch: false })
   }
   const markRead = async (item: JiraNotification) => {
     const key = jiraNotificationReadKey(item)
-    if (!visible || !active.current || !accessToken || useAuthStore.getState().accessToken !== accessToken || item.is_read || !item.group_id || readRequests.current.has(key) || confirmedReads.current.has(key)) return
+    if (!visible || !active.current || !accessToken || useAuthStore.getState().accessToken !== accessToken || item.is_read || !item.group_id || bulkRequest.current || readRequests.current.has(key) || confirmedReads.current.has(key)) return
     const controller = new AbortController()
     readRequests.current.set(key, controller)
     setReading(new Set(readRequests.current.keys()))
@@ -92,9 +99,44 @@ export function useJiraNotifications(category: JiraNotificationCategory) {
       }
     }
   }
+  const connected = visible && query.data?.pages[0]?.connection_status === 'connected'
+  const markAllRead = async () => {
+    if (!connected || !active.current || !accessToken || useAuthStore.getState().accessToken !== accessToken || bulkRequest.current || readRequests.current.size > 0) return
+    const controller = new AbortController()
+    bulkRequest.current = controller
+    setMarkingAll(true)
+    setBulkError(null)
+    const currentSession = () => active.current && !controller.signal.aborted && useAuthStore.getState().accessToken === accessToken && bulkRequest.current === controller
+    let reload = false
+    try {
+      const response = await jiraNotifications.markAllRead({ category }, controller.signal)
+      if (!currentSession()) return
+      if (response.connection_status === 'reconnect_required') {
+        setReadReconnect(true)
+        return
+      }
+      if (response.connection_status !== 'connected' || response.is_read !== true || response.category !== category) throw new Error('Notification bulk read was not confirmed')
+      reload = true
+    } catch {
+      if (currentSession()) {
+        setBulkError(category)
+        reload = true
+      }
+    } finally {
+      if (currentSession() && reload) {
+        confirmedReads.current.clear()
+        setReadErrors({})
+        await queryClient.resetQueries({ queryKey: [...JIRA_NOTIFICATIONS_QUERY_KEY, accessToken] })
+      }
+      if (bulkRequest.current === controller) {
+        bulkRequest.current = null
+        if (active.current && useAuthStore.getState().accessToken === accessToken) setMarkingAll(false)
+      }
+    }
+  }
   return {
     allowed,
-    items: visible ? jiraNotificationItems(query.data?.pages ?? []) : [],
+    items: visible ? jiraNotificationItems(query.data?.pages ?? []).filter((item) => !unreadOnly || !item.is_read) : [],
     reconnectRequired,
     isError: allowed && query.isError,
     error: allowed ? query.error : null,
@@ -104,6 +146,10 @@ export function useJiraNotifications(category: JiraNotificationCategory) {
     refresh,
     loadMore,
     markRead,
+    markAllRead,
+    canMarkAllRead: connected && !markingAll && reading.size === 0,
+    isMarkingAllRead: markingAll,
+    bulkError,
     isMarkingRead: (item: JiraNotification) => reading.has(jiraNotificationReadKey(item)),
     readError: (item: JiraNotification) => item.is_read ? null : readErrors[jiraNotificationReadKey(item)] ?? null,
   }

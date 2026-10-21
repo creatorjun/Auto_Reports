@@ -23,15 +23,20 @@ class JiraNotificationsUseCase:
 
     async def execute(
         self, identity: AuthIdentity, category: Literal["direct", "watching"] | None = None,
-        cursor: str | None = None,
+        cursor: str | None = None, unread_only: bool = False,
     ) -> JiraNotificationPage:
-        return await self._with_grant(identity, lambda grant: self._source.fetch(grant, category=category, cursor=cursor))
+        return await self._with_grant(identity, lambda grant: self._source.fetch(grant, category=category, cursor=cursor, unread_only=unread_only))
 
     async def mark_read(
         self, identity: AuthIdentity, notification_id: str, group_id: str,
         category: Literal["direct", "watching"],
     ) -> None:
         await self._with_grant(identity, lambda grant: self._source.mark_read(grant, notification_id, group_id, category))
+
+    async def mark_all_read(
+        self, identity: AuthIdentity, category: Literal["direct", "watching"] | None = None,
+    ) -> None:
+        await self._with_grant(identity, lambda grant: self._source.mark_all_read(grant, category=category))
 
     async def _with_grant(self, identity: AuthIdentity, operation: Callable[[JiraUserGrant], Awaitable[T]]) -> T:
         if identity.auth_provider != "jira":

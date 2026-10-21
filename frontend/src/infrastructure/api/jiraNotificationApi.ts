@@ -1,6 +1,6 @@
 // frontend/src/infrastructure/api/jiraNotificationApi.ts
 import type { JiraNotificationGateway } from '@/application/ports/ApplicationServices'
-import type { JiraNotificationPage, JiraNotificationReadResult } from '@/domain/JiraNotification'
+import type { JiraNotificationPage, JiraNotificationReadAllResult, JiraNotificationReadResult } from '@/domain/JiraNotification'
 import client from './client'
 
 export const jiraNotificationApi: JiraNotificationGateway = {
@@ -10,6 +10,10 @@ export const jiraNotificationApi: JiraNotificationGateway = {
   },
   markRead: async (request, signal) => {
     const response = await client.post<JiraNotificationReadResult>('/jira/notifications/read', request, { signal })
+    return response.data
+  },
+  markAllRead: async (request, signal) => {
+    const response = await client.post<JiraNotificationReadAllResult>('/jira/notifications/read-all', request, { signal })
     return response.data
   },
 }

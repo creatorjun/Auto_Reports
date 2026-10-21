@@ -23,6 +23,7 @@ export interface JiraNotificationPage {
 export interface JiraNotificationRequest {
   category: JiraNotificationCategory
   cursor?: string
+  unread_only?: boolean
 }
 
 export interface JiraNotificationReadRequest {
@@ -35,5 +36,15 @@ export interface JiraNotificationReadResult {
   connection_status: 'connected' | 'reconnect_required'
   notification_id: string
   group_id: string
+  is_read: boolean
+}
+
+export interface JiraNotificationReadAllRequest {
+  category: JiraNotificationCategory
+}
+
+export interface JiraNotificationReadAllResult {
+  connection_status: 'connected' | 'reconnect_required'
+  category: JiraNotificationCategory
   is_read: boolean
 }
