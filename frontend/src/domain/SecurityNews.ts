@@ -57,10 +57,10 @@ export interface SecurityNewsTranslation {
 }
 
 export interface SecurityNewsFilters {
-  kind: SecurityNewsKind | 'all'
+  kind: SecurityNewsKind | 'all' | 'updates'
   search: string
   source: string
-  severity: SecuritySeverity | 'all'
+  severity: SecuritySeverity | 'all' | 'high-risk'
   exploitedOnly: boolean
   days: 7 | 30 | 'all'
   sort: 'newest' | 'severity'

@@ -64,6 +64,11 @@ function renderPage(t, state) {
   return view
 }
 function plainText(view) { return JSON.stringify(view.toJSON()) }
+function summaryButtons(view) { return view.root.findByProps({ role: 'group', 'aria-label': '보안 정보 요약 필터' }).findAllByType('button') }
+function summaryButton(view, label) { return summaryButtons(view).find((button) => button.findAllByType('span').some((span) => span.children.includes(label))) }
+function selectedSummaries(view) { return summaryButtons(view).filter((button) => button.props['aria-pressed']).map((button) => button.findAllByType('span').find((span) => typeof span.children[0] === 'string').children.join('')) }
+function visibleTitles(view) { return view.root.findAllByType('article').map((article) => article.findByType('h2').findByType('a').children.join('')) }
+function selectWithOption(view, value) { return view.root.findAllByType('select').find((select) => select.findAllByType('option').some((option) => option.props.value === value)) }
 function deferred() {
   let resolve, reject
   const promise = new Promise((yes, no) => { resolve = yes; reject = no })
@@ -126,6 +131,24 @@ test('source, type, severity and exploitation filters combine rather than broade
   assert.deepEqual(filterSecurityNews(rows, { ...filters, severity: 'high' }, now), [])
 })
 
+test('summary filters include both high severities and both update kinds without changing individual filters', () => {
+  const rows = [
+    item({ id: 'critical', severity: 'critical' }),
+    item({ id: 'high', known_exploited: true }),
+    item({ id: 'medium', severity: 'medium' }),
+    item({ id: 'advisory', kind: 'advisory', source_id: 'kisa', known_exploited: true }),
+    item({ id: 'news', kind: 'news', severity: 'unknown', source_id: 'google' }),
+  ]
+  const ids = (changes) => filterSecurityNews(rows, { ...defaultSecurityNewsFilters(), ...changes }, now).map((row) => row.id)
+  assert.deepEqual(ids({ severity: 'high-risk' }), ['advisory', 'critical', 'high'])
+  assert.deepEqual(ids({ kind: 'updates' }), ['advisory', 'news'])
+  assert.deepEqual(ids({ kind: 'updates', severity: 'high-risk', source: 'kisa', exploitedOnly: true, days: 7, search: 'linux' }), ['advisory'])
+  assert.deepEqual(ids({ kind: 'updates', severity: 'high-risk', source: 'google' }), [])
+  assert.deepEqual(ids({ kind: 'advisory' }), ['advisory'])
+  assert.deepEqual(ids({ kind: 'news' }), ['news'])
+  assert.deepEqual(ids({ severity: 'high' }), ['advisory', 'high'])
+})
+
 test('date filters use publication or KEV addition date and exclude undated items only in finite windows', () => {
   const rows = [item(), item({ id: 'old', published_at: '2026-09-01', updated_at: '2026-10-20' }), item({ id: 'undated', published_at: null }), item({ id: 'fallback', published_at: null, updated_at: '2026-10-18' })]
   assert.deepEqual(filterSecurityNews(rows, { ...defaultSecurityNewsFilters(), days: 7 }, now).map((row) => row.id), ['one', 'fallback'])
@@ -181,19 +204,109 @@ test('KEV cards distinguish addition dates and federal due dates from vulnerabil
   assert.match(html, /실제 악용 확인/)
 })
 
-test('Korean page tabs, search, reset and pagination work on all filtered items', (t) => {
-  const state = query({ data: snapshot({ items: Array.from({ length: 23 }, (_, index) => item({ id: String(index), kind: index === 22 ? 'news' : 'cve', title: `항목 ${index}` })) }) })
-  const view = renderPage(t, state)
-  assert.equal(view.root.findAllByType('article').length, 20)
+test('summary widgets replace duplicate tabs with accessible buttons that select the matching rows', (t) => {
+  const rows = [
+    item({ id: 'critical', severity: 'critical' }),
+    item({ id: 'high', known_exploited: true }),
+    item({ id: 'medium', severity: 'medium' }),
+    item({ id: 'advisory', kind: 'advisory', known_exploited: true }),
+    item({ id: 'news', kind: 'news', severity: 'unknown' }),
+  ].map((row) => ({ ...row, title: `항목 ${row.id}` }))
+  const view = renderPage(t, query({ data: snapshot({ items: rows }) }))
+  assert.equal(view.root.findAllByProps({ role: 'tablist' }).length, 0)
+  assert.equal(view.root.findAllByProps({ role: 'tab' }).length, 0)
+  const results = view.root.findByProps({ id: 'security-news-results' })
+  assert.equal(results.props['aria-label'], '보안 정보 검색 결과')
+  assert.equal(results.props['aria-labelledby'], undefined)
+  assert.notEqual(results.props.role, 'tabpanel')
+  assert.equal(summaryButtons(view).length, 4)
+  for (const button of summaryButtons(view)) {
+    assert.equal(button.props.type, 'button')
+    assert.equal(button.props['aria-controls'], 'security-news-results')
+    assert.equal(typeof button.props['aria-pressed'], 'boolean')
+  }
+  assert.deepEqual(selectedSummaries(view), ['수집된 항목'])
+  for (const [label, ids] of [
+    ['실제 악용 확인', ['advisory', 'high']],
+    ['치명적 · 높은 위험도', ['advisory', 'critical', 'high']],
+    ['보안 권고 · 뉴스', ['advisory', 'news']],
+    ['수집된 항목', ['advisory', 'critical', 'high', 'medium', 'news']],
+  ]) {
+    act(() => summaryButton(view, label).props.onClick())
+    assert.deepEqual(visibleTitles(view), ids.map((id) => `항목 ${id}`))
+    assert.deepEqual(selectedSummaries(view), [label])
+  }
+})
+
+test('summary selection clears stale filters, preserves sort and returns to the first page', (t) => {
+  const rows = [
+    ...Array.from({ length: 23 }, (_, index) => item({ id: `matching-${String(index).padStart(2, '0')}`, title: `대상 ${index}`, source_id: 'kisa', kind: 'advisory', known_exploited: true })),
+    item({ id: 'old-critical', title: '이전 치명적 취약점', severity: 'critical', published_at: '2026-09-01', known_exploited: false }),
+    item({ id: 'medium', title: '보통 취약점', severity: 'medium' }),
+  ]
+  const view = renderPage(t, query({ data: snapshot({ items: rows, sources: [source, { ...source, id: 'kisa', name: 'KISA', kind: 'advisory' }] }) }))
+  act(() => {
+    summaryButton(view, '보안 권고 · 뉴스').props.onClick()
+    view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: '대상' } })
+    selectWithOption(view, 'kisa').props.onChange({ target: { value: 'kisa' } })
+    selectWithOption(view, 'high').props.onChange({ target: { value: 'high' } })
+    selectWithOption(view, '7').props.onChange({ target: { value: '7' } })
+    view.root.findByProps({ type: 'checkbox' }).props.onChange({ target: { checked: true } })
+    selectWithOption(view, 'newest').props.onChange({ target: { value: 'severity' } })
+  })
   act(() => view.root.findByProps({ 'aria-label': '다음 페이지' }).props.onClick())
-  assert.equal(view.root.findAllByType('article').length, 3)
-  act(() => view.root.findByProps({ role: 'tab', id: 'security-tab-news' }).props.onClick())
-  assert.equal(view.root.findAllByType('article').length, 1)
-  assert.match(plainText(view), /항목 22/)
+  assert.deepEqual(visibleTitles(view), ['대상 20', '대상 21', '대상 22'])
+  act(() => summaryButton(view, '치명적 · 높은 위험도').props.onClick())
+  assert.equal(view.root.findByProps({ type: 'search' }).props.value, '')
+  assert.equal(selectWithOption(view, 'kisa').props.value, '')
+  assert.equal(selectWithOption(view, '7').props.value, 'all')
+  assert.equal(view.root.findByProps({ type: 'checkbox' }).props.checked, false)
+  assert.equal(selectWithOption(view, 'high').props.value, 'high-risk')
+  assert.equal(selectWithOption(view, 'newest').props.value, 'severity')
+  assert.equal(view.root.findByProps({ 'aria-label': '이전 페이지' }).props.disabled, true)
+  assert.equal(visibleTitles(view).length, 20)
+  assert.equal(visibleTitles(view)[0], '이전 치명적 취약점')
+  assert.deepEqual(selectedSummaries(view), ['치명적 · 높은 위험도'])
+  act(() => summaryButton(view, '수집된 항목').props.onClick())
+  assert.equal(selectWithOption(view, 'high').props.value, 'all')
+  assert.equal(selectWithOption(view, 'newest').props.value, 'severity')
+  assert.equal(visibleTitles(view)[0], '이전 치명적 취약점')
+  act(() => view.root.findByProps({ 'aria-label': '다음 페이지' }).props.onClick())
+  assert.deepEqual(visibleTitles(view), ['대상 19', '대상 20', '대상 21', '대상 22', '보통 취약점'])
+})
+
+test('summary conditions combine with search, source, severity, period and exploitation and reset empty results', (t) => {
+  const base = { kind: 'advisory', source_id: 'kisa', title: '대상 권고', known_exploited: true }
+  const rows = [
+    item({ ...base, id: 'advisory' }),
+    item({ ...base, id: 'news', kind: 'news', title: '대상 뉴스' }),
+    item({ ...base, id: 'wrong-kind', kind: 'cve', title: '대상 취약점' }),
+    item({ ...base, id: 'wrong-source', source_id: 'nvd', title: '대상 다른 출처' }),
+    item({ ...base, id: 'wrong-severity', severity: 'medium', title: '대상 보통 위험도' }),
+    item({ ...base, id: 'not-exploited', known_exploited: false, title: '대상 악용 미확인' }),
+    item({ ...base, id: 'old', published_at: '2026-09-01', title: '대상 이전 권고' }),
+    item({ ...base, id: 'wrong-search', title: '다른 검색 항목' }),
+  ]
+  const view = renderPage(t, query({ data: snapshot({ items: rows, sources: [source, { ...source, id: 'kisa', name: 'KISA', kind: 'advisory' }] }) }))
+  act(() => {
+    summaryButton(view, '보안 권고 · 뉴스').props.onClick()
+    view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: '대상' } })
+    selectWithOption(view, 'kisa').props.onChange({ target: { value: 'kisa' } })
+    selectWithOption(view, 'high-risk').props.onChange({ target: { value: 'high-risk' } })
+    selectWithOption(view, '7').props.onChange({ target: { value: '7' } })
+    view.root.findByProps({ type: 'checkbox' }).props.onChange({ target: { checked: true } })
+  })
+  assert.deepEqual(visibleTitles(view), ['대상 권고', '대상 뉴스'])
+  assert.deepEqual(selectedSummaries(view), ['보안 권고 · 뉴스'])
+  act(() => selectWithOption(view, 'high-risk').props.onChange({ target: { value: 'medium' } }))
+  assert.deepEqual(visibleTitles(view), ['대상 보통 위험도'])
+  assert.deepEqual(selectedSummaries(view), ['보안 권고 · 뉴스'])
   act(() => view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: '없는 검색어' } }))
+  assert.equal(view.root.findAllByType('article').length, 0)
   assert.match(plainText(view), /조건에 맞는 보안 정보가 없습니다/)
-  act(() => view.root.findAllByType('button').find((button) => button.children.some((child) => child === '필터 초기화')).props.onClick())
-  assert.equal(view.root.findAllByType('article').length, 20)
+  act(() => view.root.findAllByType('button').find((button) => button.children.includes('필터 초기화')).props.onClick())
+  assert.equal(view.root.findAllByType('article').length, rows.length)
+  assert.deepEqual(selectedSummaries(view), ['수집된 항목'])
 })
 
 test('language toggle changes only card presentation and preserves search results without requesting translation', (t) => {

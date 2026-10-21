@@ -1,6 +1,6 @@
 // frontend/src/presentation/pages/SecurityNewsPage.tsx
 import { useMemo, useState } from 'react'
-import { ArrowDownWideNarrow, ChevronLeft, ChevronRight, Newspaper, RefreshCw, Search, ShieldAlert, ShieldCheck, SlidersHorizontal, X } from 'lucide-react'
+import { ArrowDownWideNarrow, Check, ChevronLeft, ChevronRight, Newspaper, RefreshCw, Search, ShieldAlert, ShieldCheck, SlidersHorizontal, X } from 'lucide-react'
 import type { SecurityNewsFilters, SecurityNewsLanguage } from '@/domain/SecurityNews'
 import { RequestError } from '@/application/errors/RequestError'
 import { defaultSecurityNewsFilters, filterSecurityNews } from '@/application/services/securityNews'
@@ -11,11 +11,11 @@ import SecurityNewsSources from '@/presentation/components/security/SecurityNews
 import SecurityNewsTranslationControls from '@/presentation/components/security/SecurityNewsTranslationControls'
 
 const PAGE_SIZE = 20
-const categories = [
-  { value: 'all', label: '전체' },
-  { value: 'cve', label: 'CVE 취약점' },
-  { value: 'advisory', label: '보안 권고' },
-  { value: 'news', label: '보안 뉴스' },
+const summaryFilters = [
+  { key: 'all', label: '수집된 항목', icon: Newspaper, color: 'text-brand-600', kind: 'all', severity: 'all', exploitedOnly: false },
+  { key: 'exploited', label: '실제 악용 확인', icon: ShieldAlert, color: 'text-red-600', kind: 'all', severity: 'all', exploitedOnly: true },
+  { key: 'high', label: '치명적 · 높은 위험도', icon: ShieldCheck, color: 'text-amber-600', kind: 'all', severity: 'high-risk', exploitedOnly: false },
+  { key: 'updates', label: '보안 권고 · 뉴스', icon: Newspaper, color: 'text-brand-600', kind: 'updates', severity: 'all', exploitedOnly: false },
 ] as const
 const fieldClass = 'w-full min-w-0 rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-control text-apple-dark focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30'
 const buttonClass = 'inline-flex items-center justify-center gap-2 rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-control font-medium text-apple-dark transition-colors hover:bg-apple-gray focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-40'
@@ -40,11 +40,16 @@ export default function SecurityNewsPage() {
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount - 1)
   const hasFilters = filters.kind !== 'all' || !!filters.search.trim() || !!filters.source || filters.severity !== 'all' || filters.exploitedOnly || filters.days !== 'all'
+  const selectedSummary = filters.kind === 'updates' ? 'updates' : filters.severity === 'high-risk' ? 'high' : filters.exploitedOnly ? 'exploited' : 'all'
   const update = <K extends keyof SecurityNewsFilters>(key: K, value: SecurityNewsFilters[K]) => {
     setFilters((current) => ({ ...current, [key]: value }))
     setPage(0)
   }
   const reset = () => { setFilters(defaultSecurityNewsFilters()); setPage(0) }
+  const selectSummary = (summary: typeof summaryFilters[number]) => {
+    setFilters((current) => ({ ...defaultSecurityNewsFilters(), kind: summary.kind, severity: summary.severity, exploitedOnly: summary.exploitedOnly, sort: current.sort }))
+    setPage(0)
+  }
   const showLoading = !data?.initialized && !query.isError && !failedSources.length
   const refreshError = query.refreshError instanceof RequestError && query.refreshError.status === 429
     ? '방금 업데이트를 요청했습니다. 잠시 후 다시 시도해 주세요.'
@@ -67,18 +72,17 @@ export default function SecurityNewsPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          { label: '수집된 항목', value: counts.all, icon: <Newspaper size={18} />, color: 'text-brand-600' },
-          { label: '실제 악용 확인', value: counts.exploited, icon: <ShieldAlert size={18} />, color: 'text-red-600' },
-          { label: '치명적 · 높은 위험도', value: counts.high, icon: <ShieldCheck size={18} />, color: 'text-amber-600' },
-          { label: '보안 권고 · 뉴스', value: counts.updates, icon: <Newspaper size={18} />, color: 'text-brand-600' },
-        ].map((metric) => <div key={metric.label} className="min-w-0 rounded-2xl border border-apple-divider/60 bg-apple-surface p-4 shadow-apple-sm md:p-5">
-          <div className="flex items-center justify-between gap-2"><span className="break-keep text-caption font-medium text-apple-mid">{metric.label}</span><span className={metric.color} aria-hidden="true">{metric.icon}</span></div>
-          <p className="mt-3 text-page-title font-semibold tabular-nums text-apple-dark">{data?.initialized ? metric.value.toLocaleString('ko-KR') : '—'}</p>
-        </div>)}
+      <div role="group" aria-label="보안 정보 요약 필터" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {summaryFilters.map((metric) => {
+          const selected = selectedSummary === metric.key
+          const Icon = metric.icon
+          return <button key={metric.key} type="button" onClick={() => selectSummary(metric)} aria-pressed={selected} aria-controls="security-news-results" className={`min-w-0 rounded-2xl border p-4 text-left shadow-apple-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-apple-bg md:p-5 ${selected ? 'border-brand-500 bg-brand-50' : 'border-apple-divider/60 bg-apple-surface hover:border-brand-400 hover:bg-apple-gray'}`}>
+            <span className="flex items-center justify-between gap-2"><span className="break-keep text-caption font-medium text-apple-mid">{metric.label}</span><Icon size={18} className={`shrink-0 ${metric.color}`} aria-hidden="true" /></span>
+            <span className="mt-3 flex items-center justify-between gap-2"><span className="text-page-title font-semibold tabular-nums text-apple-dark">{data?.initialized ? counts[metric.key].toLocaleString('ko-KR') : '—'}</span>{selected && <Check size={18} className="shrink-0 text-brand-600" aria-hidden="true" />}</span>
+          </button>
+        })}
       </div>
-      <p className="text-caption text-apple-light">집계는 현재 수집된 항목 기준이며 같은 CVE가 여러 출처에 포함될 수 있습니다. 실제 악용 여부는 CISA KEV 기준입니다.</p>
+      <p className="text-caption text-apple-light">위젯을 선택하면 검색 조건을 초기화하고 해당 항목을 표시합니다. 집계는 현재 수집된 항목 기준이며 같은 CVE가 여러 출처에 포함될 수 있습니다. 실제 악용 여부는 CISA KEV 기준입니다.</p>
 
       <SecurityNewsSources sources={data?.sources ?? []} refreshing={query.refreshing} />
       <SecurityNewsTranslationControls language={language} onLanguageChange={setLanguage} translation={data?.translation} />
@@ -89,22 +93,12 @@ export default function SecurityNewsPage() {
       {!!failedSources.length && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-label text-amber-800">{failedSources.map((source) => source.name).join(', ')} 수집이 원활하지 않습니다. 출처별 상태와 마지막 성공 시각을 확인해 주세요.</p>}
 
       <section aria-label="보안 정보 필터" className="rounded-2xl border border-apple-divider/70 bg-apple-surface p-4 md:p-5">
-        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="보안 정보 종류">
-          {categories.map((category, index) => <button key={category.value} id={`security-tab-${category.value}`} type="button" role="tab" aria-selected={filters.kind === category.value} aria-controls="security-news-results" tabIndex={filters.kind === category.value ? 0 : -1}
-            onClick={() => update('kind', category.value)} onKeyDown={(event) => {
-              const next = event.key === 'ArrowRight' ? (index + 1) % categories.length : event.key === 'ArrowLeft' ? (index + categories.length - 1) % categories.length : event.key === 'Home' ? 0 : event.key === 'End' ? categories.length - 1 : null
-              if (next === null) return
-              event.preventDefault()
-              update('kind', categories[next].value)
-              event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus()
-            }} className={`rounded-xl px-3 py-2.5 text-control font-semibold transition-colors focus-visible:outline-brand-500 ${filters.kind === category.value ? 'bg-brand-600 text-white' : 'text-apple-mid hover:bg-apple-gray'}`}>{category.label}</button>)}
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <label className="flex min-w-0 flex-col gap-2 text-caption font-medium text-apple-mid xl:col-span-2">검색
             <span className="relative"><Search size={16} className="pointer-events-none absolute left-3 top-3 text-apple-light" aria-hidden="true" /><input type="search" value={filters.search} onChange={(event) => update('search', event.target.value)} maxLength={200} placeholder="CVE 번호, 제품명, 제목 검색" className={`${fieldClass} pl-9`} /></span>
           </label>
           <label className="flex min-w-0 flex-col gap-2 text-caption font-medium text-apple-mid">출처<select value={filters.source} onChange={(event) => update('source', event.target.value)} className={fieldClass}><option value="">전체 출처</option>{data?.sources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
-          <label className="flex min-w-0 flex-col gap-2 text-caption font-medium text-apple-mid">위험도<select value={filters.severity} onChange={(event) => update('severity', event.target.value as SecurityNewsFilters['severity'])} className={fieldClass}><option value="all">전체 위험도</option>{Object.entries(securitySeverityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="flex min-w-0 flex-col gap-2 text-caption font-medium text-apple-mid">위험도<select value={filters.severity} onChange={(event) => update('severity', event.target.value as SecurityNewsFilters['severity'])} className={fieldClass}><option value="all">전체 위험도</option><option value="high-risk">치명적 · 높은 위험도</option>{Object.entries(securitySeverityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-control text-apple-mid">기간<select value={filters.days} onChange={(event) => update('days', event.target.value === 'all' ? 'all' : Number(event.target.value) as 7 | 30)} className={`${fieldClass} !w-auto`}><option value="all">전체 수집 기간</option><option value="7">최근 7일</option><option value="30">최근 30일</option></select></label>
@@ -114,7 +108,7 @@ export default function SecurityNewsPage() {
         <p className="mt-3 text-caption text-apple-light">게시일 기준 · CISA KEV는 목록 등록일 기준 · 게시일이 없으면 수정일을 사용하며 날짜 미제공 항목은 전체 기간에만 표시합니다.</p>
       </section>
 
-      <section id="security-news-results" role="tabpanel" aria-labelledby={`security-tab-${filters.kind}`} className="min-w-0 space-y-4" aria-busy={showLoading}>
+      <section id="security-news-results" aria-label="보안 정보 검색 결과" className="min-w-0 space-y-4" aria-busy={showLoading}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p role="status" className="text-control text-apple-mid">검색 결과 <strong className="font-semibold text-apple-dark">{filtered.length.toLocaleString('ko-KR')}</strong>개<span className="ml-2 text-caption text-apple-light">수집된 {counts.all.toLocaleString('ko-KR')}개 중</span></p>
           <label className="flex items-center gap-2 text-control text-apple-mid"><ArrowDownWideNarrow size={16} aria-hidden="true" /><span className="sr-only">정렬</span><select value={filters.sort} onChange={(event) => update('sort', event.target.value as SecurityNewsFilters['sort'])} className={`${fieldClass} !w-auto`}><option value="newest">최신순</option><option value="severity">위험도순</option></select></label>

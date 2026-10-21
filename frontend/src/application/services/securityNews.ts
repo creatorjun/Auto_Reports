@@ -22,9 +22,13 @@ export function filterSecurityNews(items: readonly SecurityNewsItem[], filters: 
   const terms = normalizeSearchText(filters.search).split(/\s+/).filter(Boolean)
   const threshold = filters.days === 'all' ? null : now - filters.days * 86400000
   return items.filter((item) => {
-    if (filters.kind !== 'all' && item.kind !== filters.kind) return false
+    if (filters.kind === 'updates') {
+      if (item.kind !== 'advisory' && item.kind !== 'news') return false
+    } else if (filters.kind !== 'all' && item.kind !== filters.kind) return false
     if (filters.source && item.source_id !== filters.source) return false
-    if (filters.severity !== 'all' && item.severity !== filters.severity) return false
+    if (filters.severity === 'high-risk') {
+      if (item.severity !== 'critical' && item.severity !== 'high') return false
+    } else if (filters.severity !== 'all' && item.severity !== filters.severity) return false
     if (filters.exploitedOnly && !item.known_exploited) return false
     const timestamp = securityNewsTimestamp(item)
     if (threshold !== null && (timestamp === null || timestamp < threshold)) return false
