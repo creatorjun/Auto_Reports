@@ -85,6 +85,7 @@ class SecurityNewsTranslationService:
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._sleep = sleep
         self._inputs: dict[str, NewsTranslationInput] = {}
+        self._prepared: dict[tuple[str, str, str], tuple[str, NewsTranslationInput | None]] = {}
         self._translations: dict[str, NewsTranslation] = {}
         self._task: asyncio.Task[None] | None = None
         self._not_before: datetime | None = None
@@ -96,12 +97,22 @@ class SecurityNewsTranslationService:
     def snapshot(
         self, items: tuple[SecurityNewsItem, ...], *, start: bool = True,
     ) -> tuple[tuple[SecurityNewsItem, ...], NewsTranslationState]:
-        inputs = {
-            translation_key(item.title, item.summary): NewsTranslationInput(
-                translation_key(item.title, item.summary), item.title, item.summary,
-            )
-            for item in items if needs_translation(item)
-        }
+        prepared = {}
+        keyed_items = []
+        inputs = {}
+        for item in items:
+            content = (item.source_id, item.title, item.summary)
+            entry = prepared.get(content) or self._prepared.get(content)
+            if entry is None:
+                key = translation_key(item.title, item.summary)
+                value = NewsTranslationInput(key, item.title, item.summary) if needs_translation(item) else None
+                entry = (key, value)
+            prepared[content] = entry
+            key, value = entry
+            keyed_items.append((item, key))
+            if value is not None:
+                inputs[key] = value
+        self._prepared = prepared
         if start:
             if inputs.keys() != self._inputs.keys():
                 self._not_before = None
@@ -119,8 +130,7 @@ class SecurityNewsTranslationService:
         translated_count = 0
         pending_count = 0
         rendered = []
-        for item in items:
-            key = translation_key(item.title, item.summary)
+        for item, key in keyed_items:
             translation = self._translations.get(key)
             if translation is not None:
                 rendered.append(replace(item, title_ko=translation.title_ko, summary_ko=translation.summary_ko))

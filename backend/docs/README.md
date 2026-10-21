@@ -8,6 +8,7 @@
 |---|---|
 | [아키텍처](01_architecture.md) | 레이어 경계, 조립, 트랜잭션과 리소스 수명 |
 | [백엔드 아키텍처 검토](17_backend_architecture_review.md) | 2026-10-21 전체 소스 검토 범위, 확인된 책임·수명 위반과 회귀 검사 |
+| [백엔드 성능 검토](18_backend_performance_review.md) | 2026-10-21 전체 소스 검토, 기능을 유지한 SQL·HTTP·집계 최적화와 전후 측정 |
 | [API](02_api_reference.md) | 인증, 일반·연간 보고서, 차트 상세, SLA·재배포, 전체 이슈와 관리 API |
 | [데이터 모델](03_data_model.md) | 저장 테이블, 보고서 scope, JSONB와 migration |
 | [환경 설정](04_environment_and_config.md) | 실제 설정 기본값, Compose 적용, 스케줄과 선택 기능 |

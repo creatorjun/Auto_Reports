@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from jose import jwt
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, event, select, update
 from unittest.mock import AsyncMock, patch
 
 from src.application.ports.personal_data_port import PersonalDataReportingFailure
@@ -367,6 +367,72 @@ class PersonalDataRepositoryTest(unittest.IsolatedAsyncioTestCase):
         recreated = PersonalDataRepository(self.database, SECRET, "owner")
         self.assertEqual((), await recreated.due_accounts(now + timedelta(days=14), 90))
         self.assertEqual(1, len(await recreated.due_accounts(now + timedelta(days=15), 90)))
+
+    async def test_large_account_census_batches_upserts_and_preserves_duplicate_minimum(self):
+        now = datetime.now(timezone.utc)
+        accounts = tuple(PersonalDataAccount(f"batch-{index}", now) for index in range(1001))
+        accounts += (PersonalDataAccount("batch-0", now - timedelta(days=30)), PersonalDataAccount("batch-1000", now - timedelta(days=60)))
+        statements = []
+
+        def observe(connection, cursor, statement, parameters, context, executemany):
+            if statement.startswith("INSERT INTO personal_data_accounts"):
+                statements.append(statement)
+
+        event.listen(self.database._engine.sync_engine, "before_cursor_execute", observe)
+        try:
+            await self.repository.register_accounts(accounts)
+        finally:
+            event.remove(self.database._engine.sync_engine, "before_cursor_execute", observe)
+        self.assertEqual(3, len(statements))
+        async with self.database.session() as session:
+            rows = (await session.execute(select(PersonalDataAccountORM))).scalars().all()
+        self.assertEqual(1001, len(rows))
+        expected = {account.account_id: account.updated_at for account in accounts}
+        self.assertEqual(expected, {row.account_id: row.oldest_retrieved_at for row in rows})
+        self.assertTrue(all(row.status == "active" and row.profile_version == 1 for row in rows))
+
+    async def test_batched_census_preserves_restricted_states_profiles_and_reporting_deadline(self):
+        now = datetime.now(timezone.utc)
+        deadline = now + timedelta(days=10)
+        states = ("active", "updated", "pending_updated", "closed", "pending_closed")
+        async with self.database.session() as session:
+            for state in states:
+                session.add(PersonalDataAccountORM(account_id=f"state-{state}", status=state, display_name="original" if state == "active" else None,
+                    email_address="original@example.com" if state == "active" else None, oldest_retrieved_at=now, profile_version=7,
+                    last_reported_at=now, next_report_at=deadline))
+        accounts = tuple(PersonalDataAccount(f"state-{state}", now - timedelta(days=20)) for state in states)
+        await self.repository.register_accounts(accounts + tuple(reversed(accounts)))
+        async with self.database.session() as session:
+            rows = (await session.execute(select(PersonalDataAccountORM))).scalars().all()
+        for row in rows:
+            self.assertEqual(row.account_id, f"state-{row.status}")
+            self.assertEqual(now - timedelta(days=20) if row.status == "active" else now, row.oldest_retrieved_at)
+            self.assertEqual(7, row.profile_version)
+            self.assertEqual(deadline, row.next_report_at)
+            self.assertEqual(now, row.last_reported_at)
+            self.assertEqual("original" if row.status == "active" else None, row.display_name)
+            self.assertEqual("original@example.com" if row.status == "active" else None, row.email_address)
+
+    async def test_later_account_batch_failure_rolls_back_earlier_batches(self):
+        now = datetime.now(timezone.utc)
+        accounts = tuple(PersonalDataAccount(f"batch-{index}", now) for index in range(501))
+        calls = 0
+
+        def fail_second_batch(connection, cursor, statement, parameters, context, executemany):
+            nonlocal calls
+            if statement.startswith("INSERT INTO personal_data_accounts"):
+                calls += 1
+                if calls == 2:
+                    raise RuntimeError("simulated batch failure")
+
+        event.listen(self.database._engine.sync_engine, "before_cursor_execute", fail_second_batch)
+        try:
+            with self.assertRaisesRegex(RuntimeError, "simulated batch failure"):
+                await self.repository.register_accounts(accounts)
+        finally:
+            event.remove(self.database._engine.sync_engine, "before_cursor_execute", fail_second_batch)
+        async with self.database.session() as session:
+            self.assertEqual([], (await session.execute(select(PersonalDataAccountORM))).scalars().all())
 
     async def test_owner_refresh_is_encrypted_and_rotated_durably(self):
         with self.assertRaises(ValueError):

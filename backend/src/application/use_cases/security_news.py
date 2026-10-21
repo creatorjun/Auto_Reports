@@ -12,6 +12,7 @@ from src.application.services.security_news_translation import SecurityNewsTrans
 from src.domain.constants import KST
 from src.domain.entities.security_news_translation import NewsTranslationState
 from src.domain.entities.security_news import (
+    SecurityNewsItem,
     SecurityNewsSnapshot,
     SecurityNewsSource,
     SecurityNewsSourceResult,
@@ -51,6 +52,7 @@ class SecurityNewsUseCase:
             for source in self._source.sources
         }
         self._results: dict[str, SecurityNewsSourceResult] = {}
+        self._rendered_items: tuple[SecurityNewsItem, ...] | None = None
         self._source_attempts: dict[str, datetime] = {}
         self._task: asyncio.Task[None] | None = None
         self._last_attempt: datetime | None = None
@@ -71,6 +73,7 @@ class SecurityNewsUseCase:
                     saved = await self._store.load()
                     if saved is not None:
                         self._results = {key: result for key, result in saved.results if key in self._states}
+                        self._rendered_items = None
                         self._source_attempts = {key: value for key, value in saved.source_attempts if key in self._states}
                         for state in saved.sources:
                             if state.id in self._states:
@@ -112,23 +115,7 @@ class SecurityNewsUseCase:
             if self._last_attempt is not None
             else float("inf")
         )
-        exploited = frozenset().union(
-            *(result.known_exploited_cve_ids for result in self._results.values())
-        )
-        items = {
-            (item.source_id, item.id): replace(
-                item,
-                known_exploited=item.known_exploited or bool(exploited.intersection(item.cve_ids)),
-            )
-            for result in self._results.values()
-            for item in result.items
-        }
-        oldest = datetime.min.replace(tzinfo=timezone.utc)
-        rendered = tuple(sorted(
-            items.values(),
-            key=lambda item: (item.published_at or item.updated_at or oldest, item.id),
-            reverse=True,
-        ))
+        rendered = self._items()
         translation_state = NewsTranslationState()
         if self._translation is not None:
             rendered, translation_state = self._translation.snapshot(rendered, start=False)
@@ -146,6 +133,27 @@ class SecurityNewsUseCase:
             retry_after_seconds=max(0, math.ceil(self._manual_interval - elapsed)) if math.isfinite(elapsed) else 0,
             translation=translation_state,
         )
+
+    def _items(self) -> tuple[SecurityNewsItem, ...]:
+        if self._rendered_items is None:
+            exploited = frozenset().union(
+                *(result.known_exploited_cve_ids for result in self._results.values())
+            )
+            items = {
+                (item.source_id, item.id): replace(
+                    item,
+                    known_exploited=item.known_exploited or bool(exploited.intersection(item.cve_ids)),
+                )
+                for result in self._results.values()
+                for item in result.items
+            }
+            oldest = datetime.min.replace(tzinfo=timezone.utc)
+            self._rendered_items = tuple(sorted(
+                items.values(),
+                key=lambda item: (item.published_at or item.updated_at or oldest, item.id),
+                reverse=True,
+            ))
+        return self._rendered_items
 
     def _start_refresh(self, now: datetime) -> None:
         self._last_attempt = now
@@ -216,6 +224,7 @@ class SecurityNewsUseCase:
         try:
             result = await self._source.fetch(source.id)
             self._results[source.id] = result
+            self._rendered_items = None
             self._states[source.id] = replace(
                 state, status="ok", count=len({item.id for item in result.items}),
                 last_success_at=self._clock(), error=None, warning=result.warning,

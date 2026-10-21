@@ -3,6 +3,7 @@ import asyncio
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from itertools import islice
 from pathlib import Path
 
 from src.application.ports.security_news_translation_port import NewsTranslationCachePort, TranslationFailure
@@ -107,25 +108,45 @@ class SqliteNewsTranslationCache(NewsTranslationCachePort):
             eligible = []
             retry_times = []
             seen = set()
-            for value in inputs:
-                if value.key in seen:
-                    continue
-                seen.add(value.key)
-                if connection.execute("SELECT 1 FROM translations WHERE content_key=?", (value.key,)).fetchone():
-                    continue
-                attempt = connection.execute(
-                    "SELECT attempt_count, next_attempt_at FROM attempts WHERE content_key=?", (value.key,),
-                ).fetchone()
-                if attempt is not None:
-                    count, retry = attempt
-                    if count >= max_attempts:
+
+            def unique_inputs():
+                for value in inputs:
+                    if value.key not in seen:
+                        seen.add(value.key)
+                        yield value
+
+            candidates = unique_inputs()
+            chunk_size = max(1, min(batch_size, 400))
+            while chunk := tuple(islice(candidates, chunk_size)):
+                keys = tuple(value.key for value in chunk)
+                placeholders = ",".join("?" for _ in keys)
+                translated = {row[0] for row in connection.execute(
+                    f"SELECT content_key FROM translations WHERE content_key IN ({placeholders})", keys,
+                )}
+                pending_keys = tuple(key for key in keys if key not in translated)
+                attempts = {}
+                if pending_keys:
+                    placeholders = ",".join("?" for _ in pending_keys)
+                    attempts = {key: (count, retry) for key, count, retry in connection.execute(
+                        f"SELECT content_key, attempt_count, next_attempt_at FROM attempts WHERE content_key IN ({placeholders})", pending_keys,
+                    )}
+                for value in chunk:
+                    if value.key in translated:
                         continue
-                    if retry > timestamp:
-                        retry_times.append(retry)
-                        continue
-                eligible.append(value)
+                    attempt = attempts.get(value.key)
+                    if attempt is not None:
+                        count, retry = attempt
+                        if count >= max_attempts:
+                            continue
+                        if retry > timestamp:
+                            retry_times.append(retry)
+                            continue
+                    eligible.append(value)
+                    if len(eligible) >= batch_size:
+                        break
                 if len(eligible) >= batch_size:
                     break
+                chunk_size = 400
             if not eligible:
                 return NewsTranslationReservation(
                     next_attempt_at=datetime.fromtimestamp(min(retry_times), timezone.utc) if retry_times else None,

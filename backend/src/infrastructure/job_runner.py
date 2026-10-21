@@ -49,18 +49,16 @@ class JobRunner(JobRunnerPort):
         known_status: JobStatus,
         timeout: float = 30.0,
     ) -> None:
-        current = await self._repo.find(job_id)
-        if current is None or current.status != known_status:
-            return
         event = asyncio.Event()
         waiters = self._notify_events.setdefault(job_id, set())
         waiters.add(event)
         try:
             current = await self._repo.find(job_id)
             if current is not None and current.status == known_status:
-                await asyncio.wait_for(event.wait(), timeout=timeout)
-        except asyncio.TimeoutError:
-            pass
+                try:
+                    await asyncio.wait_for(event.wait(), timeout=timeout)
+                except asyncio.TimeoutError:
+                    pass
         finally:
             waiters.discard(event)
             if not waiters:

@@ -79,16 +79,23 @@ class ResolutionCollector(AbstractWidgetCollector):
                 by_stage_hours=by_stage_hours,
             )
 
-        for offset in range(0, len(eligible), 5):
-            tasks = [asyncio.create_task(collect_stages(issue)) for issue in eligible[offset:offset + 5]]
-            try:
-                collected = await asyncio.gather(*tasks)
-                stage_issues.extend(issue for issue in collected if issue is not None)
-            finally:
-                for task in tasks:
-                    if not task.done():
-                        task.cancel()
-                await asyncio.gather(*tasks, return_exceptions=True)
+        pending = iter(enumerate(eligible))
+        collected: list[StageDurationIssue | None] = [None] * len(eligible)
+
+        async def worker() -> None:
+            for index, issue in pending:
+                collected[index] = await collect_stages(issue)
+                await asyncio.sleep(0)
+
+        tasks = [asyncio.create_task(worker()) for _ in range(min(5, len(eligible)))]
+        try:
+            await asyncio.gather(*tasks)
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+        stage_issues.extend(issue for issue in collected if issue is not None)
         logger.info("[w14-단계별시간] %d/%d건 수집", len(stage_issues), len(eligible))
         logger.info(f"[w14-평균처리일] {total}건")
         return WidgetResult(

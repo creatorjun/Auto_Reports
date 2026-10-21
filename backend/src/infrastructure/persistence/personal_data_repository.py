@@ -18,6 +18,8 @@ from src.infrastructure.persistence.personal_data_snapshot_store import Personal
 from src.infrastructure.persistence.personal_data_suppression import lock_personal_data_writes
 from src.infrastructure.security.personal_data_cipher import PersonalDataCipher
 
+_ACCOUNT_BATCH_SIZE = 500
+
 
 def _aware(value: datetime | None) -> datetime | None:
     return value.replace(tzinfo=timezone.utc) if value is not None and value.tzinfo is None else value
@@ -138,6 +140,8 @@ class PersonalDataRepository(PersonalDataRepositoryPort):
             return replace(identity, display_name=row.display_name, profile_version=row.profile_version, email_address=row.email_address)
 
     async def register_accounts(self, accounts: tuple[PersonalDataAccount, ...]) -> None:
+        if not accounts:
+            return
         now = datetime.now(timezone.utc)
         async with self._database.session() as session:
             await lock_personal_data_writes(session)
@@ -146,6 +150,7 @@ class PersonalDataRepository(PersonalDataRepositoryPort):
             ).order_by(PersonalDataAccountORM.account_id).with_for_update())).scalars().all()
             existing = {record.account_id: record for record in records}
             snapshot_times = None
+            oldest_by_account: dict[str, datetime] = {}
             for account in accounts:
                 if account.account_id == "unknown" or not re.fullmatch(r"[a-zA-Z0-9:_-]{1,128}", account.account_id):
                     continue
@@ -156,11 +161,14 @@ class PersonalDataRepository(PersonalDataRepositoryPort):
                         snapshot_times = {item.account_id: utc(item.updated_at) for item in await PersonalDataSnapshotStore(session).collect_accounts()}
                     profile_time = utc(current.profile_retrieved_at)
                     retrieved_at = min(profile_time, snapshot_times.get(account.account_id, profile_time))
-                statement = insert(PersonalDataAccountORM).values(
-                    account_id=account.account_id, display_name=None,
-                    oldest_retrieved_at=retrieved_at, profile_version=1,
-                    status="active", next_report_at=now,
-                )
+                oldest_by_account[account.account_id] = min(oldest_by_account.get(account.account_id, retrieved_at), retrieved_at)
+            values = [
+                dict(account_id=account_id, display_name=None, oldest_retrieved_at=retrieved_at,
+                     profile_version=1, status="active", next_report_at=now)
+                for account_id, retrieved_at in oldest_by_account.items()
+            ]
+            for offset in range(0, len(values), _ACCOUNT_BATCH_SIZE):
+                statement = insert(PersonalDataAccountORM).values(values[offset:offset + _ACCOUNT_BATCH_SIZE])
                 await session.execute(statement.on_conflict_do_update(
                     index_elements=["account_id"],
                     set_={"oldest_retrieved_at": func.least(PersonalDataAccountORM.oldest_retrieved_at, statement.excluded.oldest_retrieved_at)},

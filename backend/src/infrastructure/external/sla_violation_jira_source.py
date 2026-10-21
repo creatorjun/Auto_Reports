@@ -275,23 +275,29 @@ class SlaViolationJiraSource(SlaViolationSourcePort, SlaStatusDetailsPort):
 
     async def _enrich(self, selected: list) -> tuple[SlaViolationIssue, ...]:
         assets: dict[tuple[str, str], str | None] = {}
+        asset_locks: dict[tuple[str, str], asyncio.Lock] = {}
         project_ids = {
             str(project["id"])
             for raw, _, _, _ in selected
             if isinstance(project := raw["fields"].get("project"), dict) and project.get("id")
         }
         calendars = await self._calendars(next(iter(project_ids))) if len(project_ids) == 1 else ()
-        result = []
-        for index in range(0, len(selected), 5):
-            tasks = [asyncio.create_task(self._issue(*item, assets, calendars)) for item in selected[index:index + 5]]
-            try:
-                result.extend(await asyncio.gather(*tasks))
-            except BaseException:
-                for task in tasks:
-                    task.cancel()
-                await asyncio.gather(*tasks, return_exceptions=True)
-                raise
-        return tuple(result)
+        result: dict[int, SlaViolationIssue] = {}
+        pending = iter(enumerate(selected))
+
+        async def collect() -> None:
+            for index, item in pending:
+                result[index] = await self._issue(*item, assets, asset_locks, calendars)
+
+        tasks = [asyncio.create_task(collect()) for _ in range(min(5, len(selected)))]
+        try:
+            await asyncio.gather(*tasks)
+        except BaseException:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+        return tuple(result[index] for index in range(len(selected)))
 
     async def _calendars(self, project_id: str) -> tuple[SlaClockCalendar, ...]:
         try:
@@ -459,6 +465,7 @@ class SlaViolationJiraSource(SlaViolationSourcePort, SlaStatusDetailsPort):
 
     async def _asset_names(
         self, value: object, assets: dict[tuple[str, str], str | None],
+        asset_locks: dict[tuple[str, str], asyncio.Lock],
     ) -> tuple[str, ...] | None:
         if value is None:
             return ()
@@ -473,9 +480,11 @@ class SlaViolationJiraSource(SlaViolationSourcePort, SlaStatusDetailsPort):
                 return None
             reference = (str(asset["workspaceId"]), str(asset["objectId"]))
             if reference not in assets:
-                workspace, identifier = (quote(part, safe="") for part in reference)
-                data = await self._request("GET", f"/gateway/api/jsm/assets/workspace/{workspace}/v1/object/{identifier}")
-                assets[reference] = _text(data) or None
+                async with asset_locks.setdefault(reference, asyncio.Lock()):
+                    if reference not in assets:
+                        workspace, identifier = (quote(part, safe="") for part in reference)
+                        data = await self._request("GET", f"/gateway/api/jsm/assets/workspace/{workspace}/v1/object/{identifier}")
+                        assets[reference] = _text(data) or None
             if assets[reference] is None:
                 return None
             labels.append(assets[reference])
@@ -484,6 +493,7 @@ class SlaViolationJiraSource(SlaViolationSourcePort, SlaStatusDetailsPort):
     async def _issue(
         self, raw: dict, created: datetime, cycles: tuple[SlaViolationCycle, ...],
         warnings: list[str], assets: dict[tuple[str, str], str | None],
+        asset_locks: dict[tuple[str, str], asyncio.Lock],
         calendars: tuple[SlaClockCalendar, ...],
     ) -> SlaViolationIssue:
         key = raw["key"]
@@ -493,9 +503,9 @@ class SlaViolationJiraSource(SlaViolationSourcePort, SlaStatusDetailsPort):
             warnings.append("상태 변경 이력이 불완전하여 상태별 체류 기간 및 위반 당시 상태 확인 불가")
         customer = _text(fields.get(_CUSTOMER_NAME_FIELD))
         if not customer:
-            customers = await self._asset_names(fields.get(_CUSTOMER_ASSET_FIELD), assets)
+            customers = await self._asset_names(fields.get(_CUSTOMER_ASSET_FIELD), assets, asset_locks)
             customer = ", ".join(customers) if customers else ""
-        partners = await self._asset_names(fields[_PARTNER_FIELD], assets) if _PARTNER_FIELD in fields else None
+        partners = await self._asset_names(fields[_PARTNER_FIELD], assets, asset_locks) if _PARTNER_FIELD in fields else None
         if partners is None:
             warnings.append("담당 파트너사 확인 불가")
         return SlaViolationIssue(

@@ -4,6 +4,7 @@ import datetime
 import pathlib
 import sys
 import unittest
+from unittest.mock import AsyncMock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -66,6 +67,63 @@ class JobRunnerTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(record)
         self.assertEqual(JobStatus.DONE, record.status)
         self.assertEqual(1, record.report_id)
+
+    async def test_wait_uses_one_status_read_and_releases_timed_out_waiter(self) -> None:
+        await self.repository.save(JobRecord(job_id="waiting", status=JobStatus.RUNNING))
+        self.repository.find = AsyncMock(wraps=self.repository.find)
+        await self.runner.wait_for_update("waiting", JobStatus.RUNNING, timeout=0.001)
+        self.repository.find.assert_awaited_once_with("waiting")
+        self.assertEqual({}, self.runner._notify_events)
+
+    async def test_notification_during_status_read_is_not_lost(self) -> None:
+        stale_record = JobRecord(job_id="racing", status=JobStatus.RUNNING)
+
+        async def find(job_id):
+            self.runner._notify(job_id)
+            await asyncio.sleep(0)
+            return stale_record
+
+        self.repository.find = AsyncMock(side_effect=find)
+        await asyncio.wait_for(
+            self.runner.wait_for_update("racing", JobStatus.RUNNING, timeout=30),
+            timeout=0.1,
+        )
+        self.repository.find.assert_awaited_once_with("racing")
+        self.assertEqual({}, self.runner._notify_events)
+
+    async def test_missing_or_changed_job_returns_without_waiting(self) -> None:
+        for record in (None, JobRecord(job_id="done", status=JobStatus.DONE)):
+            with self.subTest(record=record):
+                self.repository.find = AsyncMock(return_value=record)
+                await asyncio.wait_for(
+                    self.runner.wait_for_update("done", JobStatus.RUNNING, timeout=30),
+                    timeout=0.1,
+                )
+                self.repository.find.assert_awaited_once_with("done")
+                self.assertEqual({}, self.runner._notify_events)
+
+    async def test_cancelled_status_read_removes_waiter(self) -> None:
+        entered = asyncio.Event()
+
+        async def find(job_id):
+            entered.set()
+            await asyncio.Event().wait()
+
+        self.repository.find = AsyncMock(side_effect=find)
+        task = asyncio.create_task(self.runner.wait_for_update("cancelled", JobStatus.RUNNING))
+        await entered.wait()
+        self.assertEqual(1, len(self.runner._notify_events["cancelled"]))
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        self.assertEqual({}, self.runner._notify_events)
+
+    async def test_status_read_timeout_propagates_and_removes_waiter(self) -> None:
+        self.repository.find = AsyncMock(side_effect=asyncio.TimeoutError("database timeout"))
+        with self.assertRaisesRegex(asyncio.TimeoutError, "database timeout"):
+            await self.runner.wait_for_update("timed-out", JobStatus.RUNNING)
+        self.repository.find.assert_awaited_once_with("timed-out")
+        self.assertEqual({}, self.runner._notify_events)
 
     async def asyncTearDown(self) -> None:
         await self.runner.aclose()
