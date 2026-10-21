@@ -226,7 +226,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
 
   const exportActions = !exportSelection && (
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <span className="text-caption text-apple-mid">{isAnnual ? '선택 연도 · 현재 필터' : '현재 필터 · 표 전체 포함'}</span>
+          {isAnnual && <span className="text-caption text-apple-mid">선택 연도 · 현재 필터</span>}
           <select
             aria-label="다운로드 형식"
             value={exportFormat}
@@ -550,27 +550,13 @@ export default function DashboardPage() {
   const annualQuery = useAnnualReport(annualYear)
   const { data, isLoading, error } = year ? annualQuery : id ? byIdQuery : latestQuery
   const canRefresh = !year && !!data && data.scope === 'standard'
-  const refreshReport = useReportRefreshShortcut(canRefresh)
+  useReportRefreshShortcut(canRefresh)
 
   return (
     <div className="mx-auto flex w-full max-w-content flex-col gap-5 3xl:max-w-none">
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        {canRefresh && (
-          <button
-            type="button"
-            onClick={refreshReport}
-            disabled={generation.pending}
-            aria-keyshortcuts="Control+r Meta+r"
-            title="마지막 생성 보고서의 조회 조건으로 최신화 (Windows: Ctrl+R / Mac: ⌘R)"
-            className="flex items-center gap-2 rounded-xl border border-apple-divider bg-apple-surface px-4 py-2.5 text-control text-apple-mid hover:bg-apple-gray disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={generation.pending ? 'animate-spin' : ''} />
-            {generation.pending ? '보고서 집계 중' : '보고서 최신화'}
-            <span className="hidden text-caption text-apple-light sm:inline">Ctrl+R / ⌘R</span>
-          </button>
-        )}
+      {(year || data?.scope === 'annual') && <div className="flex flex-wrap items-center justify-end gap-3">
         <Link to="/history" className="flex items-center gap-2 rounded-xl border border-apple-divider bg-apple-surface px-4 py-2.5 text-control text-apple-mid hover:bg-apple-gray"><History size={16} />보고서 히스토리</Link>
-      </div>
+      </div>}
       {year ? <AnnualReportGenerate year={annualYear} loading={isLoading} /> : !data && <DashboardGenerateForm loading={isLoading} />}
       {isLoading && <LoadingSpinner text="보고서 로딩 중..." />}
       {error && year && !data ? (
