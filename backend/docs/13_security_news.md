@@ -6,11 +6,12 @@
 
 ## 화면
 
-- CVE 취약점 대응은 `kind=cve`인 NVD·CISA KEV 자료를 **영향받는 라이브러리·버전 → 해결된 라이브러리·버전**으로 간결하게 표시합니다. CVE 번호·위험도·실제 악용 여부·출처·날짜·원문 링크를 함께 제공하며 긴 설명이나 번역 전환은 표시하지 않습니다.
+- CVE 취약점 대응은 `kind=cve`인 NVD·CISA KEV 자료를 제품·버전 대응마다 한 행으로 표시합니다. CVE, 위험도·CVSS, 소프트웨어, 영향 버전, 해결 버전, 실제 악용, 출처, 등록·공개일, 원문을 별도 컬럼으로 제공하며 긴 설명이나 번역 전환은 표시하지 않습니다. 좁은 화면에서는 CVE 컬럼을 고정하고 표 안에서 가로로 이동합니다.
 - 보안 뉴스는 `kind=advisory|news`인 자료만 표시합니다. CVE 번호를 언급한 보안 권고와 기사는 보안 뉴스에 남습니다.
 - 상단 위젯은 현재 메뉴의 자료만 집계합니다. 위젯을 선택하면 검색 조건과 페이지를 초기화하고 해당 집계 범위를 표시하며 정렬은 유지합니다.
-- CVE 번호·제품·버전·제목·요약 검색을 제공하며, 위젯 선택 후 검색 조건으로 결과를 더 좁힐 수 있습니다. 수집된 항목 위젯이나 필터 초기화로 현재 메뉴의 전체 목록으로 돌아갑니다.
-- 출처·위험도·실제 악용 확인·최근 7일/30일 필터와 최신순/위험도순 정렬을 조합합니다. 검색 결과는 20개씩 표시합니다.
+- CVE 번호·제품·버전·제목·요약과 수집된 NVD·KEV 원문 설명을 검색합니다. KEV 항목은 연결된 NVD 설명도 포함합니다. 링크된 외부 페이지 전체를 검색하는 기능은 아닙니다. 위젯 선택 후 검색 조건으로 결과를 더 좁힐 수 있으며 수집된 항목 위젯이나 필터 초기화로 현재 메뉴의 전체 목록으로 돌아갑니다.
+- 출처·위험도·실제 악용 확인·최근 7일/30일 필터와 최신순/위험도순 정렬을 조합합니다. CVE 화면의 **제품 확인 필요 숨기기**는 제품을 확인할 수 없는 행만 제외합니다. 소프트웨어·영향 버전·해결 버전 컬럼이나 정렬 선택으로 오름차순/내림차순을 전환할 수 있으며 버전의 숫자를 비교합니다. 미확인 값은 양방향 모두 뒤에 표시합니다.
+- CVE 검색 결과와 페이지는 제품·버전 행 기준으로 20행씩 표시하고 상단 위젯은 CVE 항목 수를 유지합니다. 보안 뉴스는 기사 기준으로 20개씩 표시합니다.
 - 상단 집계는 수집된 항목 기준입니다. 같은 CVE가 CISA와 NVD에 각각 포함될 수 있으므로 전 세계 취약점 총계나 고유 CVE 수를 뜻하지 않습니다.
 - 실제 악용 확인은 CISA KEV 목록에 등재된 CVE 기준입니다. NVD·권고의 CVE 번호가 KEV와 일치하면 같은 표시를 적용합니다.
 - CVSS는 NVD가 제공한 점수와 버전을 표시합니다. 값이 없는 항목은 미평가이며 낮은 위험으로 추정하지 않습니다.
@@ -48,7 +49,7 @@ Google Security는 수집 대상에서 제거했습니다. 이전 저장본에 �
 
 원문과 출처 상태를 `reports/security-news-snapshot.sqlite3`에 저장하며 재시작 후 마지막 결과를 복원합니다. `SECURITY_NEWS_SNAPSHOT_PATH`로 경로를 변경할 수 있고 Compose에서는 기존 `/app/reports` 볼륨에 저장합니다. 아래 번역 저장소도 계속 재사용합니다. PostgreSQL 테이블·마이그레이션을 추가하지 않습니다. 현재 단일 backend 프로세스 Compose 운영을 전제로 하며 여러 worker로 확장할 때는 수집 작업과 번역 실행의 조정이 필요합니다.
 
-구조화된 버전 정보가 없는 이전 저장본도 복원합니다. KEV 보완 수집 도입 전의 저장본은 다음 정상 수동·예약 수집에서 한 번 보완할 수 있도록 출처 수집 버전을 비교합니다. 페이지 GET·서버 시작은 여전히 수집을 시작하지 않으며 60초 수동 제한도 유지합니다. 보완 시도 버전을 요청 전에 저장하므로 실패·취소 후 재시작해도 2시간 제한이 유지됩니다. NVD 상세 응답의 CVE 번호·건수·페이지 완전성을 검증하며, 요청 실패 시 부분 결과로 정상 저장본을 덮어쓰지 않습니다. NVD가 정상 응답했으나 해당 CVE를 제공하지 않으면 KEV 원문을 유지하고 출처 안내에 누락 건수를 표시합니다.
+구조화된 버전 정보가 없는 이전 저장본도 복원합니다. KEV 보완 정보나 전체 원문 설명이 없는 이전 저장본은 다음 정상 수동·예약 수집에서 한 번 보완할 수 있도록 출처 수집 버전을 비교합니다. 페이지 GET·서버 시작은 여전히 수집을 시작하지 않으며 60초 수동 제한도 유지합니다. 보완 시도 버전을 요청 전에 저장하므로 실패·취소 후 재시작해도 2시간 제한이 유지됩니다. NVD 상세 응답의 CVE 번호·건수·페이지 완전성을 검증하며, 요청 실패 시 부분 결과로 정상 저장본을 덮어쓰지 않습니다. NVD가 정상 응답했으나 해당 CVE를 제공하지 않으면 KEV 원문을 유지하고 출처 안내에 누락 건수를 표시합니다.
 
 ## 한국어 번역과 API 사용 제한
 
@@ -92,7 +93,7 @@ Google Security는 수집 대상에서 제거했습니다. 이전 저장본에 �
 | `refresh_interval_seconds` | 정기 수집 주기, 86400초. 실제 실행 시각은 매일 08:00 KST |
 | `translation` | 번역 활성화·진행 여부, 번역 완료·대기 건수와 상태 안내 |
 
-`items`는 `id`, `source_id`, `kind`, `title`, `summary`, `title_ko`, `summary_ko`, `url`, `published_at`, `updated_at`, `cve_ids`, `severity`, `cvss_score`, `cvss_version`, `known_exploited`, `vendor`, `product`, `due_date`, `remediations`를 포함합니다. `title`·`summary`는 원문이고 아직 번역되지 않은 `title_ko`·`summary_ko`는 null입니다. CVE에는 번역을 적용하지 않습니다. `kind`는 `cve|advisory|news`, `severity`는 `critical|high|medium|low|unknown`입니다. 자료에 없는 점수·날짜·제품은 null입니다.
+`items`는 `id`, `source_id`, `kind`, `title`, `summary`, `original_description`, `title_ko`, `summary_ko`, `url`, `published_at`, `updated_at`, `cve_ids`, `severity`, `cvss_score`, `cvss_version`, `known_exploited`, `vendor`, `product`, `due_date`, `remediations`를 포함합니다. `title`·`summary`는 원문이고 아직 번역되지 않은 `title_ko`·`summary_ko`는 null입니다. `original_description`은 요약으로 자르기 전의 NVD·KEV 일반 텍스트 설명이며, 설명당 최대 100,000자를 보존하고 KEV에는 연결된 NVD 설명도 합칩니다. 해당 설명이 없는 이전 저장본·일반 뉴스는 null입니다. CVE에는 번역을 적용하지 않습니다. `kind`는 `cve|advisory|news`, `severity`는 `critical|high|medium|low|unknown`입니다. 자료에 없는 점수·날짜·제품은 null입니다.
 
 `remediations`는 제품별 `vendor`, `product`, `affected_versions`, `fixed_version`, `reference_url` 배열이며 정보가 없으면 빈 배열입니다. `product`·`affected_versions`는 문자열, `vendor`·`fixed_version`·`reference_url`은 문자열 또는 null입니다. 같은 취약점이 여러 제품·버전 범위에 영향을 주면 각각 표시합니다.
 

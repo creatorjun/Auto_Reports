@@ -17,6 +17,7 @@ export interface SecurityNewsItem {
   kind: SecurityNewsKind
   title: string
   summary: string
+  original_description?: string | null
   title_ko?: string | null
   summary_ko?: string | null
   url: string
@@ -71,6 +72,13 @@ export interface SecurityNewsFilters {
   source: string
   severity: SecuritySeverity | 'all' | 'high-risk'
   exploitedOnly: boolean
+  hideUnknownProducts: boolean
   days: 7 | 30 | 'all'
-  sort: 'newest' | 'severity'
+  sort: 'newest' | 'severity' | 'software' | 'software-desc' | 'affected-version' | 'affected-version-desc' | 'fixed-version' | 'fixed-version-desc'
+}
+
+export interface SecurityCveRow {
+  id: string
+  item: SecurityNewsItem
+  remediation: SecurityCveRemediation
 }

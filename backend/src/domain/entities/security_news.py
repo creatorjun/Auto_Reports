@@ -41,6 +41,7 @@ class SecurityNewsItem:
     title_ko: str | None = None
     summary_ko: str | None = None
     remediations: tuple[SecurityCveRemediation, ...] = ()
+    original_description: str | None = None
 
 
 @dataclass(frozen=True)

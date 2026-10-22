@@ -8,7 +8,8 @@ from unittest.mock import AsyncMock, patch
 import httpx
 
 from src.application.use_cases.security_news import SecurityNewsUseCase
-from src.infrastructure.external.security_news_source import PublicSecurityNewsSource, parse_date
+from src.domain.entities.security_news import SecurityNewsSourceResult, SecurityNewsSourceState, SecurityNewsStoredSnapshot
+from src.infrastructure.external.security_news_source import PublicSecurityNewsSource, SOURCES, parse_date
 
 
 def kev_entry(identifier: str, *, product: str = "Tomcat", vendor: str = "Apache") -> dict:
@@ -129,6 +130,31 @@ class SecurityKevEnrichmentTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(item.title_ko)
         self.assertIsNone(item.summary_ko)
 
+    async def test_kev_and_nvd_full_original_descriptions_are_joined_for_search(self) -> None:
+        identifier = "CVE-2026-34486"
+        catalog_entry = kev_entry(identifier)
+        catalog_entry["shortDescription"] = "KEV details. " * 120 + "OriginalKevTailMarker"
+        nvd_description = "NVD details. " * 120 + "OriginalNvdTailMarker"
+
+        def handle(request):
+            if request.url.host == "www.cisa.gov":
+                return httpx.Response(200, json={"vulnerabilities": [catalog_entry]})
+            return httpx.Response(200, json=nvd_document([nvd_entry(identifier, description=nvd_description)]))
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+            item = (await PublicSecurityNewsSource(client).fetch("cisa-kev")).items[0]
+        self.assertEqual(catalog_entry["shortDescription"] + "\n\n" + nvd_description, item.original_description)
+        self.assertNotIn("OriginalKevTailMarker", item.summary)
+        self.assertNotIn("OriginalNvdTailMarker", item.summary)
+        self.assertEqual(f"cisa-kev:{identifier}", item.id)
+        self.assertEqual("cisa-kev", item.source_id)
+        self.assertEqual(parse_date("2026-08-04"), item.published_at)
+        self.assertEqual(parse_date("2026-08-05T10:00:00.000"), item.updated_at)
+        self.assertEqual("2026-08-25", item.due_date)
+        self.assertTrue(item.known_exploited)
+        self.assertIsNone(item.title_ko)
+        self.assertIsNone(item.summary_ko)
+
     async def test_matching_kev_product_excludes_unrelated_distribution_rows(self) -> None:
         identifier = "CVE-2026-12340"
         configurations = [{"nodes": [{"cpeMatch": [
@@ -168,6 +194,42 @@ class SecurityKevEnrichmentTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(item.remediations[0].fixed_version)
         self.assertIn("1건", result.warning)
         self.assertEqual(frozenset({identifier}), result.known_exploited_cve_ids)
+        self.assertEqual("The vendor reported exploitation of this vulnerability.", item.original_description)
+
+    async def test_original_description_upgrade_backfills_on_refresh_and_never_on_get(self) -> None:
+        now = datetime(2026, 10, 22, tzinfo=timezone.utc)
+        previous = now - timedelta(minutes=5)
+        port = AsyncMock()
+        port.sources = tuple(source for source in SOURCES if source.id in {"cisa-kev", "nvd"})
+        port.fetch.return_value = SecurityNewsSourceResult(())
+        self.assertEqual({"cisa-kev": 2, "nvd": 1}, {source.id: source.collection_version for source in port.sources})
+        store = AsyncMock()
+        store.load.return_value = SecurityNewsStoredSnapshot(
+            results=tuple((source.id, SecurityNewsSourceResult(())) for source in port.sources),
+            sources=tuple(SecurityNewsSourceState(
+                source.id, source.name, source.homepage, source.kind, status="ok", last_success_at=previous,
+                collection_version=source.collection_version - 1,
+            ) for source in port.sources),
+            source_attempts=tuple((source.id, previous) for source in port.sources),
+            last_attempt=previous, refreshed_at=previous, initialized=True,
+        )
+        use_case = SecurityNewsUseCase(port, clock=lambda: now, store=store)
+        try:
+            for _ in range(2):
+                snapshot = await use_case.get_snapshot()
+                self.assertFalse(snapshot.refreshing)
+                self.assertEqual(previous, snapshot.refreshed_at)
+            port.fetch.assert_not_awaited()
+            await use_case.get_snapshot(refresh=True)
+            await use_case._task
+            self.assertEqual({"cisa-kev", "nvd"}, {call.args[0] for call in port.fetch.await_args_list})
+            self.assertEqual(2, port.fetch.await_count)
+            now += timedelta(seconds=60)
+            await use_case.get_snapshot(refresh=True)
+            await use_case._task
+            self.assertEqual(2, port.fetch.await_count)
+        finally:
+            await use_case.aclose()
 
     async def test_incomplete_or_unrelated_nvd_responses_fail_instead_of_merging(self) -> None:
         identifier = "CVE-2026-12340"

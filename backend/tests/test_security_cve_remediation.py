@@ -61,6 +61,18 @@ class CveRemediationParsingTest(unittest.TestCase):
         self.assertEqual(1200, len(item.summary))
         self.assertEqual("1.2.3", item.remediations[0].fixed_version)
         self.assertEqual(URL, item.remediations[0].reference_url)
+        self.assertEqual(description, item.original_description)
+
+    def test_original_description_is_bounded_and_has_no_hidden_html(self):
+        description = "<script>hidden script marker</script><p>" + "A" * 100_000 + "out of bounds marker</p>"
+        payload = json.dumps({"vulnerabilities": [{"cve": {
+            "id": "CVE-2026-1234", "descriptions": [{"lang": "en", "value": description}],
+        }}]}).encode()
+        item = parse_nvd(payload).items[0]
+        self.assertGreater(len(item.original_description), 1200)
+        self.assertLessEqual(len(item.original_description), 100_000)
+        self.assertNotIn("hidden script marker", item.original_description)
+        self.assertNotIn("out of bounds marker", item.original_description)
 
     def test_unanalyzed_description_can_supply_product_range_and_fix(self):
         rows = cve_remediations(None, "Example Library prior to 3.2.1 allows a crash. This issue was patched in 3.2.1.", URL)
@@ -179,6 +191,26 @@ class CveRemediationParsingTest(unittest.TestCase):
 
 
 class CveRemediationPersistenceTest(unittest.IsolatedAsyncioTestCase):
+    async def test_full_original_description_survives_source_storage_and_api(self):
+        description = "Details. " * 200 + "SearchableOriginalBeyondSummary"
+        payload = json.dumps({"vulnerabilities": [{"cve": {
+            "id": "CVE-2026-1234", "descriptions": [{"lang": "en", "value": description}],
+        }}]}).encode()
+        result = parse_nvd(payload)
+        snapshot = SecurityNewsStoredSnapshot((("nvd", result),), (), (), None, None, True)
+        with tempfile.TemporaryDirectory() as directory:
+            store = SqliteSecurityNewsSnapshotStore(str(Path(directory) / "snapshot.sqlite3"))
+            try:
+                await store.save(snapshot)
+                saved = await store.load()
+            finally:
+                await store.aclose()
+        item = saved.results[0][1].items[0]
+        response = SecurityNewsItemResponse.model_validate(item).model_dump(mode="json")
+        self.assertEqual(description, response["original_description"])
+        self.assertNotIn("SearchableOriginalBeyondSummary", response["summary"])
+        self.assertNotIn("SearchableOriginalBeyondSummary", response["title"])
+
     async def test_roundtrip_schema_and_legacy_snapshot(self):
         remediation = SecurityCveRemediation("Library", "< 1.2.3", "Acme", "1.2.3", URL)
         item = SecurityNewsItem("id", "nvd", "cve", "Title", "Summary", URL, remediations=(remediation,))
@@ -193,6 +225,9 @@ class CveRemediationPersistenceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([asdict(remediation)], SecurityNewsItemResponse.model_validate(item).model_dump(mode="json")["remediations"])
         value = asdict(snapshot)
         value["results"][0][1]["items"][0].pop("remediations")
+        value["results"][0][1]["items"][0].pop("original_description")
         value["results"][0][1]["known_exploited_cve_ids"] = []
         legacy = _decode(json.dumps({"version": 1, "snapshot": value}))
         self.assertEqual((), legacy.results[0][1].items[0].remediations)
+        self.assertIsNone(legacy.results[0][1].items[0].original_description)
+        self.assertIsNone(SecurityNewsItemResponse.model_validate(legacy.results[0][1].items[0]).original_description)

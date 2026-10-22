@@ -25,8 +25,8 @@ from src.infrastructure.external.security_cve_remediation import cve_remediation
 
 
 SOURCES = (
-    SecurityNewsSource("cisa-kev", "CISA KEV", "https://www.cisa.gov/known-exploited-vulnerabilities-catalog", "cve", minimum_refresh_seconds=7200, collection_version=1),
-    SecurityNewsSource("nvd", "NVD", "https://nvd.nist.gov/", "cve", minimum_refresh_seconds=7200),
+    SecurityNewsSource("cisa-kev", "CISA KEV", "https://www.cisa.gov/known-exploited-vulnerabilities-catalog", "cve", minimum_refresh_seconds=7200, collection_version=2),
+    SecurityNewsSource("nvd", "NVD", "https://nvd.nist.gov/", "cve", minimum_refresh_seconds=7200, collection_version=1),
     SecurityNewsSource("kisa", "KISA 보호나라", "https://www.boho.or.kr/", "advisory"),
     SecurityNewsSource("cisco", "Cisco 보안 권고", "https://sec.cloudapps.cisco.com/security/center/publicationListing.x", "advisory"),
 )
@@ -149,6 +149,7 @@ def parse_kev(payload: bytes) -> SecurityNewsSourceResult:
             vendor=vendor, product=product,
             due_date=due.date().isoformat() if due is not None else None,
             remediations=cve_remediations(None, description, url, product=product, vendor=vendor),
+            original_description=description or None,
         ))
     return SecurityNewsSourceResult(
         recent_items(items), frozenset(exploited),
@@ -215,6 +216,7 @@ def parse_nvd(payload: bytes) -> SecurityNewsSourceResult:
             updated_at=parse_date(row.get("lastModified")),
             cve_ids=(cve,), severity=severity, cvss_score=score, cvss_version=version,
             remediations=cve_remediations(row.get("configurations"), description, url),
+            original_description=description or None,
         ))
     warning = "최근 7일에 공개된 CVE 중 최신 최대 200건이며, 수동 새로고침을 포함해 2시간 간격으로 조회합니다. CVSS 미평가 항목은 심각도 미정입니다."
     return SecurityNewsSourceResult(recent_items(items, 200), warning=warning)
@@ -360,6 +362,9 @@ class PublicSecurityNewsSource(SecurityNewsPort):
             items.append(replace(
                 item, severity=detail.severity, cvss_score=detail.cvss_score, cvss_version=detail.cvss_version,
                 updated_at=detail.updated_at, remediations=matching or detail.remediations or item.remediations,
+                original_description="\n\n".join(dict.fromkeys(
+                    value for value in (item.original_description, detail.original_description) if value
+                )) or None,
             ))
         warning = (result.warning or "") + " CVE 번호로 NVD 상세 정보를 조회해 버전과 CVSS를 보완하며 최소 2시간 간격으로 갱신합니다."
         if missing:
