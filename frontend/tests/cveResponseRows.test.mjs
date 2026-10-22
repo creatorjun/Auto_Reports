@@ -102,6 +102,31 @@ test('fixed versions use natural version order and preserve missing fixes at the
   assert.deepEqual(rows(input, { sort: 'fixed-version-desc' }).map((row) => row.remediation.product), ['C', 'A', 'B', 'D', 'E'])
 })
 
+test('CVE rows search displayed fix basis and branch without mixing evidence between products', () => {
+  const input = [item({ remediations: [
+    { ...remediation('Range library', '< 1.6.20', '1.6.20'), fixed_version_basis: 'nvd_range', fixed_version_branch: '1.6' },
+    { ...remediation('Vendor library', '< 1.6.21', '1.6.21'), fixed_version_basis: 'vendor', fixed_version_branch: '1.6' },
+    { ...remediation('Description library', '2.0', '2.1'), fixed_version_basis: 'description' },
+    remediation('Legacy library', '3.0', '3.1'),
+  ] })]
+  assert.deepEqual(rows(input, { search: 'NVD 영향 범위 1.6 계열' }).map((row) => row.remediation.product), ['Range library'])
+  assert.deepEqual(rows(input, { search: '제조사 확인' }).map((row) => row.remediation.product), ['Vendor library'])
+  assert.deepEqual(rows(input, { search: '출처 수정 명시' }).map((row) => row.remediation.product), ['Description library'])
+  assert.deepEqual(rows(input, { search: '근거 확인 필요' }).map((row) => row.remediation.product), ['Legacy library'])
+  assert.equal(rows(input, { search: 'Range 제조사' }).length, 0)
+})
+
+test('CVE fixed version sorting uses bare numeric versions independently of evidence labels', () => {
+  const input = [item({ remediations: [
+    { ...remediation('Range library', '< 1.6.20', '1.6.20'), fixed_version_basis: 'nvd_range', fixed_version_branch: '1.6' },
+    { ...remediation('Vendor library', '< 1.6.9', '1.6.9'), fixed_version_basis: 'vendor', fixed_version_branch: '1.6' },
+    { ...remediation('Description library', '1.6.9', '1.6.10'), fixed_version_basis: 'description' },
+    remediation('Unknown library'),
+  ] })]
+  assert.deepEqual(rows(input, { sort: 'fixed-version' }).map((row) => row.remediation.fixed_version), ['1.6.9', '1.6.10', '1.6.20', null])
+  assert.deepEqual(rows(input, { sort: 'fixed-version-desc' }).map((row) => row.remediation.fixed_version), ['1.6.20', '1.6.10', '1.6.9', null])
+})
+
 test('row filters combine source severity exploitation and date without introducing ordinary news', () => {
   const input = [item({ id: 'kev', source_id: 'cisa-kev', known_exploited: true, remediations: [remediation('Tomcat', '9'), remediation('OpenSSL', '1')] }), item({ id: 'nvd', known_exploited: true }), item({ id: 'old', source_id: 'cisa-kev', known_exploited: true, published_at: '2026-09-01' }), item({ id: 'news', source_id: 'cisa-kev', kind: 'news', known_exploited: true })]
   const filters = { source: 'cisa-kev', severity: 'high-risk', exploitedOnly: true, days: 7 }

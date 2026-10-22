@@ -6,7 +6,7 @@
 
 ## 화면
 
-- CVE 취약점 대응은 `kind=cve`인 NVD·CISA KEV 자료를 제품·버전 대응마다 한 행으로 표시합니다. CVE, 위험도·CVSS, 소프트웨어, 영향 버전, 해결 버전, 실제 악용, 출처, 등록·공개일, 원문을 별도 컬럼으로 제공하며 긴 설명이나 번역 전환은 표시하지 않습니다. 좁은 화면에서는 CVE 컬럼을 고정하고 표 안에서 가로로 이동합니다.
+- CVE 취약점 대응은 `kind=cve`인 NVD·CISA KEV 자료를 제품·버전 대응마다 한 행으로 표시합니다. CVE, 위험도·CVSS, 소프트웨어, 영향 버전, 해결 버전, 판단 근거, 실제 악용, 출처, 등록·공개일, 원문을 별도 컬럼으로 제공하며 긴 설명이나 번역 전환은 표시하지 않습니다. 판단 근거를 선택하면 해당 출처를 열고, 좁은 화면에서는 CVE 컬럼을 고정하고 표 안에서 가로로 이동합니다.
 - 보안 뉴스는 `kind=advisory|news`인 자료를 한 행씩 표시합니다. 유형, 한 줄 요약, 위험도, 관련 CVE, 실제 악용, 출처, 게시일, 원문을 별도 컬럼으로 제공합니다. 긴 문구는 한 줄로 줄여 표시하고 마우스를 올리면 전체 문구를 확인할 수 있습니다. 좁은 화면에서는 표를 가로로 이동합니다. CVE 번호를 언급한 보안 권고와 기사는 보안 뉴스에 남습니다.
 - 상단 위젯은 현재 메뉴의 자료만 집계합니다. 위젯을 선택하면 검색 조건과 페이지를 초기화하고 해당 집계 범위를 표시하며 정렬은 유지합니다.
 - CVE 번호·제품·버전·제목·요약과 수집된 NVD·KEV 원문 설명을 검색합니다. KEV 항목은 연결된 NVD 설명도 포함합니다. 링크된 외부 페이지 전체를 검색하는 기능은 아닙니다. 위젯 선택 후 검색 조건으로 결과를 더 좁힐 수 있으며 수집된 항목 위젯이나 필터 초기화로 현재 메뉴의 전체 목록으로 돌아갑니다.
@@ -20,7 +20,15 @@
 - 날짜는 KST로 표시합니다. CISA 날짜는 CVE 최초 공개일이 아닌 KEV 등록일이고, 조치 기한은 미국 연방기관 대상 기한입니다. 기간 필터는 게시/등록일, 없으면 수정일을 사용합니다.
 - 수집 출처를 펼치면 출처별 정상·이전 자료 표시·수집 실패·수집 대기, 보관 건수, 마지막 성공 시각과 수집 범위를 확인합니다.
 
-버전 정보는 NVD의 CPE 영향 범위와 출처 설명에 명시된 제품·해결 버전에서 추출합니다. 영향 버전 범위의 포함·제외 조건을 유지하며, 범위의 제외 상한을 해결 버전으로 추정하지 않습니다. 제품과 해결 버전을 명확하게 연결할 수 없으면 **버전 확인 필요** 또는 **해결 버전 미확인**으로 표시합니다. CISA KEV도 CVE 번호로 NVD 상세 정보를 조회해 버전과 CVSS를 보완합니다. KEV 등록일·조치 기한·실제 악용 여부는 유지하며, 같은 제품의 정보가 있으면 해당 제품의 버전을 우선 표시합니다. 명시적인 영향·해결 버전 목록은 제품명과 숫자 major.minor 계열이 일치하는 경우에 연결합니다. 예를 들어 CVE-2026-34486은 `11.0.20 → 11.0.21`, `10.1.53 → 10.1.54`, `9.0.116 → 9.0.117`로 표시합니다. 목록의 위치나 다른 제품의 버전으로 짝을 추정하지 않으며, 서로 충돌하거나 지원하지 않는 표현은 미확인으로 남깁니다.
+버전 정보는 NVD의 CPE 영향 범위와 출처 설명에 명시된 제품·해결 버전에서 추출하며 AI를 호출하지 않습니다. 영향 버전의 포함·제외 조건을 유지하고 판단 근거를 구분합니다.
+
+- **제조사 확인**: 제품과 연결된 명시적 수정 버전이며, NVD 등록 주체가 확인된 제조사이고 같은 주체가 제공한 제조사 도메인의 HTTPS `Vendor Advisory` 참조가 있습니다. 제조사가 NVD에 제공한 설명과 공지 출처를 확인하는 방식이며 공지 본문을 별도로 수집하지 않습니다. 현재 Apache·Cisco·Microsoft·Mozilla·Oracle·PHP·Red Hat의 등록 도메인과 제품 공급자 이름을 검증합니다.
+- **NVD 영향 범위**: 같은 CVE 안에서 동일 CPE 제품 유형·공급자·제품의 모든 영향 범위를 비교합니다. 숫자 `major.minor` 계열의 다른 범위까지 벗어나는 제외 상한이 있을 때 `1.6.20 이상 (1.6 계열)`처럼 표시합니다. `< 1.6.20`과 `< 1.6.30`이 함께 있으면 1.6.30을 기준으로 삼으며, 1.6.30 이후에도 영향을 받는 상한 없는 범위가 있으면 제시하지 않습니다. 플랫폼 조건은 충돌을 놓치지 않도록 함께 비교합니다.
+- **출처 수정 명시**: 원문에 수정 버전이 명시되어 있으나 위 제조사 출처 조건을 확인하지 못한 경우입니다. 이전 저장본에 근거가 없으면 **근거 확인 필요**로 표시합니다.
+
+포함 상한(`<=`)에 패치 번호를 더하거나 두 자리 버전·사전 배포 버전·불완전한 조건에서 버전을 만들어내지 않습니다. NVD 기준은 해당 CVE와 제품·버전 계열에만 적용하며 다른 CVE, 다른 계열, 설치 환경이나 공급사의 백포트 적용 여부를 보증하지 않습니다. 제품과 버전을 연결할 수 없거나 영향 범위가 충돌하면 **버전 확인 필요** 또는 **해결 버전 미확인**으로 남깁니다.
+
+CISA KEV도 CVE 번호로 NVD 상세 정보를 조회해 버전·판단 근거·CVSS를 보완합니다. KEV 등록일·조치 기한·실제 악용 여부는 유지하며, 같은 제품의 정보가 있으면 해당 제품의 버전을 우선 표시합니다. 명시적 영향·해결 버전 목록은 제품명과 숫자 major.minor 계열이 일치하는 경우에 연결합니다. 예를 들어 CVE-2026-34486은 `11.0.20 → 11.0.21`, `10.1.53 → 10.1.54`, `9.0.116 → 9.0.117`로 표시합니다. 목록 위치나 다른 제품의 버전으로 짝을 추정하지 않습니다.
 
 ## 공개 소스와 범위
 
@@ -95,7 +103,7 @@ AI 요약은 보안 권고·뉴스(`kind=advisory|news`)에만 적용하며 수�
 
 `items`는 `id`, `source_id`, `kind`, `title`, `summary`, `original_description`, `title_ko`, `summary_ko`, `url`, `published_at`, `updated_at`, `cve_ids`, `severity`, `cvss_score`, `cvss_version`, `known_exploited`, `vendor`, `product`, `due_date`, `remediations`를 포함합니다. `title`·`summary`는 원문이고 `summary_ko`는 한국어 한 줄 요약 또는 null입니다. 별도 제목 번역을 생성하지 않으므로 호환용 `title_ko`는 null입니다. `original_description`은 요약으로 자르기 전의 NVD·KEV 일반 텍스트 설명이며, 설명당 최대 100,000자를 보존하고 KEV에는 연결된 NVD 설명도 합칩니다. 해당 설명이 없는 이전 저장본·일반 뉴스는 null입니다. CVE에는 AI 요약을 적용하지 않습니다. `kind`는 `cve|advisory|news`, `severity`는 `critical|high|medium|low|unknown`입니다. 자료에 없는 점수·날짜·제품은 null입니다.
 
-`remediations`는 제품별 `vendor`, `product`, `affected_versions`, `fixed_version`, `reference_url` 배열이며 정보가 없으면 빈 배열입니다. `product`·`affected_versions`는 문자열, `vendor`·`fixed_version`·`reference_url`은 문자열 또는 null입니다. 같은 취약점이 여러 제품·버전 범위에 영향을 주면 각각 표시합니다.
+`remediations`는 제품별 `vendor`, `product`, `affected_versions`, `fixed_version`, `reference_url`, `fixed_version_basis`, `fixed_version_branch` 배열이며 정보가 없으면 빈 배열입니다. `product`·`affected_versions`는 문자열, 나머지는 문자열 또는 null입니다. `fixed_version_basis`는 `vendor|nvd_range|description` 또는 null, `fixed_version_branch`는 숫자 `major.minor` 계열 또는 null입니다. `fixed_version`은 숫자 정렬을 위해 버전 문자열만 유지하며 NVD 기준의 '이상'·계열 문구는 화면에서 표시합니다. 새 필드가 없는 이전 저장본은 null로 복원하고 다음 정상 수집에서 보완합니다. 같은 취약점이 여러 제품·버전 범위에 영향을 주면 각각 표시합니다.
 
 `translation`은 호환을 위해 기존 필드명을 유지하며 `enabled`, `translating`, `translated_count`, `pending_count`, `message`로 AI 요약 활성화·진행·완료·대기 상태를 반환합니다. 건수는 AI 대상 보안 권고·뉴스만 포함하며 이미 한국어인 자료와 CVE는 제외합니다. 원문 수집의 `refreshing`과 요약의 `translating`은 별개이며 요약 중에도 수집 제한이 지난 경우 최신 자료를 확인할 수 있습니다.
 
@@ -138,4 +146,4 @@ HTTP는 고정된 4개 주소만 호출하며 사용자 URL 입력을 받지 않
 
 운영 서버에서 위 4개 HTTPS 호스트로 나가는 연결이 필요합니다. 선택적 번역에는 Google Gemini API 연결과 키가 필요하며 SMTP·Jira 권한은 추가하지 않습니다. 공급자 장애나 차단은 출처별 상태에 표시되며, 백엔드 로그에는 출처 ID와 실패 예외 종류를 남깁니다. 번역 오류의 원문 응답이나 API 키는 로그·브라우저 응답에 포함하지 않습니다.
 
-검증은 `backend`에서 `../venv/Scripts/python.exe -m unittest tests.test_security_news tests.test_security_news_schedule tests.test_security_news_snapshot_store tests.test_security_news_source tests.test_security_cve_remediation tests.test_security_kev_enrichment tests.test_security_news_api tests.test_security_news_translation tests.test_gemini_news_translator tests.test_architecture tests.test_container_lifecycle`, `frontend`에서 `pnpm test:security-news`, `pnpm test:architecture`, `pnpm build`를 실행합니다. 외부 API 없이 08시 KST 예약, GET의 외부 호출 차단, 당일 중복 방지, 재시작 복원, 취소 중 시도 시각 보존, CVE 버전 추출·번역 제외, 번역 캐시·호출 제한·모델 제한을 검증합니다. 실제 수집·번역 상태는 운영 로그인 후 메뉴에서 별도로 확인해야 하며 단위 테스트 성공만으로 외부 서비스의 접근 권한이나 할당량을 보증하지 않습니다.
+검증은 `backend`에서 `../venv/Scripts/python.exe -m unittest tests.test_security_news tests.test_security_news_schedule tests.test_security_news_snapshot_store tests.test_security_news_source tests.test_security_cve_remediation tests.test_security_cve_ranges tests.test_security_cve_provenance tests.test_security_kev_enrichment tests.test_security_news_api tests.test_security_news_translation tests.test_gemini_news_translator tests.test_architecture tests.test_container_lifecycle`, `frontend`에서 `pnpm test:security-news`, `pnpm test:architecture`, `pnpm build`를 실행합니다. 외부 API 없이 08시 KST 예약, GET의 외부 호출 차단, 당일 중복 방지, 재시작 복원, 취소 중 시도 시각 보존, CVE 버전 추출·영향 범위 충돌·계열·제조사 출처 검증·AI 제외, 번역 캐시·호출 제한·모델 제한을 검증합니다. 실제 수집·번역 상태는 운영 로그인 후 메뉴에서 별도로 확인해야 하며 단위 테스트 성공만으로 외부 서비스의 접근 권한이나 할당량을 보증하지 않습니다.

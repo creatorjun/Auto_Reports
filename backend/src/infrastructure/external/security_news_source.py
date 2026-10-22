@@ -22,11 +22,12 @@ from src.domain.entities.security_news import (
     SecurityNewsSourceResult,
 )
 from src.infrastructure.external.security_cve_remediation import cve_remediations
+from src.infrastructure.external.security_cve_provenance import manufacturer_remediations
 
 
 SOURCES = (
-    SecurityNewsSource("cisa-kev", "CISA KEV", "https://www.cisa.gov/known-exploited-vulnerabilities-catalog", "cve", minimum_refresh_seconds=7200, collection_version=2),
-    SecurityNewsSource("nvd", "NVD", "https://nvd.nist.gov/", "cve", minimum_refresh_seconds=7200, collection_version=1),
+    SecurityNewsSource("cisa-kev", "CISA KEV", "https://www.cisa.gov/known-exploited-vulnerabilities-catalog", "cve", minimum_refresh_seconds=7200, collection_version=3),
+    SecurityNewsSource("nvd", "NVD", "https://nvd.nist.gov/", "cve", minimum_refresh_seconds=7200, collection_version=2),
     SecurityNewsSource("kisa", "KISA 보호나라", "https://www.boho.or.kr/", "advisory"),
     SecurityNewsSource("cisco", "Cisco 보안 권고", "https://sec.cloudapps.cisco.com/security/center/publicationListing.x", "advisory"),
 )
@@ -215,7 +216,9 @@ def parse_nvd(payload: bytes) -> SecurityNewsSourceResult:
             published_at=parse_date(row.get("published")),
             updated_at=parse_date(row.get("lastModified")),
             cve_ids=(cve,), severity=severity, cvss_score=score, cvss_version=version,
-            remediations=cve_remediations(row.get("configurations"), description, url),
+            remediations=manufacturer_remediations(
+                cve_remediations(row.get("configurations"), description, url), row.get("sourceIdentifier"), row.get("references"),
+            ),
             original_description=description or None,
         ))
     warning = "최근 7일에 공개된 CVE 중 최신 최대 200건이며, 수동 새로고침을 포함해 2시간 간격으로 조회합니다. CVSS 미평가 항목은 심각도 미정입니다."

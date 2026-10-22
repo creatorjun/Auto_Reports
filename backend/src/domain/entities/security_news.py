@@ -9,6 +9,7 @@ from src.domain.entities.security_news_translation import NewsTranslationState
 NewsKind = Literal["cve", "advisory", "news"]
 NewsSeverity = Literal["critical", "high", "medium", "low", "unknown"]
 NewsSourceStatus = Literal["ok", "stale", "error", "pending"]
+RemediationBasis = Literal["vendor", "nvd_range", "description"]
 
 
 @dataclass(frozen=True)
@@ -18,6 +19,8 @@ class SecurityCveRemediation:
     vendor: str | None = None
     fixed_version: str | None = None
     reference_url: str | None = None
+    fixed_version_basis: RemediationBasis | None = None
+    fixed_version_branch: str | None = None
 
 
 @dataclass(frozen=True)

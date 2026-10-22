@@ -616,12 +616,57 @@ test('CVE remediation pairs escape source content and distinguish missing fixes 
   assert.doesNotMatch(html, /<script>|javascript:|AI 번역|Linux 보안 패치/)
 })
 
+test('CVE table distinguishes verified vendor fixes, scoped NVD bounds and description evidence', () => {
+  const List = load('presentation/components/security/CveRemediationList').default
+  const remediations = [
+    { vendor: null, product: 'Vendor library', affected_versions: '< 9.0.117', fixed_version: '9.0.117', fixed_version_basis: 'vendor', fixed_version_branch: '9.0', reference_url: 'https://vendor.example/security' },
+    { vendor: null, product: 'Range library', affected_versions: '< 1.6.20', fixed_version: '1.6.20', fixed_version_basis: 'nvd_range', fixed_version_branch: '1.6', reference_url: 'https://nvd.nist.gov/vuln/detail/CVE-2026-12345' },
+    { vendor: null, product: 'Description library', affected_versions: '2.0', fixed_version: '2.1', fixed_version_basis: 'description', fixed_version_branch: null, reference_url: 'https://source.example/advisory' },
+  ]
+  const html = renderToStaticMarkup(React.createElement(List, { rows: filterCveResponseRows([item({ remediations })], defaultSecurityNewsFilters(), now), sources: new Map() }))
+  assert.equal((html.match(/scope="col"/g) ?? []).length, 10)
+  assert.equal((html.match(/scope="row"/g) ?? []).length, 3)
+  assert.match(html, /판단 근거/)
+  assert.match(html, /1\.6\.20 이상 \(1\.6 계열\)/)
+  assert.match(html, /제조사 확인/)
+  assert.match(html, /NVD 영향 범위/)
+  assert.match(html, /출처 수정 명시/)
+  assert.match(html, /같은 제품과 주·부 버전 계열의 다른 NVD 영향 범위/)
+  assert.match(html, /공급사 백포트/)
+  for (const url of ['https://vendor.example/security', 'https://nvd.nist.gov/vuln/detail/CVE-2026-12345', 'https://source.example/advisory']) assert.ok(html.includes(`href="${url}"`))
+  assert.doesNotMatch(html, /9\.0\.117 이상|2\.1 이상/)
+})
+
+test('CVE evidence links use safe references or source fallback while legacy fixes remain unverified', () => {
+  const List = load('presentation/components/security/CveRemediationList').default
+  const remediations = [
+    { vendor: null, product: 'Legacy library', affected_versions: '1.0', fixed_version: '1.1', reference_url: 'javascript:alert(1)' },
+    { vendor: null, product: 'Unknown library', affected_versions: '< 2.0', fixed_version: null, fixed_version_basis: null, reference_url: null },
+  ]
+  const safeHtml = renderToStaticMarkup(React.createElement(List, { rows: filterCveResponseRows([item({ remediations })], defaultSecurityNewsFilters(), now), sources: new Map() }))
+  assert.match(safeHtml, /근거 확인 필요 근거 확인/)
+  assert.match(safeHtml, /href="https:\/\/nvd.nist.gov\/vuln\/detail\/CVE-2026-12345"/)
+  assert.match(safeHtml, />미확인<\/span>/)
+  assert.doesNotMatch(safeHtml, /javascript:|제조사 확인|NVD 영향 범위/)
+  const unsafeHtml = renderToStaticMarkup(React.createElement(List, { rows: filterCveResponseRows([item({ url: 'data:text/html,bad', cve_ids: [], remediations })], defaultSecurityNewsFilters(), now), sources: new Map() }))
+  assert.doesNotMatch(unsafeHtml, /href=|javascript:|data:text/)
+  assert.match(unsafeHtml, />근거 확인 필요<\/span>/)
+})
+
+test('CVE range fixes without a valid branch never claim all higher versions are fixed', () => {
+  const List = load('presentation/components/security/CveRemediationList').default
+  const remediations = [undefined, null, '1', '1.7', '<script>1.6</script>'].map((branch, index) => ({ vendor: null, product: `Library ${index}`, affected_versions: '< 1.6.20', fixed_version: '1.6.20', fixed_version_basis: 'nvd_range', fixed_version_branch: branch, reference_url: null }))
+  const html = renderToStaticMarkup(React.createElement(List, { rows: filterCveResponseRows([item({ remediations })], defaultSecurityNewsFilters(), now), sources: new Map() }))
+  assert.match(html, /1\.6\.20 \(계열 확인 필요\)/)
+  assert.doesNotMatch(html, /1\.6\.20 이상|<script>/)
+})
+
 
 test('CVE table searches full original description without displaying the prose', (t) => {
   const fullText = 'Details '.repeat(250) + 'EncryptInterceptor bypass marker'
   const view = renderPage(t, query({ data: snapshot({ items: [item({ id: 'target', original_description: fullText }), item({ id: 'other', cve_ids: ['CVE-2026-55555'] })] }) }), 'CveResponsePage')
   assert.equal(view.root.findAllByType('article').length, 0)
-  assert.equal(view.root.findByType('thead').findAllByType('th').length, 9)
+  assert.equal(view.root.findByType('thead').findAllByType('th').length, 10)
   assert.doesNotMatch(plainText(view), /EncryptInterceptor bypass marker/)
   act(() => view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: 'EncryptInterceptor bypass marker' } }))
   assert.equal(cveTableRows(view).length, 1)

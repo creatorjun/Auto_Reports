@@ -1,5 +1,5 @@
 // frontend/src/application/services/securityNews.ts
-import type { SecurityCveRow, SecurityNewsFilters, SecurityNewsItem, SecurityNewsLanguage, SecuritySeverity } from '@/domain/SecurityNews'
+import type { SecurityCveRemediation, SecurityCveRow, SecurityNewsFilters, SecurityNewsItem, SecurityNewsLanguage, SecuritySeverity } from '@/domain/SecurityNews'
 import { normalizeSearchText } from '@/domain/Search'
 
 const severityOrder: Record<SecuritySeverity, number> = { critical: 4, high: 3, medium: 2, low: 1, unknown: 0 }
@@ -69,6 +69,21 @@ export function isUnknownCveProduct(product: string | null | undefined): boolean
   return !normalized || normalized === '제품 확인 필요'
 }
 
+export function cveFixedVersionBasisLabel(entry: SecurityCveRemediation): string {
+  if (!entry.fixed_version) return '미확인'
+  if (entry.fixed_version_basis === 'vendor') return '제조사 확인'
+  if (entry.fixed_version_basis === 'nvd_range') return 'NVD 영향 범위'
+  if (entry.fixed_version_basis === 'description') return '출처 수정 명시'
+  return '근거 확인 필요'
+}
+
+export function cveFixedVersionLabel(entry: SecurityCveRemediation): string {
+  if (!entry.fixed_version) return '해결 버전 미확인'
+  if (entry.fixed_version_basis !== 'nvd_range') return entry.fixed_version
+  const branch = entry.fixed_version_branch?.trim()
+  return branch && /^\d+\.\d+$/.test(branch) && (entry.fixed_version === branch || entry.fixed_version.startsWith(`${branch}.`)) ? `${entry.fixed_version} 이상 (${branch} 계열)` : `${entry.fixed_version} (계열 확인 필요)`
+}
+
 function compareCveSoftware(left: SecurityCveRow, right: SecurityCveRow, direction: number): number {
   const leftUnknown = isUnknownCveProduct(left.remediation.product)
   const rightUnknown = isUnknownCveProduct(right.remediation.product)
@@ -88,13 +103,13 @@ export function filterCveResponseRows(items: readonly SecurityNewsItem[], filter
   const rows: SecurityCveRow[] = []
   for (const item of items) {
     if (item.kind !== 'cve' || !matchesSecurityNewsFilters(item, filters, now)) continue
-    const remediations = item.remediations?.length ? item.remediations : [{ vendor: item.vendor, product: item.product?.trim() || '제품 확인 필요', affected_versions: '', fixed_version: null, reference_url: null }]
+    const remediations: SecurityCveRemediation[] = item.remediations?.length ? item.remediations : [{ vendor: item.vendor, product: item.product?.trim() || '제품 확인 필요', affected_versions: '', fixed_version: null, reference_url: null }]
     const itemSearchText = terms.length ? securityNewsSearchText(item, []) : ''
     const rowTerms = terms.filter((term) => !itemSearchText.includes(term))
     for (const [index, remediation] of remediations.entries()) {
       if (filters.hideUnknownProducts && isUnknownCveProduct(remediation.product)) continue
       if (rowTerms.length) {
-        const searchable = normalizeSearchText([remediation.vendor, remediation.product, remediation.affected_versions, remediation.fixed_version].filter(Boolean).join(' '))
+        const searchable = normalizeSearchText([remediation.vendor, remediation.product, remediation.affected_versions, cveFixedVersionLabel(remediation), cveFixedVersionBasisLabel(remediation)].filter(Boolean).join(' '))
         if (!rowTerms.every((term) => searchable.includes(term))) continue
       }
       rows.push({ id: `${item.id}:${index}`, item, remediation })

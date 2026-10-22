@@ -202,7 +202,7 @@ class SecurityKevEnrichmentTest(unittest.IsolatedAsyncioTestCase):
         port = AsyncMock()
         port.sources = tuple(source for source in SOURCES if source.id in {"cisa-kev", "nvd"})
         port.fetch.return_value = SecurityNewsSourceResult(())
-        self.assertEqual({"cisa-kev": 2, "nvd": 1}, {source.id: source.collection_version for source in port.sources})
+        self.assertEqual({"cisa-kev": 3, "nvd": 2}, {source.id: source.collection_version for source in port.sources})
         store = AsyncMock()
         store.load.return_value = SecurityNewsStoredSnapshot(
             results=tuple((source.id, SecurityNewsSourceResult(())) for source in port.sources),

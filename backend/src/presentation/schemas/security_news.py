@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from src.domain.entities.security_news import NewsKind, NewsSeverity, NewsSourceStatus
+from src.domain.entities.security_news import NewsKind, NewsSeverity, NewsSourceStatus, RemediationBasis
 
 
 class SecurityCveRemediationResponse(BaseModel):
@@ -14,6 +14,8 @@ class SecurityCveRemediationResponse(BaseModel):
     vendor: str | None = None
     fixed_version: str | None = None
     reference_url: str | None = None
+    fixed_version_basis: RemediationBasis | None = None
+    fixed_version_branch: str | None = None
 
 
 class SecurityNewsItemResponse(BaseModel):

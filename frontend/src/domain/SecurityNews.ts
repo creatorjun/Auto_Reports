@@ -8,6 +8,8 @@ export interface SecurityCveRemediation {
   product: string
   affected_versions: string
   fixed_version: string | null
+  fixed_version_basis?: 'vendor' | 'nvd_range' | 'description' | null
+  fixed_version_branch?: string | null
   reference_url: string | null
 }
 
