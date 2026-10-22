@@ -103,6 +103,47 @@ class SecurityNewsSnapshotStoreTest(unittest.IsolatedAsyncioTestCase):
         await restarted.refresh_scheduled()
         self.assertEqual(4, other.fetch.await_count)
 
+    async def test_legacy_kev_get_stays_local_and_next_refresh_upgrades_once(self) -> None:
+        service, _, _ = self.service()
+        await self.manual(service)
+        await service.aclose()
+        self.now += timedelta(seconds=60)
+        upgraded, source, store = self.service()
+        source.sources = tuple(replace(value, minimum_refresh_seconds=7200, collection_version=1) if value.id == "cisa-kev" else value for value in source.sources)
+        await upgraded.initialize()
+        for _ in range(3):
+            await upgraded.get_snapshot()
+        source.fetch.assert_not_awaited()
+        await self.manual(upgraded)
+        self.assertEqual(["cisa-kev"], [call.args[0] for call in source.fetch.await_args_list])
+        saved = await store.load()
+        self.assertEqual(1, next(state.collection_version for state in saved.sources if state.id == "cisa-kev"))
+        await upgraded.aclose()
+        self.now += timedelta(seconds=60)
+        restarted, other, _ = self.service()
+        other.sources = source.sources
+        await self.manual(restarted)
+        other.fetch.assert_not_awaited()
+
+    async def test_failed_kev_upgrade_keeps_saved_data_and_retry_interval_after_restart(self) -> None:
+        service, _, _ = self.service()
+        original = await self.manual(service)
+        await service.aclose()
+        self.now += timedelta(seconds=60)
+        upgraded, source, _ = self.service()
+        source.sources = tuple(replace(value, minimum_refresh_seconds=7200, collection_version=1) if value.id == "cisa-kev" else value for value in source.sources)
+        source.fetch.side_effect = TimeoutError("NVD unavailable")
+        with self.assertLogs("src.application.use_cases.security_news", level="WARNING"):
+            failed = await self.manual(upgraded)
+        self.assertEqual(original.items, failed.items)
+        self.assertEqual("stale", next(value.status for value in failed.sources if value.id == "cisa-kev"))
+        await upgraded.aclose()
+        self.now += timedelta(seconds=60)
+        restarted, other, _ = self.service()
+        other.sources = source.sources
+        await self.manual(restarted)
+        other.fetch.assert_not_awaited()
+
     async def test_concurrent_store_instances_claim_same_day_only_once(self) -> None:
         stores = [SqliteSecurityNewsSnapshotStore(self.path) for _ in range(12)]
         for store in stores:

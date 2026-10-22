@@ -1,7 +1,7 @@
 # backend/src/infrastructure/external/security_cve_remediation.py
 import re
 from collections import deque
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 from src.domain.entities.security_news import SecurityCveRemediation
 
@@ -15,6 +15,55 @@ RANGE = re.compile(
 FIX = re.compile(
     rf"(?:^|[.!?]\s+)(?:This (?:issue|vulnerability)|The (?:issue|vulnerability))\s+(?:is|was|has been)\s+(?:fixed|patched|resolved)\s+in\s+(?:version\s+)?(?P<version>{VERSION})\s*[.!]?(?=$|\s+[A-Z])",
 )
+SEPARATOR = r"(?:\s*,\s*(?:(?:and|or)\s+)?|\s+(?:and|or)\s+)"
+AFFECTED_VERSION = rf"(?:versions?\s+)?(?:(?:from\s+)?{VERSION}\s+(?:through|to|up to and including|before|prior to)\s+{VERSION}|{VERSION})"
+AFFECTED_LIST = re.compile(
+    rf"\b(?:This|The)\s+(?:issue|vulnerability)\s+affects\s+(?P<product>{PRODUCT})\s*:\s*(?P<versions>{AFFECTED_VERSION}(?:{SEPARATOR}{AFFECTED_VERSION})*)(?=\s*\.(?:\s|$)|\s*$)",
+    re.IGNORECASE,
+)
+FIX_LIST = re.compile(
+    rf"\b(?:Users\s+(?:are\s+(?:recommended|advised)\s+to|should)\s+upgrade\s+to\s+versions?\s+(?P<recommended>{VERSION}(?:{SEPARATOR}{VERSION})*)\s*,\s*which\s+fix(?:es)?\s+(?:the|this)\s+(?:issue|vulnerability)|(?:This|The)\s+(?:issue|vulnerability)\s+(?:is|was|has been)\s+(?:fixed|patched|resolved)\s+in\s+versions?\s+(?P<fixed>{VERSION}(?:{SEPARATOR}{VERSION})*))(?=\s*\.(?:\s|$)|\s*$)",
+    re.IGNORECASE,
+)
+AFFECTED_RANGE = re.compile(
+    rf"(?:versions?\s+)?(?:from\s+)?(?P<start>{VERSION})\s+(?P<bound>through|to|up to and including|before|prior to)\s+(?P<end>{VERSION})",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True)
+class _AffectedBranch:
+    affected_versions: str
+    branch: tuple[int, int]
+    upper: tuple[int, ...]
+    upper_inclusive: bool
+
+
+def _numeric_version(value: str) -> tuple[int, ...] | None:
+    if not re.fullmatch(r"[vV]?\d+(?:\.\d+){2,}", value):
+        return None
+    return tuple(int(part) for part in value.lstrip("vV").split("."))
+
+
+def _version_order(left: tuple[int, ...], right: tuple[int, ...]) -> int:
+    length = max(len(left), len(right))
+    left, right = left + (0,) * (length - len(left)), right + (0,) * (length - len(right))
+    return (left > right) - (left < right)
+
+
+def _affected_branch(value: str) -> _AffectedBranch | None:
+    ranged = AFFECTED_RANGE.fullmatch(value.strip())
+    if ranged:
+        upper = _numeric_version(ranged["end"])
+        lower_branch = re.match(r"[vV]?(\d+)\.(\d+)\.", ranged["start"])
+        lower = _numeric_version(ranged["start"])
+        if upper is None or lower_branch is None or tuple(map(int, lower_branch.groups())) != upper[:2] or (lower and _version_order(lower, upper) > 0):
+            return None
+        inclusive = ranged["bound"].lower() not in {"before", "prior to"}
+        return _AffectedBranch(f">= {ranged['start']}, {'<=' if inclusive else '<'} {ranged['end']}", upper[:2], upper, inclusive)
+    version = re.sub(r"^versions?\s+", "", value.strip(), flags=re.IGNORECASE)
+    upper = _numeric_version(version)
+    return _AffectedBranch(version, upper[:2], upper, True) if upper else None
 
 
 def _cpe_parts(value: object) -> list[str]:
@@ -87,6 +136,97 @@ def _same_product(name: str, entry: SecurityCveRemediation) -> bool:
     return normalized(name) in {normalized(entry.product), normalized(f"{entry.vendor or ''} {entry.product}")}
 
 
+def _entry_branch(entry: SecurityCveRemediation) -> _AffectedBranch | None:
+    numeric = _numeric_version(entry.affected_versions)
+    if numeric:
+        return _AffectedBranch(entry.affected_versions, numeric[:2], numeric, True)
+    match = re.fullmatch(rf">=?\s+({VERSION}),\s+(<|<=)\s+({VERSION})", entry.affected_versions)
+    if match:
+        upper = _numeric_version(match[3])
+        lower_branch = re.match(r"[vV]?(\d+)\.(\d+)\.", match[1])
+        lower = _numeric_version(match[1])
+        if upper and lower_branch and tuple(map(int, lower_branch.groups())) == upper[:2] and (not lower or _version_order(lower, upper) <= 0):
+            return _AffectedBranch(entry.affected_versions, upper[:2], upper, match[2] == "<=")
+    return None
+
+
+def _before_fix(affected: _AffectedBranch, fixed: str) -> bool:
+    version = _numeric_version(fixed)
+    if version is None:
+        return False
+    comparison = _version_order(affected.upper, version)
+    return comparison < 0 or (comparison == 0 and not affected.upper_inclusive)
+
+
+def _branch_fixes(description: str, affected_match: re.Match, affected: list[_AffectedBranch]) -> dict[tuple[int, int], str]:
+    matches = list(FIX_LIST.finditer(description))
+    if len(matches) != 1:
+        return {}
+    fix_match = matches[0]
+    remaining = description
+    for match in sorted((affected_match, fix_match), key=lambda value: value.start(), reverse=True):
+        remaining = remaining[:match.start()] + " " + remaining[match.end():]
+    if re.search(VERSION, remaining) or re.search(r"\b(?:fixed|patched|resolved|affected|affects)\b", remaining, re.IGNORECASE):
+        return {}
+    values = re.split(SEPARATOR, fix_match["recommended"] or fix_match["fixed"], flags=re.IGNORECASE)
+    fixes = {}
+    for value in values:
+        version = _numeric_version(value)
+        if version is None or version[:2] in fixes:
+            return {}
+        fixes[version[:2]] = value
+    if len({value.branch for value in affected}) != len(affected) or set(fixes) != {value.branch for value in affected}:
+        return {}
+    if not all(_before_fix(value, fixes[value.branch]) for value in affected):
+        return {}
+    return fixes
+
+
+def _branch_remediations(entries: list[SecurityCveRemediation], description: str, reference_url: str, product: str | None, vendor: str | None) -> list[SecurityCveRemediation] | None:
+    affected_matches = list(AFFECTED_LIST.finditer(description))
+    if len(affected_matches) != 1:
+        return None
+    affected_match = affected_matches[0]
+    name = affected_match["product"].strip()
+    if re.search(r"\b(?:and|or|is|are|in|vulnerability|issue|affects|allows|the|this)\b", name, re.IGNORECASE):
+        return None
+    if product and not _same_product(name, SecurityCveRemediation(product, "", vendor)):
+        return None
+    affected = []
+    for value in re.split(SEPARATOR, affected_match["versions"], flags=re.IGNORECASE):
+        branch = _affected_branch(value)
+        if branch is None:
+            return None
+        affected.append(branch)
+    fixes = _branch_fixes(description, affected_match, affected)
+    matching = [entry for entry in entries if _same_product(name, entry)]
+    for entry in matching:
+        if entry.affected_versions == "버전 확인 필요":
+            continue
+        branch = _entry_branch(entry)
+        if branch is None:
+            fixes = {}
+            break
+        if branch.branch in fixes and not _before_fix(branch, fixes[branch.branch]):
+            fixes.pop(branch.branch)
+    output, represented = [], set()
+    for entry in entries:
+        if entry not in matching:
+            output.append(entry)
+            continue
+        if entry.affected_versions == "버전 확인 필요":
+            continue
+        branch = _entry_branch(entry)
+        output.append(replace(entry, fixed_version=fixes.get(branch.branch) if branch else None))
+        if branch:
+            represented.add(branch.branch)
+    template = matching[0] if matching else SecurityCveRemediation(product or name, "", vendor, reference_url=reference_url)
+    for value in affected:
+        if value.branch not in represented:
+            output.append(replace(template, affected_versions=value.affected_versions, fixed_version=fixes.get(value.branch)))
+    return list(dict.fromkeys(output))
+
+
 def cve_remediations(configurations: object, description: str, reference_url: str, *, product: str | None = None, vendor: str | None = None) -> tuple[SecurityCveRemediation, ...]:
     entries = []
     for match in _matches(configurations):
@@ -98,6 +238,9 @@ def cve_remediations(configurations: object, description: str, reference_url: st
             affected_versions=_affected(match, parts), reference_url=reference_url,
         ))
     entries = list(dict.fromkeys(entries))
+    branched = _branch_remediations(entries, description, reference_url, product, vendor)
+    if branched is not None:
+        return tuple(branched)
     described = _description_range(description, product)
     if not entries:
         if described:

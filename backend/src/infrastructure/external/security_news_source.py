@@ -4,6 +4,8 @@ import hashlib
 import json
 import math
 import re
+import time
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
@@ -23,7 +25,7 @@ from src.infrastructure.external.security_cve_remediation import cve_remediation
 
 
 SOURCES = (
-    SecurityNewsSource("cisa-kev", "CISA KEV", "https://www.cisa.gov/known-exploited-vulnerabilities-catalog", "cve"),
+    SecurityNewsSource("cisa-kev", "CISA KEV", "https://www.cisa.gov/known-exploited-vulnerabilities-catalog", "cve", minimum_refresh_seconds=7200, collection_version=1),
     SecurityNewsSource("nvd", "NVD", "https://nvd.nist.gov/", "cve", minimum_refresh_seconds=7200),
     SecurityNewsSource("kisa", "KISA 보호나라", "https://www.boho.or.kr/", "advisory"),
     SecurityNewsSource("cisco", "Cisco 보안 권고", "https://sec.cloudapps.cisco.com/security/center/publicationListing.x", "advisory"),
@@ -38,6 +40,9 @@ CVE_PATTERN = re.compile(r"\bCVE-\d{4}-\d{4,}\b", re.IGNORECASE)
 MAX_RESPONSE_BYTES = 12 * 1024 * 1024
 MAX_ITEMS = 300
 SOURCE_TIMEOUT_SECONDS = 65
+NVD_SOURCE_TIMEOUT_SECONDS = 180
+NVD_REQUEST_INTERVAL_SECONDS = 6
+NVD_BATCH_SIZE = 100
 VALID_SEVERITIES = {"critical", "high", "medium", "low"}
 
 
@@ -273,6 +278,8 @@ class PublicSecurityNewsSource(SecurityNewsPort):
             headers={"User-Agent": "TAC-Auto-Reports-Security-News/1.0", "Accept": "application/json, application/rss+xml, application/xml, text/xml"},
         )
         self._owns_client = client is None
+        self._nvd_lock = asyncio.Lock()
+        self._nvd_next_request = 0.0
 
     @property
     def sources(self) -> tuple[SecurityNewsSource, ...]:
@@ -281,7 +288,8 @@ class PublicSecurityNewsSource(SecurityNewsPort):
     async def fetch(self, source_id: str) -> SecurityNewsSourceResult:
         if source_id not in ENDPOINTS:
             raise ValueError("Unknown security news source")
-        return await asyncio.wait_for(self._fetch(source_id), timeout=SOURCE_TIMEOUT_SECONDS)
+        timeout = NVD_SOURCE_TIMEOUT_SECONDS if source_id in {"nvd", "cisa-kev"} else SOURCE_TIMEOUT_SECONDS
+        return await asyncio.wait_for(self._fetch(source_id), timeout=timeout)
 
     async def _fetch(self, source_id: str) -> SecurityNewsSourceResult:
         if source_id == "nvd":
@@ -291,21 +299,72 @@ class PublicSecurityNewsSource(SecurityNewsPort):
                 "pubEndDate": now.isoformat(timespec="milliseconds"),
                 "resultsPerPage": 1,
             }
-            first_payload = await self._read_response(ENDPOINTS[source_id], params=params)
+            first_payload = await self._read_nvd(params)
             first_page = json.loads(first_payload)
             total = first_page.get("totalResults")
             if isinstance(total, bool) or not isinstance(total, int) or total < 0:
                 raise ValueError("Invalid NVD total")
             if total <= 1:
                 return parse_nvd(first_payload)
-            await asyncio.sleep(6)
             params.update({"resultsPerPage": 200, "startIndex": max(0, total - 200)})
-            return parse_nvd(await self._read_response(ENDPOINTS[source_id], params=params))
+            return parse_nvd(await self._read_nvd(params))
         payload = await self._read_response(ENDPOINTS[source_id])
         if source_id == "cisa-kev":
-            return parse_kev(payload)
+            return await self._enrich_kev(parse_kev(payload))
         source = next(source for source in SOURCES if source.id == source_id)
         return parse_feed(payload, source)
+
+    async def _read_nvd(self, params: dict) -> bytes:
+        async with self._nvd_lock:
+            delay = self._nvd_next_request - time.monotonic()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            try:
+                return await self._read_response(ENDPOINTS["nvd"], params=params)
+            finally:
+                self._nvd_next_request = time.monotonic() + NVD_REQUEST_INTERVAL_SECONDS
+
+    async def _enrich_kev(self, result: SecurityNewsSourceResult) -> SecurityNewsSourceResult:
+        identifiers = tuple(dict.fromkeys(cve for item in result.items for cve in item.cve_ids))
+        details: dict[str, SecurityNewsItem] = {}
+        for start in range(0, len(identifiers), NVD_BATCH_SIZE):
+            batch = identifiers[start:start + NVD_BATCH_SIZE]
+            payload = await self._read_nvd({"cveIds": ",".join(batch), "resultsPerPage": NVD_BATCH_SIZE})
+            document = json.loads(payload)
+            if not isinstance(document, dict):
+                raise ValueError("Invalid NVD detail response")
+            rows, total = document.get("vulnerabilities"), document.get("totalResults")
+            if (
+                not isinstance(rows, list) or isinstance(total, bool) or not isinstance(total, int)
+                or not 0 <= total <= len(batch) or total != len(rows) or document.get("startIndex", 0) != 0
+            ):
+                raise ValueError("Incomplete NVD detail response")
+            returned = [row.get("cve", {}).get("id") for row in rows if isinstance(row, dict) and isinstance(row.get("cve"), dict)]
+            if (
+                len(returned) != total or any(not isinstance(value, str) or not CVE_PATTERN.fullmatch(value) for value in returned)
+                or len(set(returned)) != total or not set(returned).issubset(batch)
+            ):
+                raise ValueError("Mismatched NVD detail response")
+            details.update((item.cve_ids[0], item) for item in parse_nvd(payload).items)
+        items = []
+        missing = 0
+        for item in result.items:
+            detail = details.get(item.cve_ids[0])
+            if detail is None:
+                missing += 1
+                items.append(item)
+                continue
+            normalize = lambda value: re.sub(r"[\W_]", "", value or "").casefold()
+            names = {normalize(item.product), normalize(f"{item.vendor or ''} {item.product or ''}")}
+            matching = tuple(entry for entry in detail.remediations if normalize(entry.product) in names or normalize(f"{entry.vendor or ''} {entry.product}") in names)
+            items.append(replace(
+                item, severity=detail.severity, cvss_score=detail.cvss_score, cvss_version=detail.cvss_version,
+                updated_at=detail.updated_at, remediations=matching or detail.remediations or item.remediations,
+            ))
+        warning = (result.warning or "") + " CVE 번호로 NVD 상세 정보를 조회해 버전과 CVSS를 보완하며 최소 2시간 간격으로 갱신합니다."
+        if missing:
+            warning += f" NVD 상세 정보가 없는 {missing}건은 KEV 원문을 표시합니다."
+        return replace(result, items=tuple(items), warning=warning)
 
     async def _read_response(self, url: str, *, params: dict | None = None) -> bytes:
         payload = bytearray()

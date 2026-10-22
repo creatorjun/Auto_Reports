@@ -50,6 +50,7 @@ class SecurityNewsSource:
     homepage: str
     kind: NewsKind
     minimum_refresh_seconds: int = 0
+    collection_version: int = 0
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,7 @@ class SecurityNewsSourceState:
     last_success_at: datetime | None = None
     error: str | None = None
     warning: str | None = None
+    collection_version: int = 0
 
 
 @dataclass(frozen=True)

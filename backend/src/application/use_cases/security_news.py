@@ -81,6 +81,9 @@ class SecurityNewsUseCase:
                                 self._states[state.id] = replace(
                                     state, name=current.name, homepage=current.homepage, kind=current.kind,
                                 )
+                        for source in self._source.sources:
+                            if self._states[source.id].collection_version < source.collection_version:
+                                self._source_attempts.pop(source.id, None)
                         self._last_attempt = saved.last_attempt
                         self._refreshed_at = saved.refreshed_at
                         self._initialized = saved.initialized
@@ -207,6 +210,7 @@ class SecurityNewsUseCase:
         )
         for source in sources:
             self._source_attempts[source.id] = now
+            self._states[source.id] = replace(self._states[source.id], collection_version=source.collection_version)
         await self._persist()
         try:
             await asyncio.gather(*(self._refresh_source(source) for source in sources))

@@ -19,18 +19,18 @@
 - 날짜는 KST로 표시합니다. CISA 날짜는 CVE 최초 공개일이 아닌 KEV 등록일이고, 조치 기한은 미국 연방기관 대상 기한입니다. 기간 필터는 게시/등록일, 없으면 수정일을 사용합니다.
 - 수집 출처를 펼치면 출처별 정상·이전 자료 표시·수집 실패·수집 대기, 보관 건수, 마지막 성공 시각과 수집 범위를 확인합니다.
 
-버전 정보는 NVD의 CPE 영향 범위와 출처 설명에 명시된 제품·해결 버전에서 추출합니다. 영향 버전 범위의 포함·제외 조건을 유지하며, 범위의 제외 상한을 해결 버전으로 추정하지 않습니다. 제품과 해결 버전을 명확하게 연결할 수 없으면 **버전 확인 필요** 또는 **해결 버전 미확인**으로 표시합니다. CISA KEV는 제공된 제품명을 유지하고, 버전이 없는 항목은 원문 링크에서 확인할 수 있습니다.
+버전 정보는 NVD의 CPE 영향 범위와 출처 설명에 명시된 제품·해결 버전에서 추출합니다. 영향 버전 범위의 포함·제외 조건을 유지하며, 범위의 제외 상한을 해결 버전으로 추정하지 않습니다. 제품과 해결 버전을 명확하게 연결할 수 없으면 **버전 확인 필요** 또는 **해결 버전 미확인**으로 표시합니다. CISA KEV도 CVE 번호로 NVD 상세 정보를 조회해 버전과 CVSS를 보완합니다. KEV 등록일·조치 기한·실제 악용 여부는 유지하며, 같은 제품의 정보가 있으면 해당 제품의 버전을 우선 표시합니다. 명시적인 영향·해결 버전 목록은 제품명과 숫자 major.minor 계열이 일치하는 경우에 연결합니다. 예를 들어 CVE-2026-34486은 `11.0.20 → 11.0.21`, `10.1.53 → 10.1.54`, `9.0.116 → 9.0.117`로 표시합니다. 목록의 위치나 다른 제품의 버전으로 짝을 추정하지 않으며, 서로 충돌하거나 지원하지 않는 표현은 미확인으로 남깁니다.
 
 ## 공개 소스와 범위
 
 | 출처 | 주소 | 수집 범위 |
 |---|---|---|
-| CISA KEV | [공개 JSON](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json) | 전체 KEV 번호로 악용 여부 확인, 화면에는 최근 등재 최대 300건 |
+| CISA KEV | [공개 JSON](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json) | 전체 KEV 번호로 악용 여부 확인, 최근 등재 최대 300건을 NVD 상세 정보로 보완 |
 | NVD | [CVE API](https://services.nvd.nist.gov/rest/json/cves/2.0) | 최근 7일 공개 CVE 중 최신 최대 200건, 거부된 CVE 제외 |
 | KISA 보호나라 | [보안공지 RSS](https://www.boho.or.kr/kr/rss.do?bbsId=B0000133) | RSS가 제공하는 최신 보안공지 |
 | Cisco PSIRT | [보안 권고 RSS](https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml) | RSS가 제공하는 최신 권고 |
 
-RSS는 출처별 최대 100건을 보관하며 실제 제공 개수는 출처에 따라 다릅니다. NVD는 기본 응답이 오래된 순이므로 먼저 동일한 7일 구간의 전체 건수를 조회하고 6초 이상 지난 뒤 마지막 200건을 조회합니다. 범위와 건수를 제한하는 초안으로, 전체 CVE 데이터베이스 검색이나 사내 장비의 취약점 진단 기능은 아닙니다.
+RSS는 출처별 최대 100건을 보관하며 실제 제공 개수는 출처에 따라 다릅니다. NVD는 기본 응답이 오래된 순이므로 먼저 동일한 7일 구간의 전체 건수를 조회하고 6초 이상 지난 뒤 마지막 200건을 조회합니다. KEV 상세 조회는 공개일 제한 없이 `cveIds`에 최대 100개씩 묶어 최대 3회 요청합니다. 최근 NVD 수집과 KEV 보완 조회는 하나의 요청 간격 제어를 공유하며 각 NVD 응답 종료 후 최소 6초 뒤 다음 요청을 보냅니다. 각각 최대 180초 안에 완료하지 못하면 해당 출처의 이전 정상 저장본을 유지합니다. 범위와 건수를 제한하므로, 전체 CVE 데이터베이스 검색이나 사내 장비의 취약점 진단 기능은 아닙니다.
 
 Google Security는 수집 대상에서 제거했습니다. 이전 저장본에 남은 해당 출처·항목도 목록·집계·번역 대상에서 제외합니다. 한국어로 제공된 원문은 번역 대상에서 제외합니다.
 
@@ -42,13 +42,13 @@ Google Security는 수집 대상에서 제거했습니다. 이전 저장본에 �
 
 화면은 수집 중 2초, 번역 중 5초, 평상시 60초 간격으로 저장 결과와 상태만 조회합니다. 목록 GET은 외부 뉴스 수집이나 새 번역 작업을 시작하지 않습니다. 페이지가 닫혀 있어도 정기 수집은 실행되고 이미 시작한 수집·번역은 완료합니다.
 
-두 메뉴의 **최신 자료 확인**은 같은 수집 작업을 요청하며 전체 사용자에게 공유되는 최소 60초 요청 간격을 적용합니다. 진행 중인 요청은 같은 작업을 공유합니다. NVD는 수동 요청을 포함해 마지막 시도부터 최소 2시간 동안 다시 요청하지 않으며 다른 출처만 갱신할 수 있습니다. 시도 시각과 당일 자동 수집 기록은 저장해 재시작 후에도 중복 실행을 방지합니다.
+두 메뉴의 **최신 자료 확인**은 같은 수집 작업을 요청하며 전체 사용자에게 공유되는 최소 60초 요청 간격을 적용합니다. 진행 중인 요청은 같은 작업을 공유합니다. NVD와 CISA KEV는 수동 요청을 포함해 각각 마지막 시도부터 최소 2시간 동안 다시 요청하지 않으며 다른 출처만 갱신할 수 있습니다. 시도 시각과 당일 자동 수집 기록은 저장해 재시작 후에도 중복 실행을 방지합니다.
 
 출처별 작업을 독립적으로 실행합니다. 실패한 출처는 마지막 정상 자료를 유지하고 `stale`로 표시하며, 성공 이력이 없으면 `error`입니다. `refreshed_at`은 전체 수집 시도의 종료 시각으로 모든 출처의 성공을 뜻하지 않습니다. 각 출처의 `last_success_at`을 확인해야 합니다.
 
 원문과 출처 상태를 `reports/security-news-snapshot.sqlite3`에 저장하며 재시작 후 마지막 결과를 복원합니다. `SECURITY_NEWS_SNAPSHOT_PATH`로 경로를 변경할 수 있고 Compose에서는 기존 `/app/reports` 볼륨에 저장합니다. 아래 번역 저장소도 계속 재사용합니다. PostgreSQL 테이블·마이그레이션을 추가하지 않습니다. 현재 단일 backend 프로세스 Compose 운영을 전제로 하며 여러 worker로 확장할 때는 수집 작업과 번역 실행의 조정이 필요합니다.
 
-구조화된 버전 정보가 없는 이전 저장본도 복원합니다. 새 `remediations` 정보는 다음 수집부터 저장되며 기존 자료에는 버전 확인 안내를 표시합니다.
+구조화된 버전 정보가 없는 이전 저장본도 복원합니다. KEV 보완 수집 도입 전의 저장본은 다음 정상 수동·예약 수집에서 한 번 보완할 수 있도록 출처 수집 버전을 비교합니다. 페이지 GET·서버 시작은 여전히 수집을 시작하지 않으며 60초 수동 제한도 유지합니다. 보완 시도 버전을 요청 전에 저장하므로 실패·취소 후 재시작해도 2시간 제한이 유지됩니다. NVD 상세 응답의 CVE 번호·건수·페이지 완전성을 검증하며, 요청 실패 시 부분 결과로 정상 저장본을 덮어쓰지 않습니다. NVD가 정상 응답했으나 해당 CVE를 제공하지 않으면 KEV 원문을 유지하고 출처 안내에 누락 건수를 표시합니다.
 
 ## 한국어 번역과 API 사용 제한
 
@@ -137,4 +137,4 @@ HTTP는 고정된 4개 주소만 호출하며 사용자 URL 입력을 받지 않
 
 운영 서버에서 위 4개 HTTPS 호스트로 나가는 연결이 필요합니다. 선택적 번역에는 Google Gemini API 연결과 키가 필요하며 SMTP·Jira 권한은 추가하지 않습니다. 공급자 장애나 차단은 출처별 상태에 표시되며, 백엔드 로그에는 출처 ID와 실패 예외 종류를 남깁니다. 번역 오류의 원문 응답이나 API 키는 로그·브라우저 응답에 포함하지 않습니다.
 
-검증은 `backend`에서 `../venv/Scripts/python.exe -m unittest tests.test_security_news tests.test_security_news_schedule tests.test_security_news_snapshot_store tests.test_security_news_source tests.test_security_cve_remediation tests.test_security_news_api tests.test_security_news_translation tests.test_gemini_news_translator tests.test_architecture tests.test_container_lifecycle`, `frontend`에서 `pnpm test:security-news`, `pnpm test:architecture`, `pnpm build`를 실행합니다. 외부 API 없이 08시 KST 예약, GET의 외부 호출 차단, 당일 중복 방지, 재시작 복원, 취소 중 시도 시각 보존, CVE 버전 추출·번역 제외, 번역 캐시·호출 제한·모델 제한을 검증합니다. 실제 수집·번역 상태는 운영 로그인 후 메뉴에서 별도로 확인해야 하며 단위 테스트 성공만으로 외부 서비스의 접근 권한이나 할당량을 보증하지 않습니다.
+검증은 `backend`에서 `../venv/Scripts/python.exe -m unittest tests.test_security_news tests.test_security_news_schedule tests.test_security_news_snapshot_store tests.test_security_news_source tests.test_security_cve_remediation tests.test_security_kev_enrichment tests.test_security_news_api tests.test_security_news_translation tests.test_gemini_news_translator tests.test_architecture tests.test_container_lifecycle`, `frontend`에서 `pnpm test:security-news`, `pnpm test:architecture`, `pnpm build`를 실행합니다. 외부 API 없이 08시 KST 예약, GET의 외부 호출 차단, 당일 중복 방지, 재시작 복원, 취소 중 시도 시각 보존, CVE 버전 추출·번역 제외, 번역 캐시·호출 제한·모델 제한을 검증합니다. 실제 수집·번역 상태는 운영 로그인 후 메뉴에서 별도로 확인해야 하며 단위 테스트 성공만으로 외부 서비스의 접근 권한이나 할당량을 보증하지 않습니다.
