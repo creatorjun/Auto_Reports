@@ -112,6 +112,8 @@ function render(t, options = {}) {
   const commentsReportId = Object.hasOwn(options, 'commentsReportId') ? options.commentsReportId : 42
   const calls = []
   const descriptionCalls = []
+  const managedCalls = []
+  const managedDescriptionCalls = []
   const opened = []
   const listeners = new Set()
   const previousWindow = globalThis.window
@@ -138,10 +140,19 @@ function render(t, options = {}) {
       calls.push(args)
       return getComments ? getComments(...args) : snapshot(comments(12, `${args[0]}-`), args[1], args[2])
     },
+  }, issueManagement: {
+    async getDescription(...args) {
+      managedDescriptionCalls.push(args)
+      return { body: `전체 이슈 본문 ${args[0]}`, images: [] }
+    },
+    async getComments(...args) {
+      managedCalls.push(args)
+      return snapshot(comments(12, `관리-${args[0]}-`), args[1], args[2])
+    },
   } }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   let view
-  let currentProps = { details, commentsReportId, elapsedDaysThreshold: null, elapsedDaysComparison: 'gte' }
+  let currentProps = { details, commentsReportId, detailsSource: options.detailsSource, elapsedDaysThreshold: null, elapsedDaysComparison: 'gte' }
   const content = () => {
     const widget = React.createElement(RecentIssuesWidget, currentProps)
     return React.createElement(QueryClientProvider, { client },
@@ -157,7 +168,7 @@ function render(t, options = {}) {
     else globalThis.window = previousWindow
   })
   return {
-    view, calls, descriptionCalls, opened,
+    view, calls, descriptionCalls, managedCalls, managedDescriptionCalls, opened,
     update(props) { currentProps = { ...currentProps, ...props }; act(() => view.update(content())) },
     setDesktop(value) { act(() => { media.matches = value; listeners.forEach((listener) => listener({ matches: value })) }) },
   }
@@ -311,14 +322,58 @@ test('empty comment results keep the issue visible and omit load-more', async (t
   assert.equal(layout(view).findAllByType('button').some((node) => textOf(node).startsWith('댓글 더보기')), false)
 })
 
-for (const configuration of [{ exportMode: true }, { commentsReportId: undefined }]) {
-  test(`${configuration.exportMode ? 'exported' : 'unscoped'} issue tables do not render detail controls or retrieve descriptions and comments`, (t) => {
-    const { view, calls, descriptionCalls } = render(t, configuration)
+for (const configuration of [{ exportMode: true }, { commentsReportId: undefined }, { exportMode: true, commentsReportId: undefined, detailsSource: 'issue-management' }]) {
+  test(`${configuration.detailsSource ? 'managed export' : configuration.exportMode ? 'exported' : 'unscoped'} issue tables do not render detail controls or retrieve descriptions and comments`, (t) => {
+    const { view, calls, descriptionCalls, managedCalls, managedDescriptionCalls } = render(t, configuration)
     assert.equal(view.root.findAllByType(IssueDetailsPanel).length, 0)
     assert.equal(view.root.findAllByType('button').some((node) => /상세 (펼치기|접기)$/.test(node.props['aria-label'] ?? '')), false)
     assert.equal(layout(view).findAllByType('th').some((node) => textOf(node) === '댓글'), false)
     assert.deepEqual(calls, [])
     assert.deepEqual(descriptionCalls, [])
+    assert.deepEqual(managedCalls, [])
+    assert.deepEqual(managedDescriptionCalls, [])
     assert.equal(layout(view).findAllByType('col').length, 8)
   })
 }
+
+for (const desktop of [true, false]) {
+  test(`managed ${desktop ? 'desktop' : 'mobile'} rows load body and cumulative comments only after expansion`, async (t) => {
+    const { view, calls, descriptionCalls, managedCalls, managedDescriptionCalls, opened } = render(t, {
+      desktop, commentsReportId: undefined, detailsSource: 'issue-management',
+    })
+    assert.deepEqual(managedCalls, [])
+    assert.deepEqual(managedDescriptionCalls, [])
+    assert.equal(bubbleClick(button(layout(view, desktop), 'TAC-1 상세 펼치기')), true)
+    await settled(() => commentBodies(layout(view, desktop)).length === 5)
+    await settled(() => textOf(layout(view, desktop)).includes('전체 이슈 본문 TAC-1'))
+    assert.ok(textOf(layout(view, desktop)).indexOf('전체 이슈 본문 TAC-1') < textOf(layout(view, desktop)).indexOf('최근 작성된 댓글'))
+    assert.deepEqual(commentBodies(layout(view, desktop)), comments(12, '관리-TAC-1-').slice(0, 5).map((comment) => comment.body))
+    bubbleClick(button(layout(view, desktop), '댓글 더보기 · 최신 10개'))
+    await settled(() => commentBodies(layout(view, desktop)).length === 10)
+    assert.deepEqual(managedCalls, [['TAC-1', 0, 5], ['TAC-1', 0, 10]])
+    assert.equal(managedDescriptionCalls.length, 1)
+    assert.equal(managedDescriptionCalls[0][0], 'TAC-1')
+    assert.equal(managedDescriptionCalls[0][1].aborted, false)
+    assert.equal(view.root.findAllByType(IssueDetailsPanel).length, 1)
+    assert.deepEqual(calls, [])
+    assert.deepEqual(descriptionCalls, [])
+    assert.deepEqual(opened, [])
+    bubbleClick(button(layout(view, desktop), 'TAC-1 상세 접기'))
+    assert.equal(view.root.findAllByType(IssueDetailsPanel).length, 0)
+  })
+}
+
+test('switching an expanded ticket from report to managed scope never reuses report body or comment data', async (t) => {
+  const { view, calls, descriptionCalls, managedCalls, managedDescriptionCalls, update } = render(t)
+  bubbleClick(button(layout(view), 'TAC-1 상세 펼치기'))
+  await settled(() => commentBodies(layout(view)).length === 5)
+  await settled(() => textOf(layout(view)).includes('이슈 본문 TAC-1'))
+  update({ commentsReportId: undefined, detailsSource: 'issue-management' })
+  await settled(() => textOf(layout(view)).includes('전체 이슈 본문 TAC-1'))
+  await settled(() => commentBodies(layout(view))[0] === '댓글 본문 관리-TAC-1-12')
+  assert.deepEqual(calls, [['TAC-1', 0, 5, 42]])
+  assert.equal(descriptionCalls.length, 1)
+  assert.deepEqual(managedCalls, [['TAC-1', 0, 5]])
+  assert.equal(managedDescriptionCalls.length, 1)
+  assert.equal(view.root.findAllByType(IssueDetailsPanel).length, 1)
+})

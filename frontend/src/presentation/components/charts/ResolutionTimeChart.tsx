@@ -13,6 +13,7 @@ import ColumnSearchInput from '@/presentation/components/common/ColumnSearchInpu
 import { ISSUE_COLUMNS } from '@/presentation/config/issueColumns'
 import { useTablePreferences } from '@/presentation/hooks/useTablePreferences'
 import IssueDetailsPanel from '@/presentation/components/common/IssueDetailsPanel'
+import type { IssueContentSource } from '@/presentation/hooks/useIssueContent'
 
 const COLS = ISSUE_COLUMNS.map((column) => column.key)
 type ColKey = IssueColumn
@@ -33,6 +34,7 @@ interface Props {
   title?: string
   tablePreferenceKey?: string
   commentsReportId?: number
+  detailsSource?: IssueContentSource
   details: RecentIssue[]
   emptyMessage?: string
   paginationResetKey?: string
@@ -133,10 +135,11 @@ function DetailsToggle({ issueKey, expanded, panelId, onToggle }: {
   )
 }
 
-function MobileIssueCard({ issue, jiraBase, commentsReportId, expanded, panelId, onToggle, showPanel }: {
+function MobileIssueCard({ issue, jiraBase, commentsReportId, detailsSource, expanded, panelId, onToggle, showPanel }: {
   issue: RecentIssue
   jiraBase: string
   commentsReportId?: number
+  detailsSource?: IssueContentSource
   expanded: boolean
   panelId: string
   onToggle: () => void
@@ -170,20 +173,20 @@ function MobileIssueCard({ issue, jiraBase, commentsReportId, expanded, panelId,
           <span className="text-apple-divider">·</span>
           <span className="tabular-nums font-medium text-amber-600">{issue.elapsed_days}일 경과</span>
         </div>
-        {commentsReportId !== undefined && <DetailsToggle issueKey={issue.key} expanded={expanded} panelId={panelId} onToggle={onToggle} />}
+        {(commentsReportId !== undefined || detailsSource !== undefined) && <DetailsToggle issueKey={issue.key} expanded={expanded} panelId={panelId} onToggle={onToggle} />}
       </div>
-      {showPanel && commentsReportId !== undefined && (
+      {showPanel && (
         <div id={panelId} className="px-3 pb-4">
-          <IssueDetailsPanel issueKey={issue.key} reportId={commentsReportId} />
+          <IssueDetailsPanel issueKey={issue.key} reportId={commentsReportId} source={detailsSource} />
         </div>
       )}
     </>
   )
 }
 
-export default function ResolutionTimeChart({ title = '최근 이슈 현황', tablePreferenceKey, commentsReportId, details, paginationResetKey, columnFilters, onColumnFilterChange, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
+export default function ResolutionTimeChart({ title = '최근 이슈 현황', tablePreferenceKey, commentsReportId, detailsSource, details, paginationResetKey, columnFilters, onColumnFilterChange, emptyMessage = '최근 이슈 데이터가 없습니다.' }: Props) {
   const exportMode = useDashboardExportMode()
-  const detailsEnabled = commentsReportId !== undefined && !exportMode
+  const detailsEnabled = (commentsReportId !== undefined || detailsSource !== undefined) && !exportMode
   const isDesktopDetailsLayout = useDesktopDetailsLayout(detailsEnabled)
   const detailsId = useId()
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
@@ -266,6 +269,7 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
         {pageItems.map((issue) => (
           <MobileIssueCard key={issue.key} issue={issue} jiraBase={jiraBase}
             commentsReportId={detailsEnabled ? commentsReportId : undefined}
+            detailsSource={detailsEnabled ? detailsSource : undefined}
             expanded={expandedKeys.has(issue.key)}
             panelId={`${detailsId}-mobile-${issue.key}`}
             onToggle={() => toggleDetails(issue.key)}
@@ -325,10 +329,10 @@ export default function ResolutionTimeChart({ title = '최근 이슈 현황', ta
                       <DetailsToggle issueKey={issue.key} expanded={expanded} panelId={panelId} onToggle={() => toggleDetails(issue.key)} />
                     </td>}
                   </tr>
-                  {detailsEnabled && commentsReportId !== undefined && isDesktopDetailsLayout && expanded && (
+                  {detailsEnabled && isDesktopDetailsLayout && expanded && (
                     <tr>
                       <td colSpan={headers.length + 1} className="px-4 pb-4 pt-1">
-                        <div id={panelId}><IssueDetailsPanel issueKey={issue.key} reportId={commentsReportId} /></div>
+                        <div id={panelId}><IssueDetailsPanel issueKey={issue.key} reportId={commentsReportId} source={detailsSource} /></div>
                       </td>
                     </tr>
                   )}

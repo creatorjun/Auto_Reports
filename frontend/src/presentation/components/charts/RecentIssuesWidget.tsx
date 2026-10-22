@@ -9,11 +9,13 @@ import { useIssueColumnSearch } from '@/presentation/hooks/useIssueColumnSearch'
 import SectionTitle from '@/presentation/components/common/SectionTitle'
 import ResolutionTimeChart from '@/presentation/components/charts/ResolutionTimeChart'
 import { useDashboardExportMode } from '@/presentation/context/DashboardExportContext'
+import type { IssueContentSource } from '@/presentation/hooks/useIssueContent'
 
 interface Props {
   title?: string
   tablePreferenceKey?: string
   commentsReportId?: number
+  detailsSource?: IssueContentSource
   paginationResetKey?: string
   columnFilters?: IssueColumnFilters
   onColumnFilterChange?: (column: IssueColumn, value: string) => void
@@ -24,7 +26,7 @@ interface Props {
   onElapsedDaysFilterChange?: (value: number | null, comparison: ElapsedDaysComparison) => void
 }
 
-export default function RecentIssuesWidget({ title = '최근 이슈 현황', tablePreferenceKey, commentsReportId, paginationResetKey, columnFilters: providedColumnFilters, onColumnFilterChange: providedColumnFilterChange, onColumnFiltersReset, details, elapsedDaysThreshold, elapsedDaysComparison, onElapsedDaysFilterChange }: Props) {
+export default function RecentIssuesWidget({ title = '최근 이슈 현황', tablePreferenceKey, commentsReportId, detailsSource, paginationResetKey, columnFilters: providedColumnFilters, onColumnFilterChange: providedColumnFilterChange, onColumnFiltersReset, details, elapsedDaysThreshold, elapsedDaysComparison, onElapsedDaysFilterChange }: Props) {
   const exportMode = useDashboardExportMode()
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -123,6 +125,7 @@ export default function RecentIssuesWidget({ title = '최근 이슈 현황', tab
         title={title}
         tablePreferenceKey={tablePreferenceKey}
         commentsReportId={commentsReportId}
+        detailsSource={detailsSource}
         details={filteredIssues}
         paginationResetKey={JSON.stringify([paginationResetKey, elapsedDaysThreshold, elapsedDaysComparison, columnFilters])}
         columnFilters={columnFilters}

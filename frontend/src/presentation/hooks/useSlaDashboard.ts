@@ -1,8 +1,9 @@
 // frontend/src/presentation/hooks/useSlaDashboard.ts
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { QUERY_KEYS } from '@/presentation/config/queryKeys'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import type { SlaDashboardIssue } from '@/domain/SlaDashboard'
+import { useIssueComments, useIssueDescription } from './useIssueContent'
 
 export function useSlaDashboardIssues() {
   const { slaDashboard } = useApplicationServices()
@@ -16,25 +17,9 @@ export function useSlaDashboardIssues() {
 }
 
 export function useSlaIssueComments(issueKey: string, enabled: boolean, reportId?: number) {
-  const { slaDashboard } = useApplicationServices()
-  return useInfiniteQuery({
-    queryKey: QUERY_KEYS.slaDashboardComments(issueKey, reportId),
-    queryFn: ({ pageParam }) => slaDashboard.getComments(issueKey, 0, pageParam, reportId),
-    initialPageParam: 5,
-    getNextPageParam: (lastPage) => lastPage.next_offset === null ? undefined : lastPage.next_offset + 5,
-    maxPages: 1,
-    select: (data) => data.pages[data.pages.length - 1]?.comments ?? [],
-    enabled,
-    staleTime: 1000 * 60 * 2,
-  })
+  return useIssueComments(issueKey, enabled, reportId)
 }
 
 export function useSlaIssueDescription(issueKey: string, reportId: number) {
-  const { slaDashboard } = useApplicationServices()
-  return useQuery({
-    queryKey: QUERY_KEYS.slaDashboardDescription(issueKey, reportId),
-    queryFn: ({ signal }) => slaDashboard.getDescription(issueKey, reportId, signal),
-    staleTime: 1000 * 60 * 2,
-    retry: false,
-  })
+  return useIssueDescription(issueKey, reportId)
 }

@@ -7,10 +7,14 @@ from dataclasses import replace
 from datetime import date, datetime
 from time import monotonic
 
+from src.application.errors import EntityNotFoundError
+from src.application.ports.jira_port import JiraAttachmentContent
 from src.application.ports.jira_port import JiraIssue, JiraIssueField, JiraPort
 from src.application.ports.issue_management_snapshot_port import IssueManagementSnapshot, IssueManagementSnapshotPort
 from src.application.services.issue_age import issue_created_display, issue_elapsed_days
+from src.application.services.issue_details import IssueDetailsService
 from src.domain.constants import KST, STAGE_MAP
+from src.domain.entities.sla_dashboard import SlaDashboardCommentPage, SlaDashboardDescription
 from src.domain.entities.widget_data import RecentIssueDetail
 
 logger = logging.getLogger(__name__)
@@ -22,6 +26,8 @@ class IssueManagementUseCase:
             raise ValueError("Invalid Jira project key")
         self._jira = jira
         self._project_key = project_key
+        self._issue_key_pattern = re.compile(rf"{re.escape(project_key.upper())}-\d+")
+        self._issue_details = IssueDetailsService(jira)
         self._snapshots = snapshots
         self._snapshot_loaded = snapshots is None
         self._restore_lock = asyncio.Lock()
@@ -128,6 +134,35 @@ class IssueManagementUseCase:
         except Exception as error:
             logger.warning("Issue synchronization failed (%s)", type(error).__name__)
             self._error = "Jira 동기화에 실패했습니다. 기존 캐시를 유지하며 자동 재시도합니다."
+
+    async def require_issue_key(self, issue_key: str) -> str:
+        normalized_key = issue_key.upper()
+        if self._issue_key_pattern.fullmatch(normalized_key) is None:
+            raise EntityNotFoundError("Issue", issue_key)
+        await self.initialize()
+        if normalized_key not in self._issues:
+            raise EntityNotFoundError("Issue", issue_key)
+        return normalized_key
+
+    async def get_issue_description(self, issue_key: str) -> SlaDashboardDescription:
+        key = await self.require_issue_key(issue_key)
+        return await self._issue_details.get_description(key)
+
+    async def get_description_image(self, issue_key: str, attachment_id: str) -> JiraAttachmentContent:
+        key = await self.require_issue_key(issue_key)
+        return await self._issue_details.get_description_image(key, attachment_id)
+
+    async def list_recent_comments(self, issue_key: str, offset: int = 0, limit: int = 5) -> SlaDashboardCommentPage:
+        if offset < 0:
+            raise ValueError("Comment offset must be nonnegative")
+        if limit < 1:
+            raise ValueError("Comment limit must be positive")
+        key = await self.require_issue_key(issue_key)
+        return await self._issue_details.get_comments(key, offset, limit)
+
+    async def get_comment_image(self, issue_key: str, comment_id: str, attachment_id: str) -> JiraAttachmentContent:
+        key = await self.require_issue_key(issue_key)
+        return await self._issue_details.get_comment_image(key, comment_id, attachment_id)
 
     async def aclose(self) -> None:
         if self._task is not None and not self._task.done():

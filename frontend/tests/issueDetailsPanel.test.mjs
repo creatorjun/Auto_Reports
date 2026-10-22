@@ -76,7 +76,7 @@ function imageContent(url, closed, created = []) {
 }
 
 function render(t, overrides = {}, props = { issueKey: 'TAC-1', reportId: 42 }) {
-  const calls = { descriptions: [], images: [], comments: [] }
+  const calls = { descriptions: [], images: [], comments: [], managedDescriptions: [], managedImages: [], managedComments: [], managedCommentImages: [] }
   const slaDashboard = {
     async getDescription(...args) {
       calls.descriptions.push(args)
@@ -95,7 +95,26 @@ function render(t, overrides = {}, props = { issueKey: 'TAC-1', reportId: 42 }) 
       }
     },
   }
-  const services = { slaDashboard }
+  const services = { slaDashboard, issueManagement: {
+    async getDescription(...args) {
+      calls.managedDescriptions.push(args)
+      return overrides.managed?.getDescription ? overrides.managed.getDescription(...args) : { body: '전체 이슈 본문', images: [] }
+    },
+    async getDescriptionImage(...args) {
+      calls.managedImages.push(args)
+      assert.ok(overrides.managed?.getDescriptionImage, 'Unexpected managed description image request')
+      return overrides.managed.getDescriptionImage(...args)
+    },
+    async getComments(...args) {
+      calls.managedComments.push(args)
+      return overrides.managed?.getComments ? overrides.managed.getComments(...args) : { comments: [], next_offset: null }
+    },
+    async getCommentImage(...args) {
+      calls.managedCommentImages.push(args)
+      assert.ok(overrides.managed?.getCommentImage, 'Unexpected managed comment image request')
+      return overrides.managed.getCommentImage(...args)
+    },
+  } }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   let view
   let mounted = true
@@ -241,4 +260,90 @@ test('failed image fetch and decode can be retried without refetching body or co
   assert.equal(calls.descriptions.length, 1)
   assert.equal(calls.comments.length, 1)
   assert.equal(calls.images.length, 3)
+})
+
+test('managed description and comment adapters encode every identifier without report parameters', async () => {
+  const calls = []
+  const body = { body: '전체 이슈 본문', images: [] }
+  const page = { comments: [], next_offset: null }
+  const blob = new Blob(['image'])
+  const binary = imageContent('blob:managed-api', [])
+  const { issueManagementApi } = loadSource('infrastructure/api/issueManagementApi', {
+    './client': { default: { async get(url, options) {
+      calls.push([url, options])
+      return { data: options?.responseType ? blob : url.endsWith('/comments') ? page : body }
+    } } },
+    './binaryContent': { createBinaryContent(value) { assert.equal(value, blob); return binary } },
+  }, new Map())
+  const controller = new AbortController()
+  assert.deepEqual(await issueManagementApi.getDescription('TAC/42', controller.signal), body)
+  assert.equal(await issueManagementApi.getDescriptionImage('TAC/42', 'image/2', controller.signal), binary)
+  assert.deepEqual(await issueManagementApi.getComments('TAC/42', 0, 10), page)
+  assert.equal(await issueManagementApi.getCommentImage('TAC/42', 'comment/1', 'image/3'), binary)
+  assert.equal(calls[0][0], '/issue-management/issues/TAC%2F42/description')
+  assert.equal(calls[0][1].signal, controller.signal)
+  assert.equal(calls[1][0], '/issue-management/issues/TAC%2F42/description/images/image%2F2')
+  assert.equal(calls[1][1].signal, controller.signal)
+  assert.equal(calls[1][1].responseType, 'blob')
+  assert.equal(calls[2][0], '/issue-management/issues/TAC%2F42/comments')
+  assert.deepEqual(calls[2][1].params, { offset: 0, limit: 10 })
+  assert.equal(calls[3][0], '/issue-management/issues/TAC%2F42/comments/comment%2F1/images/image%2F3')
+  assert.equal(calls[3][1].responseType, 'blob')
+  assert.ok(calls.every(([, options]) => !Object.hasOwn(options?.params ?? {}, 'report_id')))
+})
+
+test('managed content uses its own cache and image gateway and releases both image URLs when collapsed', async (t) => {
+  const closed = []
+  const { view, calls, client, update, unmount } = render(t, { managed: {
+    getDescription: async () => ({ body: '전체 이슈 전용 본문', images: [{ attachment_id: '2', alt: '전체 본문 이미지' }] }),
+    getDescriptionImage: async () => imageContent('blob:managed-description', closed),
+    getComments: async () => ({ comments: [{ id: '3', author: '작성자', body: '전체 이슈 댓글', created: '', updated: '', images: [{ attachment_id: '4', alt: '전체 댓글 이미지' }] }], next_offset: null }),
+    getCommentImage: async () => imageContent('blob:managed-comment', closed),
+  } })
+  await settled(() => textOf(view.root).includes('보고서 본문') && textOf(view.root).includes('최근 댓글'))
+  update({ issueKey: 'TAC-1', source: 'issue-management' })
+  await settled(() => view.root.findAllByType('img').length === 2)
+  assert.match(textOf(view.root), /전체 이슈 전용 본문/)
+  assert.match(textOf(view.root), /전체 이슈 댓글/)
+  assert.doesNotMatch(textOf(view.root), /보고서 본문/)
+  const managedBodyQuery = client.getQueryCache().getAll().find((query) => query.state.data?.body === '전체 이슈 전용 본문')
+  assert.ok(managedBodyQuery)
+  assert.equal(managedBodyQuery.queryKey[0], 'issue-management')
+  assert.equal(calls.descriptions.length, 1)
+  assert.equal(calls.comments.length, 1)
+  assert.deepEqual(calls.images, [])
+  assert.equal(calls.managedDescriptions[0][0], 'TAC-1')
+  assert.equal(calls.managedDescriptions[0][1].aborted, false)
+  assert.deepEqual(calls.managedComments, [['TAC-1', 0, 5]])
+  assert.deepEqual(calls.managedImages[0].slice(0, 2), ['TAC-1', '2'])
+  assert.equal(calls.managedImages[0][2].aborted, false)
+  assert.deepEqual(calls.managedCommentImages, [['TAC-1', '3', '4']])
+  assert.deepEqual(view.root.findAllByType('img').map((node) => node.props.src), ['blob:managed-description', 'blob:managed-comment'])
+  unmount()
+  assert.equal(calls.managedImages[0][2].aborted, true)
+  assert.deepEqual(closed.sort(), ['blob:managed-comment', 'blob:managed-description'])
+})
+
+test('managed pending description and image requests are aborted and cannot create URLs after collapse', async (t) => {
+  const body = deferred()
+  const first = render(t, { managed: { getDescription: async () => body.promise } }, { issueKey: 'TAC-1', source: 'issue-management' })
+  await settled(() => first.calls.managedDescriptions.length === 1)
+  first.unmount()
+  assert.equal(first.calls.managedDescriptions[0][1].aborted, true)
+  await act(async () => body.resolve({ body: '늦은 본문', images: [] }))
+  assert.deepEqual(first.calls.descriptions, [])
+
+  const pendingImage = deferred()
+  const created = []
+  const closed = []
+  const second = render(t, { managed: {
+    getDescription: async () => ({ body: '', images: [{ attachment_id: '2', alt: '' }] }),
+    getDescriptionImage: async () => pendingImage.promise,
+  } }, { issueKey: 'TAC-1', source: 'issue-management' })
+  await settled(() => second.calls.managedImages.length === 1)
+  second.unmount()
+  assert.equal(second.calls.managedImages[0][2].aborted, true)
+  await act(async () => pendingImage.resolve(imageContent('blob:managed-late', closed, created)))
+  assert.deepEqual(created, [])
+  assert.deepEqual(closed, [])
 })

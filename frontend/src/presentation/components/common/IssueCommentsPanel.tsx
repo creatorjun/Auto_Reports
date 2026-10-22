@@ -1,8 +1,7 @@
 // frontend/src/presentation/components/common/IssueCommentsPanel.tsx
 import { useEffect, useState } from 'react'
 import { ChevronDown, MessageSquare, RefreshCw } from 'lucide-react'
-import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
-import { useSlaIssueComments } from '@/presentation/hooks/useSlaDashboard'
+import { useIssueComments, useIssueContentGateway, type IssueContentSource } from '@/presentation/hooks/useIssueContent'
 import type { BinaryObjectUrl } from '@/application/ports/ApplicationServices'
 import type { SlaDashboardComment, SlaDashboardCommentImage } from '@/domain/SlaDashboard'
 
@@ -11,13 +10,15 @@ function CommentImage({
   commentId,
   image,
   reportId,
+  source: contentSource,
 }: {
   issueKey: string
   commentId: string
   image: SlaDashboardCommentImage
   reportId?: number
+  source?: IssueContentSource
 }) {
-  const { slaDashboard } = useApplicationServices()
+  const gateway = useIssueContentGateway(reportId, contentSource)
   const [source, setSource] = useState('')
   const [failed, setFailed] = useState(false)
 
@@ -26,7 +27,7 @@ function CommentImage({
     let objectUrl: BinaryObjectUrl | null = null
     setSource('')
     setFailed(false)
-    slaDashboard.getCommentImage(issueKey, commentId, image.attachment_id, reportId)
+    gateway.getCommentImage(issueKey, commentId, image.attachment_id)
       .then((content) => {
         if (!active) return
         objectUrl = content.createObjectUrl()
@@ -39,7 +40,7 @@ function CommentImage({
       active = false
       objectUrl?.close()
     }
-  }, [commentId, image.attachment_id, issueKey, reportId, slaDashboard])
+  }, [commentId, image.attachment_id, issueKey, gateway])
 
   if (failed) {
     return (
@@ -65,7 +66,7 @@ function CommentImage({
   )
 }
 
-function CommentEntry({ issueKey, comment, reportId }: { issueKey: string; comment: SlaDashboardComment; reportId?: number }) {
+function CommentEntry({ issueKey, comment, reportId, source }: { issueKey: string; comment: SlaDashboardComment; reportId?: number; source?: IssueContentSource }) {
   const wasEdited = comment.updated && comment.updated !== comment.created
   return (
     <li className="min-w-0 rounded-xl border border-apple-divider/70 bg-apple-surface px-4 py-3 text-left shadow-apple-sm">
@@ -93,6 +94,7 @@ function CommentEntry({ issueKey, comment, reportId }: { issueKey: string; comme
               commentId={comment.id}
               image={image}
               reportId={reportId}
+              source={source}
             />
           ))}
         </div>
@@ -101,7 +103,7 @@ function CommentEntry({ issueKey, comment, reportId }: { issueKey: string; comme
   )
 }
 
-export default function IssueCommentsPanel({ issueKey, reportId }: { issueKey: string; reportId?: number }) {
+export default function IssueCommentsPanel({ issueKey, reportId, source }: { issueKey: string; reportId?: number; source?: IssueContentSource }) {
   const {
     data,
     isLoading,
@@ -112,7 +114,7 @@ export default function IssueCommentsPanel({ issueKey, reportId }: { issueKey: s
     hasNextPage,
     fetchNextPage,
     refetch,
-  } = useSlaIssueComments(issueKey, true, reportId)
+  } = useIssueComments(issueKey, true, reportId, source)
 
   return (
     <div className="min-w-0 rounded-2xl border border-brand-100 bg-brand-50/50 p-4 md:p-5">
@@ -151,7 +153,7 @@ export default function IssueCommentsPanel({ issueKey, reportId }: { issueKey: s
 
       {data && data.length > 0 && (
         <ol className="space-y-2.5">
-          {data.map((comment) => <CommentEntry key={comment.id} issueKey={issueKey} comment={comment} reportId={reportId} />)}
+          {data.map((comment) => <CommentEntry key={comment.id} issueKey={issueKey} comment={comment} reportId={reportId} source={source} />)}
         </ol>
       )}
 

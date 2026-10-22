@@ -4,15 +4,13 @@ import re
 from src.application.errors import EntityNotFoundError
 from src.application.ports.jira_port import (
     JiraAttachmentContent,
-    JiraComment,
     JiraIssueField,
     JiraPort,
 )
+from src.application.services.issue_details import IssueDetailsService, format_issue_timestamp
 from src.application.use_cases.get_report import GetReportUseCase
 from src.domain.constants import JIRA_MAX_RESULT
 from src.domain.entities.sla_dashboard import (
-    SlaDashboardComment,
-    SlaDashboardCommentImage,
     SlaDashboardCommentPage,
     SlaDashboardDescription,
     SlaDashboardIssue,
@@ -21,12 +19,6 @@ from src.domain.entities.widget_data import RecentIssueDetail, RecentIssueWidget
 from src.domain.value_objects.widget_id import WidgetId
 
 _RECENT_COMMENT_LIMIT = 5
-
-
-def _format_timestamp(value: object) -> str:
-    if not isinstance(value, str) or not value:
-        return ""
-    return value[:16].replace("T", " ")
 
 
 class SlaDashboardUseCase:
@@ -38,6 +30,7 @@ class SlaDashboardUseCase:
     ) -> None:
         self._reports = reports
         self._jira = jira
+        self._issue_details = IssueDetailsService(jira)
         self._issue_key_pattern = re.compile(
             rf"{re.escape(project_key.upper())}-\d+"
         )
@@ -81,8 +74,8 @@ class SlaDashboardUseCase:
                     key=key,
                     type=(live.issue_type if live else "") or detail.type,
                     summary=(live.summary if live else "") or detail.summary,
-                    created=_format_timestamp(live.created if live else "") or detail.created,
-                    updated=_format_timestamp(live.updated if live else ""),
+                    created=format_issue_timestamp(live.created if live else "") or detail.created,
+                    updated=format_issue_timestamp(live.updated if live else ""),
                     status=(live.status if live else "") or detail.status,
                 )
             )
@@ -95,21 +88,13 @@ class SlaDashboardUseCase:
         self, issue_key: str, report_id: int | None = None,
     ) -> SlaDashboardDescription:
         normalized_key = await self._require_recent_issue(issue_key, report_id)
-        description = await self._jira.get_issue_description(normalized_key)
-        if description is None:
-            raise EntityNotFoundError("Issue description", issue_key)
-        return SlaDashboardDescription(
-            body=description.body,
-            images=tuple(SlaDashboardCommentImage(image.attachment_id, image.alt) for image in description.images),
-        )
+        return await self._issue_details.get_description(normalized_key)
 
     async def get_description_image(
         self, issue_key: str, attachment_id: str, report_id: int | None = None,
     ) -> JiraAttachmentContent:
-        description = await self.get_issue_description(issue_key, report_id)
-        if not attachment_id.isdigit() or attachment_id not in {image.attachment_id for image in description.images}:
-            raise EntityNotFoundError("Description image", attachment_id)
-        return await self._jira.get_attachment_content(attachment_id)
+        normalized_key = await self._require_recent_issue(issue_key, report_id)
+        return await self._issue_details.get_description_image(normalized_key, attachment_id)
 
     async def list_recent_comments(
         self,
@@ -123,22 +108,7 @@ class SlaDashboardUseCase:
         if limit < 1:
             raise ValueError("Comment limit must be positive")
         normalized_key = await self._require_recent_issue(issue_key, report_id)
-        comments = await self._jira.get_issue_comments(
-            normalized_key,
-            max_results=limit + 1,
-            offset=offset,
-        )
-        return SlaDashboardCommentPage(
-            comments=tuple(
-                self._to_comment(comment)
-                for comment in comments[:limit]
-            ),
-            next_offset=(
-                offset + limit
-                if len(comments) > limit
-                else None
-            ),
-        )
+        return await self._issue_details.get_comments(normalized_key, offset, limit)
 
     async def get_comment_image(
         self,
@@ -148,18 +118,7 @@ class SlaDashboardUseCase:
         report_id: int | None = None,
     ) -> JiraAttachmentContent:
         normalized_key = await self._require_recent_issue(issue_key, report_id)
-        if not comment_id.isdigit():
-            raise EntityNotFoundError("Comment", comment_id)
-        comment = await self._jira.get_issue_comment(normalized_key, comment_id)
-        if comment is None or comment.id != comment_id:
-            raise EntityNotFoundError("Comment", comment_id)
-        allowed = {
-            image.attachment_id
-            for image in comment.images
-        }
-        if attachment_id not in allowed:
-            raise EntityNotFoundError("Comment image", attachment_id)
-        return await self._jira.get_attachment_content(attachment_id)
+        return await self._issue_details.get_comment_image(normalized_key, comment_id, attachment_id)
 
     async def _require_recent_issue(
         self,
@@ -197,20 +156,3 @@ class SlaDashboardUseCase:
 
     def _is_valid_key(self, issue_key: str) -> bool:
         return self._issue_key_pattern.fullmatch(issue_key.upper()) is not None
-
-    @staticmethod
-    def _to_comment(comment: JiraComment) -> SlaDashboardComment:
-        return SlaDashboardComment(
-            id=comment.id,
-            author=comment.author,
-            body=comment.body,
-            created=_format_timestamp(comment.created),
-            updated=_format_timestamp(comment.updated),
-            images=tuple(
-                SlaDashboardCommentImage(
-                    attachment_id=image.attachment_id,
-                    alt=image.alt,
-                )
-                for image in comment.images
-            ),
-        )

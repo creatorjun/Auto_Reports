@@ -719,7 +719,7 @@ test('SLA dashboard exposes issue activity and expandable recent comments', () =
   assert.match(table, /useState<Set<string>>\(\(\) => new Set\(\)\)/)
   assert.match(table, /expanded=\{!collapsedKeys\.has\(issue\.key\)\}/)
   assert.match(table, /<IssueCommentsPanel issueKey=\{issue\.key\}/)
-  assert.match(comments, /useSlaIssueComments/)
+  assert.match(comments, /useIssueComments/)
   assert.match(comments, /최근 작성된 댓글/)
   assert.match(comments, /최신 5개부터 표시/)
   assert.match(comments, /최신 \$\{data\.length\}개 · 최신순/)

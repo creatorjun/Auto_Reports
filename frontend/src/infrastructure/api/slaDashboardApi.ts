@@ -9,7 +9,7 @@ export const slaDashboardApi = {
     const response = await client.get<SlaDashboardIssue[]>('/sla-dashboard/issues')
     return response.data
   },
-  getDescription: async (issueKey: string, reportId: number, signal?: CancellationSignal): Promise<SlaDashboardDescription> => {
+  getDescription: async (issueKey: string, reportId?: number, signal?: CancellationSignal): Promise<SlaDashboardDescription> => {
     const key = encodeURIComponent(issueKey)
     const response = await client.get<SlaDashboardDescription>(`/sla-dashboard/issues/${key}/description`, {
       params: { report_id: reportId },
@@ -20,7 +20,7 @@ export const slaDashboardApi = {
   getDescriptionImage: async (
     issueKey: string,
     attachmentId: string,
-    reportId: number,
+    reportId?: number,
     signal?: CancellationSignal,
   ): Promise<BinaryContent> => {
     const key = encodeURIComponent(issueKey)

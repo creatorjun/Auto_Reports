@@ -150,10 +150,17 @@ export interface SearchGateway {
   getJiraBaseUrl: () => Promise<string>
 }
 
+export interface IssueContentGateway {
+  getDescription: (issueKey: string, signal?: CancellationSignal) => Promise<SlaDashboardDescription>
+  getDescriptionImage: (issueKey: string, attachmentId: string, signal?: CancellationSignal) => Promise<BinaryContent>
+  getComments: (issueKey: string, offset?: number, limit?: number) => Promise<SlaDashboardCommentPage>
+  getCommentImage: (issueKey: string, commentId: string, attachmentId: string) => Promise<BinaryContent>
+}
+
 export interface SlaDashboardGateway {
   getIssues: () => Promise<SlaDashboardIssue[]>
-  getDescription: (issueKey: string, reportId: number, signal?: CancellationSignal) => Promise<SlaDashboardDescription>
-  getDescriptionImage: (issueKey: string, attachmentId: string, reportId: number, signal?: CancellationSignal) => Promise<BinaryContent>
+  getDescription: (issueKey: string, reportId?: number, signal?: CancellationSignal) => Promise<SlaDashboardDescription>
+  getDescriptionImage: (issueKey: string, attachmentId: string, reportId?: number, signal?: CancellationSignal) => Promise<BinaryContent>
   getComments: (issueKey: string, offset?: number, limit?: number, reportId?: number) => Promise<SlaDashboardCommentPage>
   getCommentImage: (issueKey: string, commentId: string, attachmentId: string, reportId?: number) => Promise<BinaryContent>
 }
@@ -195,7 +202,7 @@ export interface ApplicationServices {
   slaStatus: SlaStatusGateway
   jiraNotifications: JiraNotificationGateway
   redeployments: RedeploymentGateway
-  issueManagement: { getIssues: () => Promise<IssueManagementSnapshot> }
+  issueManagement: IssueContentGateway & { getIssues: () => Promise<IssueManagementSnapshot> }
   securityNews: SecurityNewsGateway
 }
 

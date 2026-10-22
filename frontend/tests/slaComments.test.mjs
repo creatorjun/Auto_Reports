@@ -26,12 +26,19 @@ function loadSource(relative, dependencies = {}) {
 const queryKeys = loadSource('src/presentation/config/queryKeys.ts')
 
 function hookOptions(getComments, issueKey = 'TAC-42', reportId) {
-  const hook = loadSource('src/presentation/hooks/useSlaDashboard.ts', {
+  const content = loadSource('src/presentation/hooks/useIssueContent.ts', {
+    react: { useMemo: (factory) => factory() },
     '@tanstack/react-query': { useInfiniteQuery: (options) => options },
     '@/presentation/config/queryKeys': queryKeys,
     '@/presentation/context/ApplicationServicesContext': {
       useApplicationServices: () => ({ slaDashboard: { getComments } }),
     },
+  })
+  const hook = loadSource('src/presentation/hooks/useSlaDashboard.ts', {
+    '@tanstack/react-query': {},
+    '@/presentation/config/queryKeys': queryKeys,
+    '@/presentation/context/ApplicationServicesContext': {},
+    './useIssueContent': content,
   })
   return hook.useSlaIssueComments(issueKey, true, reportId)
 }

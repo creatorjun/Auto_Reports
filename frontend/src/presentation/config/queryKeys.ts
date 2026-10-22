@@ -12,6 +12,8 @@ export const QUERY_KEYS = {
   partnerOrgs:   () => ['partners', 'orgs'] as const,
   partnerIssues: (orgId: string) => ['partners', 'issues', orgId] as const,
   slaDashboardIssues: () => ['sla-dashboard', 'issues'] as const,
-  slaDashboardDescription: (issueKey: string, reportId: number) => ['sla-dashboard', 'description', issueKey, reportId] as const,
+  slaDashboardDescription: (issueKey: string, reportId?: number) => ['sla-dashboard', 'description', issueKey, reportId ?? 'latest'] as const,
   slaDashboardComments: (issueKey: string, reportId?: number) => ['sla-dashboard', 'comments', issueKey, reportId ?? 'latest'] as const,
+  managedIssueDescription: (issueKey: string) => ['issue-management', 'description', issueKey] as const,
+  managedIssueComments: (issueKey: string) => ['issue-management', 'comments', issueKey] as const,
 } as const

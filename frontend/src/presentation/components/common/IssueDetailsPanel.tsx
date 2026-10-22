@@ -3,16 +3,16 @@ import { useEffect, useState } from 'react'
 import { FileText, RefreshCw } from 'lucide-react'
 import type { BinaryObjectUrl } from '@/application/ports/ApplicationServices'
 import type { SlaDashboardDescription } from '@/domain/SlaDashboard'
-import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
-import { useSlaIssueDescription } from '@/presentation/hooks/useSlaDashboard'
+import { useIssueContentGateway, useIssueDescription, type IssueContentSource } from '@/presentation/hooks/useIssueContent'
 import IssueCommentsPanel from './IssueCommentsPanel'
 
-function DescriptionImage({ issueKey, reportId, image }: {
+function DescriptionImage({ issueKey, reportId, source: contentSource, image }: {
   issueKey: string
-  reportId: number
+  reportId?: number
+  source?: IssueContentSource
   image: SlaDashboardDescription['images'][number]
 }) {
-  const { slaDashboard } = useApplicationServices()
+  const gateway = useIssueContentGateway(reportId, contentSource)
   const [source, setSource] = useState('')
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
@@ -23,7 +23,7 @@ function DescriptionImage({ issueKey, reportId, image }: {
     let objectUrl: BinaryObjectUrl | null = null
     setSource('')
     setFailed(false)
-    slaDashboard.getDescriptionImage(issueKey, image.attachment_id, reportId, controller.signal)
+    gateway.getDescriptionImage(issueKey, image.attachment_id, controller.signal)
       .then((content) => {
         if (!active) return
         objectUrl = content.createObjectUrl()
@@ -37,7 +37,7 @@ function DescriptionImage({ issueKey, reportId, image }: {
       controller.abort()
       objectUrl?.close()
     }
-  }, [attempt, image.attachment_id, issueKey, reportId, slaDashboard])
+  }, [attempt, image.attachment_id, issueKey, gateway])
 
   if (failed) {
     return (
@@ -72,8 +72,8 @@ function DescriptionImage({ issueKey, reportId, image }: {
   )
 }
 
-export default function IssueDetailsPanel({ issueKey, reportId }: { issueKey: string; reportId: number }) {
-  const { data, isLoading, isError, isFetching, refetch } = useSlaIssueDescription(issueKey, reportId)
+export default function IssueDetailsPanel({ issueKey, reportId, source }: { issueKey: string; reportId?: number; source?: IssueContentSource }) {
+  const { data, isLoading, isError, isFetching, refetch } = useIssueDescription(issueKey, reportId, source)
 
   return (
     <div className="min-w-0 space-y-4">
@@ -113,14 +113,14 @@ export default function IssueDetailsPanel({ issueKey, reportId }: { issueKey: st
             {data.images.length > 0 && (
               <div className="mt-3 flex min-w-0 flex-col items-start gap-3">
                 {data.images.map((image) => (
-                  <DescriptionImage key={`${reportId}:${issueKey}:${image.attachment_id}`} issueKey={issueKey} reportId={reportId} image={image} />
+                  <DescriptionImage key={`${source}:${reportId}:${issueKey}:${image.attachment_id}`} issueKey={issueKey} reportId={reportId} source={source} image={image} />
                 ))}
               </div>
             )}
           </>
         )}
       </section>
-      <IssueCommentsPanel issueKey={issueKey} reportId={reportId} />
+      <IssueCommentsPanel issueKey={issueKey} reportId={reportId} source={source} />
     </div>
   )
 }

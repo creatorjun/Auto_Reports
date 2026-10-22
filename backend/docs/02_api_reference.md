@@ -88,6 +88,17 @@ SLA 차트는 month 필수, 처리일 유형 차트는 month 불가입니다. �
 
 `GET /issue-management/issues`는 `issues`, `initialized`, `refreshing`, `synced_at`, `error`를 반환합니다. 서버에서 프로젝트 전체/증분 수집을 백그라운드로 시작하고 현재 메모리 캐시를 즉시 반환합니다. 최소 30초 간격의 요청 유발 갱신이며 처음과 1시간 경과 후 전체를 수집합니다. 증분 조회에는 2분 중첩을 둡니다. 동기화 실패는 기존 캐시와 error에 반영하므로 HTTP 성공을 최신 동기화 성공과 구분합니다. 서버 측 검색·pagination API가 아니라 프런트엔드가 받은 전체 목록을 필터링합니다.
 
+`/issue-management/issues/{issue_key}` 아래의 보호 API는 저장된 전체 이슈 목록에 포함된 프로젝트 티켓만 허용합니다. 보고서 ID 없이 완료·이전 티켓도 조회하며, 상세 조회 자체는 목록 동기화를 시작하지 않습니다. 본문·댓글 변환과 참조 이미지 검증은 보고서 상세와 같은 `IssueDetailsService`를 사용합니다.
+
+| GET 경로 접미사 | 응답 |
+|---|---|
+| `/description` | 현재 Jira 본문 `body`와 참조 이미지 `images` |
+| `/description/images/{attachment_id}` | 현재 본문에 참조된 이미지 |
+| `/comments?offset=0&limit=5` | 최신순 댓글과 `next_offset`; 화면은 limit를 5, 10, 15개로 증가 |
+| `/comments/{comment_id}/images/{attachment_id}` | 해당 댓글에 참조된 이미지 |
+
+목록 밖 티켓·다른 프로젝트·관련 없는 이미지는 404, 잘못된 offset/limit는 422, 공급자 실패는 502입니다. 이미지 응답은 `Cache-Control: private, max-age=120`이며 본문과 댓글을 기존 보고서에 저장하지 않습니다.
+
 ## SLA 현황
 
 `GET /sla-status`는 현재 SLA 잔여율이 30% 미만인 미완료·미위반 티켓의 스냅샷을 반환합니다. 서버 캐시는 60초이며 `refresh=true`로 새 수집을 요청합니다. 같은 티켓의 여러 SLA는 한 티켓에 묶고 상태별 해결 SLA 체류시간과 확인 불가 경고를 제공합니다. 인증은 일반 보호 API와 같고 응답은 `Cache-Control: no-store`입니다. 수집 실패는 503이며 빈 정상 결과와 구분합니다. [조회 기준과 시간 해석](15_sla_status.md)을 참고하세요.

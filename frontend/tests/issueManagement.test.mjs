@@ -52,6 +52,7 @@ const { TABLE_PAGE_SIZE } = loadSource('presentation/config/constants')
 const { normalizeSearchText } = loadSource('domain/Search')
 const { DashboardExportProvider } = loadSource('presentation/context/DashboardExportContext')
 const { default: IssueManagementPage } = loadSource('presentation/pages/IssueManagementPage')
+const { default: IssueDetailsPanel } = loadSource('presentation/components/common/IssueDetailsPanel')
 const { ApplicationServicesProvider } = loadSource('presentation/context/ApplicationServicesContext')
 const { useIssueManagement } = loadSource('presentation/hooks/useIssueManagement')
 
@@ -548,3 +549,64 @@ test('issue-management download waits for initial collection but remains availab
   act(() => cachedButton.props.onClick())
   assert.deepEqual(tableKeys(view.root.findByType('ExportStage')), searchableRows.map((row) => row.key))
 })
+
+for (const desktop of [true, false]) {
+  test(`issue-management ${desktop ? 'desktop' : 'mobile'} page exposes managed details while exporting only the issue table`, async (t) => {
+    managementQuery = { data: { issues: searchableRows, initialized: true, refreshing: false, synced_at: null, error: null }, isFetching: false, isError: false, refetch: async () => {} }
+    const previousWindow = globalThis.window
+    const listeners = new Set()
+    globalThis.window = { matchMedia: () => ({ matches: desktop, addEventListener: (_, listener) => listeners.add(listener), removeEventListener: (_, listener) => listeners.delete(listener) }) }
+    const calls = { descriptions: [], comments: [] }
+    const values = Array.from({ length: 11 }, (_, index) => ({ id: String(11 - index), body: `전체 이슈 댓글 ${11 - index}`, author: '작성자', created: '', updated: '', images: [] }))
+    const services = { issueManagement: {
+      async getDescription(...args) { calls.descriptions.push(args); return { body: '전체 이슈 상세 본문', images: [] } },
+      async getComments(...args) { calls.comments.push(args); return { comments: values.slice(0, args[2]), next_offset: args[2] < values.length ? args[2] : null } },
+    }, slaDashboard: {
+      getDescription() { assert.fail('Managed page must not use report details') },
+      getComments() { assert.fail('Managed page must not use report comments') },
+    } }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    let view
+    act(() => { view = TestRenderer.create(React.createElement(QueryClientProvider, { client },
+      React.createElement(ApplicationServicesProvider, { services }, React.createElement(IssueManagementPage)))) })
+    t.after(() => {
+      act(() => view.unmount())
+      client.clear()
+      assert.equal(listeners.size, 0)
+      if (previousWindow === undefined) delete globalThis.window
+      else globalThis.window = previousWindow
+    })
+    const settle = async (condition) => {
+      for (let attempt = 0; attempt < 100 && !condition(); attempt += 1) await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)) })
+      assert.ok(condition(), 'Expected managed page details to settle')
+    }
+    const widget = view.root.findByType(RecentIssuesWidget)
+    assert.equal(widget.props.detailsSource, 'issue-management')
+    assert.equal(widget.props.commentsReportId, undefined)
+    assert.deepEqual(calls, { descriptions: [], comments: [] })
+    const layout = () => widget.findByProps({ [desktop ? 'data-pdf-desktop' : 'data-pdf-mobile']: '' })
+    click(layout().findByProps({ 'aria-label': 'TACEA-TARGET 상세 펼치기' }))
+    await settle(() => layout().findAllByType('li').length === 5 && textOf(layout()).includes('전체 이슈 상세 본문'))
+    assert.ok(textOf(layout()).indexOf('전체 이슈 상세 본문') < textOf(layout()).indexOf('최근 작성된 댓글'))
+    assert.equal(view.root.findAllByType(IssueDetailsPanel).length, 1)
+    const more = layout().findAllByType('button').find((node) => textOf(node) === '댓글 더보기 · 최신 10개')
+    click(more)
+    await settle(() => layout().findAllByType('li').length === 10)
+    assert.deepEqual(calls.comments, [['TACEA-TARGET', 0, 5], ['TACEA-TARGET', 0, 10]])
+    for (const format of ['pdf', 'xlsx']) {
+      act(() => view.root.findByProps({ 'aria-label': '다운로드 형식' }).props.onChange({ target: { value: format } }))
+      click(view.root.findAllByType('button').find((node) => textOf(node) === `${format === 'xlsx' ? 'Excel' : 'PDF'} 내보내기`))
+      const stage = view.root.findByType('ExportStage')
+      assert.deepEqual(tableKeys(stage), searchableRows.map((row) => row.key))
+      assert.equal(stage.findAllByType(IssueDetailsPanel).length, 0)
+      assert.equal(stage.findAllByType('button').length, 0)
+      assert.equal(stage.findByType(RecentIssuesWidget).props.detailsSource, undefined)
+      assert.doesNotMatch(textOf(stage), /전체 이슈 상세 본문|전체 이슈 댓글/)
+      assert.equal(calls.descriptions.length, 1)
+      assert.equal(calls.comments.length, 2)
+      act(() => stage.props.onComplete())
+    }
+    click(layout().findByProps({ 'aria-label': 'TACEA-TARGET 상세 접기' }))
+    assert.equal(view.root.findAllByType(IssueDetailsPanel).length, 0)
+  })
+}

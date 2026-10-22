@@ -19,8 +19,8 @@ const dependencies = {
   '@/presentation/context/ApplicationServicesContext': {
     useApplicationServices: () => ({ slaDashboard: { getCommentImage: () => assert.fail('Unexpected image request') } }),
   },
-  '@/presentation/hooks/useSlaDashboard': {
-    useSlaIssueComments: () => ({
+  '@/presentation/hooks/useIssueContent': {
+    useIssueComments: () => ({
       data: [], isLoading: false, isError: false, isFetching: false,
       isFetchingNextPage: false, isFetchNextPageError: false, hasNextPage: false,
       fetchNextPage: () => assert.fail('Unexpected comment request'),
