@@ -4,13 +4,15 @@ import heapq
 import json
 import os
 import re
+from collections.abc import Mapping
 from contextlib import ExitStack
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
 from src.application.ports.audit_log_reader_port import AuditLogReadError, AuditLogReaderPort
 from src.domain.constants import KST
-from src.domain.entities.audit_log import AuditLogEntry, AuditLogPage, AuditLogQuery
+from src.domain.entities.audit_log import AuditLogEntry, AuditLogPage, AuditLogQuery, AuditLogUserProfile
 from src.infrastructure.logging.audit_format import safe_fields, safe_text
 
 _FILE_NAME = re.compile(r"audit\.log(?:\.\d{4}-\d{2}-\d{2})?\Z")
@@ -22,13 +24,13 @@ class FileAuditLogReader(AuditLogReaderPort):
     def __init__(self, log_dir: str = "logs") -> None:
         self._directory = Path(log_dir)
 
-    async def read(self, query: AuditLogQuery) -> AuditLogPage:
-        return await asyncio.to_thread(self._read, query)
+    async def read(self, query: AuditLogQuery, profiles: Mapping[str, AuditLogUserProfile] | None = None) -> AuditLogPage:
+        return await asyncio.to_thread(self._read, query, profiles)
 
-    def _read(self, query: AuditLogQuery) -> AuditLogPage:
+    def _read(self, query: AuditLogQuery, profiles: Mapping[str, AuditLogUserProfile] | None = None) -> AuditLogPage:
         for attempt in range(2):
             try:
-                return self._scan(query)
+                return self._scan(query, profiles)
             except FileNotFoundError:
                 if attempt:
                     raise AuditLogReadError("감사 로그 파일이 교체되고 있습니다. 다시 조회해 주세요.") from None
@@ -36,7 +38,7 @@ class FileAuditLogReader(AuditLogReaderPort):
                 raise AuditLogReadError("감사 로그 파일을 읽을 수 없습니다. 서버의 로그 저장 경로와 읽기 권한을 확인해 주세요.") from error
         raise AuditLogReadError("감사 로그 파일을 조회하지 못했습니다.")
 
-    def _scan(self, query: AuditLogQuery) -> AuditLogPage:
+    def _scan(self, query: AuditLogQuery, profiles: Mapping[str, AuditLogUserProfile] | None = None) -> AuditLogPage:
         warnings: set[str] = set()
         events: set[str] = set()
         total = 0
@@ -99,6 +101,7 @@ class FileAuditLogReader(AuditLogReaderPort):
                         warnings.add("형식을 확인할 수 없는 감사 로그가 있어 일부 기록을 제외했습니다.")
                         continue
                     timestamp, entry = parsed
+                    entry = self._with_profile(entry, profiles)
                     if len(events) < 256:
                         events.add(entry.event)
                     elif entry.event not in events:
@@ -154,6 +157,22 @@ class FileAuditLogReader(AuditLogReaderPort):
         return timestamp, AuditLogEntry(timestamp.isoformat(), event, username, ip, details)
 
     @staticmethod
+    def _with_profile(entry: AuditLogEntry, profiles: Mapping[str, AuditLogUserProfile] | None) -> AuditLogEntry:
+        if entry.event in {"LOGIN_FAILED", "LOGIN_FAIL"} or not profiles or not entry.username or not entry.username.startswith("jira:"):
+            return entry
+        parts = entry.username.split(":", 2)
+        if len(parts) != 3 or not parts[1]:
+            return entry
+        profile = profiles.get(parts[2])
+        if profile is None:
+            return entry
+        return replace(
+            entry,
+            display_name=safe_text(profile.display_name, 200) if profile.display_name and profile.display_name != parts[2] else None,
+            email_address=safe_text(profile.email_address, 320) if profile.email_address else None,
+        )
+
+    @staticmethod
     def _matches(timestamp: datetime, entry: AuditLogEntry, query: AuditLogQuery) -> bool:
         if query.start_date and timestamp.date() < query.start_date:
             return False
@@ -161,9 +180,10 @@ class FileAuditLogReader(AuditLogReaderPort):
             return False
         if query.event and query.event.casefold() != entry.event.casefold():
             return False
-        if query.username and query.username.casefold() not in (entry.username or "").casefold():
+        user = " / ".join(value for value in (entry.username, entry.display_name, entry.email_address) if value)
+        if query.username and query.username.casefold() not in user.casefold():
             return False
         if query.ip and query.ip.casefold() not in (entry.ip or "").casefold():
             return False
-        searchable = " ".join((entry.event, entry.username or "", entry.ip or "", *(f"{key}={value}" for key, value in entry.details.items())))
+        searchable = " ".join((entry.event, user, entry.ip or "", *(f"{key}={value}" for key, value in entry.details.items())))
         return not query.search or query.search.casefold() in searchable.casefold()

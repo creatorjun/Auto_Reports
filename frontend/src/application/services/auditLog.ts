@@ -1,5 +1,5 @@
 // frontend/src/application/services/auditLog.ts
-import type { AuditLogQuery } from '@/domain/AuditLog'
+import type { AuditLogEntry, AuditLogQuery } from '@/domain/AuditLog'
 
 export interface AuditLogFilters {
   start_date: string
@@ -44,6 +44,14 @@ const EVENT_LABELS: Record<string, string> = {
 
 export function auditEventLabel(event: string): string {
   return EVENT_LABELS[event] ?? event
+}
+
+export function auditUserLabel(entry: AuditLogEntry): string {
+  const username = entry.username?.trim()
+  if (entry.event === 'LOGIN_FAILED' || entry.event === 'LOGIN_FAIL') return username || '확인 불가'
+  const profile = [entry.display_name?.trim(), entry.email_address?.trim()].filter(Boolean).join(' / ')
+  if (profile) return profile
+  return username && !username.startsWith('jira:') ? username : '확인 불가'
 }
 
 export function visibleAuditDetails(details: Record<string, string>): [string, string][] {

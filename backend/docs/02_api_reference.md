@@ -32,9 +32,9 @@ Base URL은 `/api/v1`입니다. `LOGIN=true`일 때 보호 라우트는 `Authori
 
 `GET /audit-logs`는 `SUPERADMIN`의 유효한 access token을 Bearer 헤더로 전달해야 합니다. 일반 `ADMIN` 계정은 403, 미인증·만료 토큰은 401입니다. query string의 토큰은 이 API에 사용할 수 없습니다.
 
-`start_date`, `end_date`(KST 날짜 포함), `event`, `username`, `ip`, `search`, `limit`(1~100, 기본 50), `offset`을 받습니다. 최신순 `items`, 전체 일치 `total`, `limit`, `offset`, 이벤트 목록 `events`, 누락·파일 상태 안내 `warnings`를 반환합니다. 항목은 `timestamp`, `event`, `username`, `ip`, `details`이며 사용자·IP가 없는 과거 기록은 null입니다. 이벤트는 정확히, 사용자·IP·검색어는 대소문자를 구분하지 않는 부분 일치로 찾습니다. 조회는 최대 100페이지이고 더 오래된 기록은 기간을 좁혀 조회합니다. 응답은 `Cache-Control: no-store`입니다.
+`start_date`, `end_date`(KST 날짜 포함), `event`, `username`, `ip`, `search`, `limit`(1~100, 기본 50), `offset`을 받습니다. 최신순 `items`, 전체 일치 `total`, `limit`, `offset`, 이벤트 목록 `events`, 누락·파일 상태 안내 `warnings`를 반환합니다. 항목은 `timestamp`, `event`, `username`, `display_name`, `email_address`, `ip`, `details`이며 사용자·IP가 없는 과거 기록은 null입니다. `username`은 원본 식별자를 유지하며, Jira 사용자의 `display_name`·`email_address`는 현재 저장된 활성 프로필에서 조회하고 확인되지 않으면 null입니다. 이벤트는 정확히, 사용자·IP·검색어는 대소문자를 구분하지 않는 부분 일치로 찾습니다. `username`과 `search` 필터는 표시 이름·이메일도 검색하며 필터 적용 후 건수와 페이지를 계산합니다. 조회는 최대 100페이지이고 더 오래된 기록은 기간을 좁혀 조회합니다. 응답은 `Cache-Control: no-store`입니다.
 
-로그 읽기 실패는 503, 잘못된 날짜 범위·페이지 범위는 422입니다. 자세한 저장·보존 방식은 [감사로그 문서](07_audit_logs.md)에 정리했습니다.
+로그 또는 사용자 프로필 읽기 실패는 503, 잘못된 날짜 범위·페이지 범위는 422입니다. 자세한 저장·보존 방식은 [감사로그 문서](07_audit_logs.md)에 정리했습니다.
 
 스토리지 미리보기·변환·다운로드는 `Authorization: Bearer <access token>` 헤더와 기존 `_t` 링크 인증을 모두 지원합니다. 둘 다 전달되면 Bearer 헤더를 검증합니다. PDF 변환은 서버에서 최대 120초 동안 실행하며, 브라우저의 변환 요청 제한은 응답 전송 여유를 포함한 150초입니다. 실패 시 JSON `detail`을 미리보기 화면에 표시합니다.
 

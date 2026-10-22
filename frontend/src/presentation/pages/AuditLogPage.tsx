@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { RequestError } from '@/application/errors/RequestError'
-import { auditDefaultFilters, auditEventLabel, auditFilterError, auditLogQuery, visibleAuditDetails } from '@/application/services/auditLog'
+import { auditDefaultFilters, auditEventLabel, auditFilterError, auditLogQuery, auditUserLabel, visibleAuditDetails } from '@/application/services/auditLog'
 import type { AuditLogFilters } from '@/application/services/auditLog'
 import type { AuditLogEntry } from '@/domain/AuditLog'
 import { useAuditLogs } from '@/presentation/hooks/useAuditLogs'
@@ -87,7 +87,7 @@ export default function AuditLogPage() {
           <label className="flex flex-col gap-2 text-control-label font-medium text-apple-mid">이벤트<select value={draft.event} onChange={(event) => update('event', event.target.value)} className={fieldClass}>
             <option value="">전체 이벤트</option>{events.map((event) => <option key={event} value={event}>{auditEventLabel(event)}</option>)}
           </select></label>
-          <label className="flex flex-col gap-2 text-control-label font-medium text-apple-mid">사용자<input type="text" autoComplete="off" maxLength={200} placeholder="사용자 검색" value={draft.username} onChange={(event) => update('username', event.target.value)} className={fieldClass} /></label>
+          <label className="flex flex-col gap-2 text-control-label font-medium text-apple-mid">사용자 이름 / 이메일<input type="text" autoComplete="off" maxLength={200} placeholder="이름 또는 이메일 검색" value={draft.username} onChange={(event) => update('username', event.target.value)} className={fieldClass} /></label>
           <label className="flex flex-col gap-2 text-control-label font-medium text-apple-mid">IP 주소<input type="text" autoComplete="off" maxLength={200} placeholder="IP 주소 검색" value={draft.ip} onChange={(event) => update('ip', event.target.value)} className={fieldClass} /></label>
           <label className="flex flex-col gap-2 text-control-label font-medium text-apple-mid">검색어<input type="search" maxLength={200} placeholder="이벤트·작업 내용 검색" value={draft.search} onChange={(event) => update('search', event.target.value)} className={fieldClass} /></label>
         </div>
@@ -116,13 +116,13 @@ export default function AuditLogPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px] border-collapse text-left text-body">
                 <thead className="bg-apple-gray text-label text-apple-mid"><tr>
-                  {['발생 시각 (KST)', '이벤트', '사용자', 'IP 주소', '작업 상세'].map((label) => <th key={label} scope="col" className="px-5 py-3 font-medium">{label}</th>)}
+                  {['발생 시각 (KST)', '이벤트', '사용자 이름 / 이메일', 'IP 주소', '작업 상세'].map((label) => <th key={label} scope="col" className="px-5 py-3 font-medium">{label}</th>)}
                 </tr></thead>
                 <tbody className="divide-y divide-apple-divider/60">
                   {data.items.map((entry, index) => <tr key={`${request.offset + index}-${entry.timestamp}-${entry.event}`} className="align-top hover:bg-apple-gray/40">
                     <td className="whitespace-nowrap px-5 py-4 text-label tabular-nums text-apple-mid">{timestampLabel(entry.timestamp)}</td>
                     <td className="px-5 py-4"><span className="whitespace-nowrap font-medium text-apple-dark">{auditEventLabel(entry.event)}</span><span className="mt-1 block text-caption text-apple-light">{entry.event}</span></td>
-                    <td className="max-w-52 break-words px-5 py-4 text-apple-dark">{entry.username || '확인 불가'}</td>
+                    <td className="max-w-72 break-words px-5 py-4 text-apple-dark [overflow-wrap:anywhere]">{auditUserLabel(entry)}</td>
                     <td className="max-w-52 break-all px-5 py-4 font-mono text-label text-apple-mid">{entry.ip || '확인 불가'}</td>
                     <td className="px-5 py-4 text-label"><AuditDetails entry={entry} /></td>
                   </tr>)}

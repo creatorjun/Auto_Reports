@@ -3,6 +3,8 @@ export interface AuditLogEntry {
   timestamp: string
   event: string
   username: string | null
+  display_name?: string | null
+  email_address?: string | null
   ip: string | null
   details: Record<string, string>
 }

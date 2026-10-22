@@ -45,6 +45,17 @@ class AuditLogsApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(403, response.status_code)
         self.use_case.execute.assert_not_awaited()
 
+    async def test_jira_display_name_and_email_are_returned_with_original_principal(self) -> None:
+        self.use_case.execute.return_value = AuditLogPage([
+            AuditLogEntry("2026-10-13T09:00:00+09:00", "REPORT_DELETE", "jira:site:account", None, {}, "홍길동", "hong@example.com"),
+        ], 1, 50, 0)
+        response = await self.client.get("/api/v1/audit-logs")
+        self.assertEqual(200, response.status_code)
+        entry = response.json()["items"][0]
+        self.assertEqual("jira:site:account", entry["username"])
+        self.assertEqual("홍길동", entry["display_name"])
+        self.assertEqual("hong@example.com", entry["email_address"])
+
     async def test_query_shape_is_validated_before_reading(self) -> None:
         for query in ("start_date=2026-02-30", "limit=101", "limit=0", "offset=-1", "offset=10000", "search=" + "x" * 201):
             self.assertEqual(422, (await self.client.get(f"/api/v1/audit-logs?{query}")).status_code)

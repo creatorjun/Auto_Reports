@@ -10,6 +10,14 @@ class AuditLogEntry:
     username: str | None
     ip: str | None
     details: dict[str, str]
+    display_name: str | None = None
+    email_address: str | None = None
+
+
+@dataclass(frozen=True)
+class AuditLogUserProfile:
+    display_name: str | None = None
+    email_address: str | None = None
 
 
 @dataclass(frozen=True)

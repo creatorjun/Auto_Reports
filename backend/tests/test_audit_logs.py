@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch
 
 from src.application.ports.audit_log_reader_port import AuditLogReadError
 from src.application.use_cases.audit_logs import AuditLogsUseCase
-from src.domain.entities.audit_log import AuditLogPage, AuditLogQuery
+from src.domain.entities.audit_log import AuditLogPage, AuditLogQuery, AuditLogUserProfile
 from src.infrastructure.logging.audit_log_reader import FileAuditLogReader
 from src.infrastructure.logging.audit_logger import AuditLogger
 
@@ -94,12 +94,12 @@ class AuditLogReaderTest(unittest.IsolatedAsyncioTestCase):
         original = self.reader._scan
         calls = 0
 
-        def scan(query: AuditLogQuery) -> AuditLogPage:
+        def scan(query: AuditLogQuery, profiles=None) -> AuditLogPage:
             nonlocal calls
             calls += 1
             if calls == 1:
                 raise FileNotFoundError()
-            return original(query)
+            return original(query, profiles)
 
         with patch.object(self.reader, "_scan", side_effect=scan):
             self.assertEqual(1, (await self.reader.read(AuditLogQuery())).total)
@@ -128,6 +128,75 @@ class AuditLogReaderTest(unittest.IsolatedAsyncioTestCase):
         page = await self.reader.read(AuditLogQuery())
         self.assertEqual(["GOOD"], [entry.event for entry in page.items])
         self.assertTrue(any("길이 제한" in warning for warning in page.warnings))
+
+    async def test_jira_profiles_resolve_old_and_new_records_without_rewriting_logs(self) -> None:
+        old = legacy("2026-10-12 09:00:00", "REPORT_DELETE", "username=jira:site:account:123 | report_id=1")
+        current = structured("2026-10-13T10:00:00+09:00", "FILE_DELETE", username="jira:site:account:123", path="report.xlsx")
+        self.write(old, "audit.log.2026-10-12")
+        self.write(current)
+        profiles = {"account:123": AuditLogUserProfile("홍길동", "hong@example.com")}
+        page = await self.reader.read(AuditLogQuery(), profiles)
+        self.assertEqual(2, page.total)
+        for entry in page.items:
+            self.assertEqual("jira:site:account:123", entry.username)
+            self.assertEqual("홍길동", entry.display_name)
+            self.assertEqual("hong@example.com", entry.email_address)
+        self.assertEqual(old, (self.path / "audit.log.2026-10-12").read_text(encoding="utf-8"))
+        self.assertEqual(current, (self.path / "audit.log").read_text(encoding="utf-8"))
+
+    async def test_user_name_email_and_original_identity_filter_before_pagination(self) -> None:
+        self.write("".join(structured(
+            f"2026-10-13T{hour}:00:00+09:00", "FILE_DELETE", username=f"jira:site:{account}", path=str(hour),
+        ) for hour, account in (("09", "known"), ("10", "other"), ("11", "known"))))
+        profiles = {"known": AuditLogUserProfile("홍길동", "Hong@example.com")}
+        for field in ("username", "search"):
+            for value in ("홍길동", "HONG@EXAMPLE.COM", "홍길동 / Hong@example.com", "jira:site:known"):
+                with self.subTest(field=field, value=value):
+                    page = await self.reader.read(AuditLogQuery(**{field: value}, limit=1, offset=1), profiles)
+                    self.assertEqual(2, page.total)
+                    self.assertEqual(["09"], [entry.details["path"] for entry in page.items])
+
+    async def test_missing_profiles_and_local_users_do_not_inherit_jira_names(self) -> None:
+        self.write("".join(structured("2026-10-13T10:00:00+09:00", "LOGIN_SUCCESS", username=value) for value in (
+            "root", "jira:site:unknown", "jira::known", "jira:known", "jira:site:email-only",
+        )))
+        profiles = {
+            "root": AuditLogUserProfile("다른 사용자", "other@example.com"),
+            "known": AuditLogUserProfile("확인된 사용자", "known@example.com"),
+            "email-only": AuditLogUserProfile(email_address="email@example.com"),
+        }
+        page = await self.reader.read(AuditLogQuery(), profiles)
+        for entry in page.items:
+            self.assertIsNone(entry.display_name)
+            self.assertEqual("email@example.com" if entry.username.endswith("email-only") else None, entry.email_address)
+
+    async def test_profile_removal_hides_previously_resolved_personal_data(self) -> None:
+        self.write(structured("2026-10-13T10:00:00+09:00", "REPORT_DELETE", username="jira:site:known"))
+        profiles = {"known": AuditLogUserProfile("홍길동", "hong@example.com")}
+        self.assertEqual(1, (await self.reader.read(AuditLogQuery(search="hong@example.com"), profiles)).total)
+        self.assertEqual(0, (await self.reader.read(AuditLogQuery(search="hong@example.com"), {})).total)
+        entry = (await self.reader.read(AuditLogQuery(), {})).items[0]
+        self.assertIsNone(entry.display_name)
+        self.assertIsNone(entry.email_address)
+
+    async def test_failed_login_input_is_not_attributed_to_an_authenticated_jira_user(self) -> None:
+        self.write("".join(structured("2026-10-13T10:00:00+09:00", event, username="jira:site:known") for event in ("LOGIN_FAILED", "LOGIN_FAIL")))
+        profiles = {"known": AuditLogUserProfile("홍길동", "hong@example.com")}
+        page = await self.reader.read(AuditLogQuery(), profiles)
+        self.assertEqual(2, page.total)
+        for entry in page.items:
+            self.assertEqual("jira:site:known", entry.username)
+            self.assertIsNone(entry.display_name)
+            self.assertIsNone(entry.email_address)
+        self.assertEqual(0, (await self.reader.read(AuditLogQuery(username="홍길동"), profiles)).total)
+        self.assertEqual(0, (await self.reader.read(AuditLogQuery(search="hong@example.com"), profiles)).total)
+
+    async def test_account_id_fallback_is_not_exposed_as_a_display_name(self) -> None:
+        self.write(structured("2026-10-13T10:00:00+09:00", "LOGIN_SUCCESS", username="jira:site:known"))
+        profiles = {"known": AuditLogUserProfile("known", "hong@example.com")}
+        entry = (await self.reader.read(AuditLogQuery(), profiles)).items[0]
+        self.assertIsNone(entry.display_name)
+        self.assertEqual("hong@example.com", entry.email_address)
 
 
 class AuditLoggerTest(unittest.IsolatedAsyncioTestCase):
@@ -162,3 +231,28 @@ class AuditLogsUseCaseTest(unittest.IsolatedAsyncioTestCase):
         query = AuditLogQuery(limit=100, offset=9900)
         await AuditLogsUseCase(reader).execute(query)
         reader.read.assert_awaited_once_with(query)
+
+    async def test_profiles_are_read_once_and_passed_before_log_filtering(self) -> None:
+        reader = AsyncMock()
+        profiles = AsyncMock()
+        profiles.read_profiles.return_value = {"known": AuditLogUserProfile("홍길동", "hong@example.com")}
+        query = AuditLogQuery(username="홍길동")
+        await AuditLogsUseCase(reader, profiles).execute(query)
+        profiles.read_profiles.assert_awaited_once_with()
+        reader.read.assert_awaited_once_with(query, profiles.read_profiles.return_value)
+
+    async def test_invalid_query_never_reads_profiles(self) -> None:
+        reader = AsyncMock()
+        profiles = AsyncMock()
+        with self.assertRaises(ValueError):
+            await AuditLogsUseCase(reader, profiles).execute(AuditLogQuery(limit=0))
+        profiles.read_profiles.assert_not_awaited()
+        reader.read.assert_not_awaited()
+
+    async def test_profile_failure_does_not_silently_return_unresolved_logs(self) -> None:
+        reader = AsyncMock()
+        profiles = AsyncMock()
+        profiles.read_profiles.side_effect = AuditLogReadError("사용자 정보를 읽을 수 없습니다.")
+        with self.assertRaises(AuditLogReadError):
+            await AuditLogsUseCase(reader, profiles).execute(AuditLogQuery())
+        reader.read.assert_not_awaited()

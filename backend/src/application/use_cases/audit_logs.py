@@ -1,11 +1,13 @@
 # backend/src/application/use_cases/audit_logs.py
 from src.application.ports.audit_log_reader_port import AuditLogReaderPort
+from src.application.ports.audit_log_user_profile_port import AuditLogUserProfilePort
 from src.domain.entities.audit_log import AuditLogPage, AuditLogQuery
 
 
 class AuditLogsUseCase:
-    def __init__(self, reader: AuditLogReaderPort) -> None:
+    def __init__(self, reader: AuditLogReaderPort, profiles: AuditLogUserProfilePort | None = None) -> None:
         self._reader = reader
+        self._profiles = profiles
 
     async def execute(self, query: AuditLogQuery) -> AuditLogPage:
         if query.start_date and query.end_date and query.start_date > query.end_date:
@@ -14,4 +16,7 @@ class AuditLogsUseCase:
             raise ValueError("한 페이지에 최대 100건, 최대 100페이지까지 조회할 수 있습니다. 기간이나 검색 조건을 좁혀 주세요.")
         if any(len(value) > 200 for value in (query.event, query.username, query.ip, query.search)):
             raise ValueError("검색 조건은 200자 이내로 입력해 주세요.")
-        return await self._reader.read(query)
+        if self._profiles is None:
+            return await self._reader.read(query)
+        profiles = await self._profiles.read_profiles()
+        return await self._reader.read(query, profiles)

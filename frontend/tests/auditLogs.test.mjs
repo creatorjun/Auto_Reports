@@ -39,7 +39,7 @@ function sourceLoader(overrides = {}) {
 
 const load = sourceLoader()
 const { canViewAuditLogs } = load('domain/Auth')
-const { auditDefaultFilters, auditFilterError, auditLogQuery, visibleAuditDetails } = load('application/services/auditLog')
+const { auditDefaultFilters, auditFilterError, auditLogQuery, auditUserLabel, visibleAuditDetails } = load('application/services/auditLog')
 const { RequestError } = load('application/errors/RequestError')
 const superadmin = { username: 'configured-owner', login_required: true, is_superadmin: true }
 const ordinary = { username: 'admin', login_required: true, is_superadmin: false }
@@ -216,6 +216,47 @@ test('audit page renders missing actors, warnings and safe details and blocks in
   assert.match(JSON.stringify(view.toJSON()), /시작일은 종료일보다/)
   assert.equal(refreshes, 0)
   act(() => view.unmount())
+})
+
+test('audit actor labels use available profile fields without exposing Jira principal IDs', () => {
+  const entry = { ...entries.items[0], username: 'jira:cloud-id:account-id' }
+  assert.equal(auditUserLabel({ ...entry, display_name: ' 홍길동 ', email_address: ' hong@example.com ' }), '홍길동 / hong@example.com')
+  assert.equal(auditUserLabel({ ...entry, display_name: '홍길동' }), '홍길동')
+  assert.equal(auditUserLabel({ ...entry, email_address: 'hong@example.com' }), 'hong@example.com')
+  assert.equal(auditUserLabel({ ...entry, display_name: ' ', email_address: null }), '확인 불가')
+  assert.equal(auditUserLabel(entry), '확인 불가')
+  assert.equal(auditUserLabel({ ...entry, username: 'configured-owner' }), 'configured-owner')
+  assert.equal(auditUserLabel({ ...entry, username: null }), '확인 불가')
+})
+
+test('audit page displays names and emails and submits the actor search', () => {
+  const requests = []
+  const current = { allowed: true, data: { ...entries, items: [{ ...entries.items[0], username: 'jira:cloud-id:account-id', display_name: '홍길동', email_address: 'hong@example.com' }] }, isError: false, isPending: false, isFetching: false, refetch() {} }
+  const instance = sourceLoader({ 'presentation/hooks/useAuditLogs': { useAuditLogs: (query) => { requests.push(query); return current } } })
+  const Page = instance('presentation/pages/AuditLogPage').default
+  const { MemoryRouter } = require('react-router-dom')
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(MemoryRouter, null, React.createElement(Page))) })
+  try {
+    const rendered = JSON.stringify(view.toJSON())
+    assert.match(rendered, /홍길동 \/ hong@example.com/)
+    assert.doesNotMatch(rendered, /jira:cloud-id:account-id/)
+    const actor = view.root.findByProps({ placeholder: '이름 또는 이메일 검색' })
+    act(() => actor.props.onChange({ target: { value: ' hong@example.com ' } }))
+    act(() => view.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+    assert.equal(requests.at(-1).username, 'hong@example.com')
+    assert.equal(requests.at(-1).offset, 0)
+  } finally {
+    act(() => view.unmount())
+  }
+})
+
+test('failed-login actor labels preserve the entered account without attributing it to a Jira profile', () => {
+  for (const event of ['LOGIN_FAILED', 'LOGIN_FAIL']) {
+    const entry = { ...entries.items[0], event, username: 'jira:cloud-id:account-id', display_name: '홍길동', email_address: 'hong@example.com' }
+    assert.equal(auditUserLabel(entry), 'jira:cloud-id:account-id')
+    assert.equal(auditUserLabel({ ...entry, username: null }), '확인 불가')
+  }
 })
 
 test('audit pagination stops at the server limit and guides users to narrow the date range', () => {

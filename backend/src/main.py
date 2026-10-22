@@ -18,6 +18,7 @@ from src.infrastructure.logging.oauth_access_filter import OAuthAccessFilter
 from src.application.use_cases.audit_logs import AuditLogsUseCase
 from src.application.use_cases.trigger_report import TriggerReportUseCase
 from src.infrastructure.persistence.database import Database
+from src.infrastructure.persistence.audit_log_user_profiles import SqlAuditLogUserProfiles
 from src.infrastructure.persistence.job_repository_impl import SqlJobRepository
 from src.infrastructure.scheduling.report_scheduler import create_scheduler
 from src.presentation.api.deps import ApiServices
@@ -69,7 +70,7 @@ def create_app(settings: Settings) -> FastAPI:
                     get_report_chart_issues=container.get_report_chart_issues,
                     issue_management=container.issue_management,
                     security_news=container.security_news,
-                    audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir)),
+                    audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir), SqlAuditLogUserProfiles(database)),
                     notify_sla_digest=container.notify_sla_digest,
                     sla_status=container.sla_status,
                     jira_notifications=container.jira_notifications,
