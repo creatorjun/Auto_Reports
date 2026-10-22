@@ -20,7 +20,7 @@
 | [성능 검토](PERFORMANCE_REVIEW.md) | 반복 정렬·렌더·미리보기 로딩·Excel 최적화와 전후 측정 |
 | [데이터 흐름](data-flow.md) | 보고서별 수집·저장·표시 흐름 |
 | [컴포넌트](components.md) | 공통 필터, 표, 차트, 내보내기·미리보기 |
-| [보안 뉴스](../../backend/docs/13_security_news.md) | 공개 보안 정보 검색·필터, 출처 상태와 갱신 범위 |
+| [CVE 취약점 대응·보안 뉴스](../../backend/docs/13_security_news.md) | NVD·CISA KEV 버전 대응표, 보안 권고·뉴스 번역, 출처 상태와 갱신 범위 |
 
 백엔드 계약: [API](../../backend/docs/02_api_reference.md), [SLA 위반](../../backend/docs/08_sla_violation_report.md), [재배포 현황](../../backend/docs/09_redeployment_report.md), [감사로그](../../backend/docs/07_audit_logs.md), [운영](../../backend/docs/10_operations.md).
 

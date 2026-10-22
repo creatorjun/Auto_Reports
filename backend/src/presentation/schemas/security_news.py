@@ -6,6 +6,16 @@ from pydantic import BaseModel, ConfigDict
 from src.domain.entities.security_news import NewsKind, NewsSeverity, NewsSourceStatus
 
 
+class SecurityCveRemediationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    product: str
+    affected_versions: str
+    vendor: str | None = None
+    fixed_version: str | None = None
+    reference_url: str | None = None
+
+
 class SecurityNewsItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -27,6 +37,7 @@ class SecurityNewsItemResponse(BaseModel):
     due_date: str | None
     title_ko: str | None = None
     summary_ko: str | None = None
+    remediations: tuple[SecurityCveRemediationResponse, ...] = ()
 
 
 class SecurityNewsSourceResponse(BaseModel):

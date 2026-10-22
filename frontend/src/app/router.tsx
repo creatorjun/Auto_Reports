@@ -16,6 +16,7 @@ const RedeploymentPage       = lazy(() => import('@/presentation/pages/Redeploym
 const HistoryPage            = lazy(() => import('@/presentation/pages/HistoryPage'))
 const AuditLogPage           = lazy(() => import('@/presentation/pages/AuditLogPage'))
 const SecurityNewsPage       = lazy(() => import('@/presentation/pages/SecurityNewsPage'))
+const CveResponsePage        = lazy(() => import('@/presentation/pages/CveResponsePage'))
 const StoragePage            = lazy(() => import('@/presentation/pages/StoragePage'))
 const StoragePreviewPage     = lazy(() => import('@/presentation/pages/StoragePreviewPage'))
 const LoginPage              = lazy(() => import('@/presentation/pages/LoginPage'))
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
       { path: 'sla-status', element: <Wrap><SlaStatusPage /></Wrap> },
       { path: 'sla-violations/history/:id', element: <Wrap><SlaViolationPage /></Wrap> },
       { path: 'issues',         element: <Wrap><IssueManagementPage /></Wrap> },
+      { path: 'cve-response',   element: <Wrap><CveResponsePage /></Wrap> },
       { path: 'security-news',  element: <Wrap><SecurityNewsPage /></Wrap> },
       { path: 'sla-dashboard',  element: <Wrap><SlaDashboardPage /></Wrap> },
       { path: 'history',        element: <Wrap><HistoryPage /></Wrap> },

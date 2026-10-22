@@ -3,6 +3,14 @@ export type SecurityNewsKind = 'cve' | 'advisory' | 'news'
 export type SecuritySeverity = 'critical' | 'high' | 'medium' | 'low' | 'unknown'
 export type SecurityNewsLanguage = 'ko' | 'original'
 
+export interface SecurityCveRemediation {
+  vendor: string | null
+  product: string
+  affected_versions: string
+  fixed_version: string | null
+  reference_url: string | null
+}
+
 export interface SecurityNewsItem {
   id: string
   source_id: string
@@ -22,6 +30,7 @@ export interface SecurityNewsItem {
   vendor: string | null
   product: string | null
   due_date: string | null
+  remediations?: SecurityCveRemediation[]
 }
 
 export interface SecurityNewsSource {

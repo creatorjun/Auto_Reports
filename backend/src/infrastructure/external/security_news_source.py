@@ -19,6 +19,7 @@ from src.domain.entities.security_news import (
     SecurityNewsSource,
     SecurityNewsSourceResult,
 )
+from src.infrastructure.external.security_cve_remediation import cve_remediations
 
 
 SOURCES = (
@@ -26,14 +27,12 @@ SOURCES = (
     SecurityNewsSource("nvd", "NVD", "https://nvd.nist.gov/", "cve", minimum_refresh_seconds=7200),
     SecurityNewsSource("kisa", "KISA 보호나라", "https://www.boho.or.kr/", "advisory"),
     SecurityNewsSource("cisco", "Cisco 보안 권고", "https://sec.cloudapps.cisco.com/security/center/publicationListing.x", "advisory"),
-    SecurityNewsSource("google-security", "Google Security", "https://blog.google/security/", "news"),
 )
 ENDPOINTS = {
     "cisa-kev": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
     "nvd": "https://services.nvd.nist.gov/rest/json/cves/2.0",
     "kisa": "https://www.boho.or.kr/kr/rss.do?bbsId=B0000133",
     "cisco": "https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml",
-    "google-security": "https://blog.google/security/rss/",
 }
 CVE_PATTERN = re.compile(r"\bCVE-\d{4}-\d{4,}\b", re.IGNORECASE)
 MAX_RESPONSE_BYTES = 12 * 1024 * 1024
@@ -132,16 +131,19 @@ def parse_kev(payload: bytes) -> SecurityNewsSourceResult:
             continue
         exploited.add(cve)
         due = parse_date(row.get("dueDate"))
+        description = plain_text(row.get("shortDescription"), 100_000)
+        product = plain_text(row.get("product"), 200) or None
+        vendor = plain_text(row.get("vendorProject"), 200) or None
+        url = f"https://nvd.nist.gov/vuln/detail/{cve}"
         items.append(SecurityNewsItem(
             id=f"cisa-kev:{cve}", source_id="cisa-kev", kind="cve",
             title=plain_text(f"{cve} · {row.get('vulnerabilityName', '')}", 240),
-            summary=plain_text(row.get("shortDescription")),
-            url=f"https://nvd.nist.gov/vuln/detail/{cve}",
+            summary=description[:1200], url=url,
             published_at=parse_date(row.get("dateAdded")), cve_ids=(cve,),
             known_exploited=True,
-            vendor=plain_text(row.get("vendorProject"), 200) or None,
-            product=plain_text(row.get("product"), 200) or None,
+            vendor=vendor, product=product,
             due_date=due.date().isoformat() if due is not None else None,
+            remediations=cve_remediations(None, description, url, product=product, vendor=vendor),
         ))
     return SecurityNewsSourceResult(
         recent_items(items), frozenset(exploited),
@@ -196,15 +198,18 @@ def parse_nvd(payload: bytes) -> SecurityNewsSourceResult:
             (value.get("value") for value in summaries if value.get("lang") == "en"),
             next((value.get("value") for value in summaries), ""),
         )
-        summary = plain_text(description)
+        description = plain_text(description, 100_000)
+        summary = description[:1200]
         severity, score, version = cvss_details(row.get("metrics"))
+        url = f"https://nvd.nist.gov/vuln/detail/{cve}"
         items.append(SecurityNewsItem(
             id=f"nvd:{cve}", source_id="nvd", kind="cve",
             title=plain_text(f"{cve} · {summary}", 240), summary=summary,
-            url=f"https://nvd.nist.gov/vuln/detail/{cve}",
+            url=url,
             published_at=parse_date(row.get("published")),
             updated_at=parse_date(row.get("lastModified")),
             cve_ids=(cve,), severity=severity, cvss_score=score, cvss_version=version,
+            remediations=cve_remediations(row.get("configurations"), description, url),
         ))
     warning = "최근 7일에 공개된 CVE 중 최신 최대 200건이며, 수동 새로고침을 포함해 2시간 간격으로 조회합니다. CVSS 미평가 항목은 심각도 미정입니다."
     return SecurityNewsSourceResult(recent_items(items, 200), warning=warning)

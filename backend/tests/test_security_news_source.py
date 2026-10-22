@@ -91,18 +91,18 @@ class SecurityNewsParsingTest(unittest.TestCase):
         payload = b"""<rss><channel><item><title>News</title><link>https://example.com/</link>
         <description><![CDATA[<p>Safe <b>news</b></p><script>alert('bad')</script><img src="track"><style>evil</style>]]></description>
         <pubDate>Tue, 20 Oct 2026 12:00:00 GMT</pubDate></item></channel></rss>"""
-        item = parse_feed(payload, SOURCES[4]).items[0]
+        item = parse_feed(payload, SOURCES[3]).items[0]
         self.assertEqual("Safe news", item.summary)
         self.assertEqual(2026, item.published_at.year)
         self.assertEqual("one two", plain_text("<p>one</p><p>two</p>"))
 
     def test_article_description_wins_over_media_alternative_text(self) -> None:
         payload = b"""<rss xmlns:media="http://search.yahoo.com/mrss/"><channel><item>
-        <title>Article</title><link>https://blog.google/security/test/</link>
+        <title>Article</title><link>https://example.com/security/test/</link>
         <media:description>Image alternative text</media:description>
         <description><![CDATA[<p>Actual article summary</p>]]></description>
         </item></channel></rss>"""
-        self.assertEqual("Actual article summary", parse_feed(payload, SOURCES[4]).items[0].summary)
+        self.assertEqual("Actual article summary", parse_feed(payload, SOURCES[3]).items[0].summary)
 
     def test_cve_references_remain_searchable_after_summary_shortening(self) -> None:
         payload = (
@@ -136,6 +136,21 @@ class SecurityNewsParsingTest(unittest.TestCase):
 
 
 class SecurityNewsHttpTest(unittest.IsolatedAsyncioTestCase):
+    async def test_removed_google_source_cannot_be_listed_or_fetched(self) -> None:
+        requests = []
+
+        def handle(request):
+            requests.append(request)
+            return httpx.Response(200, content=b"<rss><channel /></rss>")
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+            source = PublicSecurityNewsSource(client)
+            self.assertEqual({"cisa-kev", "nvd", "kisa", "cisco"}, {value.id for value in source.sources})
+            self.assertNotIn("google-security", ENDPOINTS)
+            with self.assertRaisesRegex(ValueError, "Unknown security news source"):
+                await source.fetch("google-security")
+        self.assertEqual([], requests)
+
     async def test_nvd_fetches_latest_tail_with_fixed_window_and_request_gap(self) -> None:
         requests: list[httpx.Request] = []
 

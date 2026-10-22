@@ -6,7 +6,7 @@
 
 ## 메뉴
 
-대시보드 → 전체 이슈 → 집중 관리 항목 → 연간 보고서 → 파트너 관리 → 사이트 관리 → 장기 이슈 → 파일 보관함 → 보안 뉴스 순서입니다. 집중 관리 하위는 SLA 현황 → SLA 위반 → 재배포 현황이며 `presentation/config/focusManagement.ts`를 데스크톱·모바일 메뉴가 공유합니다. 연간 하위는 2024·2025·2026입니다. 감사로그는 관리자에게만 추가 표시합니다. 히스토리와 별도의 보고서 생성 버튼은 대메뉴에 두지 않습니다.
+대시보드 → 전체 이슈 → 집중 관리 항목 → 연간 보고서 → 파트너 관리 → 사이트 관리 → 장기 이슈 → 파일 보관함 → CVE 취약점 대응 → 보안 뉴스 순서입니다. 데스크톱과 모바일 모두 CVE 취약점 대응을 보안 뉴스 바로 위에 표시합니다. 집중 관리 하위는 SLA 현황 → SLA 위반 → 재배포 현황이며 `presentation/config/focusManagement.ts`를 데스크톱·모바일 메뉴가 공유합니다. 연간 하위는 2024·2025·2026입니다. 감사로그는 관리자에게만 추가 표시합니다. 히스토리와 별도의 보고서 생성 버튼은 대메뉴에 두지 않습니다.
 
 데스크톱에서는 하위 메뉴 버튼에 pointer가 진입할 때 펼칩니다. 하위 영역까지 열린 상태를 유지하고 벗어나면 접습니다. 접힌 사이드바는 그동안 임시 확장하며 빈 공간·일반 메뉴 hover로 확장하지 않습니다. 클릭과 Escape를 지원합니다. 모바일은 클릭으로 열고 선택·바깥 영역·Escape로 닫습니다.
 
@@ -36,7 +36,8 @@
 | `/sites/:id/edit` | SiteCreatePage | ProtectedRoute | 사이트 편집 |
 | `/sla-dashboard` | SlaDashboardPage | ProtectedRoute | 장기 이슈·댓글 |
 | `/storage` | StoragePage | ProtectedRoute | 파일 보관함 |
-| `/security-news` | SecurityNewsPage | ProtectedRoute | CVE·보안 권고·뉴스와 출처별 수집 상태 |
+| `/cve-response` | CveResponsePage | ProtectedRoute | NVD·CISA KEV 취약 버전 → 해결 버전과 출처별 수집 상태 |
+| `/security-news` | SecurityNewsPage | ProtectedRoute | 보안 권고·뉴스, 한국어 번역과 출처별 수집 상태 |
 | `/audit-logs` | AuditLogPage | ProtectedRoute + SuperadminRoute | 관리자 감사로그 |
 | `*` | Navigate | — | `/login`으로 이동 |
 

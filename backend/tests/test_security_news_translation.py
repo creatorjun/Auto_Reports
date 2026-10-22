@@ -29,7 +29,7 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         self.services = []
         self.caches = []
         self.item = SecurityNewsItem(
-            "first", "nvd", "cve", "CVE-2026-1234 critical security issue",
+            "first", "cisco", "advisory", "CVE-2026-1234 critical security issue",
             "Product 1.2 contains a vulnerability.", "https://example.com/",
         )
 
@@ -89,6 +89,92 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(0, state.pending_count)
         self.assertEqual(1, self.scalar("SELECT COUNT(*) FROM translations"))
 
+    async def test_mixed_items_translate_advisories_and_news_but_never_cve_records(self) -> None:
+        service, provider, _ = self.service()
+        cve = replace(self.item, id="cve", source_id="nvd", kind="cve", title="CVE-2026-5678 vulnerability")
+        news = replace(self.item, id="news", source_id="public-news", kind="news", title="Security news about CVE-2026-1234")
+        initial, (items, state) = await self.finish(service, (cve, self.item, news))
+        self.assertEqual(2, initial[1].pending_count)
+        self.assertEqual([self.item.title, news.title], [value.title for value in provider.translate.await_args.args[0]])
+        self.assertIsNone(items[0].title_ko)
+        self.assertIsNone(items[0].summary_ko)
+        self.assertIsNotNone(items[1].title_ko)
+        self.assertIsNotNone(items[2].title_ko)
+        self.assertEqual(2, state.translated_count)
+        self.assertEqual(0, state.pending_count)
+
+    async def test_cve_only_snapshot_and_restore_never_access_cache_or_provider(self) -> None:
+        service, provider, cache = self.service()
+        cache.read = AsyncMock(wraps=cache.read)
+        cache.reserve = AsyncMock(wraps=cache.reserve)
+        cve = replace(self.item, source_id="nvd", kind="cve")
+        await service.restore((cve,))
+        for start in (True, False, True):
+            items, state = service.snapshot((cve,), start=start)
+            self.assertIsNone(items[0].title_ko)
+            self.assertEqual(0, state.translated_count)
+            self.assertEqual(0, state.pending_count)
+            self.assertFalse(state.translating)
+        self.assertIsNone(service._task)
+        cache.read.assert_not_awaited()
+        cache.reserve.assert_not_awaited()
+        provider.translate.assert_not_awaited()
+
+    async def test_cached_identical_news_translation_never_decorates_cve(self) -> None:
+        service, provider, _ = self.service()
+        await self.finish(service, (self.item,))
+        cve = replace(self.item, kind="cve", title_ko="이전 CVE 번역", summary_ko="이전 요약")
+        items, state = service.snapshot((cve, self.item), start=False)
+        self.assertIsNone(items[0].title_ko)
+        self.assertIsNone(items[0].summary_ko)
+        self.assertEqual(self.item.title, items[0].title)
+        self.assertEqual(self.item.summary, items[0].summary)
+        self.assertIsNotNone(items[1].title_ko)
+        self.assertEqual(1, state.translated_count)
+        self.assertEqual(0, state.pending_count)
+        provider.translate.assert_awaited_once()
+
+    async def test_item_reclassified_as_cve_while_queued_is_not_sent_to_provider(self) -> None:
+        service, provider, cache = self.service()
+        entered, release = asyncio.Event(), asyncio.Event()
+        reserve = cache.reserve
+
+        async def paused_reserve(inputs, **kwargs):
+            result = await reserve(inputs, **kwargs)
+            entered.set()
+            await release.wait()
+            return result
+
+        cache.reserve = paused_reserve
+        service.snapshot((self.item,))
+        await entered.wait()
+        cve = replace(self.item, kind="cve")
+        _, state = service.snapshot((cve,))
+        self.assertEqual(0, state.pending_count)
+        self.assertFalse(state.translating)
+        release.set()
+        await service._task
+        provider.translate.assert_not_awaited()
+        self.assertEqual(0, service.snapshot((cve,))[1].translated_count)
+
+    async def test_persisted_cve_translation_is_not_restored_or_counted(self) -> None:
+        service, _, cache = self.service()
+        key = translation_key(self.item.title, self.item.summary)
+        request = NewsTranslationInput(key, self.item.title, self.item.summary)
+        await cache.complete((request,), (NewsTranslation(key, "저장된 한국어 제목", "저장된 한국어 요약"),), now=self.now)
+        restarted, provider, restored_cache = self.service()
+        restored_cache.read = AsyncMock(wraps=restored_cache.read)
+        cve = replace(self.item, source_id="nvd", kind="cve")
+        await restarted.restore((cve,))
+        items, state = restarted.snapshot((cve,), start=False)
+        self.assertIsNone(items[0].title_ko)
+        self.assertIsNone(items[0].summary_ko)
+        self.assertEqual(0, state.translated_count)
+        self.assertEqual(0, state.pending_count)
+        self.assertFalse(state.translating)
+        restored_cache.read.assert_not_awaited()
+        provider.translate.assert_not_awaited()
+
     async def test_read_only_snapshots_never_start_provider_even_after_cooldown(self) -> None:
         service, provider, _ = self.service()
         for _ in range(10):
@@ -141,7 +227,7 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
     async def test_only_changed_original_content_is_translated_again(self) -> None:
         service, provider, _ = self.service()
         await self.finish(service, (self.item,))
-        changed_source = replace(self.item, id="changed-id", source_id="google-security")
+        changed_source = replace(self.item, id="changed-id", source_id="public-news")
         await self.finish(service, (changed_source,))
         self.assertEqual(1, provider.translate.await_count)
         changed_content = replace(changed_source, summary="Product 1.3 contains a vulnerability.")
@@ -364,6 +450,25 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         _, (items, _) = await self.finish(service, (title_only,))
         self.assertEqual("", items[0].summary_ko)
 
+    async def test_korean_original_skips_ai_while_english_news_is_translated(self) -> None:
+        service, provider, _ = self.service()
+        korean = replace(
+            self.item, id="korean-news", source_id="public-news", kind="news",
+            title="안드로이드의 새로운 보안 및 개인정보 보호 기능을 소개합니다",
+            summary="안드로이드가 이용자들을 더 안전하게 보호하기 위해 도입하는 새로운 기능들을 확인하세요.",
+            url="https://example.com/ko/security/",
+        )
+        english = replace(self.item, source_id="public-news", kind="news")
+        initial, (items, state) = await self.finish(service, (korean, english))
+        self.assertEqual(1, initial[1].pending_count)
+        provider.translate.assert_awaited_once()
+        self.assertEqual([english.title], [value.title for value in provider.translate.await_args.args[0]])
+        self.assertEqual(korean, items[0])
+        self.assertIsNone(items[0].title_ko)
+        self.assertIsNotNone(items[1].title_ko)
+        self.assertEqual(1, state.translated_count)
+        self.assertEqual(0, state.pending_count)
+
 
 class TranslationValidationTest(unittest.TestCase):
     def test_content_hash_does_not_use_source_model_or_prompt_versions(self) -> None:
@@ -379,7 +484,7 @@ class TranslationValidationTest(unittest.TestCase):
         self.assertFalse(valid_translation(original, NewsTranslation("other", original.title, "한국어")))
 
     def test_korean_prose_with_product_names_does_not_need_translation(self) -> None:
-        item = SecurityNewsItem("one", "google-security", "news", "Android 보안 업데이트 안내", "제품의 보안 취약점을 해결하는 업데이트입니다.", "https://example.com")
+        item = SecurityNewsItem("one", "public-news", "news", "Android 보안 업데이트 안내", "제품의 보안 취약점을 해결하는 업데이트입니다.", "https://example.com")
         self.assertFalse(needs_translation(item))
 
     def test_unchanged_short_english_prose_is_not_permanently_cached_as_translated(self) -> None:

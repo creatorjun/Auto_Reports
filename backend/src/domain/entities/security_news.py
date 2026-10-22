@@ -12,6 +12,15 @@ NewsSourceStatus = Literal["ok", "stale", "error", "pending"]
 
 
 @dataclass(frozen=True)
+class SecurityCveRemediation:
+    product: str
+    affected_versions: str
+    vendor: str | None = None
+    fixed_version: str | None = None
+    reference_url: str | None = None
+
+
+@dataclass(frozen=True)
 class SecurityNewsItem:
     id: str
     source_id: str
@@ -31,6 +40,7 @@ class SecurityNewsItem:
     due_date: str | None = None
     title_ko: str | None = None
     summary_ko: str | None = None
+    remediations: tuple[SecurityCveRemediation, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -3,10 +3,17 @@ import asyncio
 import unittest
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 from src.application.use_cases.security_news import SecurityNewsRefreshThrottled, SecurityNewsUseCase
-from src.domain.entities.security_news import SecurityNewsItem, SecurityNewsSource, SecurityNewsSourceResult
+from src.domain.entities.security_news import (
+    SecurityNewsItem,
+    SecurityNewsSource,
+    SecurityNewsSourceResult,
+    SecurityNewsSourceState,
+    SecurityNewsStoredSnapshot,
+)
+from src.domain.entities.security_news_translation import NewsTranslationState
 
 
 class SecurityNewsTest(unittest.IsolatedAsyncioTestCase):
@@ -48,6 +55,39 @@ class SecurityNewsTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(86400, snapshot.refresh_interval_seconds)
             self.assertIsNone(snapshot.next_refresh_at)
         self.port.fetch.assert_not_awaited()
+
+    async def test_removed_google_cache_is_not_restored_listed_translated_or_saved_again(self) -> None:
+        google = replace(self.item, id="google:old", source_id="google-security", kind="news")
+        store = AsyncMock()
+        store.load.return_value = SecurityNewsStoredSnapshot(
+            results=(
+                ("nvd", self.results["nvd"]),
+                ("google-security", SecurityNewsSourceResult((google,))),
+            ),
+            sources=(SecurityNewsSourceState(
+                "google-security", "Google Security", "https://blog.google/security/", "news",
+                status="ok", count=1, last_success_at=self.now,
+            ),),
+            source_attempts=(("google-security", self.now),),
+            last_attempt=None, refreshed_at=self.now, initialized=True,
+        )
+        translation = Mock()
+        translation.restore = AsyncMock()
+        translation.snapshot.side_effect = lambda items, **kwargs: (items, NewsTranslationState())
+        self.use_case = SecurityNewsUseCase(self.port, clock=lambda: self.now, store=store, translation=translation)
+        snapshot = await self.use_case.get_snapshot()
+        self.assertEqual((self.item,), snapshot.items)
+        self.assertNotIn("google-security", {value.id for value in snapshot.sources})
+        self.assertNotIn("google-security", self.use_case._source_attempts)
+        translation.restore.assert_awaited_once_with((self.item,))
+        await self.complete_refresh()
+        for call in translation.snapshot.call_args_list:
+            self.assertNotIn("google-security", {value.source_id for value in call.args[0]})
+        for call in store.save.await_args_list:
+            saved = call.args[0]
+            self.assertNotIn("google-security", dict(saved.results))
+            self.assertNotIn("google-security", dict(saved.source_attempts))
+            self.assertNotIn("google-security", {value.id for value in saved.sources})
 
     async def test_manual_initial_response_does_not_wait_for_sources(self) -> None:
         gate = asyncio.Event()

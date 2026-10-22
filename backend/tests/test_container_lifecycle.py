@@ -152,7 +152,7 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
         translator = AsyncMock()
         cache = AsyncMock()
         cache.read.return_value = {}
-        item = SecurityNewsItem("one", "nvd", "cve", "Security issue", "A product vulnerability", "https://example.com")
+        item = SecurityNewsItem("one", "cisco", "advisory", "Security issue", "A product vulnerability", "https://example.com")
         request = NewsTranslationInput(translation_key(item.title, item.summary), item.title, item.summary)
         cache.reserve.return_value = NewsTranslationReservation((request,))
         entered = asyncio.Event()
@@ -175,8 +175,10 @@ class ContainerLifecycleTest(unittest.IsolatedAsyncioTestCase):
             container = self.create_container(None)
         self.assertIsNotNone(container._news_translation)
         container._news_translation.snapshot((item,))
-        await entered.wait()
-        await container.aclose()
+        try:
+            await asyncio.wait_for(entered.wait(), timeout=2)
+        finally:
+            await container.aclose()
         self.assertEqual(["worker", "cache", "translator"], events)
 
     async def test_enabled_notifications_receive_the_renderer_from_bootstrap(self) -> None:

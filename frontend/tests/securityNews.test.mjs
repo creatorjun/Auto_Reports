@@ -55,9 +55,9 @@ function translation(overrides = {}) {
 function query(overrides = {}) {
   return { data: snapshot(), now, isError: false, isFetching: false, refreshing: false, canRefresh: true, retryAfterSeconds: 0, refreshError: null, refresh() {}, refetch() {}, ...overrides }
 }
-function renderPage(t, state) {
+function renderPage(t, state, pageName = 'SecurityNewsPage') {
   const instance = sourceLoader({ 'presentation/hooks/useSecurityNews': { useSecurityNews: () => state }, 'application/errors/RequestError': { RequestError } })
-  const Page = instance('presentation/pages/SecurityNewsPage').default
+  const Page = instance(`presentation/pages/${pageName}`).default
   let view
   act(() => { view = TestRenderer.create(React.createElement(Page)) })
   t.after(() => act(() => view.unmount()))
@@ -229,10 +229,10 @@ test('summary widgets replace duplicate tabs with accessible buttons that select
   }
   assert.deepEqual(selectedSummaries(view), ['수집된 항목'])
   for (const [label, ids] of [
-    ['실제 악용 확인', ['advisory', 'high']],
-    ['치명적 · 높은 위험도', ['advisory', 'critical', 'high']],
-    ['보안 권고 · 뉴스', ['advisory', 'news']],
-    ['수집된 항목', ['advisory', 'critical', 'high', 'medium', 'news']],
+    ['실제 악용 확인', ['advisory']],
+    ['치명적 · 높은 위험도', ['advisory']],
+    ['보안 권고', ['advisory']],
+    ['수집된 항목', ['advisory', 'news']],
   ]) {
     act(() => summaryButton(view, label).props.onClick())
     assert.deepEqual(visibleTitles(view), ids.map((id) => `항목 ${id}`))
@@ -243,12 +243,12 @@ test('summary widgets replace duplicate tabs with accessible buttons that select
 test('summary selection clears stale filters, preserves sort and returns to the first page', (t) => {
   const rows = [
     ...Array.from({ length: 23 }, (_, index) => item({ id: `matching-${String(index).padStart(2, '0')}`, title: `대상 ${index}`, source_id: 'kisa', kind: 'advisory', known_exploited: true })),
-    item({ id: 'old-critical', title: '이전 치명적 취약점', severity: 'critical', published_at: '2026-09-01', known_exploited: false }),
-    item({ id: 'medium', title: '보통 취약점', severity: 'medium' }),
+    item({ id: 'old-critical', kind: 'advisory', title: '이전 치명적 취약점', severity: 'critical', published_at: '2026-09-01', known_exploited: false }),
+    item({ id: 'medium', kind: 'advisory', title: '보통 취약점', severity: 'medium' }),
   ]
   const view = renderPage(t, query({ data: snapshot({ items: rows, sources: [source, { ...source, id: 'kisa', name: 'KISA', kind: 'advisory' }] }) }))
   act(() => {
-    summaryButton(view, '보안 권고 · 뉴스').props.onClick()
+    summaryButton(view, '보안 권고').props.onClick()
     view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: '대상' } })
     selectWithOption(view, 'kisa').props.onChange({ target: { value: 'kisa' } })
     selectWithOption(view, 'high').props.onChange({ target: { value: 'high' } })
@@ -291,23 +291,23 @@ test('summary conditions combine with search, source, severity, period and explo
   ]
   const view = renderPage(t, query({ data: snapshot({ items: rows, sources: [source, { ...source, id: 'kisa', name: 'KISA', kind: 'advisory' }] }) }))
   act(() => {
-    summaryButton(view, '보안 권고 · 뉴스').props.onClick()
+    summaryButton(view, '보안 권고').props.onClick()
     view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: '대상' } })
     selectWithOption(view, 'kisa').props.onChange({ target: { value: 'kisa' } })
     selectWithOption(view, 'high-risk').props.onChange({ target: { value: 'high-risk' } })
     selectWithOption(view, '7').props.onChange({ target: { value: '7' } })
     view.root.findByProps({ type: 'checkbox' }).props.onChange({ target: { checked: true } })
   })
-  assert.deepEqual(visibleTitles(view), ['대상 권고', '대상 뉴스'])
-  assert.deepEqual(selectedSummaries(view), ['보안 권고 · 뉴스'])
+  assert.deepEqual(visibleTitles(view), ['대상 권고'])
+  assert.deepEqual(selectedSummaries(view), ['보안 권고'])
   act(() => selectWithOption(view, 'high-risk').props.onChange({ target: { value: 'medium' } }))
   assert.deepEqual(visibleTitles(view), ['대상 보통 위험도'])
-  assert.deepEqual(selectedSummaries(view), ['보안 권고 · 뉴스'])
+  assert.deepEqual(selectedSummaries(view), ['보안 권고'])
   act(() => view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: '없는 검색어' } }))
   assert.equal(view.root.findAllByType('article').length, 0)
   assert.match(plainText(view), /조건에 맞는 보안 정보가 없습니다/)
   act(() => view.root.findAllByType('button').find((button) => button.children.includes('필터 초기화')).props.onClick())
-  assert.equal(view.root.findAllByType('article').length, rows.length)
+  assert.equal(view.root.findAllByType('article').length, rows.filter((row) => row.kind !== 'cve').length)
   assert.deepEqual(selectedSummaries(view), ['수집된 항목'])
 })
 
@@ -315,7 +315,7 @@ test('language toggle changes only card presentation and preserves search result
   let refreshes = 0
   let reads = 0
   const state = query({
-    data: snapshot({ items: [item({ title: 'Original security update', summary: 'Original summary', title_ko: '한국어 보안 업데이트', summary_ko: '한국어 설명' })], translation: translation() }),
+    data: snapshot({ items: [item({ kind: 'news', title: 'Original security update', summary: 'Original summary', title_ko: '한국어 보안 업데이트', summary_ko: '한국어 설명' })], translation: translation() }),
     refresh: () => { refreshes += 1 },
     refetch: () => { reads += 1 },
   })
@@ -363,7 +363,7 @@ test('source failures disclose missing success instead of showing a false valid 
 
 test('page keeps saved cards visible when refresh or polling fails and disables duplicate refresh', (t) => {
   let refreshes = 0
-  const state = query({ refreshError: new Error('offline'), isError: true, refreshing: true, canRefresh: false, refresh: () => { refreshes += 1 } })
+  const state = query({ data: snapshot({ items: [item({ kind: 'advisory' })] }), refreshError: new Error('offline'), isError: true, refreshing: true, canRefresh: false, refresh: () => { refreshes += 1 } })
   const view = renderPage(t, state)
   assert.equal(view.root.findAllByType('article').length, 1)
   assert.match(plainText(view), /업데이트 실패 · 기존 자료 표시/)
@@ -520,11 +520,76 @@ test('desktop and mobile expose accessible security news and route stays under p
     const link = view.root.findAllByType('a').find((entry) => entry.props.href === '/security-news')
     assert.equal(link.props['aria-label'], '보안 뉴스')
     assert.equal(link.props['aria-current'], 'page')
+    const links = view.root.findAllByType('a')
+    const cveIndex = links.findIndex((entry) => entry.props.href === '/cve-response')
+    assert.ok(cveIndex >= 0)
+    assert.equal(links[cveIndex].props['aria-label'], 'CVE 취약점 대응')
+    assert.equal(links[cveIndex + 1].props.href, '/security-news')
   }
   const router = fs.readFileSync(path.join(sourceRoot, 'app/router.tsx'), 'utf8')
   const route = router.indexOf("path: 'security-news'")
   assert.ok(route > router.indexOf('<ProtectedRoute>'))
   assert.ok(route > router.indexOf('children: ['))
   assert.match(router, /SecurityNewsPage\s*=\s*lazy/)
+  assert.ok(router.indexOf("path: 'cve-response'") > router.indexOf('children: ['))
+  assert.match(router, /CveResponsePage\s*=\s*lazy/)
   assert.match(fs.readFileSync(path.join(sourceRoot, 'main.tsx'), 'utf8'), /securityNews: securityNewsApi/)
+})
+
+test('CVE page includes NVD and CISA KEV with version pairs and excludes news translations', (t) => {
+  const rows = [
+    item({ id: 'nvd', summary: 'Long original vulnerability description', title_ko: '기존 번역 제목', summary_ko: '기존 번역 설명', remediations: [{ vendor: 'Example', product: 'Library', affected_versions: '1.0 이상, 1.4 미만', fixed_version: '1.4', reference_url: 'https://example.com/fix' }] }),
+    item({ id: 'kev', source_id: 'cisa-kev', known_exploited: true, product: 'Gateway', cve_ids: ['CVE-2026-23456'], remediations: [] }),
+    item({ id: 'advisory', kind: 'advisory', title: '보안 권고 제목', source_id: 'kisa' }),
+    item({ id: 'news', kind: 'news', title: '보안 뉴스 제목', source_id: 'google' }),
+  ]
+  const sources = [source, { ...source, id: 'cisa-kev', name: 'CISA KEV' }, { ...source, id: 'kisa', name: 'KISA', kind: 'advisory' }]
+  const view = renderPage(t, query({ data: snapshot({ items: rows, sources, translation: translation({ translating: true, pending_count: 10 }) }) }), 'CveResponsePage')
+  assert.equal(view.root.findByType('h1').children.join(''), 'CVE 취약점 대응')
+  assert.equal(view.root.findAllByType('article').length, 2)
+  assert.equal(summaryButtons(view).length, 3)
+  assert.equal(view.root.findAllByProps({ 'aria-label': '표시 언어 선택' }).length, 0)
+  for (const expected of ['Library', 'Gateway', '1.4', '해결 버전 미확인', '실제 악용 확인', 'CISA KEV', 'NVD']) assert.ok(plainText(view).includes(expected))
+  assert.doesNotMatch(plainText(view), /Long original vulnerability description|기존 번역|보안 권고 제목|보안 뉴스 제목|번역 중/)
+  assert.equal(selectWithOption(view, 'nvd').findAllByType('option').some((option) => option.props.value === 'kisa'), false)
+  act(() => selectWithOption(view, 'cisa-kev').props.onChange({ target: { value: 'cisa-kev' } }))
+  assert.equal(view.root.findAllByType('article').length, 1)
+  assert.match(plainText(view), /Gateway/)
+  act(() => summaryButton(view, '수집된 항목').props.onClick())
+  assert.equal(view.root.findAllByType('article').length, 2)
+  act(() => view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: 'Library 1.4' } }))
+  assert.equal(view.root.findAllByType('article').length, 1)
+  assert.doesNotMatch(plainText(view), /Gateway/)
+})
+
+test('CVE pagination and filters never pull ordinary news into the response list', (t) => {
+  const rows = Array.from({ length: 23 }, (_, index) => item({ id: `cve-${index.toString().padStart(2, '0')}`, cve_ids: [`CVE-2026-${10000 + index}`], known_exploited: index % 2 === 0 }))
+  const view = renderPage(t, query({ data: snapshot({ items: [...rows, item({ id: 'news', kind: 'news' })] }) }), 'CveResponsePage')
+  assert.equal(view.root.findAllByType('article').length, 20)
+  act(() => view.root.findByProps({ 'aria-label': '다음 페이지' }).props.onClick())
+  assert.equal(view.root.findAllByType('article').length, 3)
+  act(() => summaryButton(view, '실제 악용 확인').props.onClick())
+  assert.equal(view.root.findAllByType('article').length, 12)
+  assert.equal(view.root.findAllByProps({ 'aria-label': '다음 페이지' }).length, 0)
+})
+
+test('removed Google Security entries and source never return from an older cached snapshot', (t) => {
+  const google = { ...source, id: 'google-security', name: 'Google Security', kind: 'news' }
+  const data = snapshot({ items: [item({ id: 'google', source_id: google.id, kind: 'news', title: 'Removed Google headline' }), item({ id: 'cisco', source_id: 'cisco', kind: 'advisory', title: 'Cisco 보안 권고' })], sources: [google, { ...source, id: 'cisco', name: 'Cisco', kind: 'advisory' }] })
+  const view = renderPage(t, query({ data }))
+  assert.deepEqual(visibleTitles(view), ['Cisco 보안 권고'])
+  assert.doesNotMatch(plainText(view), /Google Security|Removed Google headline|google-security/)
+  assert.equal(view.root.findByProps({ id: 'security-news-results' }).findByProps({ role: 'status' }).findByType('strong').children.join(''), '1')
+  act(() => summaryButton(view, '수집된 항목').props.onClick())
+  assert.deepEqual(visibleTitles(view), ['Cisco 보안 권고'])
+})
+
+test('CVE remediation pairs escape source content and distinguish missing fixes from affected bounds', () => {
+  const List = load('presentation/components/security/CveRemediationList').default
+  const html = renderToStaticMarkup(React.createElement(List, { items: [item({ url: 'javascript:bad()', cve_ids: [], remediations: [{ vendor: null, product: '<script>library</script>', affected_versions: '< 9.0', fixed_version: null, reference_url: 'javascript:bad()' }, { vendor: null, product: 'Second library', affected_versions: '2.0', fixed_version: '2.1', reference_url: 'https://example.com/fix' }] })], sources: new Map() }))
+  assert.match(html, /&lt;script&gt;library&lt;\/script&gt;/)
+  assert.match(html, /해결 버전 미확인/)
+  assert.match(html, /Second library/)
+  assert.match(html, /href="https:\/\/example.com\/fix"/)
+  assert.doesNotMatch(html, /<script>|javascript:|AI 번역|Linux 보안 패치/)
 })

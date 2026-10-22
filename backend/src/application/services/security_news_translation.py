@@ -29,7 +29,7 @@ def translation_key(title: str, summary: str) -> str:
 
 
 def needs_translation(item: SecurityNewsItem) -> bool:
-    if item.source_id == "kisa":
+    if item.kind == "cve" or item.source_id == "kisa":
         return False
     prose = CVE.sub("", f"{item.title} {item.summary}")
     korean = len(HANGUL.findall(prose))
@@ -85,7 +85,7 @@ class SecurityNewsTranslationService:
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._sleep = sleep
         self._inputs: dict[str, NewsTranslationInput] = {}
-        self._prepared: dict[tuple[str, str, str], tuple[str, NewsTranslationInput | None]] = {}
+        self._prepared: dict[tuple[str, str, str, str], tuple[str, NewsTranslationInput | None]] = {}
         self._translations: dict[str, NewsTranslation] = {}
         self._task: asyncio.Task[None] | None = None
         self._not_before: datetime | None = None
@@ -101,7 +101,7 @@ class SecurityNewsTranslationService:
         keyed_items = []
         inputs = {}
         for item in items:
-            content = (item.source_id, item.title, item.summary)
+            content = (item.kind, item.source_id, item.title, item.summary)
             entry = prepared.get(content) or self._prepared.get(content)
             if entry is None:
                 key = translation_key(item.title, item.summary)
@@ -131,6 +131,9 @@ class SecurityNewsTranslationService:
         pending_count = 0
         rendered = []
         for item, key in keyed_items:
+            if item.kind == "cve":
+                rendered.append(replace(item, title_ko=None, summary_ko=None))
+                continue
             translation = self._translations.get(key)
             if translation is not None:
                 rendered.append(replace(item, title_ko=translation.title_ko, summary_ko=translation.summary_ko))
@@ -139,8 +142,8 @@ class SecurityNewsTranslationService:
                 rendered.append(item)
                 pending_count += int(key in inputs)
         return tuple(rendered), NewsTranslationState(
-            enabled=True, translating=running, translated_count=translated_count,
-            pending_count=pending_count, message=self._message,
+            enabled=True, translating=running and bool(inputs), translated_count=translated_count,
+            pending_count=pending_count, message=self._message if inputs else None,
         )
 
     async def restore(self, items: tuple[SecurityNewsItem, ...]) -> None:
@@ -185,17 +188,20 @@ class SecurityNewsTranslationService:
                         await self._sleep(delay)
                         continue
                     return
+                active_inputs = tuple(value for value in reservation.inputs if value.key in self._inputs)
+                if not active_inputs:
+                    continue
                 failure = None
                 translations: tuple[NewsTranslation, ...] = ()
                 try:
-                    returned = await self._translator.translate(reservation.inputs)
-                    originals = {value.key: value for value in reservation.inputs}
+                    returned = await self._translator.translate(active_inputs)
+                    originals = {value.key: value for value in active_inputs}
                     valid = {
                         value.key: value for value in returned
                         if value.key in originals and valid_translation(originals[value.key], value)
                     }
                     translations = tuple(valid.values())
-                    if len(translations) != len(reservation.inputs):
+                    if len(translations) != len(active_inputs):
                         failure = "invalid"
                 except NewsTranslationProviderError as error:
                     failure = error.reason
@@ -203,7 +209,7 @@ class SecurityNewsTranslationService:
                     logger.warning("Security news translation failed: %s", type(error).__name__)
                     failure = "provider"
                 save = asyncio.create_task(self._cache.complete(
-                    reservation.inputs, translations, now=self._clock(), failure=failure,
+                    active_inputs, translations, now=self._clock(), failure=failure,
                 ))
                 try:
                     await asyncio.shield(save)

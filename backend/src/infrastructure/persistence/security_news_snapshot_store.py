@@ -9,6 +9,7 @@ from pathlib import Path
 
 from src.application.ports.security_news_snapshot_port import SecurityNewsSnapshotPort
 from src.domain.entities.security_news import (
+    SecurityCveRemediation,
     SecurityNewsItem,
     SecurityNewsSourceResult,
     SecurityNewsSourceState,
@@ -46,6 +47,7 @@ def _decode(payload: str) -> SecurityNewsStoredSnapshot:
             item["published_at"] = _datetime(item.get("published_at"))
             item["updated_at"] = _datetime(item.get("updated_at"))
             item["cve_ids"] = tuple(item.get("cve_ids", ()))
+            item["remediations"] = tuple(SecurityCveRemediation(**value) for value in item.get("remediations", ()))
             items.append(SecurityNewsItem(**item))
         results.append((source_id, SecurityNewsSourceResult(
             tuple(items), frozenset(result["known_exploited_cve_ids"]), result.get("warning"),

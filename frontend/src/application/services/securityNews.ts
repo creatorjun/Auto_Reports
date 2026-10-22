@@ -34,7 +34,8 @@ export function filterSecurityNews(items: readonly SecurityNewsItem[], filters: 
     const timestamp = securityNewsTimestamp(item)
     if (threshold !== null && (timestamp === null || timestamp < threshold)) continue
     if (terms.length) {
-      const searchable = normalizeSearchText([item.title, item.summary, item.title_ko, item.summary_ko, item.vendor, item.product, ...item.cve_ids].filter(Boolean).join(' '))
+      const versions = (item.remediations ?? []).flatMap((entry) => [entry.vendor, entry.product, entry.affected_versions, entry.fixed_version])
+      const searchable = normalizeSearchText([item.title, item.summary, item.title_ko, item.summary_ko, item.vendor, item.product, ...item.cve_ids, ...versions].filter(Boolean).join(' '))
       if (!terms.every((term) => searchable.includes(term))) continue
     }
     result.push({ item, timestamp })

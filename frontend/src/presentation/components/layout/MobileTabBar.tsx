@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/MobileTabBar.tsx
 import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, ShieldCheck, ChevronUp, Newspaper, UserRound } from 'lucide-react'
+import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, ShieldCheck, ShieldAlert, ChevronUp, Newspaper, UserRound } from 'lucide-react'
 import { canViewAuditLogs, canViewSiteManagement } from '@/domain/Auth'
 import { useMe } from '@/presentation/hooks/useAuth'
 import { useAuthStore } from '@/presentation/state/authStore'
@@ -13,6 +13,7 @@ const tabs = [
   { to: '/sites',   label: '사이트',     icon: <Building2      size={20} /> },
   { to: '/sla-dashboard', label: '장기 이슈', icon: <Clock     size={20} /> },
   { to: '/storage', label: '보관함',     icon: <HardDrive      size={20} /> },
+  { to: '/cve-response', label: 'CVE 취약점 대응', icon: <ShieldAlert size={20} /> },
   { to: '/security-news', label: '보안 뉴스', icon: <Newspaper size={20} /> },
 ]
 

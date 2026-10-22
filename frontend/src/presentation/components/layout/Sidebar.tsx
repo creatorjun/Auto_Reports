@@ -1,7 +1,7 @@
 // frontend/src/presentation/components/layout/Sidebar.tsx
 import { useCallback, useEffect, useId, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, Newspaper, Bell, UserRound, X } from 'lucide-react'
+import { LayoutDashboard, List, Clock, ListChecks, Building2, HardDrive, Users, ChevronDown, ChevronLeft, ChevronRight, LogOut, CalendarRange, ShieldCheck, ShieldAlert, Newspaper, Bell, UserRound, X } from 'lucide-react'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useLogout, useMe } from '@/presentation/hooks/useAuth'
 import { canViewAuditLogs, canViewJiraNotifications, canViewSiteManagement } from '@/domain/Auth'
@@ -25,6 +25,7 @@ const reportLinks = [
   { to: '/sites',    label: '사이트 관리',    icon: <Building2       size={16} /> },
   { to: '/sla-dashboard', label: '장기 이슈', icon: <Clock          size={16} /> },
   { to: '/storage',  label: '파일 보관함',    icon: <HardDrive       size={16} /> },
+  { to: '/cve-response', label: 'CVE 취약점 대응', icon: <ShieldAlert size={16} /> },
   { to: '/security-news', label: '보안 뉴스', icon: <Newspaper size={16} /> },
 ]
 

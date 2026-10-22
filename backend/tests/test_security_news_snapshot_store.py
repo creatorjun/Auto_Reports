@@ -196,6 +196,8 @@ class SecurityNewsSnapshotStoreTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, len((await self.manual(service)).items))
 
     async def test_restart_restores_translation_locally_without_new_provider_work(self) -> None:
+        self.item = replace(self.item, kind="advisory")
+        self.results["nvd"] = SecurityNewsSourceResult((self.item,), warning="최신 항목")
         cache = SqliteNewsTranslationCache(str(Path(self.directory.name) / "translations.sqlite3"))
         self.addAsyncCleanup(cache.aclose)
         key = translation_key(self.item.title, self.item.summary)
