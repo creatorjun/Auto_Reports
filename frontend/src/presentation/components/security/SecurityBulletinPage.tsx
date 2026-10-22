@@ -6,7 +6,8 @@ import { RequestError } from '@/application/errors/RequestError'
 import { defaultSecurityNewsFilters, filterCveResponseRows, filterSecurityNews } from '@/application/services/securityNews'
 import { useSecurityNews } from '@/presentation/hooks/useSecurityNews'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
-import SecurityNewsCard, { securitySeverityLabels } from '@/presentation/components/security/SecurityNewsCard'
+import SecurityNewsList from '@/presentation/components/security/SecurityNewsList'
+import { securitySeverityLabels } from '@/presentation/components/security/securityNewsFormatting'
 import SecurityNewsSources from '@/presentation/components/security/SecurityNewsSources'
 import SecurityNewsTranslationControls from '@/presentation/components/security/SecurityNewsTranslationControls'
 import CveRemediationList from '@/presentation/components/security/CveRemediationList'
@@ -94,7 +95,7 @@ export default function SecurityBulletinPage({ section }: { section: 'cve' | 'ne
       <section aria-label="보안 정보 필터" className="rounded-2xl border border-apple-divider/70 bg-apple-surface p-4 md:p-5">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <label className="flex min-w-0 flex-col gap-2 text-caption font-medium text-apple-mid xl:col-span-2">검색
-            <span className="relative"><Search size={16} className="pointer-events-none absolute left-3 top-3 text-apple-light" aria-hidden="true" /><input type="search" value={filters.search} onChange={(event) => update('search', event.target.value)} maxLength={200} placeholder={isCve ? 'CVE 번호, 소프트웨어, 버전, 원문 내용 검색' : '제품명, 제목, CVE 번호 검색'} className={`${fieldClass} pl-9`} /></span>
+            <span className="relative"><Search size={16} className="pointer-events-none absolute left-3 top-3 text-apple-light" aria-hidden="true" /><input type="search" value={filters.search} onChange={(event) => update('search', event.target.value)} maxLength={200} placeholder={isCve ? 'CVE 번호, 소프트웨어, 버전, 원문 내용 검색' : '한 줄 요약, 원문, 제품명, CVE 번호 검색'} className={`${fieldClass} pl-9`} /></span>
           </label>
           <label className="flex min-w-0 flex-col gap-2 text-caption font-medium text-apple-mid">출처<select value={filters.source} onChange={(event) => update('source', event.target.value)} className={fieldClass}><option value="">전체 출처</option>{sectionSources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
           <label className="flex min-w-0 flex-col gap-2 text-caption font-medium text-apple-mid">위험도<select value={filters.severity} onChange={(event) => update('severity', event.target.value as SecurityNewsFilters['severity'])} className={fieldClass}><option value="all">전체 위험도</option><option value="high-risk">치명적 · 높은 위험도</option>{Object.entries(securitySeverityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
@@ -113,7 +114,7 @@ export default function SecurityBulletinPage({ section }: { section: 'cve' | 'ne
           <label className="flex items-center gap-2 text-control text-apple-mid"><ArrowDownWideNarrow size={16} aria-hidden="true" /><span className="sr-only">정렬</span><select value={filters.sort} onChange={(event) => update('sort', event.target.value as SecurityNewsFilters['sort'])} className={`${fieldClass} !w-auto`}><option value="newest">최신순</option><option value="severity">위험도순</option>{isCve && <><option value="software">소프트웨어 오름차순</option><option value="software-desc">소프트웨어 내림차순</option><option value="affected-version">영향 버전 오름차순</option><option value="affected-version-desc">영향 버전 내림차순</option><option value="fixed-version">해결 버전 오름차순</option><option value="fixed-version-desc">해결 버전 내림차순</option></>}</select></label>
         </div>
         {showLoading ? <div className="rounded-2xl border border-apple-divider bg-apple-surface py-8"><LoadingSpinner text={`${title} 로딩 중`} /></div> : resultCount ? (
-          isCve ? <CveRemediationList rows={cveRows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)} sources={sources} sort={filters.sort} onSort={(sort) => update('sort', sort)} /> : <div className="grid min-w-0 gap-4 lg:grid-cols-2 3xl:grid-cols-3">{filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((item) => <SecurityNewsCard key={item.id} item={item} sourceName={sources.get(item.source_id) ?? item.source_id} language={language} />)}</div>
+          isCve ? <CveRemediationList rows={cveRows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)} sources={sources} sort={filters.sort} onSort={(sort) => update('sort', sort)} /> : <SecurityNewsList items={filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)} sources={sources} language={language} />
         ) : (
           <div className="rounded-2xl border border-apple-divider bg-apple-surface px-5 py-12 text-center">
             <SlidersHorizontal size={28} className="mx-auto text-apple-light" aria-hidden="true" />

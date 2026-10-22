@@ -115,15 +115,13 @@ export function filterCveResponseRows(items: readonly SecurityNewsItem[], filter
 }
 
 export function securityNewsDisplayText(item: SecurityNewsItem, language: SecurityNewsLanguage) {
-  if (language === 'original') return { title: item.title, summary: item.summary, translated: false, originalFallback: false }
-  const titleKo = item.title_ko?.trim()
+  if (language === 'original') return { text: item.title, summarized: false, originalFallback: false }
   const summaryKo = item.summary_ko?.trim()
-  const isForeignText = (text: string) => !!text.trim() && !/[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/u.test(text)
+  const summarized = !!summaryKo && !item.title_ko?.trim() && Array.from(summaryKo).length <= 180 && !/[\r\n\v\f\x85\u2028\u2029]/u.test(summaryKo)
   return {
-    title: titleKo || item.title,
-    summary: summaryKo || item.summary,
-    translated: !!((titleKo && titleKo !== item.title) || (summaryKo && summaryKo !== item.summary)),
-    originalFallback: (!titleKo && isForeignText(item.title)) || (!summaryKo && isForeignText(item.summary)),
+    text: summarized ? summaryKo : item.title,
+    summarized,
+    originalFallback: !summarized && !!item.title.trim() && !/[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/u.test(item.title),
   }
 }
 

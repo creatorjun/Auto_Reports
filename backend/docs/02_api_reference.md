@@ -169,7 +169,7 @@ Aggregate 또는 하위 엔티티가 없으면 404입니다.
 | GET | `/security-news` | 마지막 저장 자료 조회, 외부 수집·번역 시작 없음 |
 | POST | `/security-news/refresh` | 수동 갱신 요청, 진행 중이면 같은 작업 공유 |
 
-기존 로그인 인증을 적용하며 두 응답 모두 `Cache-Control: no-store`입니다. 자동 수집은 매일 08:00 KST에 실행하고 수동 최신화도 유지합니다. 저장본이 없고 수집 중이 아닌 최초 조회는 `initialized=false`, `refreshing=false`인 빈 목록입니다. 원문 `title`·`summary`와 선택적 번역 `title_ko`·`summary_ko`를 함께 제공하고 `translation`에 번역 진행·완료·대기 상태를 반환합니다. 저장 스냅샷, 갱신 시각과 오류 의미, 60초 수동 제한·NVD·KEV의 2시간 제한·영구 번역 캐시는 [보안 뉴스 계약](13_security_news.md)에 정리했습니다.
+기존 로그인 인증을 적용하며 두 응답 모두 `Cache-Control: no-store`입니다. 자동 수집은 매일 08:00 KST에 실행하고 수동 최신화도 유지합니다. 저장본이 없고 수집 중이 아닌 최초 조회는 `initialized=false`, `refreshing=false`인 빈 목록입니다. 원문 `title`·`summary`, CVE 검색용 `original_description`, 선택적 한국어 한 줄 요약 `summary_ko`를 제공합니다. 별도 제목 번역은 생성하지 않아 `title_ko`는 null이며 `translation`의 기존 필드명으로 요약 진행·완료·대기 상태를 반환합니다. 저장 스냅샷, 갱신 시각과 오류 의미, 60초 수동 제한·NVD·KEV의 2시간 제한·영구 요약 캐시는 [보안 뉴스 계약](13_security_news.md)에 정리했습니다.
 
 ## Storage
 

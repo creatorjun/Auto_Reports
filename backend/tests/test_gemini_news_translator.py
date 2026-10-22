@@ -27,18 +27,25 @@ class GeminiNewsTranslatorTest(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self) -> None:
         await self.translator.aclose()
 
-    async def test_async_json_translation_has_one_http_attempt_and_no_tools(self) -> None:
+    async def test_async_json_summary_has_one_http_attempt_and_no_tools_or_translated_title(self) -> None:
         self.client.aio.models.generate_content.return_value = SimpleNamespace(text=json.dumps({
-            "translations": [{"id": "id", "title_ko": "제목", "summary_ko": "요약"}],
+            "translations": [{"id": "id", "summary_ko": "보안 업데이트가 제공되었습니다."}],
         }))
         result = await self.translator.translate((self.input,))
-        self.assertEqual("제목", result[0].title_ko)
+        self.assertEqual("", result[0].title_ko)
+        self.assertEqual("보안 업데이트가 제공되었습니다.", result[0].summary_ko)
         self.assertEqual(1, self.options.retry_options.attempts)
         arguments = self.client.aio.models.generate_content.call_args.kwargs
         self.assertEqual("gemini-3.5-flash-lite", arguments["model"])
         self.assertIsNone(arguments["config"].tools)
         self.assertTrue(arguments["config"].automatic_function_calling.disable)
-        self.assertEqual(16384, arguments["config"].max_output_tokens)
+        self.assertEqual(8192, arguments["config"].max_output_tokens)
+        schema = arguments["config"].response_json_schema["properties"]["translations"]["items"]
+        self.assertEqual(["id", "summary_ko"], schema["required"])
+        self.assertNotIn("title_ko", schema["properties"])
+        self.assertIn("180 characters", arguments["config"].system_instruction)
+        self.assertIn("one concise Korean sentence", arguments["config"].system_instruction)
+        self.assertEqual([{"id": "id", "title": "Original", "summary": "Summary"}], json.loads(arguments["contents"]))
         self.assertNotIn("private-test-key", arguments["contents"])
         self.client.models.generate_content.assert_not_called()
 
@@ -67,17 +74,19 @@ class GeminiNewsTranslatorTest(unittest.IsolatedAsyncioTestCase):
     async def test_duplicates_unknown_ids_and_invalid_peers_do_not_discard_valid_results(self) -> None:
         self.client.aio.models.generate_content.return_value = SimpleNamespace(text=json.dumps({
             "translations": [
-                {"id": "id", "title_ko": "제목", "summary_ko": "요약"},
-                {"id": "id", "title_ko": "충돌", "summary_ko": "요약"},
-                {"id": "other", "title_ko": "정상", "summary_ko": ""},
-                {"id": "foreign", "title_ko": "모르는 항목", "summary_ko": ""},
-                {"id": "broken", "title_ko": 10, "summary_ko": []},
-                {"id": "broken", "title_ko": "중복", "summary_ko": ""},
+                {"id": "id", "summary_ko": "요약"},
+                {"id": "id", "summary_ko": "충돌"},
+                {"id": "other", "summary_ko": "정상"},
+                {"id": "foreign", "summary_ko": "모르는 항목"},
+                {"id": "broken", "summary_ko": []},
+                {"id": "broken", "summary_ko": "중복"},
+                {"id": "legacy", "title_ko": "이전 제목 번역", "summary_ko": "이전 전체 번역"},
             ],
         }))
         result = await self.translator.translate((
             self.input, NewsTranslationInput("other", "Title", ""),
             NewsTranslationInput("broken", "Duplicate", ""),
+            NewsTranslationInput("legacy", "Old title", "Old excerpt"),
         ))
         self.assertEqual(["other"], [value.key for value in result])
 

@@ -2,7 +2,7 @@
 import { ChevronDown, ExternalLink, Radio } from 'lucide-react'
 import type { SecurityNewsSource } from '@/domain/SecurityNews'
 import { safeSecurityNewsUrl } from '@/application/services/securityNews'
-import { securityDateLabel } from './SecurityNewsCard'
+import { securityDateLabel } from './securityNewsFormatting'
 
 const statusLabels = { ok: '정상', stale: '이전 자료 표시', error: '수집 실패', pending: '수집 대기' }
 const statusClasses = { ok: 'badge-good', stale: 'badge-warning', error: 'badge-critical', pending: 'badge-neutral' }

@@ -45,7 +45,7 @@ const load = sourceLoader()
 const sorting = load('presentation/utils/issueTableSorting')
 
 function news(index = 0) {
-  return { id: String(index), source_id: 'nvd', kind: 'cve', title: `Original ${index}`, title_ko: `번역 ${index}`, summary: 'Original summary', summary_ko: '번역 본문', url: 'https://nvd.nist.gov/', published_at: '2026-10-20T15:00:00Z', updated_at: null, cve_ids: [], severity: 'high', cvss_score: 8.1, cvss_version: '3.1', known_exploited: false, vendor: '', product: '', due_date: null }
+  return { id: String(index), source_id: 'cisco', kind: 'advisory', title: `Original ${index}`, title_ko: null, summary: 'Original summary', summary_ko: `한국어 요약 ${index}`, url: 'https://nvd.nist.gov/', published_at: '2026-10-20T15:00:00Z', updated_at: null, cve_ids: [], severity: 'high', cvss_score: 8.1, cvss_version: '3.1', known_exploited: false, vendor: '', product: '', due_date: null }
 }
 
 function textOf(view) { return JSON.stringify(view.toJSON()) }
@@ -101,21 +101,21 @@ test('annual detail pagination reuses sorted rows and invalidates on filters, da
   assert.equal(modal().data[0].key, 'TAC-0')
 })
 
-test('news cards skip unchanged parent ticks but update language, source and translated content', (t) => {
+test('news rows skip unchanged parent ticks but update display, source and summarized content', (t) => {
   let renders = 0
   const service = load('application/services/securityNews')
   const instance = sourceLoader({ 'application/services/securityNews': { ...service, securityNewsDisplayText(...args) { renders += 1; return service.securityNewsDisplayText(...args) } } })
-  const Card = instance('presentation/components/security/SecurityNewsCard').default
+  const NewsList = instance('presentation/components/security/SecurityNewsList').default
   const items = Array.from({ length: 20 }, (_, index) => news(index))
-  function List({ tick, language = 'ko', rows = items, source = 'NVD' }) {
-    return React.createElement('section', { 'data-tick': tick }, rows.map((item) => React.createElement(Card, { key: item.id, item, language, sourceName: source })))
+  function List({ tick, language = 'ko', rows = items, source = 'Cisco' }) {
+    return React.createElement('section', { 'data-tick': tick }, React.createElement(NewsList, { items: rows, language, sources: new Map([['cisco', source]]) }))
   }
   const view = render(t, List, { tick: 0 })
   assert.equal(renders, 20)
-  const content = view.root.findAllByType('article').map((article) => article.props)
+  const content = view.root.findByType('tbody').findAllByType('tr').map((row) => row.props)
   for (let tick = 1; tick <= 10; tick += 1) act(() => view.update(React.createElement(List, { tick })))
   assert.equal(renders, 20)
-  assert.deepEqual(view.root.findAllByType('article').map((article) => article.props), content)
+  assert.deepEqual(view.root.findByType('tbody').findAllByType('tr').map((row) => row.props), content)
   act(() => view.update(React.createElement(List, { tick: 11, language: 'original' })))
   assert.equal(renders, 40)
   assert.match(textOf(view), /Original 0/)
@@ -127,10 +127,16 @@ test('news cards skip unchanged parent ticks but update language, source and tra
   act(() => view.update(React.createElement(List, { tick: 13, language: 'original', source: '새 출처', rows })))
   assert.equal(renders, 61)
   assert.match(textOf(view), /최신 원문/)
+  act(() => view.update(React.createElement(List, { tick: 14, source: '새 출처', rows })))
+  assert.equal(renders, 81)
+  rows[1] = { ...rows[1], summary_ko: '갱신된 한 줄 요약' }
+  act(() => view.update(React.createElement(List, { tick: 15, source: '새 출처', rows })))
+  assert.equal(renders, 82)
+  assert.match(textOf(view), /갱신된 한 줄 요약/)
 })
 
 test('news date formatters retain exact Korean KST output across date boundaries and missing values', () => {
-  const { securityDateLabel } = load('presentation/components/security/SecurityNewsCard')
+  const { securityDateLabel } = load('presentation/components/security/securityNewsFormatting')
   const inputs = [null, '', 'invalid', '2026-10-20', '2026-10-20T14:59:59Z', '2026-10-20T15:00:00Z', '2025-12-31T15:00:00Z', '2024-02-29T15:00:00Z', '2026-10-21T00:00:00+09:00']
   for (const value of inputs) for (const includeTime of [false, true]) {
     const expected = !value || !Number.isFinite(Date.parse(value)) ? '날짜 미제공' : new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', ...(includeTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}) })

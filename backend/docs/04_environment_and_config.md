@@ -73,8 +73,8 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 | `GEMINI_API_KEY` | 빈 값 | Gemini API key |
 | `AI_ENABLED` | `true` | false면 보고서 AI 분석 생략. 보안 뉴스 번역은 별도 설정 |
 | `SECURITY_NEWS_SNAPSHOT_PATH` | `reports/security-news-snapshot.sqlite3` | 수집 결과·출처 상태·시도 시각·일일 실행 기록. Compose에서는 `/app/reports` 볼륨 |
-| `SECURITY_NEWS_TRANSLATION_ENABLED` | `true` | Gemini key가 있을 때 보안 뉴스 제목·요약 한국어 번역 |
-| `SECURITY_NEWS_TRANSLATION_MODEL` | `gemini-3.5-flash-lite` | 무료 티어 지원 `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`만 허용. 저장된 번역은 재사용 |
+| `SECURITY_NEWS_TRANSLATION_ENABLED` | `true` | Gemini key가 있을 때 공개 제목·설명을 한국어 한 줄로 요약 |
+| `SECURITY_NEWS_TRANSLATION_MODEL` | `gemini-3.5-flash-lite` | 무료 티어 지원 `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`만 허용. 저장된 한 줄 요약은 재사용 |
 | `SECURITY_NEWS_TRANSLATION_CACHE_PATH` | `reports/security-news-translations.sqlite3` | 영구 번역·호출 제한 저장소. Compose에서는 `/app/reports` 볼륨 |
 | `SECURITY_NEWS_TRANSLATION_DAILY_REQUEST_LIMIT` | `60` | UTC 날짜별 최대 번역 요청 횟수, 재시작 후에도 유지 |
 | `SECURITY_NEWS_TRANSLATION_BATCH_SIZE` | `10` | 한 요청에 묶는 최대 기사 수 |

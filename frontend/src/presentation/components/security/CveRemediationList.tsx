@@ -2,7 +2,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, ShieldAlert } from 'lucide-react'
 import type { SecurityCveRow, SecurityNewsFilters } from '@/domain/SecurityNews'
 import { cveReferenceUrl, isUnknownCveProduct, safeSecurityNewsUrl } from '@/application/services/securityNews'
-import { securityDateLabel, securitySeverityLabels } from './SecurityNewsCard'
+import { securityDateLabel, securitySeverityLabels } from './securityNewsFormatting'
 
 const severityClasses = { critical: 'badge-critical', high: 'badge-warning', medium: 'badge-neutral', low: 'badge-good', unknown: 'badge-neutral' }
 type SortableColumn = 'software' | 'affected-version' | 'fixed-version'

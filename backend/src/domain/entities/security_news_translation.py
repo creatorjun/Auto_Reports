@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from datetime import datetime
 
 
+NEWS_BRIEF_MAX_LENGTH = 180
+
+
 @dataclass(frozen=True)
 class NewsTranslationInput:
     key: str

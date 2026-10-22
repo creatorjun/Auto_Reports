@@ -1,5 +1,7 @@
 # backend/tests/test_security_news_translation.py
 import asyncio
+import hashlib
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -43,7 +45,7 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
     def service(self, **kwargs):
         provider = AsyncMock()
         provider.translate.side_effect = lambda inputs: tuple(
-            NewsTranslation(value.key, value.title + " 한국어", value.summary + " 한국어" if value.summary else "")
+            NewsTranslation(value.key, "", (value.summary or value.title) + " 한국어")
             for value in inputs
         )
         cache = SqliteNewsTranslationCache(self.path)
@@ -72,7 +74,7 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         async def translate(inputs):
             started.set()
             await gate.wait()
-            return tuple(NewsTranslation(value.key, value.title + " 한국어", value.summary + " 한국어") for value in inputs)
+            return tuple(NewsTranslation(value.key, "", (value.summary or value.title) + " 한국어") for value in inputs)
 
         provider.translate.side_effect = translate
         items, state = service.snapshot((self.item,))
@@ -84,7 +86,9 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         await service._task
         items, state = service.snapshot((self.item,))
         self.assertEqual(self.item.title, items[0].title)
-        self.assertTrue(items[0].title_ko.endswith("한국어"))
+        self.assertIsNone(items[0].title_ko)
+        self.assertTrue(items[0].summary_ko.endswith("한국어"))
+        self.assertEqual("", self.scalar("SELECT title_ko FROM translations"))
         self.assertEqual(1, state.translated_count)
         self.assertEqual(0, state.pending_count)
         self.assertEqual(1, self.scalar("SELECT COUNT(*) FROM translations"))
@@ -98,8 +102,8 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([self.item.title, news.title], [value.title for value in provider.translate.await_args.args[0]])
         self.assertIsNone(items[0].title_ko)
         self.assertIsNone(items[0].summary_ko)
-        self.assertIsNotNone(items[1].title_ko)
-        self.assertIsNotNone(items[2].title_ko)
+        self.assertIsNotNone(items[1].summary_ko)
+        self.assertIsNotNone(items[2].summary_ko)
         self.assertEqual(2, state.translated_count)
         self.assertEqual(0, state.pending_count)
 
@@ -129,7 +133,7 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(items[0].summary_ko)
         self.assertEqual(self.item.title, items[0].title)
         self.assertEqual(self.item.summary, items[0].summary)
-        self.assertIsNotNone(items[1].title_ko)
+        self.assertIsNotNone(items[1].summary_ko)
         self.assertEqual(1, state.translated_count)
         self.assertEqual(0, state.pending_count)
         provider.translate.assert_awaited_once()
@@ -200,7 +204,7 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         missing = replace(self.item, id="missing", title="An untranslated title")
         await restarted.restore((self.item, missing))
         items, state = restarted.snapshot((self.item, missing), start=False)
-        self.assertIsNotNone(items[0].title_ko)
+        self.assertIsNotNone(items[0].summary_ko)
         self.assertIsNone(items[1].title_ko)
         self.assertEqual(1, state.translated_count)
         self.assertEqual(1, state.pending_count)
@@ -222,7 +226,7 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         _, (items, state) = await self.finish(restarted, (duplicate, self.item))
         new_provider.translate.assert_not_awaited()
         self.assertEqual(2, state.translated_count)
-        self.assertEqual(items[0].title_ko, items[1].title_ko)
+        self.assertEqual(items[0].summary_ko, items[1].summary_ko)
 
     async def test_only_changed_original_content_is_translated_again(self) -> None:
         service, provider, _ = self.service()
@@ -234,6 +238,55 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         await self.finish(service, (changed_content,))
         self.assertEqual(2, provider.translate.await_count)
         self.assertEqual(2, self.scalar("SELECT COUNT(*) FROM translations"))
+
+    async def test_legacy_full_translation_is_preserved_and_replaced_by_a_separate_summary(self) -> None:
+        service, provider, cache = self.service()
+        legacy_key = hashlib.sha256(json.dumps(
+            ["ko", self.item.title, self.item.summary], ensure_ascii=False, separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
+        legacy_input = NewsTranslationInput(legacy_key, self.item.title, self.item.summary)
+        await cache.complete(
+            (legacy_input,), (NewsTranslation(legacy_key, "이전 제목 번역", "이전 전체 본문 번역"),), now=self.now,
+        )
+        legacy_item = replace(self.item, title_ko="이전 제목 번역", summary_ko="이전 전체 본문 번역")
+        await service.restore((legacy_item,))
+        items, state = service.snapshot((legacy_item,), start=False)
+        self.assertIsNone(items[0].title_ko)
+        self.assertIsNone(items[0].summary_ko)
+        self.assertEqual(1, state.pending_count)
+        provider.translate.assert_not_awaited()
+        _, (items, state) = await self.finish(service, (legacy_item,))
+        self.assertIsNone(items[0].title_ko)
+        self.assertEqual(self.item.summary + " 한국어", items[0].summary_ko)
+        self.assertEqual(1, state.translated_count)
+        self.assertEqual(2, self.scalar("SELECT COUNT(*) FROM translations"))
+        self.assertEqual("이전 제목 번역", (await cache.read((legacy_key,)))[legacy_key].title_ko)
+
+    async def test_new_summary_namespace_preserves_legacy_daily_budget_and_global_pause(self) -> None:
+        service, provider, cache = self.service(daily_limit=1)
+        legacy_input = NewsTranslationInput("legacy-content-key", self.item.title, self.item.summary)
+        await cache.reserve((legacy_input,), now=self.now, daily_limit=1, batch_size=1, minimum_interval_seconds=0, max_attempts=3)
+        await cache.complete((legacy_input,), (), now=self.now, failure="billing")
+        _, (_, state) = await self.finish(service, (self.item,))
+        provider.translate.assert_not_awaited()
+        self.assertIn("크레딧", state.message)
+        self.assertEqual(1, self.scalar("SELECT SUM(used) FROM request_budget"))
+        self.now += timedelta(hours=24)
+        await self.finish(service, (self.item,))
+        provider.translate.assert_awaited_once()
+        self.assertEqual(2, self.scalar("SELECT SUM(used) FROM request_budget"))
+
+    async def test_invalid_new_cache_entry_is_not_restored_as_a_summary(self) -> None:
+        service, provider, cache = self.service()
+        key = translation_key(self.item.title, self.item.summary)
+        request = NewsTranslationInput(key, self.item.title, self.item.summary)
+        await cache.complete((request,), (NewsTranslation(key, "전체 제목 번역", "전체 본문 번역"),), now=self.now)
+        await service.restore((self.item,))
+        items, state = service.snapshot((self.item,), start=False)
+        self.assertIsNone(items[0].title_ko)
+        self.assertIsNone(items[0].summary_ko)
+        self.assertEqual(0, state.translated_count)
+        provider.translate.assert_not_awaited()
 
     async def test_repeated_snapshots_share_one_worker(self) -> None:
         service, provider, _ = self.service()
@@ -257,13 +310,13 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
 
         def translate(inputs):
             return (
-                NewsTranslation(inputs[0].key, inputs[0].title + " 한국어", inputs[0].summary + " 한국어"),
-                NewsTranslation(inputs[1].key, "", "잘못된 응답"),
+                NewsTranslation(inputs[0].key, "", inputs[0].summary + " 한국어"),
+                NewsTranslation(inputs[1].key, "", "제품 99.99에 대한 잘못된 응답"),
             )
 
         provider.translate.side_effect = translate
         _, (items, state) = await self.finish(service, (self.item, second))
-        self.assertIsNotNone(items[0].title_ko)
+        self.assertIsNotNone(items[0].summary_ko)
         self.assertIsNone(items[1].title_ko)
         self.assertEqual(1, state.pending_count)
         self.assertEqual(1, provider.translate.await_count)
@@ -374,7 +427,7 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         service, provider, cache = self.service()
         second = replace(self.item, id="second", title="Another security issue")
         request = NewsTranslationInput(translation_key(second.title, second.summary), second.title, second.summary)
-        await cache.complete((request,), (NewsTranslation(request.key, request.title + " 한국어", request.summary + " 한국어"),), now=self.now)
+        await cache.complete((request,), (NewsTranslation(request.key, "", request.summary + " 한국어"),), now=self.now)
         entered, release = asyncio.Event(), asyncio.Event()
         read = cache.read
         calls = 0
@@ -395,7 +448,7 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         release.set()
         await service._task
         provider.translate.assert_not_awaited()
-        self.assertIsNotNone(service.snapshot((second,))[0][0].title_ko)
+        self.assertIsNotNone(service.snapshot((second,))[0][0].summary_ko)
 
     async def test_cache_failure_stops_translation_without_leaking_exception_text(self) -> None:
         provider, cache = AsyncMock(), AsyncMock()
@@ -439,7 +492,7 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(cancelled.is_set())
         self.assertEqual(1, self.scalar("SELECT SUM(used) FROM request_budget"))
 
-    async def test_korean_items_skip_provider_and_empty_summaries_remain_empty(self) -> None:
+    async def test_korean_items_skip_provider_and_english_title_only_items_get_summaries(self) -> None:
         service, provider, _ = self.service()
         korean = replace(self.item, source_id="kisa", title="보안 업데이트 권고", summary="")
         items, state = service.snapshot((korean,))
@@ -448,7 +501,8 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         provider.translate.assert_not_awaited()
         title_only = replace(self.item, summary="")
         _, (items, _) = await self.finish(service, (title_only,))
-        self.assertEqual("", items[0].summary_ko)
+        self.assertEqual(title_only.title + " 한국어", items[0].summary_ko)
+        self.assertIsNone(items[0].title_ko)
 
     async def test_korean_original_skips_ai_while_english_news_is_translated(self) -> None:
         service, provider, _ = self.service()
@@ -465,23 +519,43 @@ class SecurityNewsTranslationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([english.title], [value.title for value in provider.translate.await_args.args[0]])
         self.assertEqual(korean, items[0])
         self.assertIsNone(items[0].title_ko)
-        self.assertIsNotNone(items[1].title_ko)
+        self.assertIsNotNone(items[1].summary_ko)
         self.assertEqual(1, state.translated_count)
         self.assertEqual(0, state.pending_count)
 
 
 class TranslationValidationTest(unittest.TestCase):
-    def test_content_hash_does_not_use_source_model_or_prompt_versions(self) -> None:
+    def test_summary_hash_is_stable_content_based_and_separate_from_legacy_translation(self) -> None:
         self.assertEqual(translation_key("title", "summary"), translation_key("title", "summary"))
         self.assertNotEqual(translation_key("title", "summary"), translation_key("title", "changed"))
         self.assertNotEqual(translation_key(" title", "summary"), translation_key("title", "summary"))
+        legacy_key = hashlib.sha256(b'["ko","title","summary"]').hexdigest()
+        self.assertNotEqual(legacy_key, translation_key("title", "summary"))
 
-    def test_cve_and_version_integrity_and_korean_month_conversion(self) -> None:
+    def test_summary_may_omit_details_but_must_not_invent_cves_or_numbers(self) -> None:
         original = NewsTranslationInput("id", "CVE-2026-1234", "Product 1.2 was updated on October 20, 2026.")
-        self.assertTrue(valid_translation(original, NewsTranslation("id", original.title, "제품 1.2는 2026년 10월 20일 업데이트되었습니다.")))
-        self.assertFalse(valid_translation(original, NewsTranslation("id", "CVE-2026-9999", "제품 1.2는 2026년 10월 20일 업데이트되었습니다.")))
-        self.assertFalse(valid_translation(original, NewsTranslation("id", original.title, "제품 1.3은 2026년 10월 20일 업데이트되었습니다.")))
-        self.assertFalse(valid_translation(original, NewsTranslation("other", original.title, "한국어")))
+        self.assertTrue(valid_translation(original, NewsTranslation("id", "", "제품 업데이트가 제공되었습니다.")))
+        self.assertTrue(valid_translation(original, NewsTranslation("id", "", "제품 1.2의 CVE-2026-1234 대응 업데이트가 제공되었습니다.")))
+        self.assertFalse(valid_translation(original, NewsTranslation("id", "", "CVE-2026-9999 대응 업데이트입니다.")))
+        self.assertFalse(valid_translation(original, NewsTranslation("id", "", "제품 1.3 대응 업데이트입니다.")))
+        self.assertFalse(valid_translation(original, NewsTranslation("id", "", "제품 취약점 50건을 해결했습니다.")))
+        self.assertFalse(valid_translation(original, NewsTranslation("other", "", "한국어 요약입니다.")))
+
+    def test_summary_rejects_full_titles_multiline_overlength_html_and_non_korean(self) -> None:
+        original = NewsTranslationInput("id", "Security update", "An update resolves a product vulnerability.")
+        self.assertTrue(valid_translation(original, NewsTranslation("id", "", "한" * 180)))
+        for title, summary in (
+            ("별도 번역 제목", "보안 업데이트입니다."),
+            ("", ""), ("", " "), ("", "한" * 181), ("", "Security update"),
+            ("", "보안 문제\n업데이트"), ("", "보안 문제\r업데이트"), ("", "보안 문제\u2028업데이트"),
+            ("", "<b>보안 업데이트</b>"), ("", "```보안 업데이트```"),
+        ):
+            with self.subTest(title=title, summary=summary):
+                self.assertFalse(valid_translation(original, NewsTranslation("id", title, summary)))
+
+    def test_removed_google_source_never_needs_summary(self) -> None:
+        item = SecurityNewsItem("old", "google-security", "news", "Security update", "A product update.", "https://example.com")
+        self.assertFalse(needs_translation(item))
 
     def test_korean_prose_with_product_names_does_not_need_translation(self) -> None:
         item = SecurityNewsItem("one", "public-news", "news", "Android 보안 업데이트 안내", "제품의 보안 취약점을 해결하는 업데이트입니다.", "https://example.com")

@@ -14,7 +14,12 @@ from src.application.ports.security_news_translation_port import (
     NewsTranslationProviderError,
 )
 from src.domain.entities.security_news import SecurityNewsItem
-from src.domain.entities.security_news_translation import NewsTranslation, NewsTranslationInput, NewsTranslationState
+from src.domain.entities.security_news_translation import (
+    NEWS_BRIEF_MAX_LENGTH,
+    NewsTranslation,
+    NewsTranslationInput,
+    NewsTranslationState,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -24,12 +29,12 @@ NUMBER = re.compile(r"\d+(?:\.\d+)*")
 
 
 def translation_key(title: str, summary: str) -> str:
-    encoded = json.dumps(["ko", title, summary], ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    encoded = json.dumps(["ko-brief-v1", title, summary], ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def needs_translation(item: SecurityNewsItem) -> bool:
-    if item.kind == "cve" or item.source_id == "kisa":
+    if item.kind == "cve" or item.source_id in {"kisa", "google-security"}:
         return False
     prose = CVE.sub("", f"{item.title} {item.summary}")
     korean = len(HANGUL.findall(prose))
@@ -38,29 +43,19 @@ def needs_translation(item: SecurityNewsItem) -> bool:
 
 
 def valid_translation(original: NewsTranslationInput, translated: NewsTranslation) -> bool:
-    if original.key != translated.key or not translated.title_ko.strip():
+    if original.key != translated.key or translated.title_ko or not translated.summary_ko.strip():
         return False
-    if len(translated.title_ko) > 1000 or len(translated.summary_ko) > 6000:
+    target = translated.summary_ko
+    if len(target) > NEWS_BRIEF_MAX_LENGTH or any(character in target for character in "\r\n\v\f\x85\u2028\u2029"):
         return False
-    if bool(original.summary.strip()) != bool(translated.summary_ko.strip()):
+    if not HANGUL.search(target) or "```" in target or re.search(r"<\s*/?\s*[A-Za-z]", target):
         return False
-    if original.summary.strip() and re.search(r"[A-Za-z]{3,}", CVE.sub("", original.summary)):
-        if not HANGUL.search(translated.title_ko + translated.summary_ko):
-            return False
-    for source, target in ((original.title, translated.title_ko), (original.summary, translated.summary_ko)):
-        if set(value.upper() for value in CVE.findall(source)) != set(value.upper() for value in CVE.findall(target)):
-            return False
-        source_numbers = set(NUMBER.findall(re.sub(r"(?<=\d),(?=\d)", "", source)))
-        target_numbers = set(NUMBER.findall(re.sub(r"(?<=\d),(?=\d)", "", target)))
-        if not source_numbers.issubset(target_numbers):
-            return False
-        if set(re.findall(r"\d+(?:\.\d+)+", source)) != set(re.findall(r"\d+(?:\.\d+)+", target)):
-            return False
-        if re.search(r"<\s*/?\s*[A-Za-z]", target):
-            return False
-        if len(re.findall(r"[A-Za-z]{3,}", CVE.sub("", source))) >= 3 and not HANGUL.search(target):
-            return False
-    return True
+    source = f"{original.title} {original.summary}"
+    source_cves = {value.upper() for value in CVE.findall(source)}
+    target_cves = {value.upper() for value in CVE.findall(target)}
+    source_numbers = set(NUMBER.findall(re.sub(r"(?<=\d),(?=\d)", "", source)))
+    target_numbers = set(NUMBER.findall(re.sub(r"(?<=\d),(?=\d)", "", target)))
+    return target_cves.issubset(source_cves) and target_numbers.issubset(source_numbers)
 
 
 class SecurityNewsTranslationService:
@@ -109,7 +104,7 @@ class SecurityNewsTranslationService:
                 entry = (key, value)
             prepared[content] = entry
             key, value = entry
-            keyed_items.append((item, key))
+            keyed_items.append((item, key, value is not None))
             if value is not None:
                 inputs[key] = value
         self._prepared = prepared
@@ -130,16 +125,16 @@ class SecurityNewsTranslationService:
         translated_count = 0
         pending_count = 0
         rendered = []
-        for item, key in keyed_items:
-            if item.kind == "cve":
+        for item, key, eligible in keyed_items:
+            if not eligible:
                 rendered.append(replace(item, title_ko=None, summary_ko=None))
                 continue
             translation = self._translations.get(key)
             if translation is not None:
-                rendered.append(replace(item, title_ko=translation.title_ko, summary_ko=translation.summary_ko))
+                rendered.append(replace(item, title_ko=None, summary_ko=translation.summary_ko))
                 translated_count += 1
             else:
-                rendered.append(item)
+                rendered.append(replace(item, title_ko=None, summary_ko=None))
                 pending_count += int(key in inputs)
         return tuple(rendered), NewsTranslationState(
             enabled=True, translating=running and bool(inputs), translated_count=translated_count,
@@ -147,21 +142,33 @@ class SecurityNewsTranslationService:
         )
 
     async def restore(self, items: tuple[SecurityNewsItem, ...]) -> None:
-        keys = tuple({translation_key(item.title, item.summary) for item in items if needs_translation(item)})
-        if not keys:
+        inputs = {
+            translation_key(item.title, item.summary): NewsTranslationInput(
+                translation_key(item.title, item.summary), item.title, item.summary,
+            )
+            for item in items if needs_translation(item)
+        }
+        if not inputs:
             return
         try:
-            self._translations.update(await self._cache.read(keys))
+            self._translations.update(await self._read_valid_translations(inputs))
         except Exception as error:
             logger.warning("Security news translation cache unavailable: %s", type(error).__name__)
             self._cache_failed = True
-            self._message = "번역 저장소를 사용할 수 없어 새 번역을 중지했습니다. 저장된 번역과 원문을 표시합니다."
+            self._message = "요약 저장소를 사용할 수 없어 새 요약을 중지했습니다. 저장된 요약과 원문을 표시합니다."
+
+    async def _read_valid_translations(self, inputs: dict[str, NewsTranslationInput]) -> dict[str, NewsTranslation]:
+        cached = await self._cache.read(tuple(inputs))
+        return {
+            key: value for key, value in cached.items()
+            if key in inputs and valid_translation(inputs[key], value)
+        }
 
     async def _run(self) -> None:
         try:
             while not self._closed:
                 input_signature = frozenset(self._inputs)
-                self._translations.update(await self._cache.read(tuple(input_signature)))
+                self._translations.update(await self._read_valid_translations(dict(self._inputs)))
                 if input_signature != frozenset(self._inputs):
                     continue
                 pending = tuple(value for key, value in self._inputs.items() if key not in self._translations)
@@ -222,7 +229,7 @@ class SecurityNewsTranslationService:
         except Exception as error:
             logger.warning("Security news translation cache unavailable: %s", type(error).__name__)
             self._cache_failed = True
-            self._message = "번역 저장소를 사용할 수 없어 새 번역을 중지했습니다. 저장된 번역과 원문을 표시합니다."
+            self._message = "요약 저장소를 사용할 수 없어 새 요약을 중지했습니다. 저장된 요약과 원문을 표시합니다."
 
     async def aclose(self) -> None:
         self._closed = True
