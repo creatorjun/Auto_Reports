@@ -109,6 +109,9 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
     setRecentElapsedDaysThreshold(null)
     setRecentElapsedDaysComparison('gte')
     setRecentColumnFilters({})
+    setWorkTypeOpen(null)
+    setSlaViolationEntry(null)
+    setSlaDelayEntry(null)
   }, [report.id])
 
   useEffect(() => {

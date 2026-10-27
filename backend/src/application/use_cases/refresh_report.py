@@ -41,7 +41,6 @@ class RefreshReportUseCase:
         refreshed_latest: NewReport | None = None
         if latest is not None:
             refreshed_latest = await self._refresh_one(latest, self._report_end(latest), now)
-            await self._cache.set_latest_id(latest.id)
 
         if annual is not None:
             await self._refresh_one(annual, now, now)

@@ -379,7 +379,8 @@ class Container:
                 notify=self._notify_todo,
                 notify_tac=self._notify_tac,
             )
-            await use_case.execute()
+            with self._jira.bypass_cache():
+                await use_case.execute()
 
     async def aclose(self) -> None:
         async with AsyncExitStack() as stack:

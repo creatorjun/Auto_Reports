@@ -34,15 +34,16 @@ class GetReportUseCase:
             await self._cache.set(report.id, report)
         return with_current_issue_age(report)
 
-    async def get_latest(self) -> Optional[Report]:
-        latest_id = await self._cache.get_latest_id()
-        if latest_id is not None:
-            cached = await self._cache.get(
-                latest_id,
-                refresh_fn=self._fetch_by_id if self._refresh_report is not None else None,
-            )
-            if cached is not None:
-                return with_current_issue_age(cached)
+    async def get_latest(self, *, bypass_cache: bool = False) -> Optional[Report]:
+        if not bypass_cache:
+            latest_id = await self._cache.get_latest_id()
+            if latest_id is not None:
+                cached = await self._cache.get(
+                    latest_id,
+                    refresh_fn=self._fetch_by_id if self._refresh_report is not None else None,
+                )
+                if cached is not None:
+                    return with_current_issue_age(cached)
 
         report = await self._repository.find_latest()
         if report:

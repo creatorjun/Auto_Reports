@@ -47,6 +47,7 @@ class TriggerReportUseCaseTest(unittest.IsolatedAsyncioTestCase):
 
         self.runner.submit.side_effect = submit
         result = await self.use_case.execute(rerun_latest=True)
+        self.reports.get_latest.assert_awaited_once_with(bypass_cache=True)
         self.assertEqual(1, self.report_context_entries)
         self.assertEqual(datetime(2024, 2, 1, tzinfo=KST), result.start_date)
         self.assertEqual(datetime(2024, 2, 29, 23, 59, 59, tzinfo=KST), result.end_date)

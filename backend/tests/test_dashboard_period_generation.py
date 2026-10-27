@@ -166,6 +166,7 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(start.isoformat(), self.audit.record.call_args.kwargs["start"])
                 self.assertEqual(end.isoformat(), self.audit.record.call_args.kwargs["end"])
         self.assertEqual(4, self.reports.get_latest.await_count)
+        self.assertTrue(all(call.kwargs == {"bypass_cache": True} for call in self.reports.get_latest.await_args_list))
 
     async def test_rerun_latest_rejects_other_period_inputs(self) -> None:
         for values in (
@@ -188,7 +189,7 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
         self.reports.get_latest.return_value = None
         response = await self.client.post("/api/v1/trigger/", json={"rerun_latest": True})
         self.assertEqual(404, response.status_code, response.text)
-        self.reports.get_latest.assert_awaited_once_with()
+        self.reports.get_latest.assert_awaited_once_with(bypass_cache=True)
         self.runner.submit.assert_not_awaited()
         self.audit.record.assert_not_called()
 

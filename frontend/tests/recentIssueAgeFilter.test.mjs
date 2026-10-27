@@ -706,3 +706,41 @@ test('PDF with no column matches preserves the empty message without a synthetic
   assert.equal(view.root.findAllByType('input').length, 0)
   assert.match(textOf(view.root), /검색 조건에 맞는 이슈가 없습니다/)
 })
+
+test('a regenerated report replaces recent issue rows and statuses within its saved dates', async (t) => {
+  const DashboardContent = loadDashboardContent()
+  const before = [
+    issue(10, { key: 'SAME', summary: '이전 제목', status: '자료 요청 중' }),
+    issue(20, { key: 'REMOVED', summary: '이전 열린 이슈', status: '처리 중' }),
+  ]
+  const report = {
+    id: 1, scope: 'standard', report_year: null,
+    week_start: '2026-09-01', week_end: '2026-09-30', report_date: '2026-09-30', ai_analysis: null,
+    widgets: { w7: { total: before.length, data: { issue_details: before } } },
+  }
+  let view
+  await act(async () => { view = TestRenderer.create(React.createElement(DashboardContent, { report })) })
+  t.after(() => act(() => view.unmount()))
+  const columnInput = () => view.root.findAllByType('input').find((node) => node.props['aria-label'] === '제목 컬럼 검색')
+  act(() => columnInput().props.onChange({ target: { value: '이전' } }))
+  assert.deepEqual(keys(view), ['SAME', 'REMOVED'])
+  await act(async () => { view.update(React.createElement(DashboardContent, { report })) })
+  assert.deepEqual(keys(view), ['SAME', 'REMOVED'])
+
+  const after = [
+    issue(11, { key: 'SAME', summary: '최신 제목', status: '결과 대기 중' }),
+    issue(0, { key: 'ADDED', summary: '신규 요청', status: '이슈 리뷰 중', created: '2026-09-30 23:59' }),
+    issue(0, { key: 'OUTSIDE', summary: '기간 외 이슈', created: '2026-10-01 00:00' }),
+  ]
+  const refreshed = { ...report, id: 2, widgets: { w7: { total: after.length, data: { issue_details: after } } } }
+  await act(async () => { view.update(React.createElement(DashboardContent, { report: refreshed })) })
+  assert.equal(columnInput().props.value, '')
+  assert.deepEqual(keys(view), ['SAME', 'ADDED'])
+  const table = view.root.findByType('table')
+  assert.match(textOf(table), /최신 제목/)
+  assert.match(textOf(table), /결과 대기 중/)
+  assert.match(textOf(table), /이슈 리뷰 중/)
+  assert.doesNotMatch(textOf(table), /이전 제목|이전 열린 이슈|자료 요청 중|기간 외 이슈/)
+  assert.equal(refreshed.week_start, report.week_start)
+  assert.equal(refreshed.week_end, report.week_end)
+})

@@ -8,7 +8,8 @@ from unittest.mock import AsyncMock
 
 from src.application.ports.report_repository import ReportRepository
 from src.application.use_cases.get_report import GetReportUseCase
-from src.domain.entities.report import Report
+from src.application.use_cases.refresh_report import RefreshReportUseCase
+from src.domain.entities.report import NewReport, Report
 from src.infrastructure.report_cache import ReportLruCache
 
 
@@ -20,6 +21,67 @@ class ReportCacheLifecycleTest(unittest.IsolatedAsyncioTestCase):
             id=1, week_start=date(2026, 10, 19), week_end=date(2026, 10, 25),
             report_date="2026-10-21 12:00", widgets={},
         )
+
+    async def test_forced_latest_read_uses_persisted_report_despite_warm_previous_pointer(self):
+        previous = replace(self.report, id=2, week_start=date(2026, 10, 5), week_end=date(2026, 10, 11))
+        await self.cache.set(previous.id, previous)
+        await self.cache.set_latest_id(previous.id)
+        repository = AsyncMock(spec=ReportRepository)
+        repository.find_latest.return_value = self.report
+        use_case = GetReportUseCase(repository, self.cache)
+
+        self.assertEqual(previous, await use_case.get_latest())
+        repository.find_latest.assert_not_awaited()
+        self.assertEqual(self.report, await use_case.get_latest(bypass_cache=True))
+        repository.find_latest.assert_awaited_once_with()
+        self.assertEqual(self.report.id, await self.cache.get_latest_id())
+
+    async def test_forced_latest_read_never_falls_back_to_cached_deleted_or_unavailable_report(self):
+        await self.cache.set(self.report.id, self.report)
+        await self.cache.set_latest_id(self.report.id)
+        repository = AsyncMock(spec=ReportRepository)
+        repository.find_latest.return_value = None
+        use_case = GetReportUseCase(repository, self.cache)
+
+        self.assertIsNone(await use_case.get_latest(bypass_cache=True))
+        repository.find_latest.side_effect = RuntimeError("database unavailable")
+        with self.assertRaisesRegex(RuntimeError, "database unavailable"):
+            await use_case.get_latest(bypass_cache=True)
+
+    async def test_refresh_started_before_generation_preserves_new_latest_pointer(self):
+        previous = replace(self.report, id=2, week_start=date(2026, 10, 5), week_end=date(2026, 10, 11))
+        repository = AsyncMock(spec=ReportRepository)
+        repository.find_latest.return_value = previous
+        repository.find_annual.return_value = None
+        repository.update_widgets.return_value = previous
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        async def collect(**kwargs):
+            entered.set()
+            await release.wait()
+            return NewReport(
+                week_start=previous.week_start, week_end=previous.week_end,
+                report_date=previous.report_date,
+            )
+
+        assembler = AsyncMock()
+        assembler.collect.side_effect = collect
+        await self.cache.set(previous.id, previous)
+        await self.cache.set_latest_id(previous.id)
+        task = asyncio.create_task(RefreshReportUseCase(assembler, repository, self.cache).execute())
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            repository.find_latest.return_value = self.report
+            await self.cache.set(self.report.id, self.report)
+            await self.cache.set_latest_id(self.report.id)
+        finally:
+            release.set()
+            await asyncio.wait_for(task, 1)
+
+        self.assertEqual(self.report.id, await self.cache.get_latest_id())
+        self.assertEqual(self.report, await GetReportUseCase(repository, self.cache).get_latest())
+        repository.update_widgets.assert_awaited_once()
+        self.assertEqual(previous.id, repository.update_widgets.await_args.args[0])
 
     async def test_unconfigured_refresh_never_detaches_the_request_repository(self):
         entered, cancelled = asyncio.Event(), asyncio.Event()

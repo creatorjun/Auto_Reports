@@ -53,7 +53,7 @@ class TriggerReportUseCase:
         end: datetime | None = None
         if rerun_latest:
             async with self._get_report() as reports:
-                latest = await reports.get_latest()
+                latest = await reports.get_latest(bypass_cache=True)
             if latest is None:
                 raise LatestReportUnavailableError("갱신할 최근 보고서가 없습니다.")
             start = datetime.combine(latest.week_start, time.min, tzinfo=KST)
