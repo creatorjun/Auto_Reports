@@ -129,6 +129,12 @@ test('Windows Ctrl+R and Mac Cmd+R suppress reload and request the last generate
   assert.deepEqual(state.requests, [{ rerun_latest: true }, { rerun_latest: true }, { rerun_latest: true }])
 })
 
+test('daily report refresh delegates saved dates to the latest-report selector', (t) => {
+  const state = setup(t, { lastRequest: { period: 'day', date: '2024-02-29' } })
+  assert.equal(state.key({ ctrlKey: true }).defaultPrevented, true)
+  assert.deepEqual(state.requests, [{ rerun_latest: true }])
+})
+
 test('native reload variants and unrelated keys retain their default behavior', (t) => {
   const state = setup(t)
   for (const shortcut of [

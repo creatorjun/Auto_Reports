@@ -23,7 +23,7 @@
 | `DashboardIssueTypePolicy.ts` | 대시보드·연간 보고서의 통계 제외 및 요청 유형 선택항목 정책 |
 | `DashboardStatusPolicy.ts` | 대시보드·연간 보고서·파트너사의 현재 상태 선택 및 표시 순서 정책 |
 | `AuditLog.ts` | 감사 이벤트, 검색 조건과 페이지 |
-| `ReportPeriod.ts` | week/month/year 및 기간 요청 모델 |
+| `ReportPeriod.ts` | day/week/month/year 및 기간 요청 모델; SLA 위반은 day 제외 |
 | `ReportChartDetails.ts` | 현재 Jira 차트 상세 요청·응답과 저장본 비교 메타데이터 |
 | `SLAStatus.ts` | 현재 수집 스냅샷, 고유 티켓·SLA 잔여율/시간·일시정지 상태·상태별 체류시간과 화면 필터/정렬 모델 |
 | `SlaViolationReport.ts` | 저장 기간, 티켓·위반 이벤트·상태별 시간·경고 |

@@ -21,7 +21,7 @@ PostgreSQL과 SQLAlchemy async ORM을 사용합니다. 영속성 모델은 `src/
 | report_year | integer nullable | 연간 전용 보고서의 연도 |
 | created_at | timestamptz | 생성 시각, index |
 
-일반 보고서는 주·월·연 선택과 관계없이 `scope=standard`입니다. 연간 전용 메뉴는 `scope=annual`, `report_year`를 사용합니다. 최신 일반 조회는 standard만, 연도별 조회는 해당 annual만 선택합니다. 이력 목록은 두 scope 모두 포함합니다. 주기 갱신은 위젯·기간·표시 날짜를 갱신하지만 생성 ID·생성 시각·AI 분석은 유지합니다.
+일반 보고서는 일·주·월·연 선택과 관계없이 `scope=standard`입니다. 연간 전용 메뉴는 `scope=annual`, `report_year`를 사용합니다. 최신 일반 조회는 standard만, 연도별 조회는 해당 annual만 선택합니다. 이력 목록은 두 scope 모두 포함합니다. 주기 갱신은 위젯·기간·표시 날짜를 갱신하지만 생성 ID·생성 시각·AI 분석은 유지합니다.
 
 자동 보존 정리는 새 보고서 생성 후 수행하며 standard의 `created_at`을 KST 기준 cutoff와 비교합니다. 기본 52주, 0은 비활성입니다. SLA·재배포와 연간 전용 보고서에는 이 정리를 적용하지 않습니다.
 

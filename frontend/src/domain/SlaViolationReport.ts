@@ -1,7 +1,7 @@
 // frontend/src/domain/SlaViolationReport.ts
 import type { ReportPeriod } from '@/domain/ReportPeriod'
 
-export type SlaViolationPeriod = ReportPeriod
+export type SlaViolationPeriod = Exclude<ReportPeriod, 'day'>
 export type SlaViolationMetric = 'initial_response' | 'resolution'
 
 export interface SlaViolationRequest {

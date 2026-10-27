@@ -102,6 +102,7 @@ function getReportYear(report: ReportDetail): number {
 }
 
 function getReportRangeLabel(start: string, end: string, rangeDays: number): string {
+  if (rangeDays === 1) return '일간'
   const yearRange = reportDateRange('year', start)
   if (yearRange?.start === start && yearRange.end === end) return '연간'
   const monthRange = reportDateRange('month', start)

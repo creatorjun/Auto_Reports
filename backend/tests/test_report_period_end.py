@@ -144,6 +144,35 @@ class ReportPeriodEndQueryTest(unittest.TestCase):
 
 
 class ReportPeriodEndCollectorTest(unittest.IsolatedAsyncioTestCase):
+    async def test_daily_selection_includes_only_the_selected_day_for_created_and_resolved(self) -> None:
+        for selected in (datetime.date(2026, 10, 14), datetime.date(2024, 2, 29), datetime.date(2025, 12, 31)):
+            with self.subTest(selected=selected):
+                previous = selected - datetime.timedelta(days=1)
+                following = selected + datetime.timedelta(days=1)
+                start, end = report_period_dates("day", selected, datetime.date(2026, 10, 16))
+                queries = query_builder().build(end, week_start_override=start)
+                jira = DateRangeJira([
+                    issue("PREVIOUS", f"{previous}T23:59:59", f"{previous}T23:59:59"),
+                    issue("MIDNIGHT", f"{selected}T00:00:00", f"{selected}T00:00:00"),
+                    issue("LAST-SECOND", f"{selected}T23:59:59", f"{selected}T23:59:59"),
+                    JiraIssue(
+                        key="LAST-MILLISECOND", summary="Last millisecond", issue_type="인시던트", status="Closed",
+                        created=f"{selected}T23:59:59.999+0900", resolved=f"{selected}T23:59:59.999+0900",
+                    ),
+                    issue("NEXT-DAY", f"{following}T00:00:00", f"{following}T00:00:00"),
+                    issue("OLDER-RESOLVED", f"{previous}T12:00:00", f"{selected}T12:00:00"),
+                ])
+
+                result = await CreatedVsResolvedCollector(jira, queries).collect()
+
+                self.assertEqual(["MIDNIGHT", "LAST-SECOND", "LAST-MILLISECOND"], [row.key for row in result.data.created_details])
+                self.assertEqual(["MIDNIGHT", "LAST-SECOND", "LAST-MILLISECOND", "OLDER-RESOLVED"], [row.key for row in result.data.resolved_details])
+                self.assertEqual((3, 4), (result.data.created, result.data.resolved))
+                self.assertEqual(selected, queries.week_start.date())
+                self.assertEqual(selected, queries.week_end.date())
+                self.assertIn(f'created < "{following}"', queries.w3_created_vs_resolved()[0])
+                self.assertIn(f'resolved < "{following}"', queries.w14_resolution_resolved())
+
     async def test_selected_friday_week_includes_weekend_and_excludes_next_monday(self) -> None:
         start, end = report_period_dates("week", datetime.date(2026, 10, 9), datetime.date(2026, 10, 16))
         queries = query_builder().build(end, week_start_override=start)

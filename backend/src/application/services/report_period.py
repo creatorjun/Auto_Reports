@@ -6,7 +6,7 @@ from typing import Literal
 from src.domain.constants import KST
 
 
-ReportPeriod = Literal["week", "month", "year"]
+ReportPeriod = Literal["day", "week", "month", "year"]
 
 
 def report_period_dates(
@@ -16,7 +16,9 @@ def report_period_dates(
 ) -> tuple[datetime, datetime]:
     if selected_date > today:
         raise ValueError("기준일은 오늘 이후로 선택할 수 없습니다.")
-    if period == "week":
+    if period == "day":
+        start = end = selected_date
+    elif period == "week":
         start = selected_date - timedelta(days=selected_date.weekday())
         end = start + timedelta(days=6)
     elif period == "month":

@@ -98,7 +98,7 @@ Presentation dependency는 이미 조립된 유스케이스 또는 요청 단위
 
 ## 잡 실행과 SSE
 
-`TriggerReportUseCase`는 수동 보고서의 전체 주간·월간·연간 기간, 최근 저장본 재실행, 캐시 우회와 작업 제출을 담당합니다. HTTP 라우트는 요청·응답, 오류와 감사 로그를 처리합니다.
+`TriggerReportUseCase`는 수동 보고서의 일간 및 전체 주간·월간·연간 기간, 최근 저장본 재실행, 캐시 우회와 작업 제출을 담당합니다. HTTP 라우트는 요청·응답, 오류와 감사 로그를 처리합니다.
 
 `JobRunner.submit()`은 lock 안에서 실행권을 원자적으로 예약하고 중복 제출에는 `JobAlreadyRunningError`를 발생시킵니다. 예약 저장 도중 요청이 취소되어도 실행권을 해제합니다. FastAPI `BackgroundTasks`가 아니라 JobRunner가 생성한 `asyncio.Task`를 추적하고 종료 시 취소·회수합니다. 저장소 I/O와 보고서 생성은 lock 밖에서 실행됩니다.
 

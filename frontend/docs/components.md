@@ -30,7 +30,7 @@
 - 이슈 표는 `IssueModalShell`과 `IssueTableModal`을 재사용합니다.
 - `IssueTableModal`의 컬럼별 정렬은 데스크톱 헤더와 모바일 선택 UI에서 공유하며 전체 목록을 정렬한 뒤 페이지를 나눕니다. 외부에서 검색·페이지를 관리하는 `AnnualIssueDetailsModal`은 정렬 상태도 소유하여 전체 검색 결과에 적용합니다.
 - query key와 표시 상수는 `presentation/config`, formatter는 `presentation/utils`를 사용합니다.
-- 큰 파일 preview renderer는 lazy loading합니다. 보고서는 대시보드 상단의 `DashboardGenerateForm`에서 주간·월간·연간과 기준일을 선택해 생성합니다.
+- 큰 파일 preview renderer는 lazy loading합니다. 보고서는 대시보드 상단의 `DashboardGenerateForm`에서 일간·주간·월간·연간과 기준일을 선택해 생성합니다.
 
 ## 필터 전체 선택·해제
 

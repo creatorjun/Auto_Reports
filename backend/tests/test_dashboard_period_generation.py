@@ -32,6 +32,9 @@ from src.presentation.api.v1.trigger import router
 class ReportPeriodTest(unittest.TestCase):
     def test_calendar_boundaries_include_leap_day_and_cross_year_week(self) -> None:
         for period, selected, expected in (
+            ("day", date(2026, 10, 14), (date(2026, 10, 14), date(2026, 10, 14))),
+            ("day", date(2024, 2, 29), (date(2024, 2, 29), date(2024, 2, 29))),
+            ("day", date(2025, 12, 31), (date(2025, 12, 31), date(2025, 12, 31))),
             ("week", date(2026, 1, 1), (date(2025, 12, 29), date(2026, 1, 4))),
             ("week", date(2026, 7, 1), (date(2026, 6, 29), date(2026, 7, 5))),
             ("week", date(2026, 10, 5), (date(2026, 10, 5), date(2026, 10, 11))),
@@ -61,8 +64,9 @@ class ReportPeriodTest(unittest.TestCase):
         self.assertEqual(date(2026, 12, 31), end.date())
 
     def test_future_reference_date_is_rejected(self) -> None:
-        with self.assertRaisesRegex(ValueError, "오늘 이후"):
-            report_period_dates("week", date(2026, 10, 15), date(2026, 10, 14))
+        for period in ("day", "week", "month", "year"):
+            with self.subTest(period=period), self.assertRaisesRegex(ValueError, "오늘 이후"):
+                report_period_dates(period, date(2026, 10, 15), date(2026, 10, 14))
 
 
 class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
@@ -89,6 +93,7 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
     async def test_calendar_requests_pass_standard_scope_and_fresh_jira_queries(self) -> None:
         now = datetime(2026, 10, 13, 15, 15, tzinfo=timezone.utc).astimezone(KST)
         for period, expected in (
+            ("day", (date(2026, 10, 9), date(2026, 10, 9))),
             ("week", (date(2026, 10, 5), date(2026, 10, 11))),
             ("month", (date(2026, 10, 1), date(2026, 10, 31))),
             ("year", (date(2026, 1, 1), date(2026, 12, 31))),
@@ -110,7 +115,10 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
         for body in (
             {"period": "week"},
             {"date": "2026-10-14"},
-            {"period": "day", "date": "2026-10-14"},
+            {"period": "quarter", "date": "2026-10-14"},
+            {"period": "day", "date": "2026-02-30"},
+            {"period": "day", "date": "2026-10-15"},
+            {"period": "day"},
             {"period": "month", "date": "2026-02-30"},
             {"period": "year", "date": "2025-01-01", "start_date": "2025-01-01"},
             {"period": "year", "date": "2025-01-01", "end_date": "2025-12-31"},
@@ -133,6 +141,18 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
             force_standard=True,
         )
 
+    async def test_daily_selection_uses_current_kst_day_before_utc_midnight(self) -> None:
+        self.clock.return_value = datetime(2026, 10, 13, 15, 1, tzinfo=timezone.utc)
+        response = await self.client.post("/api/v1/trigger/", json={"period": "day", "date": "2026-10-14"})
+        self.assertEqual(202, response.status_code, response.text)
+        self.runner.submit.assert_awaited_once_with(
+            response.json()["job_id"],
+            datetime(2026, 10, 14, tzinfo=KST),
+            datetime(2026, 10, 14, 23, 59, 59, tzinfo=KST),
+            bypass_jira_cache=True,
+            force_standard=True,
+        )
+
     async def test_existing_annual_date_range_keeps_legacy_scope_selection(self) -> None:
         response = await self.client.post("/api/v1/trigger/", json={"start_date": "2025-01-01", "end_date": "2025-12-31"})
         self.assertEqual(202, response.status_code, response.text)
@@ -145,6 +165,7 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_rerun_latest_uses_saved_dates_and_standard_scope(self) -> None:
         for start, end in (
+            (date(2026, 10, 14), date(2026, 10, 14)),
             (date(2024, 1, 1), date(2024, 12, 31)),
             (date(2025, 12, 29), date(2026, 1, 1)),
             (date(2024, 2, 1), date(2024, 2, 29)),
@@ -165,7 +186,7 @@ class DashboardTriggerTest(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertEqual(start.isoformat(), self.audit.record.call_args.kwargs["start"])
                 self.assertEqual(end.isoformat(), self.audit.record.call_args.kwargs["end"])
-        self.assertEqual(4, self.reports.get_latest.await_count)
+        self.assertEqual(5, self.reports.get_latest.await_count)
         self.assertTrue(all(call.kwargs == {"bypass_cache": True} for call in self.reports.get_latest.await_args_list))
 
     async def test_rerun_latest_rejects_other_period_inputs(self) -> None:
@@ -223,9 +244,9 @@ class DashboardGenerationTest(unittest.IsolatedAsyncioTestCase):
         self.now = datetime(2026, 10, 14, 11, 53, tzinfo=KST)
 
     async def test_calendar_generations_keep_standard_widgets_and_actual_collection_time(self) -> None:
-        for period in ("week", "month", "year"):
+        for period in ("day", "week", "month", "year"):
             with self.subTest(period=period):
-                start, end = report_period_dates(period, date(2026, 1, 10), self.now.date())
+                start, end = report_period_dates(period, date(2026, 1, 1), self.now.date())
                 report = await self.use_case.execute(self.now, start, end, force_standard=True)
                 self.assertEqual(ReportScope.STANDARD, report.scope)
                 self.assertIsNone(report.report_year)

@@ -26,8 +26,8 @@ export default function DashboardGenerateForm({ report, loading = false }: { rep
       <div className="flex flex-wrap items-end gap-4">
         <fieldset disabled={generation.pending || loading} className="w-full min-w-0 sm:w-auto">
           <legend className="mb-2 text-control-label font-medium text-apple-mid">집계 단위</legend>
-          <div className="grid grid-cols-3 rounded-xl bg-apple-gray p-1" aria-label="집계 단위">
-            {(['week', 'month', 'year'] as const).map((value) => <button key={value} type="button" aria-pressed={selectedPeriod === value} onClick={() => setPeriod(value)} className={`rounded-lg px-5 py-2 text-control font-medium whitespace-nowrap transition-colors disabled:opacity-50 ${selectedPeriod === value ? 'bg-apple-surface text-brand-600 shadow-sm' : 'text-apple-mid hover:text-apple-dark'}`}>{REPORT_PERIOD_LABELS[value]}</button>)}
+          <div className="grid grid-cols-4 rounded-xl bg-apple-gray p-1" aria-label="집계 단위">
+            {(['day', 'week', 'month', 'year'] as const).map((value) => <button key={value} type="button" aria-pressed={selectedPeriod === value} onClick={() => setPeriod(value)} className={`min-w-0 rounded-lg px-2 py-2 text-control font-medium whitespace-nowrap transition-colors disabled:opacity-50 sm:px-5 ${selectedPeriod === value ? 'bg-apple-surface text-brand-600 shadow-sm' : 'text-apple-mid hover:text-apple-dark'}`}>{REPORT_PERIOD_LABELS[value]}</button>)}
           </div>
         </fieldset>
         <label className="flex w-full min-w-0 flex-col gap-2 text-control-label font-medium text-apple-mid sm:w-auto">기준 날짜

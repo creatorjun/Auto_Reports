@@ -198,6 +198,8 @@ function assertHiddenIssuesIncluded(data, expectedTypes, expectedIssueCount, exp
 }
 
 for (const { period, start, end, days, label } of [
+  { period: 'single day', start: '2026-10-27', end: '2026-10-27', days: 1, label: '일간' },
+  { period: 'single leap day', start: '2024-02-29', end: '2024-02-29', days: 1, label: '일간' },
   { period: '31-day October', start: '2026-10-01', end: '2026-10-31', days: 31, label: '10월' },
   { period: '30-day September', start: '2026-09-01', end: '2026-09-30', days: 30, label: '9월' },
   { period: 'leap-year February', start: '2028-02-01', end: '2028-02-29', days: 29, label: '2월' },
@@ -244,6 +246,8 @@ for (const { period, start, end, days, label } of [
 }
 
 for (const { period, start, end, before, after, scope } of [
+  { period: 'single day', start: '2026-10-27', end: '2026-10-27', before: '2026-10-26', after: '2026-10-28', scope: 'standard' },
+  { period: 'single leap day', start: '2024-02-29', end: '2024-02-29', before: '2024-02-28', after: '2024-03-01', scope: 'standard' },
   { period: 'cross-year week', start: '2026-12-28', end: '2027-01-03', before: '2026-12-27', after: '2027-01-04', scope: 'standard' },
   { period: 'leap-year month', start: '2028-02-01', end: '2028-02-29', before: '2028-01-31', after: '2028-03-01', scope: 'standard' },
   { period: 'annual report', start: '2026-01-01', end: '2026-12-31', before: '2025-12-31', after: '2027-01-01', scope: 'annual' },
