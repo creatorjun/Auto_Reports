@@ -15,6 +15,13 @@ from src.domain.entities.cve_inventory import CveFinding, CveInventoryPackage, C
 
 CVE_PATTERN = re.compile(r"CVE-\d{4}-\d{4,}", re.IGNORECASE)
 SEVERITY_ORDER = {"unknown": -1, "low": 0, "medium": 1, "high": 2, "critical": 3}
+SEMVER_NUMBER = r"(?:0|[1-9][0-9]*)"
+SEMVER_PRERELEASE = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+NPM_EXACT_VERSION = re.compile(
+    rf"{SEMVER_NUMBER}\.{SEMVER_NUMBER}\.{SEMVER_NUMBER}"
+    rf"(?:-{SEMVER_PRERELEASE}(?:\.{SEMVER_PRERELEASE})*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\Z"
+)
 
 
 def safe_reference(value: object) -> str | None:
@@ -260,6 +267,8 @@ class OsvInventorySource(CvePackageSourcePort):
         records = await self._query(package)
         findings = parse_osv_records(records, package)
         if not findings or not package.versions or package.version_confidence != "confirmed":
+            return findings
+        if (package.query_ecosystem or package.ecosystem) == "npm" and any(not NPM_EXACT_VERSION.fullmatch(version) for version in package.versions):
             return findings
         affected: dict[str, set[str]] = {}
         try:

@@ -69,6 +69,65 @@ class OsvInventorySourceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, len(requests))
         self.assertEqual("unknown", findings[0].inventory_impact)
 
+    async def test_confirmed_npm_revision_labels_and_ranges_remain_unknown_without_version_queries(self):
+        for version in ("r9", "r7", "NEXT", "2.0.4~2.0.5", "^1.0.0", "1.0", "01.0.0", "1.0.0-01", "deadbeef"):
+            with self.subTest(version=version):
+                requests = []
+
+                def handler(request):
+                    requests.append(json.loads(request.content))
+                    return httpx.Response(200, json={"vulns": [advisory()]})
+
+                confirmed = replace(package(), versions=(version,))
+                async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+                    findings = await OsvInventorySource(client).fetch(confirmed)
+                self.assertEqual("confirmed", confirmed.version_confidence)
+                self.assertEqual(1, len(requests))
+                self.assertNotIn("version", requests[0])
+                self.assertEqual("unknown", findings[0].inventory_impact)
+
+    async def test_exact_npm_semver_prerelease_and_build_versions_are_queried_unchanged(self):
+        for version in ("1.0.0", "1.2.3-rc.1", "1.2.3+build.001", "1.2.3-rc.1+build.001"):
+            with self.subTest(version=version):
+                requests = []
+
+                def handler(request):
+                    requests.append(json.loads(request.content))
+                    return httpx.Response(200, json={"vulns": [advisory()]})
+
+                async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+                    findings = await OsvInventorySource(client).fetch(replace(package(), versions=(version,)))
+                self.assertEqual(2, len(requests))
+                self.assertEqual(version, requests[1]["version"])
+                self.assertEqual("affected", findings[0].inventory_impact)
+
+    async def test_any_noncanonical_npm_version_keeps_aggregate_impact_unknown(self):
+        requests = []
+
+        def handler(request):
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, json={"vulns": [advisory()]})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            findings = await OsvInventorySource(client).fetch(replace(package(), versions=("1.0.0", "NEXT")))
+        self.assertEqual(1, len(requests))
+        self.assertEqual("unknown", findings[0].inventory_impact)
+
+    async def test_npm_guard_does_not_restrict_maven_release_labels(self):
+        requests = []
+        record = advisory()
+        record["affected"][0]["package"] = {"name": "example", "ecosystem": "Maven"}
+
+        def handler(request):
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, json={"vulns": [record]})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            findings = await OsvInventorySource(client).fetch(replace(package(), ecosystem="Maven", query_ecosystem="Maven", versions=("r9",)))
+        self.assertEqual(2, len(requests))
+        self.assertEqual("r9", requests[1]["version"])
+        self.assertEqual("affected", findings[0].inventory_impact)
+
     async def test_inventory_lookup_failure_preserves_package_cves_as_unknown(self):
         def handler(request):
             value = json.loads(request.content)
