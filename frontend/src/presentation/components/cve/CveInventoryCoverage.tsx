@@ -7,6 +7,23 @@ import { useCveInventoryPackages } from '@/presentation/hooks/useCveInventory'
 import { securityDateLabel } from '@/presentation/components/security/securityNewsFormatting'
 import { cveButtonClass, cveFieldClass, CvePagination } from './CveInventoryControls'
 
+const mappingReasonLabels: Record<string, string> = {
+  package_coordinate_or_cpe_mapping_required: '공식 패키지 식별 정보 확인 필요',
+  package_identity_mapping_required: '공식 패키지 식별 정보 확인 필요',
+  rpm_vendor_origin_and_evr_advisory_required: 'RPM 공급사와 수정 버전 확인 필요',
+  vendor_product_build_mapping_required: '공급사 제품·빌드 확인 필요',
+  bundled_notice_or_data_is_not_standalone_binary_evidence: '포함된 문서 외에 실제 패키지 확인 필요',
+  version_conflicting: '서로 다른 버전 정보 확인 필요',
+  version_inferred: '추정 버전 확인 필요',
+  version_needs_review: '버전 정보 확인 필요',
+  version_unknown: '버전 미확인',
+  same_product_exact_artifact_identity: '같은 제품의 패키지 정보를 연결했습니다.',
+}
+
+function mappingReasonText(reason: string | null): string {
+  return [...new Set((reason ?? '').split(',').map((value) => mappingReasonLabels[value.trim()] ?? '패키지 정보 확인 필요'))].join(' · ')
+}
+
 export default function CveInventoryCoverage({ data }: { data: CveInventorySnapshot }) {
   const [expanded, setExpanded] = useState(false)
   const [search, setSearch] = useState('')
@@ -36,7 +53,7 @@ export default function CveInventoryCoverage({ data }: { data: CveInventorySnaps
       {packages.isError ? <div role="alert" className="flex flex-wrap items-center justify-between gap-3 text-control text-amber-700"><span>패키지 수집 상태를 불러오지 못했습니다.</span><button type="button" className={cveButtonClass} onClick={() => void packages.refetch()} disabled={packages.isFetching}>다시 조회</button></div> : packages.isPending ? <p role="status" className="py-4 text-control text-apple-mid">패키지 수집 상태를 불러오는 중입니다.</p> : <>
         <p role="status" className="text-caption text-apple-mid">등록 패키지 {packages.data?.total.toLocaleString('ko-KR') ?? 0}개</p>
         <ul className="divide-y divide-apple-divider/60">{packages.data?.items.map((item) => <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
-          <div className="min-w-0 flex-1 basis-64"><p className="break-words text-control font-medium text-apple-dark">{item.name}<span className="ml-2 text-caption font-normal text-apple-mid">{item.ecosystem}</span></p><p className="mt-1 break-words text-caption text-apple-mid">{item.versions.join(' · ') || '기록 버전 없음'}</p>{(item.mapping_reason || item.error) && <p className="mt-2 break-words text-caption text-amber-700">{item.error || item.mapping_reason}</p>}</div>
+          <div className="min-w-0 flex-1 basis-64"><p className="break-words text-control font-medium text-apple-dark">{item.name}<span className="ml-2 text-caption font-normal text-apple-mid">{item.ecosystem}</span></p><p className="mt-1 break-words text-caption text-apple-mid">{item.versions.join(' · ') || '기록 버전 없음'}</p>{(item.mapping_reason || item.error) && <p className="mt-2 break-words text-caption text-amber-700">{item.error || mappingReasonText(item.mapping_reason)}</p>}</div>
           <div className="space-y-1 text-right"><span className={item.status === 'ok' ? 'badge-good' : item.status === 'error' || item.status === 'stale' ? 'badge-warning' : 'badge-neutral'}>{cveCollectionLabels[item.status]}</span><p className="text-caption text-apple-mid">{item.status === 'ok' || item.status === 'stale' ? `수집 CVE ${item.cve_count.toLocaleString('ko-KR')}개` : '조회 결과 미확정'}</p>{item.last_success_at && <p className="text-caption text-apple-light">{securityDateLabel(item.last_success_at, true)}</p>}</div>
         </li>)}</ul>
         {packages.data?.items.length === 0 && <p className="py-5 text-center text-control text-apple-mid">조건에 맞는 등록 패키지가 없습니다.</p>}
