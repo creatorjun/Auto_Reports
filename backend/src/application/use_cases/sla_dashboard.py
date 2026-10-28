@@ -69,6 +69,9 @@ class SlaDashboardUseCase:
             if not self._is_valid_key(key):
                 continue
             live = live_by_key.get(key)
+            status = (live.status if live else "") or detail.status
+            if "".join(status.split()) == "보류중":
+                continue
             result.append(
                 SlaDashboardIssue(
                     key=key,
@@ -76,7 +79,7 @@ class SlaDashboardUseCase:
                     summary=(live.summary if live else "") or detail.summary,
                     created=format_issue_timestamp(live.created if live else "") or detail.created,
                     updated=format_issue_timestamp(live.updated if live else ""),
-                    status=(live.status if live else "") or detail.status,
+                    status=status,
                 )
             )
         return sorted(

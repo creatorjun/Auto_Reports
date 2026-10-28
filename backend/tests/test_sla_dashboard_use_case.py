@@ -241,6 +241,57 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
             self.jira.issue_requests[0],
         )
 
+    async def test_excludes_live_on_hold_issues(self) -> None:
+        for status in ("보류 중", "보류중", " 보 류\u3000중\t"):
+            with self.subTest(status=status):
+                self.jira.issues = [JiraIssue(key="TACEA-4501", status=status)]
+
+                issues = await self.use_case.list_recent_issues()
+
+                self.assertEqual(["TACEA-4500"], [issue.key for issue in issues])
+
+    async def test_excludes_saved_on_hold_when_live_status_is_unavailable(self) -> None:
+        self.reports.report = latest_report(recent_detail("TACEA-4501", status="보류 중"))
+        for live_issues in ([], [JiraIssue(key="TACEA-4501", status="")]):
+            with self.subTest(live_issues=live_issues):
+                self.jira.issues = live_issues
+
+                self.assertEqual([], await self.use_case.list_recent_issues())
+
+        self.assertEqual("보류 중", self.reports.report.widgets[WidgetId.RECENT_ISSUES].data.issue_details[0].status)
+
+    async def test_includes_reopened_issue_using_live_status(self) -> None:
+        self.reports.report = latest_report(recent_detail("TACEA-4501", status="보류 중"))
+        self.jira.issues = [JiraIssue(key="TACEA-4501", status="구현 중")]
+
+        issues = await self.use_case.list_recent_issues()
+
+        self.assertEqual([("TACEA-4501", "구현 중")], [(issue.key, issue.status) for issue in issues])
+
+    async def test_keeps_other_waiting_statuses(self) -> None:
+        self.reports.report = latest_report(
+            recent_detail("TACEA-4501", status="결과 대기 중"),
+            recent_detail("TACEA-4500", status="자료 요청 중"),
+        )
+
+        issues = await self.use_case.list_recent_issues()
+
+        self.assertEqual(
+            [("TACEA-4500", "자료 요청 중"), ("TACEA-4501", "결과 대기 중")],
+            [(issue.key, issue.status) for issue in issues],
+        )
+
+    async def test_hidden_on_hold_issue_remains_accessible_for_report_details(self) -> None:
+        self.reports.report = latest_report(recent_detail("TACEA-4501", status="보류 중"))
+
+        self.assertEqual([], await self.use_case.list_recent_issues())
+        description = await self.use_case.get_issue_description("TACEA-4501")
+        comments = await self.use_case.list_recent_comments("TACEA-4501")
+
+        self.assertEqual("본문", description.body)
+        self.assertEqual((), comments.comments)
+        self.assertEqual([("TACEA-4501", 6, 0)], self.jira.comment_requests)
+
     async def test_returns_five_newest_comments_and_flattens_adf(self) -> None:
         self.jira.comments = [
             {
