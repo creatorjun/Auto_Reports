@@ -58,6 +58,15 @@ class CveInventoryUseCase:
         if self._closed:
             raise RuntimeError("CVE inventory service is closed")
 
+    @staticmethod
+    def _carry_package_state(state: CvePackageSnapshot) -> CvePackageSnapshot:
+        return replace(
+            state,
+            findings=tuple(replace(finding, inventory_impact="unknown", affected_inventory_versions=()) for finding in state.findings),
+            status="stale" if state.last_success_at is not None else "pending",
+            error=None,
+        )
+
     async def _load_inventory(self) -> bool:
         try:
             inventory = await self._loader.load()
@@ -70,7 +79,11 @@ class CveInventoryUseCase:
         self._inventory = inventory
         if changed:
             self._states = {
-                package.id: CvePackageSnapshot(package.id, status="pending" if package.mapping_status == "ready" else "unmapped")
+                package.id: (
+                    self._carry_package_state(self._states[package.id])
+                    if package.mapping_status == "ready" and package.id in self._states
+                    else CvePackageSnapshot(package.id, status="pending" if package.mapping_status == "ready" else "unmapped")
+                )
                 for package in inventory.packages
             }
             self._last_attempt = None
@@ -89,15 +102,17 @@ class CveInventoryUseCase:
             if loaded and self._store is not None:
                 try:
                     saved = await self._store.load()
-                    if saved is not None and saved.dataset_id == self._inventory.dataset_id:
+                    if saved is not None:
+                        same_dataset = saved.dataset_id == self._inventory.dataset_id
                         for state in saved.packages:
                             if state.package_id in self._states and self._states[state.package_id].status != "unmapped":
-                                self._states[state.package_id] = state
-                        self._last_attempt = datetime.fromisoformat(saved.last_attempt_at) if saved.last_attempt_at else None
-                        if self._last_attempt is not None and self._last_attempt.tzinfo is None:
-                            raise ValueError("Snapshot timestamp needs timezone")
-                        self._refreshed_at = saved.refreshed_at
-                        self._initialized = saved.initialized
+                                self._states[state.package_id] = state if same_dataset else self._carry_package_state(state)
+                        if same_dataset:
+                            self._last_attempt = datetime.fromisoformat(saved.last_attempt_at) if saved.last_attempt_at else None
+                            if self._last_attempt is not None and self._last_attempt.tzinfo is None:
+                                raise ValueError("Snapshot timestamp needs timezone")
+                            self._refreshed_at = saved.refreshed_at
+                            self._initialized = saved.initialized
                 except Exception as error:
                     logger.warning("CVE inventory snapshot restore failed: %s", type(error).__name__)
                     self._error = "저장된 CVE 결과를 복원하지 못했습니다. 새로 수집해 주세요."

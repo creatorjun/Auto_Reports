@@ -141,6 +141,81 @@ class CveInventoryUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(0, result["total"])
         self.assertEqual(2, result["coverage"]["ok"])
 
+    async def test_inventory_change_preserves_history_and_prior_facts_but_invalidates_version_impact(self):
+        self.source.fetch.side_effect = lambda package: (CveFinding(
+            "CVE-2020-12345", "Recorded CVE", severity="high", inventory_impact="affected",
+            affected_inventory_versions=("1.0.0",),
+        ),)
+        await self.refresh()
+        original = (await self.service.get_snapshot())["items"][0]
+        self.now += timedelta(minutes=5)
+        added = CveInventoryPackage("four", "newly-mapped", "npm", ("4.0.0",))
+        self.loader.load.return_value = replace(
+            self.loader.load.return_value, dataset_id="dataset-two", packages=(*self.packages, added),
+        )
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def fetch(package):
+            entered.set()
+            await release.wait()
+            return (CveFinding("CVE-2020-12345", "Recorded CVE", severity="high"),)
+
+        self.source.fetch.side_effect = fetch
+        self.source.begin_refresh.return_value = None
+        await self.service.get_snapshot(refresh=True)
+        await entered.wait()
+        try:
+            pending = await self.service.get_snapshot()
+            self.assertEqual(2, pending["coverage"]["stale"])
+            self.assertEqual(1, pending["coverage"]["pending"])
+            self.assertEqual(1, pending["coverage"]["unmapped"])
+            self.assertEqual(2, pending["total"])
+            self.assertTrue(all(row["inventory_impact"] == "unknown" and not row["affected_inventory_versions"] for row in pending["items"]))
+            self.assertTrue(all(row["known_exploited"] for row in pending["items"]))
+        finally:
+            release.set()
+            await self.service._task
+        result = await self.service.get_snapshot()
+        preserved = next(row for row in result["items"] if row["package_id"] == original["package_id"])
+        self.assertEqual(original["first_seen_at"], preserved["first_seen_at"])
+        self.assertTrue(preserved["known_exploited"])
+        self.assertEqual(self.now.isoformat(), next(row for row in result["items"] if row["package_id"] == "four")["first_seen_at"])
+
+    async def test_restart_reconciles_old_dataset_snapshot_without_losing_first_seen_or_stale_facts(self):
+        await self.refresh()
+        original = (await self.service.get_snapshot())["items"][0]
+        self.now += timedelta(minutes=5)
+        added = CveInventoryPackage("four", "newly-mapped", "npm", ("4.0.0",))
+        self.loader.load.return_value = replace(
+            self.loader.load.return_value, dataset_id="dataset-two", packages=(*self.packages, added),
+        )
+        restored = CveInventoryUseCase(self.loader, self.source, self.store, clock=lambda: self.now)
+        try:
+            cached = await restored.get_snapshot()
+            self.assertEqual("dataset-two", cached["inventory"]["dataset_id"])
+            self.assertEqual(2, cached["coverage"]["stale"])
+            self.assertEqual(1, cached["coverage"]["pending"])
+            self.assertEqual(0, cached["retry_after_seconds"])
+            self.assertFalse(cached["initialized"])
+            self.assertTrue(all(row["inventory_impact"] == "unknown" for row in cached["items"]))
+            self.source.fetch.side_effect = RuntimeError("temporary provider failure")
+            self.source.begin_refresh.return_value = None
+            await restored.start_if_needed()
+            await restored._task
+            result = await restored.get_snapshot()
+            preserved = next(row for row in result["items"] if row["package_id"] == original["package_id"])
+            self.assertEqual(original["first_seen_at"], preserved["first_seen_at"])
+            self.assertTrue(preserved["known_exploited"])
+            self.assertEqual(2, result["coverage"]["stale"])
+            self.assertEqual(1, result["coverage"]["error"])
+            saved = await self.store.load()
+            self.assertEqual("dataset-two", saved.dataset_id)
+            history = dict(next(state for state in saved.packages if state.package_id == original["package_id"]).first_seen)
+            self.assertEqual(original["first_seen_at"], history[original["cve_id"]])
+        finally:
+            await restored.aclose()
+
     async def test_package_coverage_filters_keep_unmapped_visible(self):
         await self.refresh()
         result = await self.service.get_packages(status="unmapped")
