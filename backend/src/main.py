@@ -45,6 +45,7 @@ def create_app(settings: Settings) -> FastAPI:
                 await container.auth.clear_jira_grants()
                 await container.issue_management.initialize()
                 await container.security_news.initialize()
+                await container.cve_inventory.initialize()
                 audit = AuditLogger(settings.audit_log_dir)
                 stack.callback(audit.close)
                 job_repository = SqlJobRepository(database.session_factory)
@@ -70,6 +71,7 @@ def create_app(settings: Settings) -> FastAPI:
                     get_report_chart_issues=container.get_report_chart_issues,
                     issue_management=container.issue_management,
                     security_news=container.security_news,
+                    cve_inventory=container.cve_inventory,
                     audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir), SqlAuditLogUserProfiles(database)),
                     notify_sla_digest=container.notify_sla_digest,
                     sla_status=container.sla_status,
@@ -81,6 +83,7 @@ def create_app(settings: Settings) -> FastAPI:
                     generate=job_runner.run_scheduled_job,
                     refresh_redeployments=container.refresh_redeployment_report,
                     refresh_security_news=container.security_news.refresh_scheduled,
+                    refresh_cve_inventory=container.cve_inventory.refresh_scheduled,
                     report_personal_data=container.personal_data.run_reporting,
                     notify_sla_digest=(
                         container.send_sla_digest if container.sla_digest_enabled else None
@@ -98,6 +101,7 @@ def create_app(settings: Settings) -> FastAPI:
                 )
                 scheduler.start()
                 stack.callback(scheduler.shutdown, wait=False)
+                await container.cve_inventory.start_if_needed()
                 sla_digest_job = scheduler.get_job("sla_digest_daily")
                 if sla_digest_job is not None:
                     logger.info("SLA 일일 메일 다음 실행: %s", sla_digest_job.next_run_time.isoformat())

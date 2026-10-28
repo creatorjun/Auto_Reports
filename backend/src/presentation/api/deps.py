@@ -20,6 +20,7 @@ from src.application.use_cases.sla_violation_report import SlaViolationReportUse
 from src.application.use_cases.redeployment_report import RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.security_news import SecurityNewsUseCase
+from src.application.use_cases.cve_inventory import CveInventoryUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.application.use_cases.audit_logs import AuditLogsUseCase
 from src.application.use_cases.notify_sla_digest import NotifySlaDigestUseCase
@@ -46,6 +47,7 @@ class ApiServices:
     get_redeployment: Callable[[], AsyncContextManager[RedeploymentReportUseCase]] | None = None
     notify_sla_digest: NotifySlaDigestUseCase | None = None
     security_news: SecurityNewsUseCase | None = None
+    cve_inventory: CveInventoryUseCase | None = None
     sla_status: SlaStatusUseCase | None = None
     jira_notifications: JiraNotificationsUseCase | None = None
     trigger_report: TriggerReportUseCase | None = None

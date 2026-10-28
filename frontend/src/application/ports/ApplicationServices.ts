@@ -2,6 +2,7 @@
 import type { AuthProviders, JiraLoginStartResponse, JiraPrivacyStatus, LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
 import type { AuditLogPage, AuditLogQuery } from '@/domain/AuditLog'
 import type { AppConfig } from '@/domain/Config'
+import type { CveInventoryPackagePage, CveInventoryPackageRequest, CveInventoryRequest, CveInventorySnapshot } from '@/domain/CveInventory'
 import type { IssueManagementSnapshot } from '@/domain/IssueManagement'
 import type { DashboardPdfDocument } from '@/domain/DashboardExport'
 import type { JobStatus, TriggerAccepted, TriggerParams } from '@/domain/Job'
@@ -204,6 +205,13 @@ export interface ApplicationServices {
   redeployments: RedeploymentGateway
   issueManagement: IssueContentGateway & { getIssues: () => Promise<IssueManagementSnapshot> }
   securityNews: SecurityNewsGateway
+  cveInventory: CveInventoryGateway
+}
+
+export interface CveInventoryGateway {
+  getSnapshot: (request: CveInventoryRequest, signal?: CancellationSignal) => Promise<CveInventorySnapshot>
+  refresh: () => Promise<CveInventorySnapshot>
+  getPackages: (request: CveInventoryPackageRequest, signal?: CancellationSignal) => Promise<CveInventoryPackagePage>
 }
 
 export interface SecurityNewsGateway {

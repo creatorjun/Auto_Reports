@@ -20,7 +20,7 @@ export function securityNewsTimestamp(item: SecurityNewsItem): number | null {
   return null
 }
 
-function matchesSecurityNewsFilters(item: SecurityNewsItem, filters: SecurityNewsFilters, now: number): boolean {
+function matchesSecurityNewsFilters(item: SecurityNewsItem, filters: SecurityNewsFilters, now: number, timestamp = securityNewsTimestamp(item)): boolean {
   if (filters.kind === 'updates') {
     if (item.kind !== 'advisory' && item.kind !== 'news') return false
   } else if (filters.kind !== 'all' && item.kind !== filters.kind) return false
@@ -30,7 +30,6 @@ function matchesSecurityNewsFilters(item: SecurityNewsItem, filters: SecurityNew
   } else if (filters.severity !== 'all' && item.severity !== filters.severity) return false
   if (filters.exploitedOnly && !item.known_exploited) return false
   const threshold = filters.days === 'all' ? null : now - filters.days * 86400000
-  const timestamp = securityNewsTimestamp(item)
   return threshold === null || (timestamp !== null && timestamp >= threshold)
 }
 
@@ -38,30 +37,31 @@ function securityNewsSearchText(item: SecurityNewsItem, metadata: (string | null
   return normalizeSearchText([item.title, item.summary, item.original_description, item.title_ko, item.summary_ko, item.vendor, item.product, ...item.cve_ids, ...metadata].filter(Boolean).join(' '))
 }
 
-function compareSecurityNews(left: SecurityNewsItem, right: SecurityNewsItem, sort: SecurityNewsFilters['sort']): number {
+function compareSecurityNews(left: SecurityNewsItem, right: SecurityNewsItem, sort: SecurityNewsFilters['sort'], leftTimestamp?: number | null, rightTimestamp?: number | null): number {
   if (sort === 'severity') {
     const difference = severityOrder[right.severity] - severityOrder[left.severity]
     if (difference) return difference
     const scoreDifference = (right.cvss_score ?? -1) - (left.cvss_score ?? -1)
     if (scoreDifference) return scoreDifference
   }
-  const difference = (securityNewsTimestamp(right) ?? 0) - (securityNewsTimestamp(left) ?? 0)
+  const difference = ((rightTimestamp === undefined ? securityNewsTimestamp(right) : rightTimestamp) ?? 0) - ((leftTimestamp === undefined ? securityNewsTimestamp(left) : leftTimestamp) ?? 0)
   return difference || left.id.localeCompare(right.id)
 }
 
 export function filterSecurityNews(items: readonly SecurityNewsItem[], filters: SecurityNewsFilters, now: number): SecurityNewsItem[] {
   const terms = normalizeSearchText(filters.search).split(/\s+/).filter(Boolean)
-  const result: SecurityNewsItem[] = []
+  const result: { item: SecurityNewsItem; timestamp: number | null }[] = []
   for (const item of items) {
-    if (!matchesSecurityNewsFilters(item, filters, now)) continue
+    const timestamp = securityNewsTimestamp(item)
+    if (!matchesSecurityNewsFilters(item, filters, now, timestamp)) continue
     if (terms.length) {
       const versions = (item.remediations ?? []).flatMap((entry) => [entry.vendor, entry.product, entry.affected_versions, entry.fixed_version])
       const searchable = securityNewsSearchText(item, versions)
       if (!terms.every((term) => searchable.includes(term))) continue
     }
-    result.push(item)
+    result.push({ item, timestamp })
   }
-  return result.sort((left, right) => compareSecurityNews(left, right, filters.sort))
+  return result.sort((left, right) => compareSecurityNews(left.item, right.item, filters.sort, left.timestamp, right.timestamp)).map(({ item }) => item)
 }
 
 export function isUnknownCveProduct(product: string | null | undefined): boolean {

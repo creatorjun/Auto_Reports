@@ -17,7 +17,7 @@
     "test:partner": "node --test tests/partnerOrganizations.test.mjs",
     "test:issues": "node --test tests/issueManagement.test.mjs",
     "test:audit": "node --test tests/auditLogs.test.mjs",
-    "test:security-news": "node --test tests/securityNews.test.mjs tests/cveResponseRows.test.mjs",
+    "test:security-news": "node --test tests/securityNews.test.mjs tests/cveResponseRows.test.mjs tests/cveInventory.test.mjs",
     "test:sla-violations": "node --test tests/slaViolations.test.mjs",
     "test:report-generation": "node --test tests/reportGeneration.test.mjs tests/reportJobLifecycle.test.mjs tests/reportMutationSession.test.mjs"
   },

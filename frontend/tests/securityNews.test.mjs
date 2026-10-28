@@ -57,9 +57,9 @@ function query(overrides = {}) {
 }
 function renderPage(t, state, pageName = 'SecurityNewsPage') {
   const instance = sourceLoader({ 'presentation/hooks/useSecurityNews': { useSecurityNews: () => state }, 'application/errors/RequestError': { RequestError } })
-  const Page = instance(`presentation/pages/${pageName}`).default
+  const Page = instance(pageName === 'CveBulletin' ? 'presentation/components/security/SecurityBulletinPage' : `presentation/pages/${pageName}`).default
   let view
-  act(() => { view = TestRenderer.create(React.createElement(Page)) })
+  act(() => { view = TestRenderer.create(React.createElement(Page, pageName === 'CveBulletin' ? { section: 'cve' } : {})) })
   t.after(() => act(() => view.unmount()))
   return view
 }
@@ -558,7 +558,7 @@ test('desktop and mobile expose accessible security news and route stays under p
   assert.match(fs.readFileSync(path.join(sourceRoot, 'main.tsx'), 'utf8'), /securityNews: securityNewsApi/)
 })
 
-test('CVE page includes NVD and CISA KEV with version pairs and excludes news translations', (t) => {
+test('Legacy CVE bulletin includes NVD and CISA KEV with version pairs and excludes news translations', (t) => {
   const rows = [
     item({ id: 'nvd', summary: 'Long original vulnerability description', title_ko: '기존 번역 제목', summary_ko: '기존 번역 설명', remediations: [{ vendor: 'Example', product: 'Library', affected_versions: '1.0 이상, 1.4 미만', fixed_version: '1.4', reference_url: 'https://example.com/fix' }] }),
     item({ id: 'kev', source_id: 'cisa-kev', known_exploited: true, product: 'Gateway', cve_ids: ['CVE-2026-23456'], remediations: [] }),
@@ -566,7 +566,7 @@ test('CVE page includes NVD and CISA KEV with version pairs and excludes news tr
     item({ id: 'news', kind: 'news', title: '보안 뉴스 제목', source_id: 'google' }),
   ]
   const sources = [source, { ...source, id: 'cisa-kev', name: 'CISA KEV' }, { ...source, id: 'kisa', name: 'KISA', kind: 'advisory' }]
-  const view = renderPage(t, query({ data: snapshot({ items: rows, sources, translation: translation({ translating: true, pending_count: 10 }) }) }), 'CveResponsePage')
+  const view = renderPage(t, query({ data: snapshot({ items: rows, sources, translation: translation({ translating: true, pending_count: 10 }) }) }), 'CveBulletin')
   assert.equal(view.root.findByType('h1').children.join(''), 'CVE 취약점 대응')
   assert.equal(cveTableRows(view).length, 2)
   assert.equal(summaryButtons(view).length, 3)
@@ -584,9 +584,9 @@ test('CVE page includes NVD and CISA KEV with version pairs and excludes news tr
   assert.doesNotMatch(plainText(view), /Gateway/)
 })
 
-test('CVE pagination and filters never pull ordinary news into the response list', (t) => {
+test('Legacy CVE bulletin pagination and filters never pull ordinary news into the response list', (t) => {
   const rows = Array.from({ length: 23 }, (_, index) => item({ id: `cve-${index.toString().padStart(2, '0')}`, cve_ids: [`CVE-2026-${10000 + index}`], known_exploited: index % 2 === 0 }))
-  const view = renderPage(t, query({ data: snapshot({ items: [...rows, item({ id: 'news', kind: 'news' })] }) }), 'CveResponsePage')
+  const view = renderPage(t, query({ data: snapshot({ items: [...rows, item({ id: 'news', kind: 'news' })] }) }), 'CveBulletin')
   assert.equal(cveTableRows(view).length, 20)
   act(() => view.root.findByProps({ 'aria-label': '다음 페이지' }).props.onClick())
   assert.equal(cveTableRows(view).length, 3)
@@ -662,9 +662,9 @@ test('CVE range fixes without a valid branch never claim all higher versions are
 })
 
 
-test('CVE table searches full original description without displaying the prose', (t) => {
+test('Legacy CVE bulletin searches full original description without displaying the prose', (t) => {
   const fullText = 'Details '.repeat(250) + 'EncryptInterceptor bypass marker'
-  const view = renderPage(t, query({ data: snapshot({ items: [item({ id: 'target', original_description: fullText }), item({ id: 'other', cve_ids: ['CVE-2026-55555'] })] }) }), 'CveResponsePage')
+  const view = renderPage(t, query({ data: snapshot({ items: [item({ id: 'target', original_description: fullText }), item({ id: 'other', cve_ids: ['CVE-2026-55555'] })] }) }), 'CveBulletin')
   assert.equal(view.root.findAllByType('article').length, 0)
   assert.equal(view.root.findByType('thead').findAllByType('th').length, 10)
   assert.doesNotMatch(plainText(view), /EncryptInterceptor bypass marker/)
@@ -673,9 +673,9 @@ test('CVE table searches full original description without displaying the prose'
   assert.equal(cveTableRows(view)[0].findByProps({ scope: 'row' }).findByType('a').children.join(''), 'CVE-2026-12345')
 })
 
-test('CVE table paginates version rows and hides only unknown product rows', (t) => {
+test('Legacy CVE bulletin paginates version rows and hides only unknown product rows', (t) => {
   const remediations = Array.from({ length: 23 }, (_, index) => ({ vendor: null, product: index < 3 ? '제품 확인 필요' : 'Tomcat', affected_versions: `9.0.${index}`, fixed_version: '9.0.117', reference_url: null }))
-  const view = renderPage(t, query({ data: snapshot({ items: [item({ remediations })] }) }), 'CveResponsePage')
+  const view = renderPage(t, query({ data: snapshot({ items: [item({ remediations })] }) }), 'CveBulletin')
   assert.equal(cveTableRows(view).length, 20)
   act(() => view.root.findByProps({ 'aria-label': '다음 페이지' }).props.onClick())
   assert.equal(cveTableRows(view).length, 3)
@@ -689,9 +689,9 @@ test('CVE table paginates version rows and hides only unknown product rows', (t)
   assert.equal(view.root.findAllByProps({ 'aria-label': '다음 페이지' }).length, 1)
 })
 
-test('CVE column sorting synchronizes with sort control and uses numeric versions', (t) => {
+test('Legacy CVE bulletin column sorting synchronizes with sort control and uses numeric versions', (t) => {
   const remediations = ['9.0.10', '9.0.9', '9.0.117'].map((version) => ({ vendor: 'Apache', product: 'Tomcat', affected_versions: version, fixed_version: null, reference_url: null }))
-  const view = renderPage(t, query({ data: snapshot({ items: [item({ remediations })] }) }), 'CveResponsePage')
+  const view = renderPage(t, query({ data: snapshot({ items: [item({ remediations })] }) }), 'CveBulletin')
   const versions = () => cveTableRows(view).map((row) => row.findAllByType('td')[2].findByType('span').children.join(''))
   act(() => view.root.findByProps({ 'aria-label': '영향 버전 오름차순 정렬' }).props.onClick())
   assert.deepEqual(versions(), ['9.0.9', '9.0.10', '9.0.117'])

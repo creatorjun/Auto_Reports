@@ -73,6 +73,8 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 | `GEMINI_API_KEY` | 빈 값 | Gemini API key |
 | `AI_ENABLED` | `true` | false면 보고서 AI 분석 생략. 보안 뉴스 번역은 별도 설정 |
 | `SECURITY_NEWS_SNAPSHOT_PATH` | `reports/security-news-snapshot.sqlite3` | 수집 결과·출처 상태·시도 시각·일일 실행 기록. Compose에서는 `/app/reports` 볼륨 |
+| `CVE_INVENTORY_PATH` | `reports/cve-inventory.json` | 등록 패키지 원본 JSON. Git에 포함하지 않고 backend 영구 볼륨에 배치 |
+| `CVE_INVENTORY_SNAPSHOT_PATH` | `reports/cve-inventory.sqlite3` | 패키지별 CVE·조회 상태·최초 확인 이력·갱신 제한 영구 저장소 |
 | `SECURITY_NEWS_TRANSLATION_ENABLED` | `true` | Gemini key가 있을 때 공개 제목·설명을 한국어 한 줄로 요약 |
 | `SECURITY_NEWS_TRANSLATION_MODEL` | `gemini-3.5-flash-lite` | 무료 티어 지원 `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`만 허용. 저장된 한 줄 요약은 재사용 |
 | `SECURITY_NEWS_TRANSLATION_CACHE_PATH` | `reports/security-news-translations.sqlite3` | 영구 번역·호출 제한 저장소. Compose에서는 `/app/reports` 볼륨 |

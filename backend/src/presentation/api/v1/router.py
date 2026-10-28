@@ -7,6 +7,7 @@ from src.presentation.api.v1 import (
     jira_notifications,
     notifications,
     config,
+    cve_inventory,
     partners,
     reports,
     redeployments,
@@ -37,6 +38,7 @@ _protected.include_router(trigger.router)
 _protected.include_router(config.router)
 _protected.include_router(search.router)
 _protected.include_router(security_news.router)
+_protected.include_router(cve_inventory.router)
 _protected.include_router(sites.router)
 _protected.include_router(sla_dashboard.router)
 _protected.include_router(sla_status.router)

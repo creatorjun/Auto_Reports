@@ -17,6 +17,7 @@ import { jiraNotificationApi } from '@/infrastructure/api/jiraNotificationApi'
 import { redeploymentApi } from '@/infrastructure/api/redeploymentApi'
 import { issueManagementApi } from '@/infrastructure/api/issueManagementApi'
 import { securityNewsApi } from '@/infrastructure/api/securityNewsApi'
+import { cveInventoryApi } from '@/infrastructure/api/cveInventoryApi'
 import { dashboardPdfExporter } from '@/infrastructure/export/dashboardPdfExporter'
 import { dashboardExcelExporter } from '@/infrastructure/export/dashboardExcelExporter'
 import { storageApi } from '@/infrastructure/api/storageApi'
@@ -40,6 +41,8 @@ configureHttpClient({
     queryClient.removeQueries({ queryKey: ['audit-logs'] })
     queryClient.removeQueries({ queryKey: ['sla-status'] })
     queryClient.removeQueries({ queryKey: ['jira-notifications'] })
+    queryClient.removeQueries({ queryKey: ['cve-inventory'] })
+    queryClient.removeQueries({ queryKey: ['cve-inventory-packages'] })
   },
   redirectToLogin: () => {
     window.location.href = '/login'
@@ -63,6 +66,7 @@ const services = {
   redeployments: redeploymentApi,
   issueManagement: issueManagementApi,
   securityNews: securityNewsApi,
+  cveInventory: cveInventoryApi,
 }
 
 applyTheme(useThemeStore.getState().theme)

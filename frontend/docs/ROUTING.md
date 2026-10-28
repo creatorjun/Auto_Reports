@@ -36,7 +36,7 @@
 | `/sites/:id/edit` | SiteCreatePage | ProtectedRoute | 사이트 편집 |
 | `/sla-dashboard` | SlaDashboardPage | ProtectedRoute | 장기 이슈·댓글 |
 | `/storage` | StoragePage | ProtectedRoute | 파일 보관함 |
-| `/cve-response` | CveResponsePage | ProtectedRoute | NVD·CISA KEV 취약 버전 → 해결 버전과 출처별 수집 상태 |
+| `/cve-response` | CveResponsePage | ProtectedRoute | 인벤토리 패키지의 모든 버전 CVE, 위험도·파일 버전 영향 필터, 영향·해결 범위와 수집 현황 |
 | `/security-news` | SecurityNewsPage | ProtectedRoute | 보안 권고·뉴스, 한국어 번역과 출처별 수집 상태 |
 | `/audit-logs` | AuditLogPage | ProtectedRoute + SuperadminRoute | 관리자 감사로그 |
 | `*` | Navigate | — | `/login`으로 이동 |

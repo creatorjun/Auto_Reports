@@ -32,11 +32,16 @@ from src.application.use_cases.sla_violation_report import SlaViolationReportUse
 from src.application.use_cases.redeployment_report import RedeploymentGenerationInProgress, RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.security_news import SecurityNewsUseCase
+from src.application.use_cases.cve_inventory import CveInventoryUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.smtp_email_client import SmtpEmailClient
 from src.infrastructure.external.security_news_source import PublicSecurityNewsSource
+from src.infrastructure.external.osv_inventory_source import InventoryCveSources, OsvInventorySource
+from src.infrastructure.external.oracle_cve_source import OracleCveSource
+from src.infrastructure.persistence.cve_inventory_loader import JsonCveInventoryLoader
+from src.infrastructure.persistence.cve_inventory_snapshot_store import SqliteCveInventorySnapshotStore
 from src.infrastructure.external.gemini_news_translator import GeminiNewsTranslator
 from src.infrastructure.external.jira_oauth_client import JiraOAuthClient
 from src.infrastructure.external.jira_notification_client import JiraNotificationClient
@@ -214,6 +219,11 @@ class Container:
         self.security_news = SecurityNewsUseCase(
             self._security_news_source, translation=self._news_translation, store=self._security_news_store,
         )
+        self._cve_inventory_sources = InventoryCveSources({"osv": OsvInventorySource(), "oracle": OracleCveSource()})
+        self._cve_inventory_store = SqliteCveInventorySnapshotStore(settings.cve_inventory_snapshot_path)
+        self.cve_inventory = CveInventoryUseCase(
+            JsonCveInventoryLoader(settings.cve_inventory_path), self._cve_inventory_sources, self._cve_inventory_store,
+        )
         self._credential_encryptor = (
             CredentialEncryptor(settings.credential_encryption_key)
             if settings.credential_encryption_key
@@ -389,6 +399,7 @@ class Container:
                 "_sla_status_source", "sla_status", "_redeployment_source", "_ai", "_cache",
                 "issue_management", "_security_news_source", "_security_news_store",
                 "_news_translator", "_news_translation_cache", "_news_translation", "security_news",
+                "_cve_inventory_sources", "_cve_inventory_store", "cve_inventory",
             ):
                 resource = getattr(self, name, None)
                 if resource is not None:

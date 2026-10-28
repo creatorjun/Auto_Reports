@@ -82,22 +82,35 @@ class SecurityNewsPerformanceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({"ok"}, {source.status for source in first.sources})
 
     async def test_translation_completion_and_replacement_are_visible_without_source_refresh(self):
+        advisory = replace(self.item, id="advisory", source_id="cisco", kind="advisory")
+        self.source.sources += (SecurityNewsSource("cisco", "Cisco", "https://example.com/", "advisory"),)
+        self.results["cisco"] = SecurityNewsSourceResult((advisory,))
+        await self.service.aclose()
+        self.service = SecurityNewsUseCase(self.source, clock=lambda: self.now)
         first = await self.refresh()
         self.service._translation = self.translation
         pending = await self.service.get_snapshot()
         self.assertEqual(1, pending.translation.pending_count)
-        key = translation_key(self.item.title, self.item.summary)
-        self.translation._translations[key] = NewsTranslation(key, "번역 제목", "번역 내용")
+        key = translation_key(advisory.title, advisory.summary)
+        self.translation._translations[key] = NewsTranslation(key, "", "번역 내용")
         self.translation._message = "현재 번역 상태"
         translated = await self.service.get_snapshot()
-        self.assertEqual("번역 제목", translated.items[0].title_ko)
+        items = {item.id: item for item in translated.items}
+        self.assertEqual("번역 내용", items["advisory"].summary_ko)
+        self.assertIsNone(items["advisory"].title_ko)
+        self.assertIsNone(items["first"].title_ko)
+        self.assertIsNone(items["first"].summary_ko)
         self.assertEqual(1, translated.translation.translated_count)
         self.assertEqual(0, translated.translation.pending_count)
         self.assertEqual("현재 번역 상태", translated.translation.message)
-        self.assertIsNone(first.items[0].title_ko)
-        self.assertEqual(self.item.title, translated.items[0].title)
-        self.translation._translations[key] = NewsTranslation(key, "수정된 번역", "수정된 내용")
-        self.assertEqual("수정된 번역", (await self.service.get_snapshot()).items[0].title_ko)
+        self.assertTrue(all(item.title_ko is None and item.summary_ko is None for item in first.items))
+        self.assertEqual(advisory.title, items["advisory"].title)
+        self.translation._translations[key] = NewsTranslation(key, "", "수정된 내용")
+        updated = {item.id: item for item in (await self.service.get_snapshot()).items}
+        self.assertEqual("수정된 내용", updated["advisory"].summary_ko)
+        self.assertIsNone(updated["advisory"].title_ko)
+        self.assertIsNone(updated["first"].summary_ko)
+        self.assertEqual(3, self.source.fetch.await_count)
         self.assertIsNone(self.translation._task)
 
     async def test_translation_preparation_is_reused_only_for_unchanged_active_content(self):
@@ -116,11 +129,13 @@ class SecurityNewsPerformanceTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(3, hashing.call_count)
 
     async def test_translation_preparation_preserves_source_language_rules(self):
-        self.assertEqual(1, self.translation.snapshot((self.item,), start=False)[1].pending_count)
-        korean_source = replace(self.item, source_id="kisa")
+        advisory = replace(self.item, source_id="cisco", kind="advisory")
+        self.assertEqual(1, self.translation.snapshot((advisory,), start=False)[1].pending_count)
+        korean_source = replace(advisory, source_id="kisa")
         self.assertEqual(0, self.translation.snapshot((korean_source,), start=False)[1].pending_count)
-        self.assertEqual(2, self.translation.snapshot((korean_source, self.item), start=False)[1].pending_count)
-        korean = replace(self.item, title="보안 취약점 정보를 안내합니다", summary="취약점의 상세한 내용과 대응 방안을 확인하세요")
+        self.assertEqual(1, self.translation.snapshot((korean_source, advisory, self.item), start=False)[1].pending_count)
+        self.assertEqual(0, self.translation.snapshot((self.item,), start=False)[1].pending_count)
+        korean = replace(advisory, title="보안 취약점 정보를 안내합니다", summary="취약점의 상세한 내용과 대응 방안을 확인하세요")
         self.assertEqual(0, self.translation.snapshot((korean,), start=False)[1].pending_count)
 
 
