@@ -6,7 +6,7 @@ from typing import AsyncContextManager
 from uuid import uuid4
 
 from src.application.ports.job_runner_port import JobRunnerPort
-from src.application.services.report_period import ReportPeriod, report_period_dates
+from src.application.services.report_period import ReportPeriod, custom_report_dates, report_period_dates
 from src.application.use_cases.get_report import GetReportUseCase
 from src.domain.constants import KST
 
@@ -44,10 +44,14 @@ class TriggerReportUseCase:
     ) -> TriggerReportResult:
         if rerun_latest and any(value is not None for value in (period, selected_date, start_date, end_date)):
             raise ValueError("최근 보고서 갱신과 기간 선택을 함께 입력할 수 없습니다.")
-        if (period is None) != (selected_date is None):
-            raise ValueError("period와 date를 함께 입력해야 합니다.")
-        if period is not None and (start_date is not None or end_date is not None):
-            raise ValueError("기간 선택과 시작일/종료일을 함께 입력할 수 없습니다.")
+        if period == "custom":
+            if selected_date is not None or start_date is None or end_date is None:
+                raise ValueError("사용자 지정 기간은 시작일과 종료일만 함께 입력해야 합니다.")
+        else:
+            if (period is None) != (selected_date is None):
+                raise ValueError("period와 date를 함께 입력해야 합니다.")
+            if period is not None and (start_date is not None or end_date is not None):
+                raise ValueError("기간 선택과 시작일/종료일을 함께 입력할 수 없습니다.")
 
         start: datetime | None = None
         end: datetime | None = None
@@ -58,6 +62,8 @@ class TriggerReportUseCase:
                 raise LatestReportUnavailableError("갱신할 최근 보고서가 없습니다.")
             start = datetime.combine(latest.week_start, time.min, tzinfo=KST)
             end = datetime.combine(latest.week_end, time(23, 59, 59), tzinfo=KST)
+        elif period == "custom":
+            start, end = custom_report_dates(start_date, end_date, self._clock().astimezone(KST).date())
         elif period is not None and selected_date is not None:
             start, end = report_period_dates(period, selected_date, self._clock().astimezone(KST).date())
         else:

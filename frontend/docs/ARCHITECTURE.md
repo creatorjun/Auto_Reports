@@ -86,7 +86,7 @@ pnpm build
 
 SLA 현황은 `domain/SLAStatus.ts`의 현재 스냅샷을 사용합니다. `application/services/slaStatus.ts`가 위젯·검색·상태·SLA 단계 필터와 정렬을 계산하고 `SlaStatusGateway`가 조회 계약을 정의합니다. `infrastructure/api/slaStatusApi.ts`를 `main.tsx`에서 주입하며 `useSlaStatus`가 60초 query 캐시, 수동 강제 새로고침, 요청 취소와 마지막 성공 데이터를 관리합니다. `SlaStatusPage`와 `components/sla-status`는 표시만 담당하며 기간별 저장 보고서를 만들지 않습니다.
 
-일·주·월·연 날짜 계산은 `domain/ReportPeriod.ts`와 `application/services/reportPeriod.ts`를 공유합니다. 연간 전용 화면의 과거 연도 전체·현재 연도 오늘까지 집계 정책도 같은 Application service에 두며 컴포넌트는 반환된 생성 요청을 전달합니다. 일반 보고서 생성은 layout 소유 SSE 구독, SLA 위반·재배포 생성은 각 query mutation의 HTTP 응답으로 완료합니다. SLA 현황은 기간 생성 흐름에 참여하지 않습니다.
+일·주·월·연 날짜 계산은 `domain/ReportPeriod.ts`와 `application/services/reportPeriod.ts`를 공유합니다. 대시보드의 `기간 지정`은 별도 `DashboardReportRequest` union에 포함하며 `{ period: 'custom', start_date, end_date }`로 전달합니다. 기존 `ReportPeriod`와 SLA 기간은 확장하지 않습니다. 연간 전용 화면의 과거 연도 전체·현재 연도 오늘까지 집계 정책도 같은 Application service에 두며 컴포넌트는 반환된 생성 요청을 전달합니다. 일반 보고서 생성은 layout 소유 SSE 구독, SLA 위반·재배포 생성은 각 query mutation의 HTTP 응답으로 완료합니다. SLA 현황은 기간 생성 흐름에 참여하지 않습니다.
 
 테마와 3단계 글자 크기·굵기는 단일 디자인 토큰에서 정의하고, 배지 색상은 의미별 mapping으로 참조합니다. 표의 너비·정렬 영속화는 Presentation의 `useTablePreferences`가 담당하며 Domain 계산이나 API payload에 넣지 않습니다.
 

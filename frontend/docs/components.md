@@ -30,7 +30,7 @@
 - 이슈 표는 `IssueModalShell`과 `IssueTableModal`을 재사용합니다.
 - `IssueTableModal`의 컬럼별 정렬은 데스크톱 헤더와 모바일 선택 UI에서 공유하며 전체 목록을 정렬한 뒤 페이지를 나눕니다. 외부에서 검색·페이지를 관리하는 `AnnualIssueDetailsModal`은 정렬 상태도 소유하여 전체 검색 결과에 적용합니다.
 - query key와 표시 상수는 `presentation/config`, formatter는 `presentation/utils`를 사용합니다.
-- 큰 파일 preview renderer는 lazy loading합니다. 보고서는 대시보드 상단의 `DashboardGenerateForm`에서 일간·주간·월간·연간과 기준일을 선택해 생성합니다.
+- 큰 파일 preview renderer는 lazy loading합니다. 보고서는 대시보드 상단의 `DashboardGenerateForm`에서 일간·주간·월간·연간과 기준일을 선택하거나 `기간 지정`에서 시작·종료 날짜를 선택해 생성합니다. 지정 기간은 한국 시간 기준으로 두 날짜를 모두 포함하며 같은 날도 허용합니다. 빈 날짜·존재하지 않는 날짜·역전된 기간·미래 종료일은 제출할 수 없습니다. 생성 중에는 기존 보고서를 유지하고 두 날짜 입력을 잠급니다. 새로고침은 편집 중인 날짜와 관계없이 마지막 저장 보고서의 기간을 다시 집계합니다.
 
 ## 필터 전체 선택·해제
 

@@ -1,5 +1,5 @@
 // frontend/src/domain/Job.ts
-import type { PeriodReportRequest } from '@/domain/ReportPeriod'
+import type { DashboardReportRequest } from '@/domain/ReportPeriod'
 
 export interface TriggerAccepted {
   job_id: string
@@ -13,7 +13,7 @@ export interface JobStatus {
   error: string | null
 }
 
-export type TriggerParams = PeriodReportRequest | { rerun_latest: true } | {
+export type TriggerParams = DashboardReportRequest | { rerun_latest: true } | {
   start_date?: string
   end_date?: string
 }

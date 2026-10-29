@@ -63,10 +63,14 @@ class TriggerRequest(BaseModel):
             for value in (self.period, self.date, self.start_date, self.end_date)
         ):
             raise ValueError("최근 보고서 갱신과 기간 선택을 함께 입력할 수 없습니다.")
-        if (self.period is None) != (self.date is None):
-            raise ValueError("period와 date를 함께 입력해야 합니다.")
-        if self.period is not None and (self.start_date is not None or self.end_date is not None):
-            raise ValueError("기간 선택과 시작일/종료일을 함께 입력할 수 없습니다.")
+        if self.period == "custom":
+            if self.date is not None or self.start_date is None or self.end_date is None:
+                raise ValueError("사용자 지정 기간은 시작일과 종료일만 함께 입력해야 합니다.")
+        else:
+            if (self.period is None) != (self.date is None):
+                raise ValueError("period와 date를 함께 입력해야 합니다.")
+            if self.period is not None and (self.start_date is not None or self.end_date is not None):
+                raise ValueError("기간 선택과 시작일/종료일을 함께 입력할 수 없습니다.")
         return self
 
 

@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import type { PeriodReportRequest } from '@/domain/ReportPeriod'
+import type { DashboardReportRequest } from '@/domain/ReportPeriod'
 import type { TriggerParams } from '@/domain/Job'
 import { QUERY_KEYS } from '@/presentation/config/queryKeys'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
@@ -14,7 +14,7 @@ interface ReportGenerationValue {
   generate: (request: TriggerParams) => void
   pending: boolean
   error: string | null
-  lastRequest: PeriodReportRequest | null
+  lastRequest: DashboardReportRequest | null
 }
 
 const ReportGenerationContext = createContext<ReportGenerationValue | null>(null)
@@ -30,7 +30,7 @@ export function ReportGenerationProvider({ children }: { children: ReactNode }) 
   const mountedRef = useRef(true)
   const { isTriggerLoading, setTriggerLoading, setTriggerMessage } = useUiStore()
   const [error, setError] = useState<string | null>(null)
-  const [lastRequest, setLastRequest] = useState<PeriodReportRequest | null>(null)
+  const [lastRequest, setLastRequest] = useState<DashboardReportRequest | null>(null)
 
   useEffect(() => {
     mountedRef.current = true

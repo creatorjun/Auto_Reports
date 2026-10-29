@@ -1,9 +1,12 @@
 # backend/tests/test_report_period_end.py
 import datetime
+import dataclasses
 import pathlib
 import re
 import sys
 import unittest
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -11,9 +14,15 @@ from src.application.ports.jira_port import JiraIssue, JiraIssueField
 from src.application.services.query_builder import WidgetQueryBuilder
 from src.application.services.query_config import QueryConfig
 from src.application.services.report_period import report_period_dates
+from src.application.services.report_assembler import ReportAssembler
+from src.application.use_cases.generate_report import GenerateReportUseCase
+from src.application.use_cases.trigger_report import TriggerReportUseCase
+from src.application.widgets.collector_factory import CollectorEntry
 from src.application.widgets.count_collector import TypeCountCollector
 from src.application.widgets.created_vs_resolved_collector import CreatedVsResolvedCollector
 from src.application.widgets.resolution_collector import ResolutionCollector
+from src.domain.entities.report import Report, ReportScope
+from src.domain.value_objects.widget_id import WidgetId
 
 
 KST = datetime.timezone(datetime.timedelta(hours=9))
@@ -144,6 +153,75 @@ class ReportPeriodEndQueryTest(unittest.TestCase):
 
 
 class ReportPeriodEndCollectorTest(unittest.IsolatedAsyncioTestCase):
+    async def test_custom_generation_and_saved_rerun_keep_exact_inclusive_dates_and_exclusive_query_bounds(self) -> None:
+        for start_text, end_text in (
+            ("2026-10-28", "2026-10-28"),
+            ("2026-09-28", "2026-10-02"),
+            ("2024-02-28", "2024-03-01"),
+            ("2025-12-30", "2026-01-02"),
+            ("2025-01-01", "2025-12-31"),
+        ):
+            with self.subTest(start=start_text, end=end_text):
+                first = datetime.datetime.fromisoformat(start_text).replace(tzinfo=KST)
+                exclusive = datetime.datetime.fromisoformat(end_text).replace(tzinfo=KST) + datetime.timedelta(days=1)
+                instants = {
+                    "BEFORE": first - datetime.timedelta(microseconds=1),
+                    "START": first,
+                    "LAST-MICROSECOND": exclusive - datetime.timedelta(microseconds=1),
+                    "NEXT-MIDNIGHT": exclusive,
+                }
+                jira = DateRangeJira([JiraIssue(
+                    key=key, summary=key, issue_type="인시던트", status="Closed",
+                    created=instant.isoformat(), resolved=instant.isoformat(),
+                ) for key, instant in instants.items()])
+                assembler = ReportAssembler(
+                    query_builder(),
+                    lambda queries, now: [CollectorEntry(
+                        WidgetId.CREATED_VS_RESOLVED, CreatedVsResolvedCollector(jira, queries),
+                    )],
+                    lambda queries, now: [],
+                )
+                saved = []
+
+                async def save(report):
+                    result = Report(**{field.name: getattr(report, field.name) for field in dataclasses.fields(report)}, id=len(saved) + 1)
+                    saved.append(result)
+                    return result
+
+                repository = AsyncMock()
+                repository.save.side_effect = save
+                generator = GenerateReportUseCase(
+                    assembler, AsyncMock(analyze=AsyncMock(return_value=None)), repository,
+                    AsyncMock(), retention_weeks=0,
+                )
+                runner = AsyncMock()
+
+                async def submit(job_id, start, end, **options):
+                    self.assertTrue(options["bypass_jira_cache"])
+                    self.assertTrue(options["force_standard"])
+                    await generator.execute(start_date=start, end_date=end, force_standard=options["force_standard"])
+
+                runner.submit.side_effect = submit
+
+                @asynccontextmanager
+                async def get_report():
+                    yield AsyncMock(get_latest=AsyncMock(return_value=saved[-1]))
+
+                trigger = TriggerReportUseCase(runner, get_report, lambda: datetime.datetime(2026, 10, 29, tzinfo=KST))
+                await trigger.execute(period="custom", start_date=start_text, end_date=end_text)
+                await trigger.execute(rerun_latest=True)
+                self.assertEqual(2, len(saved))
+                for report in saved:
+                    self.assertEqual(ReportScope.STANDARD, report.scope)
+                    self.assertIsNone(report.report_year)
+                    self.assertEqual(start_text, report.week_start.isoformat())
+                    self.assertEqual(end_text, report.week_end.isoformat())
+                    widget = report.widgets[WidgetId.CREATED_VS_RESOLVED]
+                    self.assertIn(f'created >= "{start_text}"', widget.jql)
+                    self.assertIn(f'created < "{exclusive.date()}"', widget.jql)
+                    self.assertEqual(["START", "LAST-MICROSECOND"], [row.key for row in widget.data.created_details])
+                    self.assertEqual(["START", "LAST-MICROSECOND"], [row.key for row in widget.data.resolved_details])
+
     async def test_daily_selection_includes_only_the_selected_day_for_created_and_resolved(self) -> None:
         for selected in (datetime.date(2026, 10, 14), datetime.date(2024, 2, 29), datetime.date(2025, 12, 31)):
             with self.subTest(selected=selected):

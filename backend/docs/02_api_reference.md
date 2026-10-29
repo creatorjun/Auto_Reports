@@ -50,7 +50,7 @@ Markdown·텍스트·CSV 등 원본 미리보기도 파일 조회 실패 시 로
 | GET | `/reports/{report_id}/chart-issues` | chart 및 선택·필터 조건 | 현재 Jira 상세와 저장본 비교 메타데이터 |
 | GET | `/reports/{report_id}` | path id | `ReportDetail`, 없으면 404 |
 | DELETE | `/reports/{report_id}` | path id | 204, 없으면 404 |
-| POST | `/trigger/` | period와 date 또는 기존 start_date, end_date | 202와 job_id, 중복 실행이면 409 |
+| POST | `/trigger/` | period와 date, custom 기간의 start_date/end_date 또는 기존 날짜 요청 | 202와 job_id, 중복 실행이면 409 |
 | GET | `/trigger/{job_id}/status` | path id | pending/running/done/error 상태 |
 | GET | `/trigger/{job_id}/stream?_t=...` | path id와 token | SSE status/done/error/timeout |
 | GET | `/sla-dashboard/issues` | 없음 | 최신 보고서의 최근 이슈 티켓별 생성·최종 업데이트·상태 |
@@ -59,6 +59,8 @@ Markdown·텍스트·CSV 등 원본 미리보기도 파일 조회 실패 시 로
 | GET | `/sla-dashboard/issues/{issue_key}/comments?offset=0&limit=5` | 최근 이슈 key, 0 이상의 offset(기본값 0), 1 이상의 limit(기본값 5), 선택 report_id(1 이상) | 최신순 댓글 최대 limit개의 `comments`와 `next_offset` |
 
 대시보드 생성은 `{"period":"week","date":"2026-10-14"}` 형식으로 요청합니다. `period`는 `day`, `week`, `month`, `year`이며 `date`와 함께 전달해야 합니다. 일간 요청은 `{"period":"day","date":"2026-10-14"}`이며 KST 기준 2026-10-14 00:00 이상, 2026-10-15 00:00 미만을 조회합니다. KST 기준 주간은 해당 주 월요일~일요일 전체, 월간은 해당 달 전체, 연간은 해당 연도 전체로 기간을 계산합니다. 예시 기준일이면 각각 2026-10-12~2026-10-18, 2026-10-01~2026-10-31, 2026-01-01~2026-12-31이며 종료일 전체를 포함하도록 Jira 쿼리는 다음 날 00:00 미만을 사용합니다. 주간은 일요일 전체를 포함하고 다음 월요일인 2026-10-19 00:00은 제외합니다. 미래 기준일, 잘못된 기간, 두 필드 중 하나만 전달하거나 기존 `start_date`/`end_date`와 혼용하면 422입니다. 현재 주·월·연의 종료일은 미래일 수 있지만 실제 생성 시점에 조회 가능한 Jira 데이터만 집계합니다. SLA 위반도 같은 주·월·연간 기간 정책을 사용합니다.
+
+직접 기간 선택은 `{"period":"custom","start_date":"2026-10-01","end_date":"2026-10-14"}`로 요청하며 `date`는 전달하지 않습니다. 두 날짜는 실제 달력에 존재하는 `YYYY-MM-DD` 형식이어야 하고, 시작일은 종료일 이전 또는 같은 날, 종료일은 KST 기준 오늘 이전 또는 같은 날이어야 합니다. 같은 날짜를 양쪽에 선택하면 해당 하루 전체를 조회합니다. 시작일 00:00 이상부터 종료일 다음 날 00:00 미만까지 집계하며, 입력 누락·형식 오류·역전된 기간·미래 종료일·다른 기간 방식과 혼용한 요청은 작업을 시작하지 않고 422를 반환합니다. 직접 선택이 1월 1일~12월 31일이어도 일반 대시보드 보고서로 생성하고 최신 Jira 데이터를 조회합니다. `period` 없이 전달하는 기존 `start_date`/`end_date` 요청의 연간 보고서 분류는 유지합니다. 최신 보고서 재실행은 직접 선택 보고서에도 저장된 시작일과 종료일을 그대로 사용합니다.
 
 이 요청은 연간 선택도 `scope=standard`로 저장하므로 기존 대시보드 지표와 위젯 구성을 유지합니다. 기존 `start_date`/`end_date` API는 1월 1일 시작·같은 연도이며 연말 종료 또는 현재 연도 범위이면 annual로 판정합니다. 날짜 없는 정기 생성은 standard입니다. 날짜를 생략하면 유스케이스가 기본 보고 범위를 계산합니다. SSE는 300초 timeout과 15초 keepalive를 사용하며 프런트엔드는 상태 조회로 이어서 생성 완료를 추적합니다.
 

@@ -135,6 +135,12 @@ test('daily report refresh delegates saved dates to the latest-report selector',
   assert.deepEqual(state.requests, [{ rerun_latest: true }])
 })
 
+test('custom range refresh uses the saved report selector without submitting the current draft dates', (t) => {
+  const state = setup(t, { lastRequest: { period: 'custom', start_date: '2026-09-28', end_date: '2026-10-03' } })
+  assert.equal(state.key({ ctrlKey: true }).defaultPrevented, true)
+  assert.deepEqual(state.requests, [{ rerun_latest: true }])
+})
+
 test('native reload variants and unrelated keys retain their default behavior', (t) => {
   const state = setup(t)
   for (const shortcut of [

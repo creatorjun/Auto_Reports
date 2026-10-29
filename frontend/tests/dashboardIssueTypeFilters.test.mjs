@@ -211,6 +211,8 @@ for (const { period, start, end, days, label } of [
   { period: 'cross-year week', start: '2026-12-28', end: '2027-01-03', days: 7, label: '주간' },
   { period: 'legacy week ending on Wednesday', start: '2026-10-12', end: '2026-10-14', days: 3, label: '3일' },
   { period: 'seven days starting on Wednesday', start: '2026-10-14', end: '2026-10-20', days: 7, label: '7일' },
+  { period: 'custom range crossing months', start: '2026-09-28', end: '2026-10-03', days: 6, label: '6일' },
+  { period: 'custom range crossing years', start: '2025-12-28', end: '2026-01-04', days: 8, label: '8일' },
   { period: 'annual range', start: '2026-01-01', end: '2026-12-31', days: 365, label: '연간' },
   { period: 'leap-year annual range', start: '2028-01-01', end: '2028-12-31', days: 366, label: '연간' },
   { period: 'year missing the final day', start: '2026-01-01', end: '2026-12-30', days: 364, label: '364일' },

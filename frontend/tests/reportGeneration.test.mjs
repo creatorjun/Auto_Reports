@@ -134,6 +134,22 @@ test('daily report periods keep the selected day at month year and leap-day boun
   }
 })
 
+test('custom dashboard ranges preserve inclusive calendar dates and reject incomplete invalid reversed or future ranges', () => {
+  const { dashboardReportDateRange, DASHBOARD_REPORT_PERIOD_LABELS, REPORT_PERIOD_LABELS } = sourceLoader()('application/services/reportPeriod')
+  assert.equal(DASHBOARD_REPORT_PERIOD_LABELS.custom, '기간 지정')
+  assert.equal(Object.hasOwn(REPORT_PERIOD_LABELS, 'custom'), false)
+  for (const [start_date, end_date] of [
+    ['2026-09-28', '2026-10-03'], ['2025-12-28', '2026-01-04'], ['2024-02-29', '2024-02-29'],
+  ]) assert.deepEqual(dashboardReportDateRange({ period: 'custom', start_date, end_date }, '2026-10-29'), { start: start_date, end: end_date })
+  for (const [start_date, end_date] of [
+    ['', '2026-10-29'], ['2026-10-01', ''], ['2026-02-29', '2026-03-01'],
+    ['2026-01-01', '2026-02-29'], ['2026-10-29', '2026-10-28'], ['2026-10-29', '2026-10-30'],
+    ['2026-1-01', '2026-01-02'], ['0000-01-01', '2026-01-01'],
+  ]) assert.equal(dashboardReportDateRange({ period: 'custom', start_date, end_date }, '2026-10-29'), null)
+  assert.deepEqual(dashboardReportDateRange({ period: 'month', date: '2026-10-29' }, '2026-10-29'), { start: '2026-10-01', end: '2026-10-31' })
+  assert.equal(dashboardReportDateRange({ period: 'day', date: '2026-10-30' }, '2026-10-29'), null)
+})
+
 test('dashboard form compares a saved partial week against the full week without changing the saved report', (t) => {
   const generation = { generate() {}, pending: false, error: null, lastRequest: { period: 'week', date: '2026-10-09' } }
   const Form = sourceLoader({ 'presentation/context/ReportGenerationContext': { useReportGeneration: () => generation } })('presentation/components/common/DashboardGenerateForm').default
@@ -160,11 +176,20 @@ test('API forwards explicit period and selected date without legacy date range i
   assert.deepEqual(calls, ['day', 'year'].map((period) => ['/trigger/', { period, date: '2026-05-06' }]))
 })
 
+test('API forwards custom dates with an explicit custom period and no reference date', async () => {
+  const calls = []
+  const client = { post: async (...args) => { calls.push(args); return { data: { job_id: 'job-custom' } } } }
+  const api = sourceLoader({ 'infrastructure/api/client': { default: client } })('infrastructure/api/reportApi').reportApi
+  const request = { period: 'custom', start_date: '2025-12-28', end_date: '2026-01-04' }
+  await api.trigger(request)
+  assert.deepEqual(calls, [['/trigger/', request]])
+})
+
 test('daily selection submits its date and shows the saved one-day report only after completion', async (t) => {
   const daily = { ...created, week_start: '2024-02-29', week_end: '2024-02-29' }
   const state = setup(t, { getById: async () => daily })
   const options = () => state.view.root.findAllByType('button').filter((node) => node.props['aria-pressed'] !== undefined)
-  assert.deepEqual(options().map(textOf), ['일간', '주간', '월간', '연간'])
+  assert.deepEqual(options().map(textOf), ['일간', '주간', '월간', '연간', '기간 지정'])
   assert.equal(options().find((node) => textOf(node) === '주간').props['aria-pressed'], true)
   act(() => options().find((node) => textOf(node) === '일간').props.onClick())
   act(() => state.view.root.findByType('input').props.onChange({ target: { value: '2024-02-29' } }))
@@ -186,6 +211,66 @@ test('daily selection submits its date and shows the saved one-day report only a
   state.move('/', true)
   assert.equal(options().find((node) => textOf(node) === '일간').props['aria-pressed'], true)
   assert.equal(state.view.root.findByType('input').props.value, '2024-02-29')
+})
+
+test('custom selection saves an explicit range, locks both dates while pending and restores it on return', async (t) => {
+  const custom = { ...created, week_start: '2025-12-28', week_end: '2026-01-04' }
+  const state = setup(t, { getById: async () => custom })
+  const option = (label) => state.view.root.findAllByType('button').find(node => textOf(node).trim() === label)
+  const input = (label) => state.view.root.findByProps({ 'aria-label': label })
+  act(() => option('기간 지정').props.onClick())
+  assert.equal(state.view.root.findAllByType('input').length, 2)
+  act(() => input('시작 날짜').props.onChange({ target: { value: '2025-12-28' } }))
+  act(() => input('종료 날짜').props.onChange({ target: { value: '2026-01-04' } }))
+  assert.equal(option('보고서 생성').props.disabled, false)
+  assert.equal(state.requests.length, 0)
+  assert.equal(state.client.getQueryData(['reports', 'latest']), previous)
+  assert.match(textOf(state.view.toJSON()), /한국 시간 기준으로 시작 날짜부터 종료 날짜까지 포함/)
+  act(() => state.view.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  await until(() => state.stream)
+  const request = { period: 'custom', start_date: '2025-12-28', end_date: '2026-01-04' }
+  assert.deepEqual(state.requests, [request])
+  assert.deepEqual(state.context.lastRequest, request)
+  assert.equal(input('시작 날짜').props.disabled, true)
+  assert.equal(input('종료 날짜').props.disabled, true)
+  act(() => state.stream.callbacks.onComplete(custom.id))
+  await until(() => !state.context.pending)
+  assert.deepEqual(state.client.getQueryData(['reports', 'latest']), custom)
+  assert.deepEqual(state.navigation, ['/reports/2'])
+  state.move('/issues', false)
+  state.move('/', true)
+  assert.equal(option('기간 지정').props['aria-pressed'], true)
+  assert.equal(input('시작 날짜').props.value, request.start_date)
+  assert.equal(input('종료 날짜').props.value, request.end_date)
+})
+
+test('custom form validates both dates and compares its draft range without changing the saved report', (t) => {
+  const requests = []
+  const generation = { generate: request => requests.push(request), pending: false, error: null, lastRequest: { period: 'custom', start_date: '2024-02-29', end_date: '2024-03-02' } }
+  const Form = sourceLoader({ 'presentation/context/ReportGenerationContext': { useReportGeneration: () => generation } })('presentation/components/common/DashboardGenerateForm').default
+  const report = { ...previous, week_start: '2024-02-29', week_end: '2024-03-02' }
+  const original = structuredClone(report)
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(Form, { report })) })
+  t.after(() => act(() => view.unmount()))
+  const input = label => view.root.findByProps({ 'aria-label': label })
+  const setDates = (start, end) => act(() => {
+    input('시작 날짜').props.onChange({ target: { value: start } })
+    input('종료 날짜').props.onChange({ target: { value: end } })
+  })
+  const submit = () => act(() => view.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  assert.doesNotMatch(textOf(view.toJSON()), /선택한 기간과 현재 보고서의 기간이 다릅니다/)
+  for (const [start, end] of [['', '2024-03-02'], ['2024-02-29', ''], ['2026-02-29', '2026-03-02'], ['2024-03-03', '2024-03-02'], ['2024-02-29', '9999-12-31']]) {
+    setDates(start, end)
+    assert.equal(view.root.findAllByType('button').find(node => node.props.type === 'submit').props.disabled, true)
+    submit()
+  }
+  assert.deepEqual(requests, [])
+  setDates('2024-02-29', '2024-02-29')
+  assert.match(textOf(view.toJSON()), /선택한 기간과 현재 보고서의 기간이 다릅니다/)
+  submit()
+  assert.deepEqual(requests, [{ period: 'custom', start_date: '2024-02-29', end_date: '2024-02-29' }])
+  assert.deepEqual(report, original)
 })
 
 test('daily form compares saved dates and rejects invalid or future days without submitting', (t) => {
