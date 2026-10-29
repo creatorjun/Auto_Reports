@@ -13,6 +13,7 @@ from src.application.ports.jira_port import JiraIssue, JiraIssueField, JiraPort
 from src.application.ports.issue_management_snapshot_port import IssueManagementSnapshot, IssueManagementSnapshotPort
 from src.application.services.issue_age import issue_created_display, issue_elapsed_days
 from src.application.services.issue_details import IssueDetailsService
+from src.application.services.issue_status_transitions import latest_status_transitions, status_transition_days
 from src.domain.constants import KST, STAGE_MAP
 from src.domain.entities.sla_dashboard import SlaDashboardCommentPage, SlaDashboardDescription
 from src.domain.entities.widget_data import RecentIssueDetail
@@ -32,6 +33,9 @@ class IssueManagementUseCase:
         self._snapshot_loaded = snapshots is None
         self._restore_lock = asyncio.Lock()
         self._issues: dict[str, RecentIssueDetail] = {}
+        self._status_transitions: dict[str, dict[str, str]] = {}
+        self._issue_updated_at: dict[str, str] = {}
+        self._transition_history_ready = False
         self._details: tuple[RecentIssueDetail, ...] = ()
         self._details_date: date | None = None
         self._initialized = False
@@ -59,6 +63,15 @@ class IssueManagementUseCase:
         now = datetime.now(KST)
         tick = monotonic()
         self._issues = {issue.key: replace(issue) for issue in snapshot.issues}
+        self._status_transitions = {
+            key: dict(statuses) for key, statuses in snapshot.status_transitions.items() if key in self._issues
+        }
+        self._issue_updated_at = {key: updated for key, updated in snapshot.issue_updated_at.items() if key in self._issues}
+        self._transition_history_ready = (
+            snapshot.transition_history_ready
+            and self._status_transitions.keys() == self._issues.keys()
+            and self._issue_updated_at.keys() == self._issues.keys()
+        )
         self._details_date = None
         self._initialized = True
         self._last_sync = tick - max(0, (now - snapshot.synced_at).total_seconds())
@@ -104,12 +117,15 @@ class IssueManagementUseCase:
             "refreshing": self._task is not None and not self._task.done(),
             "synced_at": self._synced_at,
             "error": self._error,
+            "status_transitions": {key: dict(statuses) for key, statuses in self._status_transitions.items()},
+            "status_transition_days": status_transition_days(self._status_transitions, now),
+            "transition_history_ready": self._transition_history_ready,
         }
 
     async def _refresh(self) -> None:
         started = monotonic()
         started_at = datetime.now(KST)
-        full = not self._initialized or started - self._last_full_sync >= 3600
+        full = not self._initialized or not self._transition_history_ready or started - self._last_full_sync >= 3600
         jql = f'project = "{self._project_key}"'
         if not full:
             minutes = math.ceil((started - self._last_sync) / 60) + 2
@@ -121,11 +137,35 @@ class IssueManagementUseCase:
             )
             if page.has_more or any(not issue.key for issue in page.issues):
                 raise RuntimeError("Incomplete Jira snapshot")
-            incoming = {issue.key: self._issue_detail(issue) for issue in page.issues}
+            incoming_issues = {issue.key: issue for issue in page.issues}
+            incoming = {key: self._issue_detail(issue) for key, issue in incoming_issues.items()}
+            transitions = {} if full else {key: dict(statuses) for key, statuses in self._status_transitions.items()}
+            updated_at = {} if full else dict(self._issue_updated_at)
+            changed = [issue for issue in incoming_issues.values() if (
+                not self._transition_history_ready or issue.key not in self._status_transitions
+                or not issue.updated or self._issue_updated_at.get(issue.key) != issue.updated
+            )]
+            if changed:
+                names = await self._jira.get_project_status_names(self._project_key)
+                names = {**names, **{issue.status_id: issue.status for issue in incoming_issues.values() if issue.status_id and issue.status}}
+                histories = await self._jira.get_issue_status_changes_batch(changed)
+                if not isinstance(histories, dict) or histories.keys() != {issue.key for issue in changed}:
+                    raise RuntimeError("Incomplete Jira status histories")
+                for issue in changed:
+                    if not isinstance(histories[issue.key], list):
+                        raise RuntimeError("Invalid Jira status history")
+                    transitions[issue.key] = latest_status_transitions(histories[issue.key], names)
+            for key, issue in incoming_issues.items():
+                if key not in transitions:
+                    transitions[key] = dict(self._status_transitions[key])
+                updated_at[key] = issue.updated
             snapshot = IssueManagementSnapshot(
                 issues=tuple((incoming if full else {**self._issues, **incoming}).values()),
                 synced_at=started_at,
                 full_synced_at=started_at if full else self._full_synced_at or started_at,
+                status_transitions=transitions,
+                issue_updated_at=updated_at,
+                transition_history_ready=True,
             )
             if self._snapshots is not None:
                 snapshot = await self._snapshots.save(self._project_key, snapshot)
@@ -133,7 +173,7 @@ class IssueManagementUseCase:
             self._snapshot_loaded = True
         except Exception as error:
             logger.warning("Issue synchronization failed (%s)", type(error).__name__)
-            self._error = "Jira 동기화에 실패했습니다. 기존 캐시를 유지하며 자동 재시도합니다."
+            self._error = "Jira 이슈·상태 전이 이력 동기화에 실패했습니다. 기존 목록을 유지하며 자동 재시도합니다."
 
     async def require_issue_key(self, issue_key: str) -> str:
         normalized_key = issue_key.upper()
@@ -174,6 +214,9 @@ class IssueManagementUseCase:
             await self.aclose()
             self._task = None
             self._issues.clear()
+            self._status_transitions.clear()
+            self._issue_updated_at.clear()
+            self._transition_history_ready = False
             self._details = ()
             self._details_date = None
             self._initialized = False

@@ -51,6 +51,8 @@ class JiraIssue:
     qa_assignee_account_id: str | None = None
     recent_tac_assignee_account_id: str | None = None
     personal_data_retrieved_at: str | None = None
+    issue_id: str = ""
+    status_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,8 @@ class JiraStatusChange:
     changed_at: str
     from_status: str
     to_status: str
+    to_status_id: str = ""
+    from_status_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -96,6 +100,12 @@ class JiraChartIssuePage:
 
 class JiraPort(ABC):
     MAX_RESULTS: int = 100
+
+    async def get_issue_status_changes_batch(self, issues: list[JiraIssue]) -> dict[str, list[JiraStatusChange]]:
+        raise NotImplementedError
+
+    async def get_project_status_names(self, project_key: str) -> dict[str, str]:
+        raise NotImplementedError
 
     @abstractmethod
     async def get_issue_status_changes(self, issue_key: str) -> list[JiraStatusChange]:

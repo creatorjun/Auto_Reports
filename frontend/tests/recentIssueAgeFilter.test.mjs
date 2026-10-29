@@ -108,7 +108,7 @@ test('dashboard renders stage and request duration widgets immediately after res
   assert.equal(charts[3].props.valueUnit, 'hours')
 })
 
-function render(t, details, { elapsedDaysThreshold = null, elapsedDaysComparison = 'gte', exportMode = false } = {}) {
+function render(t, details, { elapsedDaysThreshold = null, elapsedDaysComparison = 'gte', elapsedDaysStatus = null, elapsedDaysStatuses, statusTransitionDays, statusTransitionHistoryReady = true, exportMode = false } = {}) {
   const changes = []
   let nativeValue = elapsedDaysThreshold === null ? '' : String(elapsedDaysThreshold)
   const numberInput = {
@@ -120,11 +120,14 @@ function render(t, details, { elapsedDaysThreshold = null, elapsedDaysComparison
   function Harness({ details }) {
     const [threshold, setThreshold] = React.useState(elapsedDaysThreshold)
     const [comparison, setComparison] = React.useState(elapsedDaysComparison)
-    updateFilter = (value, nextComparison) => act(() => { setThreshold(value); setComparison(nextComparison) })
+    const [status, setStatus] = React.useState(elapsedDaysStatus)
+    updateFilter = (value, nextComparison, nextStatus = null) => act(() => { setThreshold(value); setComparison(nextComparison); setStatus(nextStatus) })
     return React.createElement(RecentIssuesWidget, {
       details, elapsedDaysThreshold: threshold, elapsedDaysComparison: comparison,
-      onElapsedDaysFilterChange(value, nextComparison) {
-        changes.push([value, nextComparison]); setThreshold(value); setComparison(nextComparison)
+      elapsedDaysStatus: status, elapsedDaysStatuses, statusTransitionDays, statusTransitionHistoryReady,
+      onElapsedDaysFilterChange(value, nextComparison, nextStatus = null) {
+        changes.push(elapsedDaysStatuses === undefined ? [value, nextComparison] : [value, nextComparison, nextStatus])
+        setThreshold(value); setComparison(nextComparison); setStatus(nextStatus)
       },
     })
   }
@@ -213,6 +216,97 @@ test('elapsed-day comparisons include the threshold and zero without changing so
   assert.deepEqual(filterRecentIssuesByElapsedDays(details, null, 'gte'), details)
   assert.deepEqual(filterRecentIssuesByElapsedDays(details, null, 'lte'), details)
   assert.deepEqual(details.map((row) => row.elapsed_days), [29, 30, 31, 0])
+})
+
+test('status transition age uses latest status days independently of creation age and current status', () => {
+  const details = [
+    issue(416, { key: 'TACEA-3340', status: '닫힘' }),
+    issue(80, { key: 'REOPENED', status: '재 오픈' }),
+    issue(0, { key: 'NO-HISTORY', status: '닫힘' }),
+    issue(1, { key: 'OLD', status: '닫힘' }),
+    issue(20, { key: 'TODAY', status: '닫힘' }),
+  ]
+  const original = structuredClone(details)
+  const days = {
+    'TACEA-3340': { '닫힘': 1 }, REOPENED: { '닫힘': 1, '재 오픈': 0 },
+    OLD: { '닫힘': 2 }, TODAY: { '닫힘': 0 },
+  }
+  assert.deepEqual(filterRecentIssuesByElapsedDays(details, 1, 'lte', '닫힘', days).map(row => row.key), ['TACEA-3340', 'REOPENED', 'TODAY'])
+  assert.deepEqual(filterRecentIssuesByElapsedDays(details, 1, 'gte', '닫힘', days).map(row => row.key), ['TACEA-3340', 'REOPENED', 'OLD'])
+  assert.deepEqual(filterRecentIssuesByElapsedDays(details, 0, 'lte', '닫힘', days).map(row => row.key), ['TODAY'])
+  assert.deepEqual(filterRecentIssuesByElapsedDays(details, 0, 'gte', '닫힘', days).map(row => row.key), ['TACEA-3340', 'REOPENED', 'OLD', 'TODAY'])
+  assert.deepEqual(filterRecentIssuesByElapsedDays(details, 1, 'lte', '구현 중', days), [])
+  assert.strictEqual(filterRecentIssuesByElapsedDays(details, null, 'lte', '닫힘', days), details)
+  assert.deepEqual(details, original)
+})
+
+test('status dropdown applies on search, keeps applied rows during draft changes and resets to creation age', (t) => {
+  const details = [issue(416, { key: 'TACEA-3340', status: '닫힘' }), issue(0, { key: 'NEW' })]
+  const { view, changes } = render(t, details, {
+    elapsedDaysStatuses: ['할 일', '닫힘'], statusTransitionDays: { 'TACEA-3340': { '닫힘': 1 } },
+  })
+  const basis = () => view.root.findByProps({ 'aria-label': '경과일 기준' })
+  assert.deepEqual(basis().findAllByType('option').map(option => [option.props.value, textOf(option)]), [['', '경과일'], ['할 일', '할 일'], ['닫힘', '닫힘']])
+  act(() => basis().props.onChange({ target: { value: '닫힘' } }))
+  type(view, '1')
+  selectComparison(view, 'lte')
+  assert.deepEqual(keys(view), ['TACEA-3340', 'NEW'])
+  submit(view)
+  assert.deepEqual(changes, [[1, 'lte', '닫힘']])
+  assert.deepEqual(keys(view), ['TACEA-3340'])
+  assert.match(textOf(view.root), /닫힘 전이 후 · 1일 이하 · 1건/)
+  assert.match(textOf(view.root), /현재 상태와 관계없이 최근 전이일 기준 · 한국 시간/)
+  act(() => basis().props.onChange({ target: { value: '' } }))
+  assert.deepEqual(keys(view), ['TACEA-3340'])
+  submit(view)
+  assert.deepEqual(keys(view), ['NEW'])
+  click(button(view, '초기화'))
+  assert.equal(basis().props.value, '')
+  assert.deepEqual(changes.at(-1), [null, 'gte', null])
+  assert.deepEqual(keys(view), ['TACEA-3340', 'NEW'])
+  assert.equal(button(view, '초기화').props.disabled, true)
+})
+
+test('transition history loading blocks status searches while creation age remains available', (t) => {
+  const { view, changes } = render(t, [issue(416)], {
+    elapsedDaysStatuses: ['닫힘'], statusTransitionHistoryReady: false,
+  })
+  const basis = () => view.root.findByProps({ 'aria-label': '경과일 기준' })
+  act(() => basis().props.onChange({ target: { value: '닫힘' } }))
+  type(view, '1')
+  assert.equal(button(view, '검색').props.disabled, true)
+  assert.match(textOf(view.root.findByProps({ role: 'status' })), /상태 전이 이력을 수집 중/)
+  submit(view)
+  assert.deepEqual(changes, [])
+  act(() => basis().props.onChange({ target: { value: '' } }))
+  assert.equal(button(view, '검색').props.disabled, false)
+  submit(view)
+  assert.deepEqual(changes, [[1, 'gte', null]])
+})
+
+test('a selected status remains visible if refreshed options no longer contain it', (t) => {
+  const props = {
+    details: [issue(416)], elapsedDaysThreshold: 1, elapsedDaysComparison: 'lte', elapsedDaysStatus: '닫힘',
+    elapsedDaysStatuses: ['닫힘'], statusTransitionDays: { 'TACEA-416': { '닫힘': 1 } }, onElapsedDaysFilterChange() {},
+  }
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(RecentIssuesWidget, props)) })
+  t.after(() => act(() => view.unmount()))
+  act(() => view.update(React.createElement(RecentIssuesWidget, { ...props, elapsedDaysStatuses: ['할 일'] })))
+  const basis = view.root.findByProps({ 'aria-label': '경과일 기준' })
+  assert.equal(basis.props.value, '닫힘')
+  assert.deepEqual(basis.findAllByType('option').map(option => option.props.value), ['', '할 일', '닫힘'])
+  assert.deepEqual(keys(view), ['TACEA-416'])
+})
+
+test('export uses applied status age and excludes missing histories without showing controls', (t) => {
+  const { view } = render(t, [issue(416, { key: 'TACEA-3340' }), issue(0)], {
+    elapsedDaysThreshold: 1, elapsedDaysComparison: 'lte', elapsedDaysStatus: '닫힘',
+    elapsedDaysStatuses: ['닫힘'], statusTransitionDays: { 'TACEA-3340': { '닫힘': 1 } }, exportMode: true,
+  })
+  assert.deepEqual(keys(view), ['TACEA-3340'])
+  assert.match(textOf(view.root), /닫힘 전이 후 · 1일 이하 · 1건/)
+  assert.equal(view.root.findAllByType('form').length, 0)
 })
 
 test('typing does not apply the filter until search submits and thirty defaults to thirty or more days', (t) => {

@@ -241,6 +241,8 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
                                 changed_at=history["created"],
                                 from_status=item.get("fromString") or "",
                                 to_status=item.get("toString") or "",
+                                from_status_id=item.get("from") or "",
+                                to_status_id=item.get("to") or "",
                             ))
                 next_at = start_at + len(values)
                 total = data.get("total")
@@ -259,6 +261,121 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
             changes = await fetch(issue_key)
             await self._status_changes_cache.async_set(issue_key, changes)
         return list(changes)
+
+    @staticmethod
+    def _history_timestamp(value: object) -> str:
+        try:
+            if type(value) is int:
+                timestamp = datetime.fromtimestamp(value / 1000, timezone.utc)
+            elif isinstance(value, str):
+                timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                if timestamp.tzinfo is None:
+                    raise ValueError("Missing timezone")
+            else:
+                raise ValueError("Invalid timestamp type")
+        except (ValueError, OverflowError, OSError) as error:
+            raise RuntimeError("Jira bulk status history timestamp is invalid") from error
+        return timestamp.astimezone(timezone.utc).isoformat()
+
+    async def get_issue_status_changes_batch(self, issues: list[JiraIssue]) -> dict[str, list[JiraStatusChange]]:
+        by_id: dict[str, str] = {}
+        by_key: dict[str, str] = {}
+        for issue in issues:
+            if not issue.issue_id or not issue.key:
+                raise ValueError("Jira bulk status history requires issue IDs and keys")
+            if (issue.issue_id in by_id and by_id[issue.issue_id] != issue.key
+                    or issue.key in by_key and by_key[issue.key] != issue.issue_id):
+                raise ValueError("Jira bulk status history issue identity is ambiguous")
+            by_id[issue.issue_id] = issue.key
+            by_key[issue.key] = issue.issue_id
+        changes: dict[str, list[JiraStatusChange]] = {key: [] for key in by_key}
+        issue_ids = list(by_id)
+        for offset in range(0, len(issue_ids), 1000):
+            batch = issue_ids[offset:offset + 1000]
+            batch_ids = set(batch)
+            next_token: str | None = None
+            seen_tokens: set[str] = set()
+            seen_histories: dict[tuple[str, str], tuple[str, list[dict[str, Any]]]] = {}
+            while True:
+                payload: dict[str, Any] = {"issueIdsOrKeys": batch, "fieldIds": ["status"], "maxResults": 1000}
+                if next_token is not None:
+                    payload["nextPageToken"] = next_token
+                try:
+                    response = await self._client.post(f"{self._base_url}/rest/api/3/changelog/bulkfetch", json=payload)
+                    response.raise_for_status()
+                    data = response.json()
+                except (httpx.HTTPError, ValueError) as error:
+                    raise RuntimeError("Jira bulk status history query failed") from error
+                if not isinstance(data, dict) or not isinstance(data.get("issueChangeLogs"), list):
+                    raise RuntimeError("Jira bulk status history response is invalid")
+                fresh_histories = 0
+                for issue_log in data["issueChangeLogs"]:
+                    if (not isinstance(issue_log, dict) or not isinstance(issue_log.get("issueId"), str)
+                            or issue_log["issueId"] not in batch_ids
+                            or not isinstance(issue_log.get("changeHistories"), list)):
+                        raise RuntimeError("Jira bulk status history issue is invalid")
+                    issue_id = issue_log["issueId"]
+                    for history in issue_log["changeHistories"]:
+                        if (not isinstance(history, dict) or not isinstance(history.get("id"), str)
+                                or not history["id"] or not isinstance(history.get("items"), list)):
+                            raise RuntimeError("Jira bulk status history change is invalid")
+                        identity = (issue_id, history["id"])
+                        changed_at = self._history_timestamp(history.get("created"))
+                        history_value = (changed_at, history["items"])
+                        if identity in seen_histories:
+                            if seen_histories[identity] != history_value:
+                                raise RuntimeError("Jira bulk status history changed during pagination")
+                            continue
+                        seen_histories[identity] = history_value
+                        fresh_histories += 1
+                        for item in history["items"]:
+                            if not isinstance(item, dict):
+                                raise RuntimeError("Jira bulk status history item is invalid")
+                            if item.get("fieldId") != "status" and item.get("field") != "status":
+                                continue
+                            if any(item.get(name) is not None and not isinstance(item[name], str)
+                                   for name in ("from", "to", "fromString", "toString")):
+                                raise RuntimeError("Jira bulk status history status is invalid")
+                            if not item.get("to") and not item.get("toString"):
+                                raise RuntimeError("Jira bulk status history target is missing")
+                            changes[by_id[issue_id]].append(JiraStatusChange(
+                                changed_at=changed_at,
+                                from_status=item.get("fromString") or "",
+                                to_status=item.get("toString") or "",
+                                from_status_id=item.get("from") or "",
+                                to_status_id=item.get("to") or "",
+                            ))
+                next_token = data.get("nextPageToken")
+                if next_token == "":
+                    next_token = None
+                if next_token is None:
+                    break
+                if not isinstance(next_token, str) or next_token in seen_tokens or not fresh_histories:
+                    raise RuntimeError("Jira bulk status history pagination did not advance")
+                seen_tokens.add(next_token)
+        return changes
+
+    async def get_project_status_names(self, project_key: str) -> dict[str, str]:
+        try:
+            response = await self._client.get(f"{self._base_url}/rest/api/3/project/{quote(project_key, safe='')}/statuses")
+            response.raise_for_status()
+            issue_types = response.json()
+        except (httpx.HTTPError, ValueError) as error:
+            raise RuntimeError("Jira project status query failed") from error
+        if not isinstance(issue_types, list):
+            raise RuntimeError("Jira project status response is invalid")
+        names: dict[str, str] = {}
+        for issue_type in issue_types:
+            if not isinstance(issue_type, dict) or not isinstance(issue_type.get("statuses"), list):
+                raise RuntimeError("Jira project status response is invalid")
+            for status in issue_type["statuses"]:
+                if (not isinstance(status, dict) or not isinstance(status.get("id"), str)
+                        or not status["id"] or not isinstance(status.get("name"), str) or not status["name"]):
+                    raise RuntimeError("Jira project status response is invalid")
+                if status["id"] in names and names[status["id"]] != status["name"]:
+                    raise RuntimeError("Jira project status identity is ambiguous")
+                names[status["id"]] = status["name"]
+        return names
 
     @staticmethod
     def _display_name(value: object) -> str:
@@ -307,9 +424,11 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         )
         return JiraIssue(
             key=str(issue.get("key") or ""),
+            issue_id=str(issue.get("id") or ""),
             summary=str(fields.get("summary") or ""),
             issue_type=str((fields.get("issuetype") or {}).get("name") or ""),
             status=str((fields.get("status") or {}).get("name") or ""),
+            status_id=str((fields.get("status") or {}).get("id") or ""),
             created=str(fields.get("created") or ""),
             updated=str(fields.get("updated") or ""),
             resolved=str(fields.get("resolutiondate") or ""),

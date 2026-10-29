@@ -44,7 +44,12 @@ class IssueManagementSnapshotRepository(IssueManagementSnapshotPort):
             return self._snapshot(row)
 
     async def save(self, project_key: str, snapshot: IssueManagementSnapshot) -> IssueManagementSnapshot:
-        payload = {"issues": [asdict(issue) for issue in snapshot.issues]}
+        payload = {
+            "issues": [asdict(issue) for issue in snapshot.issues],
+            "status_transitions": deepcopy(snapshot.status_transitions),
+            "issue_updated_at": dict(snapshot.issue_updated_at),
+            "transition_history_ready": snapshot.transition_history_ready,
+        }
         async with self._database.session() as session:
             await lock_personal_data_writes(session)
             await suppress_erased_people(session, payload)
@@ -73,4 +78,7 @@ class IssueManagementSnapshotRepository(IssueManagementSnapshotPort):
         return IssueManagementSnapshot(
             issues=tuple(RecentIssueDetail(**issue) for issue in row.payload["issues"]),
             synced_at=utc(row.synced_at), full_synced_at=utc(row.full_synced_at),
+            status_transitions=deepcopy(row.payload.get("status_transitions", {})),
+            issue_updated_at=dict(row.payload.get("issue_updated_at", {})),
+            transition_history_ready=row.payload.get("transition_history_ready", False),
         )

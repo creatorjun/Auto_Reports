@@ -21,6 +21,7 @@ export function issueTypeLabel(type: string | null | undefined): string {
 }
 
 export type ElapsedDaysComparison = 'gte' | 'lte'
+export type IssueStatusTransitionDays = Readonly<Record<string, Readonly<Record<string, number>>>>
 
 export function filterIssuesByReportPeriod<T extends { created: string }>(
   issues: T[],
@@ -39,8 +40,14 @@ export function filterRecentIssuesByElapsedDays(
   issues: RecentIssue[],
   thresholdDays: number | null,
   comparison: ElapsedDaysComparison = 'gte',
+  status: string | null = null,
+  statusTransitionDays: IssueStatusTransitionDays = {},
 ): RecentIssue[] {
-  return thresholdDays === null ? issues : issues.filter((issue) => comparison === 'gte'
-    ? issue.elapsed_days >= thresholdDays
-    : issue.elapsed_days <= thresholdDays)
+  if (thresholdDays === null) return issues
+  return issues.filter((issue) => {
+    const days = status === null ? issue.elapsed_days : statusTransitionDays[issue.key]?.[status]
+    return days !== undefined && Number.isFinite(days) && days >= 0 && (comparison === 'gte'
+      ? days >= thresholdDays
+      : days <= thresholdDays)
+  })
 }

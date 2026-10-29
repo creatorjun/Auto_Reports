@@ -1,6 +1,6 @@
 # backend/src/application/ports/issue_management_snapshot_port.py
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from src.domain.entities.widget_data import RecentIssueDetail
@@ -11,6 +11,9 @@ class IssueManagementSnapshot:
     issues: tuple[RecentIssueDetail, ...]
     synced_at: datetime
     full_synced_at: datetime
+    status_transitions: dict[str, dict[str, str]] = field(default_factory=dict)
+    issue_updated_at: dict[str, str] = field(default_factory=dict)
+    transition_history_ready: bool = False
 
 
 class IssueManagementSnapshotPort(ABC):

@@ -22,6 +22,8 @@ interface ExportSnapshot {
   columnFilters: IssueColumnFilters
   elapsed: number | null
   comparison: ElapsedDaysComparison
+  elapsedStatus: string | null
+  transitionDays: Record<string, Record<string, number>>
   format: DashboardExportFormat
   metadata: Omit<DashboardPdfDocument, 'sections'>
   fileName: string
@@ -35,16 +37,23 @@ export default function IssueManagementPage() {
   const [titleSearch, setTitleSearch] = useState('')
   const [elapsed, setElapsed] = useState<number | null>(null)
   const [comparison, setComparison] = useState<ElapsedDaysComparison>('gte')
+  const [elapsedStatus, setElapsedStatus] = useState<string | null>(null)
   const [columnFilters, setColumnFilters] = useState<IssueColumnFilters>({})
   const [exportFormat, setExportFormat] = useState<DashboardExportFormat>('pdf')
   const [exportSnapshot, setExportSnapshot] = useState<ExportSnapshot | null>(null)
   const [exportError, setExportError] = useState('')
   const exportPending = useRef(false)
   const issues = query.data?.issues
+  const transitionDays = query.data?.status_transition_days
+  const transitionHistoryReady = query.data?.transition_history_ready === true
   const options = useMemo(() => ({
     types: [...new Set(issues?.map((issue) => issue.type) ?? [])].sort(),
     statuses: sortDashboardStatuses(issues?.map((issue) => issue.status) ?? []),
   }), [issues])
+  const transitionStatuses = useMemo(() => sortDashboardStatuses([
+    ...options.statuses,
+    ...Object.values(transitionDays ?? {}).flatMap((days) => Object.keys(days)),
+  ]), [options.statuses, transitionDays])
   const details = useMemo(() => filterIssuesByColumns(filterManagedIssues(issues ?? [], types, statuses, semester, null), { summary: titleSearch }), [issues, types, statuses, semester, titleSearch])
   const toggle = (current: Set<string> | null, all: string[], value: string) => {
     const next = new Set(current ?? all)
@@ -73,7 +82,8 @@ export default function IssueManagementPage() {
       statuses === null ? '전체 현재 상태' : statuses.size ? [...statuses].join(', ') : '선택된 현재 상태 없음',
     ]
     if (titleSearch.trim()) filters.push(`제목 검색: ${titleSearch.trim()}`)
-    if (elapsed !== null) filters.push(`경과일 ${elapsed}일 ${comparison === 'gte' ? '이상' : '이하'}`)
+    if (elapsed !== null) filters.push(`${elapsedStatus ? `${elapsedStatus} 전이 후` : '경과일'} ${elapsed}일 ${comparison === 'gte' ? '이상' : '이하'}`)
+    if (elapsed !== null && elapsedStatus) filters.push('현재 상태와 관계없이 가장 최근 전이일 기준 · 한국 시간')
     for (const { key, label } of ISSUE_COLUMNS) {
       const value = columnFilters[key]?.trim()
       if (value) filters.push(`${label} 컬럼 검색: ${value}`)
@@ -84,6 +94,8 @@ export default function IssueManagementPage() {
       columnFilters: { ...columnFilters },
       elapsed,
       comparison,
+      elapsedStatus,
+      transitionDays: Object.fromEntries(details.map((issue) => [issue.key, { ...transitionDays?.[issue.key] }])),
       format: exportFormat,
       metadata: {
         title: '전체 이슈',
@@ -127,14 +139,17 @@ export default function IssueManagementPage() {
         onSemesterChange={setSemester}
         onToggleAll={(selected) => { setTypes(selected ? null : new Set()); setStatuses(selected ? null : new Set()) }} />
       {!query.data?.initialized && !query.data?.error && !query.isError ? <LoadingSpinner text="TACEA 전체 이슈 수집 중..." /> : (
-        <RecentIssuesWidget title="전체 이슈 현황" detailsSource="issue-management" paginationResetKey={JSON.stringify([types === null ? null : [...types].sort(), statuses === null ? null : [...statuses].sort(), semester, elapsed, comparison, titleSearch])}
-          details={details} elapsedDaysThreshold={elapsed} elapsedDaysComparison={comparison} onElapsedDaysFilterChange={(value, condition) => { setElapsed(value); setComparison(condition) }}
+        <RecentIssuesWidget title="전체 이슈 현황" detailsSource="issue-management" paginationResetKey={JSON.stringify([types === null ? null : [...types].sort(), statuses === null ? null : [...statuses].sort(), semester, elapsed, comparison, elapsedStatus, titleSearch])}
+          details={details} elapsedDaysThreshold={elapsed} elapsedDaysComparison={comparison}
+          elapsedDaysStatus={elapsedStatus} elapsedDaysStatuses={transitionStatuses} statusTransitionDays={transitionDays} statusTransitionHistoryReady={transitionHistoryReady}
+          onElapsedDaysFilterChange={(value, condition, status) => { setElapsed(value); setComparison(condition); setElapsedStatus(status ?? null) }}
           columnFilters={columnFilters} onColumnFilterChange={(column, value) => setColumnFilters((current) => ({ ...current, [column]: value }))}
           onColumnFiltersReset={() => setColumnFilters({})} />
       )}
       {exportSnapshot && (
         <DashboardPdfExportStage format={exportSnapshot.format} metadata={exportSnapshot.metadata} fileName={exportSnapshot.fileName} onComplete={finishExport} onError={failExport}>
-          <RecentIssuesWidget title="전체 이슈 현황" details={exportSnapshot.details} elapsedDaysThreshold={exportSnapshot.elapsed} elapsedDaysComparison={exportSnapshot.comparison} columnFilters={exportSnapshot.columnFilters} />
+          <RecentIssuesWidget title="전체 이슈 현황" details={exportSnapshot.details} elapsedDaysThreshold={exportSnapshot.elapsed} elapsedDaysComparison={exportSnapshot.comparison}
+            elapsedDaysStatus={exportSnapshot.elapsedStatus} statusTransitionDays={exportSnapshot.transitionDays} columnFilters={exportSnapshot.columnFilters} />
         </DashboardPdfExportStage>
       )}
     </div>

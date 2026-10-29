@@ -9,6 +9,9 @@ export interface IssueManagementSnapshot {
   refreshing: boolean
   synced_at: string | null
   error: string | null
+  status_transitions?: Record<string, Record<string, string>>
+  status_transition_days?: Record<string, Record<string, number>>
+  transition_history_ready?: boolean
 }
 
 export function filterManagedIssues(

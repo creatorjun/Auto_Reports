@@ -327,6 +327,57 @@ function managementPage(t, rows, overrides = {}) {
   return { view, column, download }
 }
 
+for (const format of ['pdf', 'xlsx']) {
+  test(`${format} status-transition filtering includes reopened issues and freezes its day basis for export`, (t) => {
+    const rows = [
+      issue('TACEA-3340', { status: '닫힘', elapsed_days: 416 }),
+      issue('TACEA-REOPENED', { status: '재 오픈', elapsed_days: 200 }),
+      issue('TACEA-OLDER', { status: '닫힘', elapsed_days: 2 }),
+      issue('TACEA-NO-HISTORY', { status: '닫힘', elapsed_days: 0 }),
+    ]
+    const days = {
+      'TACEA-3340': { '닫힘': 1, '연구소 검토 중': 15 },
+      'TACEA-REOPENED': { '닫힘': 0 },
+      'TACEA-OLDER': { '닫힘': 2 },
+    }
+    const { view, download } = managementPage(t, rows, {
+      data: { issues: rows, initialized: true, refreshing: false, synced_at: null, error: null,
+        status_transition_days: days, transition_history_ready: true },
+    })
+    const widget = () => view.root.findAllByType(RecentIssuesWidget)[0]
+    assert.ok(widget().props.elapsedDaysStatuses.includes('연구소 검토 중'))
+    act(() => widget().props.onElapsedDaysFilterChange(1, 'lte', '닫힘'))
+    assert.deepEqual(tableKeys(widget()), ['TACEA-3340', 'TACEA-REOPENED'])
+    assert.match(textOf(widget()), /닫힘/)
+    click(download(format))
+    const stage = view.root.findByType('ExportStage')
+    assert.deepEqual(tableKeys(stage), ['TACEA-3340', 'TACEA-REOPENED'])
+    assert.ok(stage.props.metadata.filters.includes('닫힘 전이 후 1일 이하'))
+    assert.ok(stage.props.metadata.filters.includes('현재 상태와 관계없이 가장 최근 전이일 기준 · 한국 시간'))
+    days['TACEA-3340']['닫힘'] = 2
+    managementQuery = { ...managementQuery, data: { ...managementQuery.data, status_transition_days: { ...days } } }
+    act(() => view.update(React.createElement(IssueManagementPage)))
+    assert.deepEqual(tableKeys(widget()), ['TACEA-REOPENED'])
+    assert.deepEqual(tableKeys(stage), ['TACEA-3340', 'TACEA-REOPENED'])
+    act(() => stage.props.onComplete())
+    act(() => widget().props.onElapsedDaysFilterChange(1, 'lte', null))
+    assert.deepEqual(tableKeys(widget()), ['TACEA-NO-HISTORY'])
+  })
+}
+
+test('an explicit current-status selection intersects the independent status-transition filter', (t) => {
+  const rows = [issue('TACEA-CLOSED', { status: '닫힘' }), issue('TACEA-REOPENED', { status: '재 오픈' })]
+  const { view } = managementPage(t, rows, {
+    data: { issues: rows, initialized: true, refreshing: false, synced_at: null, error: null,
+      status_transition_days: { 'TACEA-CLOSED': { '닫힘': 1 }, 'TACEA-REOPENED': { '닫힘': 1 } }, transition_history_ready: true },
+  })
+  act(() => view.root.findByType(RecentIssuesWidget).props.onElapsedDaysFilterChange(1, 'lte', '닫힘'))
+  assert.deepEqual(tableKeys(view.root), ['TACEA-CLOSED', 'TACEA-REOPENED'])
+  const filters = view.root.find((node) => typeof node.props.onStatusToggle === 'function')
+  act(() => filters.props.onStatusToggle('재 오픈'))
+  assert.deepEqual(tableKeys(view.root), ['TACEA-CLOSED'])
+})
+
 const searchableRows = [
   issue('TACEA-TARGET', { summary: '서울 ABC 요청', status: '처리 중', reporter: '홍길동', tac_team: '지원팀', tac_assignee: '박담당', created: '2026-09-10 09:00', elapsed_days: 7 }),
   issue('OTHER-ROW', { summary: '부산 요청', status: 'Closed', reporter: '김지원', tac_team: '개발팀', tac_assignee: '이담당', created: '2025-01-01 09:00', elapsed_days: 300 }),

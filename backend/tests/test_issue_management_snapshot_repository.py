@@ -82,6 +82,37 @@ class IssueManagementSnapshotRepositoryTest(unittest.IsolatedAsyncioTestCase):
         restored.issues[0].summary = "호출자 변경"
         self.assertEqual(original, await self.repository.load("TACEA"))
 
+    async def test_transition_maps_round_trip_and_survive_personal_data_suppression(self):
+        original = replace(snapshot(),
+            status_transitions={"TACEA-1": {"닫힘": "2026-10-18T23:59:00+09:00"}},
+            issue_updated_at={"TACEA-1": "2026-10-19T10:00:00+09:00"},
+            transition_history_ready=True,
+        )
+        await self.repository.save("TACEA", original)
+        self.close_account("cache-reporter")
+        restored = await IssueManagementSnapshotRepository(self.database).load("TACEA")
+        self.assertEqual(REDACTED_PERSON, restored.issues[0].reporter)
+        self.assertTrue(restored.transition_history_ready)
+        self.assertEqual(original.status_transitions, restored.status_transitions)
+        self.assertEqual(original.issue_updated_at, restored.issue_updated_at)
+        restored.status_transitions["TACEA-1"]["닫힘"] = "changed"
+        restored.issue_updated_at.clear()
+        reread = await self.repository.load("TACEA")
+        self.assertEqual(original.status_transitions, reread.status_transitions)
+        self.assertEqual(original.issue_updated_at, reread.issue_updated_at)
+
+    async def test_legacy_payload_loads_without_transition_fields_or_migration(self):
+        await self.repository.save("TACEA", snapshot())
+        with Session(self.engine) as session:
+            row = session.execute(select(IssueManagementSnapshotORM)).scalar_one()
+            row.payload = {"issues": row.payload["issues"]}
+            session.commit()
+        restored = await self.repository.load("TACEA")
+        self.assertFalse(restored.transition_history_ready)
+        self.assertEqual({}, restored.status_transitions)
+        self.assertEqual({}, restored.issue_updated_at)
+        self.assertEqual(snapshot().issues, restored.issues)
+
     async def test_old_or_equal_timestamp_cannot_replace_newer_snapshot(self):
         newest = snapshot(NOW + timedelta(minutes=5), "최신 이슈")
         await self.repository.save("TACEA", newest)

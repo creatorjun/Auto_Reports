@@ -24,6 +24,8 @@ from src.presentation.api.v1.router import router
 class IssueManagementTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.jira = AsyncMock()
+        self.jira.get_project_status_names.return_value = {}
+        self.jira.get_issue_status_changes_batch.side_effect = lambda issues: {issue.key: [] for issue in issues}
         self.use_case = IssueManagementUseCase(self.jira)
 
     async def asyncTearDown(self):
@@ -198,6 +200,8 @@ class IssueManagementTest(unittest.IsolatedAsyncioTestCase):
 class IssueManagementPersistenceTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.jira = AsyncMock()
+        self.jira.get_project_status_names.return_value = {}
+        self.jira.get_issue_status_changes_batch.side_effect = lambda issues: {issue.key: [] for issue in issues}
         self.snapshots = AsyncMock(spec=IssueManagementSnapshotPort)
         now = datetime.now(KST)
         self.saved = IssueManagementSnapshot(
@@ -205,6 +209,8 @@ class IssueManagementPersistenceTest(unittest.IsolatedAsyncioTestCase):
                                "2026-01-01T23:59:00+09:00", 0, reporter="보고자",
                                reporter_account_id="reporter-1"),),
             synced_at=now - timedelta(minutes=7), full_synced_at=now - timedelta(minutes=20),
+            status_transitions={"TACEA-1": {}}, issue_updated_at={"TACEA-1": "2026-01-01T23:59:00+09:00"},
+            transition_history_ready=True,
         )
         self.snapshots.load.return_value = self.saved
         self.snapshots.save.side_effect = lambda project, snapshot: snapshot
