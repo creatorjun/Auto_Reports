@@ -68,44 +68,27 @@ test('solution coverage distinguishes the initial inventory from official matche
     const query = client.getQueryCache().find({ queryKey: ['solution-packages'], exact: false })
     return query.options.refetchInterval(query)
   }
-  const dateTimes = () => view.root.findAllByType('time').map((element) => element.props.dateTime)
-  const inventoryTime = '2026-11-06T11:47:00+09:00'
   const success = '2099-01-01T23:00:00Z'
-  await until(() => screen().includes('수집 대기'))
+  await until(() => screen().includes(rows[0].name))
   assert.ok(screen().includes('매일 08:00 KST 공식 권고 자동 수집'))
   assert.ok(rowContains(0, '초기 인벤토리'))
-  assert.deepEqual(dateTimes(), [inventoryTime])
   assert.equal(pollInterval(), 3000)
-
-  data = { packages: rows, coverage: coverage('error', false) }
-  retryRead()
-  await until(() => screen().includes('수집 실패'))
-  assert.equal(pollInterval(), false)
-  assert.deepEqual(dateTimes(), [inventoryTime])
-  assert.ok(rowContains(0, '초기 인벤토리'))
 
   const collected = [{ ...rows[0], cve_basis: 'advisory', cve_ids: ['CVE-2099-0001'] }, rows[1]]
   data = { packages: collected, coverage: coverage('partial', false, success) }
   retryRead()
-  await until(() => screen().includes('일부 자료만 수집'))
-  assert.deepEqual(dateTimes(), [inventoryTime, success])
+  await until(() => rowContains(0, '공식 권고'))
   assert.ok(rowContains(0, '공식 권고'))
   assert.ok(rowContains(1, '초기 인벤토리'))
   assert.ok(labeled(view, `${rowLabel(rows[0])} CVE 1건`))
 
-  data = { packages: collected, coverage: coverage('stale', true, success) }
-  retryRead()
-  await until(() => screen().includes('새 자료 수집 중, 이전 결과 표시'))
-  assert.equal(pollInterval(), 3000)
-  assert.ok(labeled(view, `${rowLabel(rows[0])} CVE 1건`))
-
   data = { packages: [{ ...collected[0], cve_ids: [] }, rows[1]], coverage: coverage('ready', false, '2099-01-02T23:00:00Z') }
   retryRead()
-  await until(() => screen().includes('수집 완료'))
-  assert.ok(rowContains(0, '0건'))
+  await until(() => rowContains(0, '0건'))
   assert.ok(rowContains(0, '공식 권고'))
   assert.equal(pollInterval(), false)
-  assert.deepEqual(dateTimes(), [inventoryTime, '2099-01-02T23:00:00Z'])
+  assert.equal(view.root.findAllByProps({ 'aria-label': '공식 자료 수집 상태' }).length, 0)
+  assert.ok(!screen().includes('패키지 버전과 CVE 대조 기준'))
   for (const params of calls) assert.deepEqual(params, { product: 'eyeCloudXoar', version: '4.0_R2' })
 })
 
