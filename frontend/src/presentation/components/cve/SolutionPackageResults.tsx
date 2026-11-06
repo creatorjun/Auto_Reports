@@ -1,6 +1,7 @@
 // frontend/src/presentation/components/cve/SolutionPackageResults.tsx
 import { useId, useState } from 'react'
 import { ChevronDown, RefreshCw, Search } from 'lucide-react'
+import { cveReferenceUrl } from '@/application/services/securityNews'
 import type { SolutionPackage } from '@/domain/SolutionPackages'
 import { cveAction, CveCountFilter, CvePagination } from './CveResultControls'
 
@@ -41,6 +42,7 @@ function PackageRow({ item }: { item: SolutionPackage }) {
         className="inline-flex items-center gap-1 whitespace-nowrap rounded font-semibold text-brand-600 hover:underline focus-visible:outline-brand-500">
         {ids.length}건 <ChevronDown size={14} aria-hidden="true" className={expanded ? 'rotate-180' : undefined} />
       </button> : <span className="text-apple-mid">{ids === null ? '대조 제한' : '0건'}</span>}
+      <span className="mt-1 block text-caption text-apple-mid">{item.cve_basis === 'advisory' ? '공식 권고' : '초기 인벤토리'}</span>
     </div>
     <div className="col-span-full min-w-0 md:col-span-1">
       <details className="text-caption md:hidden">
@@ -52,7 +54,14 @@ function PackageRow({ item }: { item: SolutionPackage }) {
     {expanded && ids && ids.length > 0 && <div id={id} role="region" aria-label={`${packageLabel} 매칭된 CVE`} tabIndex={0}
       className="col-span-full max-h-64 overflow-y-auto rounded-xl bg-apple-gray p-3 focus-visible:outline-brand-500">
       <ul className="flex flex-wrap gap-2">
-        {ids.map((cve) => <li key={cve} className="rounded-md border border-apple-divider bg-apple-surface px-2 py-1 font-mono text-caption text-apple-dark">{cve}</li>)}
+        {ids.map((cve) => {
+          const href = cveReferenceUrl(cve)
+          return <li key={cve} className="rounded-md border border-apple-divider bg-apple-surface font-mono text-caption">
+            {href ? <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`${cve} NVD 상세`}
+              className="block rounded-md px-2 py-1 font-semibold text-brand-600 hover:underline focus-visible:outline-brand-500">{cve}</a> :
+              <span className="block px-2 py-1 text-apple-dark">{cve}</span>}
+          </li>
+        })}
       </ul>
     </div>}
   </li>

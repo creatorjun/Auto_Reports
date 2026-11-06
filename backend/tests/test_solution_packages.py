@@ -1,5 +1,6 @@
 # backend/tests/test_solution_packages.py
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -9,7 +10,10 @@ from unittest.mock import AsyncMock, patch
 from fastapi import FastAPI
 import httpx
 
+from src.application.use_cases.solution_advisories import SolutionAdvisories
+from src.infrastructure.persistence.solution_cve_store import SqliteSolutionSnapshotStore
 from src.infrastructure.persistence.solution_packages import read_solution_packages
+from src.infrastructure.scheduling.report_scheduler import create_scheduler
 from src.presentation.api.v1.router import router
 
 
@@ -27,6 +31,15 @@ class SolutionPackagesTest(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(json.JSONDecodeError):
             read_solution_packages("eyeCloudXoar", "4.0_R2")
 
+    def test_scheduler_runs_at_startup_and_at_0800_seoul(self):
+        callback = AsyncMock()
+        scheduler = create_scheduler("0 23 * * fri", "UTC", AsyncMock(), refresh_solution_cves=callback)
+        job = scheduler.get_job("solution_cves_daily")
+        self.assertIs(job.func, callback)
+        self.assertIsNotNone(job.next_run_time)
+        before = datetime(2026, 11, 6, 22, 59, tzinfo=timezone.utc)
+        self.assertEqual(datetime(2026, 11, 6, 23, tzinfo=timezone.utc), job.trigger.get_next_fire_time(None, before))
+
     async def test_inventory_is_authenticated_and_scoped_to_the_selected_release(self):
         base = {"name": "example", "version": "test", "category": "test", "evidence": "fixture"}
         rows = [
@@ -38,11 +51,14 @@ class SolutionPackagesTest(unittest.IsolatedAsyncioTestCase):
         self.inventory.write_text(json.dumps(rows), encoding="utf-8")
         app = FastAPI()
         app.include_router(router)
+        service = SolutionAdvisories(read_solution_packages, AsyncMock(return_value={}),
+                                     SqliteSolutionSnapshotStore(str(self.inventory.with_suffix(".sqlite3"))))
+        self.addAsyncCleanup(service.aclose)
         app.state.services = SimpleNamespace(
             auth=SimpleNamespace(
                 enabled=True, resolve_access_identity=AsyncMock(return_value=SimpleNamespace(username="reader")),
             ),
-            read_solution_packages=read_solution_packages,
+            solution_cves=service,
         )
         url = "/api/v1/solution-packages"
         release = {"product": "eyeCloudXoar", "version": "4.0_R2"}
@@ -53,7 +69,8 @@ class SolutionPackagesTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(200, response.status_code)
             self.assertEqual("no-store", response.headers["cache-control"])
             packages = response.json()["packages"]
-            self.assertEqual([{"cve_ids": None, **row} for row in rows], packages)
+            self.assertEqual([{"cve_ids": None, "cve_basis": "inventory", **row} for row in rows], packages)
+            self.assertIn("coverage", response.json())
             for product, version in (
                 ("eyeCloudXoar", "4.0_R1"), ("eyeCloudXoar", "4.0_R3"),
                 ("eyeCloudSIM", "3.1.0"), ("eyeCloudSIM", "3.1.03"), ("eyeCloudAI", None),
@@ -62,7 +79,7 @@ class SolutionPackagesTest(unittest.IsolatedAsyncioTestCase):
                     params = {"product": product}
                     if version is not None:
                         params["version"] = version
-                    self.assertEqual({"packages": []}, (await client.get(url, params=params)).json())
+                    self.assertEqual({"packages": [], "coverage": None}, (await client.get(url, params=params)).json())
             for params in (
                 {"product": "eyeCloudXoar"}, {"product": "eyeCloudSIM", "version": "4.0_R2"},
                 {"product": "eyeCloudAI", "version": "4.0_R2"}, {"product": "unknown"},

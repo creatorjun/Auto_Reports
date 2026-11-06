@@ -2,6 +2,7 @@
 import { useEffect, useId, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { SolutionProduct } from '@/domain/SolutionPackages'
+import CveCoveragePanel from '@/presentation/components/cve/CveCoveragePanel'
 import SolutionPackageResults from '@/presentation/components/cve/SolutionPackageResults'
 import { cveAction } from '@/presentation/components/cve/CveResultControls'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
@@ -74,6 +75,9 @@ export default function SolutionPackagesPage() {
   const query = useQuery({
     queryKey: ['solution-packages', session, product, version],
     queryFn: ({ signal }) => solutionPackages.list(product, version, signal),
+    refetchInterval: (query) => query.state.data?.coverage?.refreshing ? 3000 : false,
+    refetchIntervalInBackground: false,
+    staleTime: 60_000,
     retry: false,
   })
   const description = [product, version].filter(Boolean).join(' · ')
@@ -82,13 +86,17 @@ export default function SolutionPackagesPage() {
   return <div className="mx-auto flex w-full min-w-0 max-w-content flex-col gap-3 sm:gap-5 3xl:max-w-none">
     <header className="flex flex-wrap items-baseline justify-between gap-2">
       <h1 className="text-page-title font-semibold tracking-tight text-apple-dark">솔루션</h1>
-      {isR2 && hasPackages && <span className="text-caption text-apple-mid">배포본 수집 <time dateTime="2026-11-06T11:47:00+09:00">2026-11-06 11:47 KST</time></span>}
+      <span className="text-caption text-apple-mid">매일 08:00 KST 공식 권고 자동 수집</span>
     </header>
     <SolutionEnvironment selection={selection} onChange={setSelection} />
-    {hasPackages && <details className="rounded-xl border border-apple-divider bg-apple-surface px-4 py-3 text-control text-apple-mid">
-      <summary className="cursor-pointer font-semibold">패키지 버전과 CVE 대조 기준</summary>
-      <p className="mt-2 leading-relaxed">배포 파일에서 버전을 확인한 패키지를 표시합니다. 미매칭은 수집 당시 일치하는 CVE가 0건인 경우이며, 대조 제한은 확인할 수 있는 취약점 범위가 제한된 경우입니다.</p>
-    </details>}
+    {hasPackages && <div className="rounded-xl border border-apple-divider bg-apple-surface px-4 py-3 text-control text-apple-mid">
+      {isR2 && <p className="mb-2 text-caption">배포본 패키지 수집 <time dateTime="2026-11-06T11:47:00+09:00">2026-11-06 11:47 KST</time></p>}
+      <details>
+        <summary className="cursor-pointer font-semibold">패키지 버전과 CVE 대조 기준</summary>
+        <p className="mt-2 leading-relaxed">배포 파일에서 버전을 확인한 패키지를 표시합니다. CVE 건수 아래의 ‘공식 권고’는 해당 패키지 버전을 자동으로 대조한 결과이며, ‘초기 인벤토리’는 배포본 조사 당시의 결과입니다. 미매칭은 해당 자료에서 일치한 CVE가 0건인 경우이며, 대조 제한은 확인할 수 있는 취약점 범위가 제한된 경우입니다.</p>
+      </details>
+    </div>}
+    {query.data?.coverage && <CveCoveragePanel coverage={query.data.coverage} />}
     {query.isError && <p role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-control text-amber-800">
       {hasPackages ? '패키지 목록을 갱신하지 못했습니다. 마지막 조회 결과를 표시합니다.' : '패키지 목록을 불러오지 못했습니다.'}
       {!hasPackages && <button type="button" className="font-semibold underline" disabled={query.isFetching} onClick={() => void query.refetch()}>다시 조회</button>}

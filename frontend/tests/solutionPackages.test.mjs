@@ -21,7 +21,7 @@ async function until(predicate) {
   }
 }
 
-function renderInventory(t, inventory) {
+function renderInventory(t, inventory, read = () => ({ packages: inventory })) {
   const calls = []
   const transport = {
     async get(url, { params, signal }) {
@@ -29,7 +29,7 @@ function renderInventory(t, inventory) {
       assert.ok(signal)
       calls.push(params)
       const hasInventory = params.product === 'eyeCloudXoar' && params.version === '4.0_R2'
-      return { data: { packages: hasInventory ? inventory : [] } }
+      return { data: hasInventory ? read() : { packages: [] } }
     },
   }
   const load = sourceLoader({ 'infrastructure/api/client': { default: transport, __esModule: true } })
@@ -43,7 +43,7 @@ function renderInventory(t, inventory) {
       React.createElement(ApplicationServicesProvider, { services }, React.createElement(Page))))
   })
   t.after(() => { act(() => view.unmount()); client.clear() })
-  return { view, calls }
+  return { view, calls, client }
 }
 
 const change = (element, value) => act(() => element.props.onChange({ target: { value } }))
@@ -51,6 +51,63 @@ const click = (element) => act(() => element.props.onClick())
 const labeled = (view, label) => view.root.findByProps({ 'aria-label': label })
 const listRows = (view) => labeled(view, '패키지 목록').findAllByType('li', { deep: false })
 const rowLabel = (item) => `${item.name} ${item.version}`
+
+test('solution coverage distinguishes the initial inventory from official matches and polls only while collecting', async (t) => {
+  const rows = [packages[0], { ...packages[1], cve_ids: null }]
+  const source = { id: 'fixture', label: '테스트 권고', url: 'https://example.test/advisories', note: null }
+  const coverage = (status, refreshing, refreshed_at = null) => ({
+    status, refreshing, coverage_note: null, sources: [{ ...source, status, refreshed_at }],
+  })
+  let data = { packages: rows, coverage: coverage('pending', true) }
+  const { view, client, calls } = renderInventory(t, rows, () => data)
+  const screen = () => JSON.stringify(view.toJSON())
+  const row = (index) => labeled(view, rowLabel(rows[index]))
+  const rowContains = (index, text) => row(index).findAll((node) => node.children.includes(text)).length > 0
+  const retryRead = () => click(view.root.findAllByType('button').find((button) => button.children.includes('다시 조회')))
+  const pollInterval = () => {
+    const query = client.getQueryCache().find({ queryKey: ['solution-packages'], exact: false })
+    return query.options.refetchInterval(query)
+  }
+  const dateTimes = () => view.root.findAllByType('time').map((element) => element.props.dateTime)
+  const inventoryTime = '2026-11-06T11:47:00+09:00'
+  const success = '2099-01-01T23:00:00Z'
+  await until(() => screen().includes('수집 대기'))
+  assert.ok(screen().includes('매일 08:00 KST 공식 권고 자동 수집'))
+  assert.ok(rowContains(0, '초기 인벤토리'))
+  assert.deepEqual(dateTimes(), [inventoryTime])
+  assert.equal(pollInterval(), 3000)
+
+  data = { packages: rows, coverage: coverage('error', false) }
+  retryRead()
+  await until(() => screen().includes('수집 실패'))
+  assert.equal(pollInterval(), false)
+  assert.deepEqual(dateTimes(), [inventoryTime])
+  assert.ok(rowContains(0, '초기 인벤토리'))
+
+  const collected = [{ ...rows[0], cve_basis: 'advisory', cve_ids: ['CVE-2099-0001'] }, rows[1]]
+  data = { packages: collected, coverage: coverage('partial', false, success) }
+  retryRead()
+  await until(() => screen().includes('일부 자료만 수집'))
+  assert.deepEqual(dateTimes(), [inventoryTime, success])
+  assert.ok(rowContains(0, '공식 권고'))
+  assert.ok(rowContains(1, '초기 인벤토리'))
+  assert.ok(labeled(view, `${rowLabel(rows[0])} CVE 1건`))
+
+  data = { packages: collected, coverage: coverage('stale', true, success) }
+  retryRead()
+  await until(() => screen().includes('새 자료 수집 중, 이전 결과 표시'))
+  assert.equal(pollInterval(), 3000)
+  assert.ok(labeled(view, `${rowLabel(rows[0])} CVE 1건`))
+
+  data = { packages: [{ ...collected[0], cve_ids: [] }, rows[1]], coverage: coverage('ready', false, '2099-01-02T23:00:00Z') }
+  retryRead()
+  await until(() => screen().includes('수집 완료'))
+  assert.ok(rowContains(0, '0건'))
+  assert.ok(rowContains(0, '공식 권고'))
+  assert.equal(pollInterval(), false)
+  assert.deepEqual(dateTimes(), [inventoryTime, '2099-01-02T23:00:00Z'])
+  for (const params of calls) assert.deepEqual(params, { product: 'eyeCloudXoar', version: '4.0_R2' })
+})
 
 test('solution selection scopes the inventory, clears stale rows and queries AI without a version', async (t) => {
   const { view, calls } = renderInventory(t, packages)
@@ -176,7 +233,13 @@ test('CVE counts disclose the IDs for the exact package version and distinguish 
 
   toggle('99.2.0', 3)
   assert.equal(disclosure('99.2.0', 3).props['aria-expanded'], true)
-  assert.ok(sharedIds.every((id) => screen().includes(id)))
+  const links = labeled(view, `${name} 99.2.0 매칭된 CVE`).findAllByType('a')
+  assert.deepEqual(links.map((link) => link.children.join('')), sharedIds)
+  for (const [index, link] of links.entries()) {
+    assert.equal(link.props.href, `https://nvd.nist.gov/vuln/detail/${sharedIds[index]}`)
+    assert.equal(link.props.target, '_blank')
+    assert.ok(link.props.rel.split(' ').includes('noreferrer'))
+  }
   assert.ok(!screen().includes(onlyInFirst))
   toggle('99.2.0', 3)
   assert.ok(!screen().includes(sharedIds[0]))

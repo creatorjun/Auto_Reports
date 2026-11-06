@@ -164,9 +164,12 @@ class DailyAdvisories(Generic[TargetT, FeedT, DataT]):
             return state, snapshot, entry.task is not None
 
     async def refresh_scheduled(self) -> None:
+        await self._refresh_targets(self._feeds_targets)
+
+    async def _refresh_targets(self, targets: tuple[TargetT, ...]) -> None:
         while not self._closed:
             day = scheduled_day(self._clock())
-            for target in self._feeds_targets:
+            for target in targets:
                 if target.available:
                     for feed in target.feeds:
                         await self._read_feed(target, feed)

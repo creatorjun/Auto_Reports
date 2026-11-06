@@ -20,7 +20,6 @@ from src.application.use_cases.trigger_report import TriggerReportUseCase
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.audit_log_user_profiles import SqlAuditLogUserProfiles
 from src.infrastructure.persistence.job_repository_impl import SqlJobRepository
-from src.infrastructure.persistence.solution_packages import read_solution_packages
 from src.infrastructure.scheduling.report_scheduler import create_scheduler
 from src.presentation.api.deps import ApiServices
 
@@ -74,7 +73,7 @@ def create_app(settings: Settings) -> FastAPI:
                     kernel_cves=container.kernel_cves,
                     java_cves=container.java_cves,
                     db_cves=container.db_cves,
-                    read_solution_packages=read_solution_packages,
+                    solution_cves=container.solution_cves,
                     audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir), SqlAuditLogUserProfiles(database)),
                     notify_sla_digest=container.notify_sla_digest,
                     sla_status=container.sla_status,
@@ -89,6 +88,7 @@ def create_app(settings: Settings) -> FastAPI:
                     refresh_kernel_cves=container.kernel_cves.refresh_scheduled,
                     refresh_java_cves=container.java_cves.refresh_scheduled,
                     refresh_db_cves=container.db_cves.refresh_scheduled,
+                    refresh_solution_cves=container.solution_cves.refresh_scheduled,
                     report_personal_data=container.personal_data.run_reporting,
                     notify_sla_digest=(
                         container.send_sla_digest if container.sla_digest_enabled else None

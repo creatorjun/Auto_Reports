@@ -13,10 +13,10 @@ from src.domain.entities.advisory_feed import AdvisorySnapshot, DataT, FeedClaim
 
 
 class SqliteAdvisorySnapshotStore(Generic[DataT]):
-    def __init__(self, path: str, kind: Literal["kernel", "java", "database"], decode: Callable[[dict], DataT]) -> None:
+    def __init__(self, path: str, kind: Literal["kernel", "java", "database", "solution"], decode: Callable[[dict], DataT]) -> None:
         self._path = Path(path)
         self._decode_payload = decode
-        if kind not in {"kernel", "java", "database"}:
+        if kind not in {"kernel", "java", "database", "solution"}:
             raise ValueError("Unknown advisory database kind")
         self._snapshots = kind + "_feed_v1"
         self._attempts = kind + "_feed_attempt"

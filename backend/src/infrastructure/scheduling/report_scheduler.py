@@ -37,6 +37,7 @@ def create_scheduler(
     refresh_kernel_cves: Callable[[], Awaitable[None]] | None = None,
     refresh_java_cves: Callable[[], Awaitable[None]] | None = None,
     refresh_db_cves: Callable[[], Awaitable[None]] | None = None,
+    refresh_solution_cves: Callable[[], Awaitable[None]] | None = None,
 ) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=timezone)
     scheduler.add_job(
@@ -89,6 +90,7 @@ def create_scheduler(
         (refresh_kernel_cves, "kernel_cves_daily", "OS 커널 CVE"),
         (refresh_java_cves, "java_cves_daily", "Java CVE"),
         (refresh_db_cves, "db_cves_daily", "DB CVE"),
+        (refresh_solution_cves, "solution_cves_daily", "솔루션 패키지 CVE"),
     ):
         if callback:
             scheduler.add_job(

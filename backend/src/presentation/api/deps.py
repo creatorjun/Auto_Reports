@@ -27,7 +27,7 @@ from src.application.use_cases.storage_use_case import StorageUseCase
 from src.application.use_cases.audit_logs import AuditLogsUseCase
 from src.application.use_cases.notify_sla_digest import NotifySlaDigestUseCase
 from src.application.use_cases.trigger_report import TriggerReportUseCase
-from src.domain.entities.solution_package import SolutionPackage
+from src.application.use_cases.solution_advisories import SolutionAdvisories
 from src.presentation.http.request_audit import RequestAudit
 
 
@@ -44,7 +44,7 @@ class ApiServices:
     get_site: Callable[[], AsyncContextManager[SiteUseCase]]
     get_sla_dashboard: Callable[[], AsyncContextManager[SlaDashboardUseCase]]
     get_report_chart_issues: Callable[[], AsyncContextManager[GetReportChartIssuesUseCase]]
-    read_solution_packages: Callable[[str, str | None], tuple[SolutionPackage, ...] | None]
+    solution_cves: SolutionAdvisories
     issue_management: IssueManagementUseCase | None = None
     audit_logs: AuditLogsUseCase | None = None
     get_sla_violation: Callable[[], AsyncContextManager[SlaViolationReportUseCase]] | None = None

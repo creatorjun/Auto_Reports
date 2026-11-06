@@ -76,6 +76,7 @@ Application은 위 값으로 `postgresql+asyncpg://...` URL을 구성합니다.
 | `KERNEL_CVE_SNAPSHOT_PATH` | `reports/kernel-cves.sqlite3` | OS 커널 공급사 권고, Linux 신규 CVE, 출처별 수집 시도·성공 이력. Compose에서는 `/app/reports` 볼륨 |
 | `JAVA_CVE_SNAPSHOT_PATH` | `reports/java-cves.sqlite3` | OpenJDK·Azul Zulu 취약점 권고, 빌드 목록, 출처별 수집 시도와 마지막 정상 자료. Compose에서는 `/app/reports` 볼륨 |
 | `DB_CVE_SNAPSHOT_PATH` | `reports/db-cves.sqlite3` | MariaDB·MySQL·PostgreSQL의 취약점 권고, 버전 목록, 출처별 마지막 수집 기록. Compose에서는 `/app/reports` 볼륨 |
+| `SOLUTION_CVE_SNAPSHOT_PATH` | `reports/solution-cves.sqlite3` | 솔루션 패키지의 Maven·npm 대조 결과와 출처별 수집 기록. 운영 보고서 볼륨에 보관 |
 | `SECURITY_NEWS_TRANSLATION_ENABLED` | `true` | Gemini key가 있을 때 공개 제목·설명을 한국어 한 줄로 요약 |
 | `SECURITY_NEWS_TRANSLATION_MODEL` | `gemini-3.5-flash-lite` | 무료 티어 지원 `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`만 허용. 저장된 한 줄 요약은 재사용 |
 | `SECURITY_NEWS_TRANSLATION_CACHE_PATH` | `reports/security-news-translations.sqlite3` | 영구 번역·호출 제한 저장소. Compose에서는 `/app/reports` 볼륨 |

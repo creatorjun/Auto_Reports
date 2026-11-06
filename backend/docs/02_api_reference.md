@@ -257,4 +257,4 @@ OpenJDK와 Azul Zulu는 각 공급사가 명시한 버전 기준으로 대조합
 
 eyeCloudXoar 4.0_R2의 인벤토리는 운영 배포 시 백엔드에 별도로 공급합니다. 컨테이너 경로는 `/app/src/infrastructure/data/solution_packages/eyecloudxoar_4_0_r2.json`입니다. 여기에 패키지 객체의 JSON 배열을 배치한 뒤 백엔드를 재시작합니다. 해당 파일이 없는 환경은 빈 목록을 반환합니다.
 
-각 패키지의 `cve_ids`는 조사 당시 매칭된 CVE ID의 배열입니다. 빈 배열은 당시 대조 결과가 0건임을 뜻합니다. 대조 범위가 제한됐거나 기존 자료에 대조 결과가 없으면 `null`을 반환합니다.
+각 패키지의 `cve_ids`는 해당 버전에서 확인한 CVE ID 목록입니다. 빈 배열은 미매칭, `null`은 대조 제한을 뜻합니다. `cve_basis`는 자동 대조 결과(`advisory`)와 초기 조사 결과(`inventory`)를 구분합니다. `coverage`에는 출처별 수집 상태와 최근 수집 성공 시각이 담기며, 등록된 패키지가 없으면 `null`입니다.

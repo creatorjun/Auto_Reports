@@ -35,6 +35,7 @@ from src.application.use_cases.security_news import SecurityNewsUseCase
 from src.application.use_cases.kernel_cves import KernelCveUseCase
 from src.application.use_cases.java_cves import JavaCveUseCase
 from src.application.use_cases.database_cves import DatabaseCveUseCase
+from src.application.use_cases.solution_advisories import SolutionAdvisories
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
@@ -43,6 +44,7 @@ from src.infrastructure.external.security_news_source import PublicSecurityNewsS
 from src.infrastructure.external.kernel_cve_source import KernelCveSource
 from src.infrastructure.external.java_cve_source import JavaCveSource
 from src.infrastructure.external.database_cve_source import DatabaseCveSource
+from src.infrastructure.external.solution_osv import match_solution_packages
 from src.infrastructure.external.gemini_news_translator import GeminiNewsTranslator
 from src.infrastructure.external.jira_oauth_client import JiraOAuthClient
 from src.infrastructure.external.jira_notification_client import JiraNotificationClient
@@ -67,6 +69,8 @@ from src.infrastructure.persistence.security_news_snapshot_store import SqliteSe
 from src.infrastructure.persistence.kernel_cve_store import SqliteKernelSnapshotStore
 from src.infrastructure.persistence.java_cve_store import SqliteJavaSnapshotStore
 from src.infrastructure.persistence.database_cve_store import SqliteDatabaseSnapshotStore
+from src.infrastructure.persistence.solution_cve_store import SqliteSolutionSnapshotStore
+from src.infrastructure.persistence.solution_packages import read_solution_packages
 from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
 from src.infrastructure.persistence.sla_violation_repository_impl import SlaViolationRepositoryImpl
 from src.infrastructure.persistence.redeployment_repository_impl import RedeploymentRepositoryImpl
@@ -208,6 +212,9 @@ class Container:
         self.java_cves = JavaCveUseCase(self._java_cve_source, SqliteJavaSnapshotStore(settings.java_cve_snapshot_path))
         self._db_cve_source = DatabaseCveSource()
         self.db_cves = DatabaseCveUseCase(self._db_cve_source, SqliteDatabaseSnapshotStore(settings.db_cve_snapshot_path))
+        self.solution_cves = SolutionAdvisories(
+            read_solution_packages, match_solution_packages, SqliteSolutionSnapshotStore(settings.solution_cve_snapshot_path),
+        )
         self._security_news_store = SqliteSecurityNewsSnapshotStore(settings.security_news_snapshot_path)
         self._news_translator = None
         self._news_translation_cache = None
@@ -407,6 +414,7 @@ class Container:
                 "_kernel_cve_source", "kernel_cves",
                 "_java_cve_source", "java_cves",
                 "_db_cve_source", "db_cves",
+                "solution_cves",
             ):
                 resource = getattr(self, name, None)
                 if resource is not None:
