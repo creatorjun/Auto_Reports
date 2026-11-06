@@ -6,8 +6,8 @@ import unittest
 import httpx
 
 from src.application.ports.jira_port import JiraIssue, JiraStatusChange
-from src.application.services.query_builder import WidgetQueryBuilder
-from src.application.services.query_config import QueryConfig
+from src.infrastructure.external.widget_query_builder import WidgetQueryBuilder
+from src.infrastructure.external.query_config import QueryConfig
 from src.application.services.report_issue_metrics import resolution_elapsed
 from src.application.services.stage_duration import stage_duration_hours
 from src.application.widgets.resolution_collector import ResolutionCollector

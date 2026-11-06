@@ -28,6 +28,16 @@ def imported_modules(path: pathlib.Path, node: ast.AST) -> list[str]:
 
 
 class ArchitectureTest(unittest.TestCase):
+    def test_core_does_not_construct_provider_queries(self) -> None:
+        violations: list[str] = []
+        syntax = re.compile(r"\bORDER\s+BY\b|\b(?:project|issuetype|reporter|issuekey)\s*(?:=|!=|IN\s*\()", re.I)
+        for layer in ("domain", "application"):
+            for path in (SOURCE / layer).rglob("*.py"):
+                for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                    if isinstance(node, ast.Constant) and isinstance(node.value, str) and syntax.search(node.value):
+                        violations.append(f"{path.relative_to(SOURCE)}:{node.lineno}:provider query syntax")
+        self.assertEqual([], violations)
+
     def test_package_imports_are_included_in_dependency_checks(self) -> None:
         path = SOURCE / "application" / "use_cases" / "candidate.py"
         cases = (
@@ -53,10 +63,10 @@ class ArchitectureTest(unittest.TestCase):
 
     def test_dependency_rule(self) -> None:
         forbidden = {
-            "domain": ("application", "infrastructure", "presentation", "bootstrap"),
-            "application": ("infrastructure", "presentation", "bootstrap"),
-            "infrastructure": ("presentation", "bootstrap"),
-            "presentation": ("infrastructure", "bootstrap"),
+            "domain": ("application", "infrastructure", "presentation", "bootstrap", "main"),
+            "application": ("infrastructure", "presentation", "bootstrap", "main"),
+            "infrastructure": ("presentation", "bootstrap", "main"),
+            "presentation": ("infrastructure", "bootstrap", "main"),
         }
         violations: list[str] = []
         for path in SOURCE.rglob("*.py"):

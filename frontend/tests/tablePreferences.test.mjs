@@ -60,6 +60,38 @@ const storedSort = { key: 'summary', direction: 'desc' }
 const preference = (sort = storedSort, widths = storedWidths) => JSON.stringify({ version: 1, sort, widths })
 const storageKey = (key) => `auto-reports-table:${key}`
 
+test('filters restore only for their own account and view, including immediately after an update', (t) => {
+  const { writes } = browserStorage(t)
+  const { FilterOwnerContext, usePersistentFilterState } = sourceLoader()('presentation/hooks/usePersistentFilterState')
+  let current, view
+  function Probe({ name }) {
+    current = usePersistentFilterState(name, () => [])
+    return null
+  }
+  function render(owner, name) {
+    const element = React.createElement(FilterOwnerContext.Provider, { value: owner }, React.createElement(Probe, { name }))
+    act(() => { if (view) view.update(element); else view = TestRenderer.create(element) })
+  }
+  render('user:first', 'issues')
+  assert.equal(writes.length, 0)
+  act(() => {
+    current[1](['진행 중'])
+    current[1]((previous) => [...previous, '검토 중'])
+    view.unmount()
+  })
+  view = null
+  render('user:second', 'issues')
+  assert.deepEqual(current[0], [])
+  render('user:first', 'partners')
+  assert.deepEqual(current[0], [])
+  render(null, 'issues')
+  act(() => current[1](['anonymous']))
+  assert.equal(writes.length, 2)
+  render('user:first', 'issues')
+  assert.deepEqual(current[0], ['진행 중', '검토 중'])
+  act(() => view.unmount())
+})
+
 function hookView(t, key = 'test:one', min = 0.15, load = sourceLoader()) {
   const { useTablePreferences } = load('presentation/hooks/useTablePreferences')
   let current

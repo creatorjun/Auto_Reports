@@ -1,5 +1,6 @@
 // frontend/src/presentation/components/annual/AnnualIssueDetailsModal.tsx
 import { useMemo, useState, type ReactNode } from 'react'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
 import IssueTableModal, { type ColumnDef } from '@/presentation/components/common/IssueTableModal'
 import { IssueTypeBadge } from '@/presentation/components/common/IssueTypeBadge'
 import { StatusBadge } from '@/presentation/components/common/StatusBadge'
@@ -22,7 +23,7 @@ interface Props {
 const PAGE_SIZE = 20
 
 export default function AnnualIssueDetailsModal({ title, total, issues, description, dateField, headerSlot, onClose }: Props) {
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = usePersistentFilterState(`dashboard:annual:details:${title}:search`, '')
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<IssueTableSort | null>(null)
   const filtered = useMemo(() => {

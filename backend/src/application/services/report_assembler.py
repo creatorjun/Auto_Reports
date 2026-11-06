@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from typing import Awaitable, Callable
 
-from src.application.services.query_builder import ResolvedQueries, WidgetQueryBuilder
+from src.application.ports.report_query_port import ResolvedQueries, ReportQueryPort
 from src.application.widgets.collector_factory import CollectorEntry
 from src.domain.entities.report import NewReport
 from src.domain.entities.widget import WidgetResult
@@ -22,7 +22,7 @@ IssueTypeProvider = Callable[[], Awaitable[list[str]]]
 class ReportAssembler:
     def __init__(
         self,
-        query_builder: WidgetQueryBuilder,
+        query_builder: ReportQueryPort,
         base_collector_factory: BaseCollectorFactory,
         monthly_collector_factory: MonthlyCollectorFactory,
         annual_collector_factory: AnnualCollectorFactory | None = None,

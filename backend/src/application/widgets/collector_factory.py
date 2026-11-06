@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable
 
-from src.application.services.query_builder import ResolvedQueries
+from src.application.ports.report_query_port import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.value_objects.widget_id import WidgetId
 

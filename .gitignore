@@ -11,6 +11,7 @@ __pycache__/
 reports/
 backend/logs/
 *.json
+backend/src/infrastructure/data/solution_packages/
 !frontend/src/presentation/config/designTokens.json
 .DS_Store
 node_modules/

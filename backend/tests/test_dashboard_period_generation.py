@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 from src.application.ports.report_analyzer_port import ReportAnalyzerPort
 from src.application.ports.report_cache_port import ReportCachePort
 from src.application.ports.report_repository import ReportRepository
-from src.application.services.query_builder import WidgetQueryBuilder
-from src.application.services.query_config import QueryConfig
+from src.infrastructure.external.widget_query_builder import WidgetQueryBuilder
+from src.infrastructure.external.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.services.report_period import report_period_dates
 from src.application.use_cases.generate_report import GenerateReportUseCase

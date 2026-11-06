@@ -6,6 +6,7 @@ import type { SlaViolationPeriod } from '@/domain/SlaViolationReport'
 import { SLA_PERIOD_LABELS, slaDateRange, slaToday } from '@/application/services/slaViolationReport'
 import { RequestError } from '@/application/errors/RequestError'
 import { useGenerateSlaViolationReport, useSlaViolationReport } from '@/presentation/hooks/useSlaViolations'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
 import { useReportStore } from '@/presentation/state/reportStore'
 import SlaViolationReportContent from '@/presentation/components/sla-violations/SlaViolationReportContent'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
@@ -20,28 +21,20 @@ export default function SlaViolationPage() {
   const reportId = id === undefined ? undefined : Number(id)
   const invalidId = reportId !== undefined && (!Number.isSafeInteger(reportId) || reportId <= 0)
   const navigate = useNavigate()
-  const [period, setPeriod] = useState<SlaViolationPeriod>('week')
-  const [date, setDate] = useState(slaToday)
-  const [loadedSource, setLoadedSource] = useState<string | null>(null)
+  const [draft, setDraft] = usePersistentFilterState<{ period: SlaViolationPeriod; date: string } | null>('sla-violations:generation', null)
   const [savedId, setSavedId] = useState<number | null>(null)
   const query = useSlaViolationReport(reportId)
   const generation = useGenerateSlaViolationReport()
   const report = query.data
-  const range = slaDateRange(period, date)
   const today = slaToday()
+  const period = draft?.period ?? report?.period ?? 'week'
+  const date = draft?.date ?? report?.selected_date ?? today
+  const range = slaDateRange(period, date)
   const dateValid = range !== null && date <= today
   const changed = report && (report.period !== period || report.selected_date !== date || (range && (report.start_date !== range.start || report.end_date !== range.end)))
   const setCurrentReport = useReportStore((state) => state.setCurrentReport)
 
   useEffect(() => { setCurrentReport(null) }, [setCurrentReport, id])
-  useEffect(() => {
-    const source = report ? `${id ?? 'latest'}:${report.id}` : null
-    if (report && source !== loadedSource) {
-      setPeriod(report.period)
-      setDate(report.selected_date)
-      setLoadedSource(source)
-    }
-  }, [report, loadedSource, id])
 
   const generate = (event: React.FormEvent) => {
     event.preventDefault()
@@ -66,11 +59,11 @@ export default function SlaViolationPage() {
           <fieldset disabled={generation.isPending} className="min-w-0">
             <legend className="mb-2 text-control-label font-medium text-apple-mid">집계 단위</legend>
             <div className="inline-flex rounded-xl bg-apple-gray p-1" aria-label="집계 단위">
-              {(['week', 'month', 'year'] as const).map((value) => <button key={value} type="button" aria-pressed={period === value} onClick={() => setPeriod(value)} className={`rounded-lg px-5 py-2 text-control font-medium transition-colors disabled:opacity-50 ${period === value ? 'bg-apple-surface text-brand-600 shadow-sm' : 'text-apple-mid hover:text-apple-dark'}`}>{SLA_PERIOD_LABELS[value]}</button>)}
+              {(['week', 'month', 'year'] as const).map((value) => <button key={value} type="button" aria-pressed={period === value} onClick={() => setDraft({ period: value, date })} className={`rounded-lg px-5 py-2 text-control font-medium transition-colors disabled:opacity-50 ${period === value ? 'bg-apple-surface text-brand-600 shadow-sm' : 'text-apple-mid hover:text-apple-dark'}`}>{SLA_PERIOD_LABELS[value]}</button>)}
             </div>
           </fieldset>
           <label className="flex flex-col gap-2 text-control-label font-medium text-apple-mid">기준 날짜
-            <input type="date" required max={today} value={date} disabled={generation.isPending} onChange={(event) => setDate(event.target.value)} className="min-w-0 rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-control text-apple-dark focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 disabled:opacity-50" />
+            <input type="date" required max={today} value={date} disabled={generation.isPending} onChange={(event) => setDraft({ period, date: event.target.value })} className="min-w-0 rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-control text-apple-dark focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 disabled:opacity-50" />
           </label>
           <button type="submit" disabled={!dateValid || generation.isPending || query.isFetching} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-control font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40 sm:ml-auto">
             {generation.isPending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{generation.isPending ? '집계 및 저장 중' : '보고서 생성'}

@@ -6,21 +6,25 @@ import PartnerOrgPanel from '@/presentation/components/partner/PartnerOrgPanel'
 import PartnerMemberPanel from '@/presentation/components/partner/PartnerMemberPanel'
 import PartnerIssuePanel from '@/presentation/components/partner/PartnerIssuePanel'
 import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
+import { usePersistentFilterSet } from '@/presentation/hooks/usePersistentFilterSet'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
 import { useLatestReport } from '@/presentation/hooks/useReport'
 import { resolveDashboardFilterContract } from '@/application/services/dashboardData'
 import { sortDashboardStatuses } from '@/domain/DashboardStatusPolicy'
 import { isLicenseIssueType } from '@/domain/DashboardIssueTypePolicy'
 
 export default function PartnerManagementPage() {
-  const [organizationQuery, setOrganizationQuery] = useState('')
-  const [memberQuery,       setMemberQuery]       = useState('')
-  const [issueQuery,        setIssueQuery]        = useState('')
-  const [selectedOrg,       setSelectedOrg]       = useState<PartnerOrg | null>(null)
-  const [selectedMember,    setSelectedMember]    = useState<PartnerMember | null>(null)
-  const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
-  const [selectedStatuses, setSelectedStatuses] = useState<Set<string> | null>(null)
+  const [organizationQuery, setOrganizationQuery] = usePersistentFilterState('partners.organizationQuery', '')
+  const [memberQuery, setMemberQuery] = usePersistentFilterState('partners.memberQuery', '')
+  const [issueQuery, setIssueQuery] = usePersistentFilterState('partners.issueQuery', '')
+  const [{ org: selectedOrg, member: selectedMember }, setSelection] = usePersistentFilterState<{
+    org: Pick<PartnerOrg, 'id' | 'name'> | null
+    member: Pick<PartnerMember, 'account_id' | 'display_name'> | null
+  }>('partners.selection', { org: null, member: null })
+  const [selectedIssueTypes, setSelectedIssueTypes] = usePersistentFilterSet('partners.types')
+  const [selectedStatuses, setSelectedStatuses] = usePersistentFilterSet('partners.statuses')
   const [loadedPartnerStatuses, setLoadedPartnerStatuses] = useState<string[]>([])
-  const [selectedSemester, setSelectedSemester] = useState<Semester | null>(null)
+  const [selectedSemester, setSelectedSemester] = usePersistentFilterState<Semester | null>('partners.semester', null)
   const latestReport = useLatestReport()
   const reportFilter = useMemo(
     () => latestReport.data ? resolveDashboardFilterContract(latestReport.data) : null,
@@ -42,8 +46,14 @@ export default function PartnerManagementPage() {
 
   const handleSelectOrg = (org: PartnerOrg) => {
     if (selectedOrg?.id === org.id) return
-    setSelectedOrg(org)
-    setSelectedMember(null)
+    setSelection({ org: { id: org.id, name: org.name }, member: null })
+  }
+
+  const handleSelectMember = (member: PartnerMember | null) => {
+    setSelection((current) => ({
+      ...current,
+      member: member && { account_id: member.account_id, display_name: member.display_name },
+    }))
   }
 
   const handleIssueTypeToggle = (issueType: string) => {
@@ -51,7 +61,7 @@ export default function PartnerManagementPage() {
       const next = new Set(current ?? issueTypes)
       if (next.has(issueType)) next.delete(issueType)
       else next.add(issueType)
-      return next.size === issueTypes.length ? null : next
+      return issueTypes.every((type) => next.has(type)) ? null : next
     })
   }
 
@@ -60,7 +70,7 @@ export default function PartnerManagementPage() {
       const next = new Set(current ?? statusTypes)
       if (next.has(status)) next.delete(status)
       else next.add(status)
-      return next.size === statusTypes.length ? null : next
+      return statusTypes.every((value) => next.has(value)) ? null : next
     })
   }
 
@@ -123,7 +133,7 @@ export default function PartnerManagementPage() {
             selectedAccountId={selectedMember?.account_id ?? null}
             searchQuery={memberQuery}
             onSearchChange={setMemberQuery}
-            onSelect={setSelectedMember}
+            onSelect={handleSelectMember}
           />
         </div>
         <div className="h-96 min-w-0 overflow-hidden rounded-2xl border border-apple-divider bg-apple-surface shadow-sm md:col-span-2 xl:col-span-1 xl:h-auto">

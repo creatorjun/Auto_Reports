@@ -39,7 +39,7 @@ function sourceLoader(overrides = {}) {
 }
 
 const load = sourceLoader()
-const { defaultSecurityNewsFilters, filterCveResponseRows, filterSecurityNews, safeSecurityNewsUrl, cveReferenceUrl, securityNewsDisplayText } = load('application/services/securityNews')
+const { defaultSecurityNewsFilters, filterSecurityNews, safeSecurityNewsUrl, cveReferenceUrl, securityNewsDisplayText } = load('application/services/securityNews')
 const { RequestError } = load('application/errors/RequestError')
 const now = Date.parse('2026-10-20T05:00:00Z')
 const source = { id: 'nvd', name: 'NVD', homepage: 'https://nvd.nist.gov/', kind: 'cve', status: 'ok', count: 1, last_success_at: '2026-10-20T00:00:00Z', error: null }
@@ -55,11 +55,11 @@ function translation(overrides = {}) {
 function query(overrides = {}) {
   return { data: snapshot(), now, isError: false, isFetching: false, refreshing: false, canRefresh: true, retryAfterSeconds: 0, refreshError: null, refresh() {}, refetch() {}, ...overrides }
 }
-function renderPage(t, state, pageName = 'SecurityNewsPage') {
+function renderPage(t, state) {
   const instance = sourceLoader({ 'presentation/hooks/useSecurityNews': { useSecurityNews: () => state }, 'application/errors/RequestError': { RequestError } })
-  const Page = instance(pageName === 'CveBulletin' ? 'presentation/components/security/SecurityBulletinPage' : `presentation/pages/${pageName}`).default
+  const Page = instance('presentation/pages/SecurityNewsPage').default
   let view
-  act(() => { view = TestRenderer.create(React.createElement(Page, pageName === 'CveBulletin' ? { section: 'cve' } : {})) })
+  act(() => { view = TestRenderer.create(React.createElement(Page)) })
   t.after(() => act(() => view.unmount()))
   return view
 }
@@ -67,8 +67,8 @@ function plainText(view) { return JSON.stringify(view.toJSON()) }
 function summaryButtons(view) { return view.root.findByProps({ role: 'group', 'aria-label': '보안 정보 요약 필터' }).findAllByType('button') }
 function summaryButton(view, label) { return summaryButtons(view).find((button) => button.findAllByType('span').some((span) => span.children.includes(label))) }
 function selectedSummaries(view) { return summaryButtons(view).filter((button) => button.props['aria-pressed']).map((button) => button.findAllByType('span').find((span) => typeof span.children[0] === 'string').children.join('')) }
-function cveTableRows(view) { return view.root.findAllByType('tbody').flatMap((body) => body.findAllByType('tr')) }
-function visibleTitles(view) { return cveTableRows(view).map((row) => row.findByProps({ scope: 'row' }).findByType('a').children.join('')) }
+function newsTableRows(view) { return view.root.findAllByType('tbody').flatMap((body) => body.findAllByType('tr')) }
+function visibleTitles(view) { return newsTableRows(view).map((row) => row.findByProps({ scope: 'row' }).findByType('a').children.join('')) }
 function selectWithOption(view, value) { return view.root.findAllByType('select').find((select) => select.findAllByType('option').some((option) => option.props.value === value)) }
 function deferred() {
   let resolve, reject
@@ -209,19 +209,19 @@ test('news list renders eight columns, one line per issue and compact CVE refere
   const rows = [item({ kind: 'advisory', title: 'Original advisory', summary_ko: '제품 취약점 해결을 위한 보안 업데이트가 공개됐습니다.', title_ko: null, known_exploited: true, cve_ids: ['CVE-2026-12345', 'CVE-2026-12346', 'invalid'] }), item({ id: 'native', kind: 'advisory', source_id: 'kisa', title: '한국어 보안 권고', summary: '길고 상세한 원문 내용' })]
   const view = renderPage(t, query({ data: snapshot({ items: rows }) }))
   assert.equal(view.root.findAllByType('article').length, 0)
-  assert.equal(cveTableRows(view).length, 2)
+  assert.equal(newsTableRows(view).length, 2)
   assert.deepEqual(view.root.findByType('thead').findAllByType('th').map((cell) => cell.children.join('')), ['유형', '한 줄 요약', '위험도', '관련 CVE', '실제 악용', '출처', '게시일', '원문'])
   assert.match(view.root.findByType('table').props.className, /whitespace-nowrap/)
   const region = view.root.findByProps({ role: 'region' })
   assert.equal(region.props.tabIndex, 0)
   assert.match(region.props.className, /overflow-x-auto/)
-  for (const row of cveTableRows(view)) {
+  for (const row of newsTableRows(view)) {
     assert.equal(row.findAllByType('td').length, 7)
     const text = row.findByProps({ scope: 'row' }).findByType('span')
     assert.match(text.props.className, /truncate/)
     assert.equal(text.props.title, text.findByType('a').children.join(''))
   }
-  assert.ok(cveTableRows(view).some((row) => row.findAllByType('span').some((span) => span.children.join('') === '+1')))
+  assert.ok(newsTableRows(view).some((row) => row.findAllByType('span').some((span) => span.children.join('') === '+1')))
   assert.doesNotMatch(plainText(view), /길고 상세한 원문 내용|invalid/)
 })
 
@@ -328,7 +328,7 @@ test('summary conditions combine with search, source, severity, period and explo
   assert.equal(view.root.findAllByType('article').length, 0)
   assert.match(plainText(view), /조건에 맞는 보안 정보가 없습니다/)
   act(() => view.root.findAllByType('button').find((button) => button.children.includes('필터 초기화')).props.onClick())
-  assert.equal(cveTableRows(view).length, rows.filter((row) => row.kind !== 'cve').length)
+  assert.equal(newsTableRows(view).length, rows.filter((row) => row.kind !== 'cve').length)
   assert.deepEqual(selectedSummaries(view), ['수집된 항목'])
 })
 
@@ -349,7 +349,7 @@ test('summary toggle changes only row presentation and preserves search results 
   act(() => view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: '한국어' } }))
   act(() => original.props.onClick())
   assert.equal(original.props['aria-pressed'], true)
-  assert.equal(cveTableRows(view).length, 1)
+  assert.equal(newsTableRows(view).length, 1)
   assert.deepEqual(visibleTitles(view), ['Original security update'])
   assert.ok(view.root.findByType('thead').findAllByType('th').some((cell) => cell.children.includes('원문 제목')))
   act(() => korean.props.onClick())
@@ -387,7 +387,7 @@ test('page keeps saved rows visible when refresh or polling fails and disables d
   let refreshes = 0
   const state = query({ data: snapshot({ items: [item({ kind: 'advisory' })] }), refreshError: new Error('offline'), isError: true, refreshing: true, canRefresh: false, refresh: () => { refreshes += 1 } })
   const view = renderPage(t, state)
-  assert.equal(cveTableRows(view).length, 1)
+  assert.equal(newsTableRows(view).length, 1)
   assert.match(plainText(view), /업데이트 실패 · 기존 자료 표시/)
   const button = view.root.findAllByType('button').find((node) => node.props['aria-busy'] === true)
   assert.equal(button.props.disabled, true)
@@ -542,57 +542,13 @@ test('desktop and mobile expose accessible security news and route stays under p
     const link = view.root.findAllByType('a').find((entry) => entry.props.href === '/security-news')
     assert.equal(link.props['aria-label'], '보안 뉴스')
     assert.equal(link.props['aria-current'], 'page')
-    const links = view.root.findAllByType('a')
-    const cveIndex = links.findIndex((entry) => entry.props.href === '/cve-response')
-    assert.ok(cveIndex >= 0)
-    assert.equal(links[cveIndex].props['aria-label'], 'CVE 취약점 대응')
-    assert.equal(links[cveIndex + 1].props.href, '/security-news')
   }
   const router = fs.readFileSync(path.join(sourceRoot, 'app/router.tsx'), 'utf8')
   const route = router.indexOf("path: 'security-news'")
   assert.ok(route > router.indexOf('<ProtectedRoute>'))
   assert.ok(route > router.indexOf('children: ['))
   assert.match(router, /SecurityNewsPage\s*=\s*lazy/)
-  assert.ok(router.indexOf("path: 'cve-response'") > router.indexOf('children: ['))
-  assert.match(router, /CveResponsePage\s*=\s*lazy/)
   assert.match(fs.readFileSync(path.join(sourceRoot, 'main.tsx'), 'utf8'), /securityNews: securityNewsApi/)
-})
-
-test('Legacy CVE bulletin includes NVD and CISA KEV with version pairs and excludes news translations', (t) => {
-  const rows = [
-    item({ id: 'nvd', summary: 'Long original vulnerability description', title_ko: '기존 번역 제목', summary_ko: '기존 번역 설명', remediations: [{ vendor: 'Example', product: 'Library', affected_versions: '1.0 이상, 1.4 미만', fixed_version: '1.4', reference_url: 'https://example.com/fix' }] }),
-    item({ id: 'kev', source_id: 'cisa-kev', known_exploited: true, product: 'Gateway', cve_ids: ['CVE-2026-23456'], remediations: [] }),
-    item({ id: 'advisory', kind: 'advisory', title: '보안 권고 제목', source_id: 'kisa' }),
-    item({ id: 'news', kind: 'news', title: '보안 뉴스 제목', source_id: 'google' }),
-  ]
-  const sources = [source, { ...source, id: 'cisa-kev', name: 'CISA KEV' }, { ...source, id: 'kisa', name: 'KISA', kind: 'advisory' }]
-  const view = renderPage(t, query({ data: snapshot({ items: rows, sources, translation: translation({ translating: true, pending_count: 10 }) }) }), 'CveBulletin')
-  assert.equal(view.root.findByType('h1').children.join(''), 'CVE 취약점 대응')
-  assert.equal(cveTableRows(view).length, 2)
-  assert.equal(summaryButtons(view).length, 3)
-  assert.equal(view.root.findAllByProps({ 'aria-label': '표시 언어 선택' }).length, 0)
-  for (const expected of ['Library', 'Gateway', '1.4', '해결 버전 미확인', '실제 악용 확인', 'CISA KEV', 'NVD']) assert.ok(plainText(view).includes(expected))
-  assert.doesNotMatch(plainText(view), /Long original vulnerability description|기존 번역|보안 권고 제목|보안 뉴스 제목|번역 중/)
-  assert.equal(selectWithOption(view, 'nvd').findAllByType('option').some((option) => option.props.value === 'kisa'), false)
-  act(() => selectWithOption(view, 'cisa-kev').props.onChange({ target: { value: 'cisa-kev' } }))
-  assert.equal(cveTableRows(view).length, 1)
-  assert.match(plainText(view), /Gateway/)
-  act(() => summaryButton(view, '수집된 항목').props.onClick())
-  assert.equal(cveTableRows(view).length, 2)
-  act(() => view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: 'Library 1.4' } }))
-  assert.equal(cveTableRows(view).length, 1)
-  assert.doesNotMatch(plainText(view), /Gateway/)
-})
-
-test('Legacy CVE bulletin pagination and filters never pull ordinary news into the response list', (t) => {
-  const rows = Array.from({ length: 23 }, (_, index) => item({ id: `cve-${index.toString().padStart(2, '0')}`, cve_ids: [`CVE-2026-${10000 + index}`], known_exploited: index % 2 === 0 }))
-  const view = renderPage(t, query({ data: snapshot({ items: [...rows, item({ id: 'news', kind: 'news' })] }) }), 'CveBulletin')
-  assert.equal(cveTableRows(view).length, 20)
-  act(() => view.root.findByProps({ 'aria-label': '다음 페이지' }).props.onClick())
-  assert.equal(cveTableRows(view).length, 3)
-  act(() => summaryButton(view, '실제 악용 확인').props.onClick())
-  assert.equal(cveTableRows(view).length, 12)
-  assert.equal(view.root.findAllByProps({ 'aria-label': '다음 페이지' }).length, 0)
 })
 
 test('removed Google Security entries and source never return from an older cached snapshot', (t) => {
@@ -604,100 +560,4 @@ test('removed Google Security entries and source never return from an older cach
   assert.equal(view.root.findByProps({ id: 'security-news-results' }).findByProps({ role: 'status' }).findByType('strong').children.join(''), '1')
   act(() => summaryButton(view, '수집된 항목').props.onClick())
   assert.deepEqual(visibleTitles(view), ['Cisco 보안 권고'])
-})
-
-test('CVE remediation pairs escape source content and distinguish missing fixes from affected bounds', () => {
-  const List = load('presentation/components/security/CveRemediationList').default
-  const html = renderToStaticMarkup(React.createElement(List, { rows: filterCveResponseRows([item({ url: 'javascript:bad()', cve_ids: [], remediations: [{ vendor: null, product: '<script>library</script>', affected_versions: '< 9.0', fixed_version: null, reference_url: 'javascript:bad()' }, { vendor: null, product: 'Second library', affected_versions: '2.0', fixed_version: '2.1', reference_url: 'https://example.com/fix' }] })], defaultSecurityNewsFilters(), now), sources: new Map() }))
-  assert.match(html, /&lt;script&gt;library&lt;\/script&gt;/)
-  assert.match(html, /해결 버전 미확인/)
-  assert.match(html, /Second library/)
-  assert.match(html, /href="https:\/\/example.com\/fix"/)
-  assert.doesNotMatch(html, /<script>|javascript:|AI 번역|Linux 보안 패치/)
-})
-
-test('CVE table distinguishes verified vendor fixes, scoped NVD bounds and description evidence', () => {
-  const List = load('presentation/components/security/CveRemediationList').default
-  const remediations = [
-    { vendor: null, product: 'Vendor library', affected_versions: '< 9.0.117', fixed_version: '9.0.117', fixed_version_basis: 'vendor', fixed_version_branch: '9.0', reference_url: 'https://vendor.example/security' },
-    { vendor: null, product: 'Range library', affected_versions: '< 1.6.20', fixed_version: '1.6.20', fixed_version_basis: 'nvd_range', fixed_version_branch: '1.6', reference_url: 'https://nvd.nist.gov/vuln/detail/CVE-2026-12345' },
-    { vendor: null, product: 'Description library', affected_versions: '2.0', fixed_version: '2.1', fixed_version_basis: 'description', fixed_version_branch: null, reference_url: 'https://source.example/advisory' },
-  ]
-  const html = renderToStaticMarkup(React.createElement(List, { rows: filterCveResponseRows([item({ remediations })], defaultSecurityNewsFilters(), now), sources: new Map() }))
-  assert.equal((html.match(/scope="col"/g) ?? []).length, 10)
-  assert.equal((html.match(/scope="row"/g) ?? []).length, 3)
-  assert.match(html, /판단 근거/)
-  assert.match(html, /1\.6\.20 이상 \(1\.6 계열\)/)
-  assert.match(html, /제조사 확인/)
-  assert.match(html, /NVD 영향 범위/)
-  assert.match(html, /출처 수정 명시/)
-  assert.match(html, /같은 제품과 주·부 버전 계열의 다른 NVD 영향 범위/)
-  assert.match(html, /공급사 백포트/)
-  for (const url of ['https://vendor.example/security', 'https://nvd.nist.gov/vuln/detail/CVE-2026-12345', 'https://source.example/advisory']) assert.ok(html.includes(`href="${url}"`))
-  assert.doesNotMatch(html, /9\.0\.117 이상|2\.1 이상/)
-})
-
-test('CVE evidence links use safe references or source fallback while legacy fixes remain unverified', () => {
-  const List = load('presentation/components/security/CveRemediationList').default
-  const remediations = [
-    { vendor: null, product: 'Legacy library', affected_versions: '1.0', fixed_version: '1.1', reference_url: 'javascript:alert(1)' },
-    { vendor: null, product: 'Unknown library', affected_versions: '< 2.0', fixed_version: null, fixed_version_basis: null, reference_url: null },
-  ]
-  const safeHtml = renderToStaticMarkup(React.createElement(List, { rows: filterCveResponseRows([item({ remediations })], defaultSecurityNewsFilters(), now), sources: new Map() }))
-  assert.match(safeHtml, /근거 확인 필요 근거 확인/)
-  assert.match(safeHtml, /href="https:\/\/nvd.nist.gov\/vuln\/detail\/CVE-2026-12345"/)
-  assert.match(safeHtml, />미확인<\/span>/)
-  assert.doesNotMatch(safeHtml, /javascript:|제조사 확인|NVD 영향 범위/)
-  const unsafeHtml = renderToStaticMarkup(React.createElement(List, { rows: filterCveResponseRows([item({ url: 'data:text/html,bad', cve_ids: [], remediations })], defaultSecurityNewsFilters(), now), sources: new Map() }))
-  assert.doesNotMatch(unsafeHtml, /href=|javascript:|data:text/)
-  assert.match(unsafeHtml, />근거 확인 필요<\/span>/)
-})
-
-test('CVE range fixes without a valid branch never claim all higher versions are fixed', () => {
-  const List = load('presentation/components/security/CveRemediationList').default
-  const remediations = [undefined, null, '1', '1.7', '<script>1.6</script>'].map((branch, index) => ({ vendor: null, product: `Library ${index}`, affected_versions: '< 1.6.20', fixed_version: '1.6.20', fixed_version_basis: 'nvd_range', fixed_version_branch: branch, reference_url: null }))
-  const html = renderToStaticMarkup(React.createElement(List, { rows: filterCveResponseRows([item({ remediations })], defaultSecurityNewsFilters(), now), sources: new Map() }))
-  assert.match(html, /1\.6\.20 \(계열 확인 필요\)/)
-  assert.doesNotMatch(html, /1\.6\.20 이상|<script>/)
-})
-
-
-test('Legacy CVE bulletin searches full original description without displaying the prose', (t) => {
-  const fullText = 'Details '.repeat(250) + 'EncryptInterceptor bypass marker'
-  const view = renderPage(t, query({ data: snapshot({ items: [item({ id: 'target', original_description: fullText }), item({ id: 'other', cve_ids: ['CVE-2026-55555'] })] }) }), 'CveBulletin')
-  assert.equal(view.root.findAllByType('article').length, 0)
-  assert.equal(view.root.findByType('thead').findAllByType('th').length, 10)
-  assert.doesNotMatch(plainText(view), /EncryptInterceptor bypass marker/)
-  act(() => view.root.findByProps({ type: 'search' }).props.onChange({ target: { value: 'EncryptInterceptor bypass marker' } }))
-  assert.equal(cveTableRows(view).length, 1)
-  assert.equal(cveTableRows(view)[0].findByProps({ scope: 'row' }).findByType('a').children.join(''), 'CVE-2026-12345')
-})
-
-test('Legacy CVE bulletin paginates version rows and hides only unknown product rows', (t) => {
-  const remediations = Array.from({ length: 23 }, (_, index) => ({ vendor: null, product: index < 3 ? '제품 확인 필요' : 'Tomcat', affected_versions: `9.0.${index}`, fixed_version: '9.0.117', reference_url: null }))
-  const view = renderPage(t, query({ data: snapshot({ items: [item({ remediations })] }) }), 'CveBulletin')
-  assert.equal(cveTableRows(view).length, 20)
-  act(() => view.root.findByProps({ 'aria-label': '다음 페이지' }).props.onClick())
-  assert.equal(cveTableRows(view).length, 3)
-  const toggle = view.root.findAllByType('label').find((label) => label.children.includes('제품 확인 필요 숨기기')).findByType('input')
-  act(() => toggle.props.onChange({ target: { checked: true } }))
-  assert.equal(cveTableRows(view).length, 20)
-  assert.equal(view.root.findAllByProps({ 'aria-label': '다음 페이지' }).length, 0)
-  assert.ok(cveTableRows(view).every((row) => !row.findAllByType('span').some((span) => span.props.title === '제품 확인 필요')))
-  act(() => view.root.findAllByType('button').find((button) => button.children.includes('필터 초기화')).props.onClick())
-  assert.equal(cveTableRows(view).length, 20)
-  assert.equal(view.root.findAllByProps({ 'aria-label': '다음 페이지' }).length, 1)
-})
-
-test('Legacy CVE bulletin column sorting synchronizes with sort control and uses numeric versions', (t) => {
-  const remediations = ['9.0.10', '9.0.9', '9.0.117'].map((version) => ({ vendor: 'Apache', product: 'Tomcat', affected_versions: version, fixed_version: null, reference_url: null }))
-  const view = renderPage(t, query({ data: snapshot({ items: [item({ remediations })] }) }), 'CveBulletin')
-  const versions = () => cveTableRows(view).map((row) => row.findAllByType('td')[2].findByType('span').children.join(''))
-  act(() => view.root.findByProps({ 'aria-label': '영향 버전 오름차순 정렬' }).props.onClick())
-  assert.deepEqual(versions(), ['9.0.9', '9.0.10', '9.0.117'])
-  assert.equal(selectWithOption(view, 'affected-version').props.value, 'affected-version')
-  assert.equal(view.root.findByType('thead').findAllByType('th')[3].props['aria-sort'], 'ascending')
-  act(() => view.root.findByProps({ 'aria-label': '영향 버전 내림차순 정렬' }).props.onClick())
-  assert.deepEqual(versions(), ['9.0.117', '9.0.10', '9.0.9'])
-  assert.equal(selectWithOption(view, 'affected-version-desc').props.value, 'affected-version-desc')
 })

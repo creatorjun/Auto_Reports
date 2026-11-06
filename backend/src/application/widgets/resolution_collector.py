@@ -3,7 +3,7 @@ import asyncio
 import logging
 from datetime import datetime
 
-from src.application.services.query_builder import ResolvedQueries
+from src.application.ports.report_query_port import ResolvedQueries
 from src.application.services.report_issue_metrics import resolution_elapsed
 from src.application.services.stage_duration import parse_timestamp, stage_duration_hours
 from src.application.widgets.base import AbstractWidgetCollector

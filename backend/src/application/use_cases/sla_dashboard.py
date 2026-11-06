@@ -1,6 +1,7 @@
 # backend/src/application/use_cases/sla_dashboard.py
 import re
 
+from src.application.ports.issue_query import IssueOrder, IssueSelection
 from src.application.errors import EntityNotFoundError
 from src.application.ports.jira_port import (
     JiraAttachmentContent,
@@ -45,9 +46,9 @@ class SlaDashboardUseCase:
         if not keys:
             return []
 
-        jql = f"issuekey IN ({', '.join(keys)}) ORDER BY created ASC, issuekey ASC"
+        selection = IssueSelection(keys=tuple(keys), order=IssueOrder.OLDEST_WITH_KEY)
         issues = await self._jira.get_issues(
-            jql,
+            selection,
             max_results=JIRA_MAX_RESULT,
             fields=frozenset({
                 JiraIssueField.SUMMARY,

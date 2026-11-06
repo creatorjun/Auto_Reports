@@ -3,12 +3,14 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { Download, RefreshCw } from 'lucide-react'
 import type { Semester } from '@/domain/Dashboard'
 import type { ElapsedDaysComparison, RecentIssue } from '@/domain/Issue'
-import type { DashboardExportFormat, DashboardPdfDocument } from '@/domain/DashboardExport'
+import type { DashboardExportFormat, DashboardPdfDocument } from '@/application/dto/DashboardExport'
 import type { IssueColumnFilters } from '@/domain/IssueColumnSearch'
 import { filterManagedIssues } from '@/domain/IssueManagement'
 import { filterIssuesByColumns } from '@/domain/IssueColumnSearch'
 import { sortDashboardStatuses } from '@/domain/DashboardStatusPolicy'
 import { useIssueManagement } from '@/presentation/hooks/useIssueManagement'
+import { usePersistentFilterSet } from '@/presentation/hooks/usePersistentFilterSet'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
 import IssueTypeFilter from '@/presentation/components/common/IssueTypeFilter'
 import RecentIssuesWidget from '@/presentation/components/charts/RecentIssuesWidget'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
@@ -31,14 +33,14 @@ interface ExportSnapshot {
 
 export default function IssueManagementPage() {
   const query = useIssueManagement()
-  const [types, setTypes] = useState<Set<string> | null>(null)
-  const [statuses, setStatuses] = useState<Set<string> | null>(null)
-  const [semester, setSemester] = useState<Semester | null>(null)
-  const [titleSearch, setTitleSearch] = useState('')
-  const [elapsed, setElapsed] = useState<number | null>(null)
-  const [comparison, setComparison] = useState<ElapsedDaysComparison>('gte')
-  const [elapsedStatus, setElapsedStatus] = useState<string | null>(null)
-  const [columnFilters, setColumnFilters] = useState<IssueColumnFilters>({})
+  const [types, setTypes] = usePersistentFilterSet('issues.types')
+  const [statuses, setStatuses] = usePersistentFilterSet('issues.statuses')
+  const [semester, setSemester] = usePersistentFilterState<Semester | null>('issues.semester', null)
+  const [titleSearch, setTitleSearch] = usePersistentFilterState('issues.title', '')
+  const [elapsed, setElapsed] = usePersistentFilterState<number | null>('issues.elapsed', null)
+  const [comparison, setComparison] = usePersistentFilterState<ElapsedDaysComparison>('issues.elapsedComparison', 'gte')
+  const [elapsedStatus, setElapsedStatus] = usePersistentFilterState<string | null>('issues.elapsedStatus', null)
+  const [columnFilters, setColumnFilters] = usePersistentFilterState<IssueColumnFilters>('issues.columns', {})
   const [exportFormat, setExportFormat] = useState<DashboardExportFormat>('pdf')
   const [exportSnapshot, setExportSnapshot] = useState<ExportSnapshot | null>(null)
   const [exportError, setExportError] = useState('')

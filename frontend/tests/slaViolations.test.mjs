@@ -394,7 +394,7 @@ test('SLA defaults exclude only closed, rejected, and on-hold aliases and allow 
   assert.equal(defaultSlaSelectedStatuses([{ ...ticket, current_status: '닫힘' }]).size, 0)
 })
 
-test('SLA page filters the combined list immediately, preserves same-report choices, and resets for a new report', (t) => {
+test('SLA filters apply immediately and retain selections across report replacement and reload', (t) => {
   const rows = [ticket, { ...ticket, key: 'TACEA-2', issue_type: '케이스', current_status: '닫힘', created_at: '2026-07-01T00:00:00+09:00', breaches: [ticket.breaches[0]] }, { ...ticket, key: 'TACEA-3', issue_type: null, breaches: [ticket.breaches[1]] }]
   let current = { ...report, tickets: rows, ticket_count: 3, initial_response_count: 2, resolution_count: 2 }
   const original = structuredClone(current)
@@ -408,8 +408,14 @@ test('SLA page filters the combined list immediately, preserves same-report choi
   })
   const Page = instance('presentation/pages/SlaViolationPage').default
   const List = instance('presentation/components/sla-violations/SlaViolationList').default
+  const { FilterOwnerContext } = instance('presentation/hooks/usePersistentFilterState')
+  const entries = new Map()
+  const previousWindow = globalThis.window
+  globalThis.window = { localStorage: { getItem: (key) => entries.get(key) ?? null, setItem: (key, value) => entries.set(key, value) } }
+  t.after(() => { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow })
+  const renderPage = () => React.createElement(FilterOwnerContext.Provider, { value: 'user:test' }, React.createElement(Page))
   let view
-  act(() => { view = TestRenderer.create(React.createElement(Page)) })
+  act(() => { view = TestRenderer.create(renderPage()) })
   t.after(() => act(() => view.unmount()))
   const click = (name) => act(() => view.root.findAllByType('button').find((button) => textOf(button).trim() === name).props.onClick())
   const metricKeys = () => view.root.findAllByType(List).map((list) => list.findAllByType('a').map((link) => link.props.href.split('/').at(-1)))
@@ -427,7 +433,7 @@ test('SLA page filters the combined list immediately, preserves same-report choi
   assert.deepEqual(metricCounts(), [1])
   act(() => view.root.findAllByProps({ 'aria-label': 'TACEA-1234 상세 펼치기' })[0].props.onClick())
   current = { ...current, tickets: current.tickets.map((row) => ({ ...row })) }
-  act(() => view.update(React.createElement(Page)))
+  act(() => view.update(renderPage()))
   assert.deepEqual(metricKeys(), [['TACEA-1234']])
   assert.equal(view.root.findAllByProps({ 'aria-label': 'TACEA-1234 상세 접기' }).length, 1)
   click('하반기')
@@ -441,9 +447,18 @@ test('SLA page filters the combined list immediately, preserves same-report choi
   click('전체 선택')
   assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2', 'TACEA-3']])
   click('케이스')
+  click('하반기')
+  assert.deepEqual(metricKeys(), [[]])
   current = { ...current, id: 11 }
-  act(() => view.update(React.createElement(Page)))
-  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-3']])
+  act(() => view.update(renderPage()))
+  assert.deepEqual(metricKeys(), [[]])
+  act(() => view.unmount())
+  act(() => { view = TestRenderer.create(renderPage()) })
+  assert.deepEqual(metricKeys(), [[]])
+  click('필터 펼치기')
+  click('하반기')
+  click('케이스')
+  assert.deepEqual(metricKeys(), [['TACEA-1234', 'TACEA-2', 'TACEA-3']])
   assert.equal(view.root.findAllByProps({ 'aria-label': 'TACEA-1234 상세 접기' }).length, 0)
   assert.equal(generationCalls, 0)
   assert.deepEqual({ ...current, id: report.id }, original)
@@ -737,8 +752,8 @@ test('page restores saved controls, separates changed conditions, and submits th
   assert.match(textOf(view.toJSON()), /아래에는 기존 보고서가 표시됩니다/)
   routeId = '11'
   act(() => view.update(renderPage()))
-  assert.equal(view.root.findAllByType('button').find((button) => textOf(button) === '연간').props['aria-pressed'], true)
-  assert.doesNotMatch(textOf(view.toJSON()), /아래에는 기존 보고서가 표시됩니다/)
+  assert.equal(view.root.findAllByType('button').find((button) => textOf(button) === '월간').props['aria-pressed'], true)
+  assert.match(textOf(view.toJSON()), /아래에는 기존 보고서가 표시됩니다/)
 })
 
 test('legacy partial-week snapshots stay unchanged until a new full-week report is generated', async (t) => {

@@ -42,7 +42,7 @@ const { default: RecentIssuesWidget } = loadSource('presentation/components/char
 const { filterRecentIssuesByElapsedDays } = loadSource('domain/Issue')
 const { DashboardExportProvider } = loadSource('presentation/context/DashboardExportContext')
 
-function loadDashboardContent() {
+function loadDashboardContent(getPrevious = () => ({ created: [], resolved: [], slaInitial: [], slaResolution: [], redeployments: [], isLoading: false })) {
   const filename = path.join(sourceRoot, 'presentation/pages/DashboardPage.tsx')
   const compiled = ts.transpileModule(`${fs.readFileSync(filename, 'utf8')}\nexport { DashboardContent }`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
@@ -55,6 +55,7 @@ function loadDashboardContent() {
     if (dependency.endsWith('.css')) return {}
     if (dependency === 'react-router-dom') return { useParams: () => ({}) }
     if (dependency === '@/presentation/hooks/useReport') return {}
+    if (dependency === '@/presentation/hooks/usePreviousYearMonthly') return { usePreviousYearMonthly: getPrevious }
     if (dependency === '@/presentation/state/reportStore') return { useReportStore: () => ({ setCurrentReport }) }
     if (dependency === '@/presentation/components/charts/RecentIssuesWidget') return { default: RecentIssuesWidget }
     if (dependency === '@/presentation/components/common/IssueTypeFilter') return loadSource('presentation/components/common/IssueTypeFilter')
@@ -106,6 +107,28 @@ test('dashboard renders stage and request duration widgets immediately after res
   assert.equal(charts[3].props.byType['개선'].avg_hours, 48)
   assert.equal(charts[2].props.valueUnit, 'hours')
   assert.equal(charts[3].props.valueUnit, 'hours')
+})
+
+test('dashboard export waits for the prior year and keeps its original comparison as the screen refetches', async (t) => {
+  const row = { month: '2026-01', year: 2026, month_num: 1, total: 5, met: 3, rate: 60 }
+  const original = [{ ...row, year: 2025, rate: 40, met: 2 }]
+  let history = { created: [], resolved: [], slaInitial: original, slaResolution: [], redeployments: [], isLoading: true }
+  const DashboardContent = loadDashboardContent(() => history)
+  const report = { id: 1, scope: 'standard', week_start: '2026-01-01', week_end: '2026-01-31', report_date: '2026-01-31',
+    widgets: { w10: { data: { monthly: [row, { ...row, month_num: 12, month: '2026-12' }] } } } }
+  const render = () => React.createElement(DashboardContent, { report })
+  let view
+  await act(async () => { view = TestRenderer.create(render()) })
+  t.after(() => act(() => view.unmount()))
+  assert.equal(button(view, 'PDF 내보내기').props.disabled, true)
+  history = { ...history, isLoading: false }
+  await act(async () => view.update(render()))
+  await act(async () => button(view, 'PDF 내보내기').props.onClick())
+  history = { ...history, slaInitial: [{ ...original[0], rate: 80, met: 4 }] }
+  await act(async () => view.update(render()))
+  const charts = view.root.findAllByType('DashboardChart').filter((chart) => chart.props.title === '최초응답 SLA')
+  assert.deepEqual(charts.map((chart) => chart.props.previousMonthly[0].rate), [80, 40])
+  assert.deepEqual(charts.map((chart) => chart.props.monthly.map((point) => point.month_num)), [[1], [1]])
 })
 
 function render(t, details, { elapsedDaysThreshold = null, elapsedDaysComparison = 'gte', elapsedDaysStatus = null, elapsedDaysStatuses, statusTransitionDays, statusTransitionHistoryReady = true, exportMode = false } = {}) {
@@ -828,7 +851,9 @@ test('a regenerated report replaces recent issue rows and statuses within its sa
   ]
   const refreshed = { ...report, id: 2, widgets: { w7: { total: after.length, data: { issue_details: after } } } }
   await act(async () => { view.update(React.createElement(DashboardContent, { report: refreshed })) })
-  assert.equal(columnInput().props.value, '')
+  assert.equal(columnInput().props.value, '이전')
+  assert.deepEqual(keys(view), [])
+  act(() => columnInput().props.onChange({ target: { value: '' } }))
   assert.deepEqual(keys(view), ['SAME', 'ADDED'])
   const table = view.root.findByType('table')
   assert.match(textOf(table), /최신 제목/)

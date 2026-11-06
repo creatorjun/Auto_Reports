@@ -20,6 +20,7 @@ from src.application.use_cases.trigger_report import TriggerReportUseCase
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.audit_log_user_profiles import SqlAuditLogUserProfiles
 from src.infrastructure.persistence.job_repository_impl import SqlJobRepository
+from src.infrastructure.persistence.solution_packages import read_solution_packages
 from src.infrastructure.scheduling.report_scheduler import create_scheduler
 from src.presentation.api.deps import ApiServices
 
@@ -45,7 +46,6 @@ def create_app(settings: Settings) -> FastAPI:
                 await container.auth.clear_jira_grants()
                 await container.issue_management.initialize()
                 await container.security_news.initialize()
-                await container.cve_inventory.initialize()
                 audit = AuditLogger(settings.audit_log_dir)
                 stack.callback(audit.close)
                 job_repository = SqlJobRepository(database.session_factory)
@@ -71,7 +71,10 @@ def create_app(settings: Settings) -> FastAPI:
                     get_report_chart_issues=container.get_report_chart_issues,
                     issue_management=container.issue_management,
                     security_news=container.security_news,
-                    cve_inventory=container.cve_inventory,
+                    kernel_cves=container.kernel_cves,
+                    java_cves=container.java_cves,
+                    db_cves=container.db_cves,
+                    read_solution_packages=read_solution_packages,
                     audit_logs=AuditLogsUseCase(FileAuditLogReader(settings.audit_log_dir), SqlAuditLogUserProfiles(database)),
                     notify_sla_digest=container.notify_sla_digest,
                     sla_status=container.sla_status,
@@ -83,7 +86,9 @@ def create_app(settings: Settings) -> FastAPI:
                     generate=job_runner.run_scheduled_job,
                     refresh_redeployments=container.refresh_redeployment_report,
                     refresh_security_news=container.security_news.refresh_scheduled,
-                    refresh_cve_inventory=container.cve_inventory.refresh_scheduled,
+                    refresh_kernel_cves=container.kernel_cves.refresh_scheduled,
+                    refresh_java_cves=container.java_cves.refresh_scheduled,
+                    refresh_db_cves=container.db_cves.refresh_scheduled,
                     report_personal_data=container.personal_data.run_reporting,
                     notify_sla_digest=(
                         container.send_sla_digest if container.sla_digest_enabled else None
@@ -101,7 +106,6 @@ def create_app(settings: Settings) -> FastAPI:
                 )
                 scheduler.start()
                 stack.callback(scheduler.shutdown, wait=False)
-                await container.cve_inventory.start_if_needed()
                 sla_digest_job = scheduler.get_job("sla_digest_daily")
                 if sla_digest_job is not None:
                     logger.info("SLA 일일 메일 다음 실행: %s", sla_digest_job.next_run_time.isoformat())

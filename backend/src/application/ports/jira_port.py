@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from src.application.ports.issue_query import IssueQuery
+
 
 class JiraIssueField(StrEnum):
     SUMMARY = "summary"
@@ -114,7 +116,7 @@ class JiraPort(ABC):
     @abstractmethod
     async def get_report_chart_issues(
         self,
-        jql: str,
+        jql: IssueQuery,
         max_results: int | None,
         fields: frozenset[JiraIssueField],
         with_sla: bool = False,
@@ -131,15 +133,15 @@ class JiraPort(ABC):
     async def get_project_issue_types(self, project_key: str) -> list[str]: ...
 
     @abstractmethod
-    async def get_issue_count(self, jql: str) -> int: ...
+    async def get_issue_count(self, jql: IssueQuery) -> int: ...
 
     @abstractmethod
-    async def get_issue_counts_batch(self, jqls: list[str]) -> list[int]: ...
+    async def get_issue_counts_batch(self, jqls: list[IssueQuery]) -> list[int]: ...
 
     @abstractmethod
     async def get_issues(
         self,
-        jql: str,
+        jql: IssueQuery,
         max_results: int | None = MAX_RESULTS,
         fields: frozenset[JiraIssueField] = frozenset(),
     ) -> list[JiraIssue]: ...
@@ -147,21 +149,21 @@ class JiraPort(ABC):
     @abstractmethod
     async def get_issues_with_sla(
         self,
-        jql: str,
+        jql: IssueQuery,
         max_results: int | None = MAX_RESULTS,
     ) -> list[JiraIssue]: ...
 
     @abstractmethod
     async def get_issues_with_assignees(
         self,
-        jql: str,
+        jql: IssueQuery,
         max_results: int | None = MAX_RESULTS,
     ) -> list[JiraIssue]: ...
 
     @abstractmethod
     async def get_redeployment_issues(
         self,
-        jql: str,
+        jql: IssueQuery,
         max_results: int | None = MAX_RESULTS,
     ) -> list[JiraIssue]: ...
 

@@ -6,6 +6,7 @@ import ProtectedRoute from '@/presentation/components/auth/ProtectedRoute'
 import SuperadminRoute from '@/presentation/components/auth/SuperadminRoute'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import LazyErrorBoundary from '@/presentation/components/common/LazyErrorBoundary'
+import { CVE_VULNERABILITY_LINKS } from '@/presentation/config/cveVulnerabilities'
 
 const DashboardPage          = lazy(() => import('@/presentation/pages/DashboardPage'))
 const IssueManagementPage    = lazy(() => import('@/presentation/pages/IssueManagementPage'))
@@ -16,7 +17,9 @@ const RedeploymentPage       = lazy(() => import('@/presentation/pages/Redeploym
 const HistoryPage            = lazy(() => import('@/presentation/pages/HistoryPage'))
 const AuditLogPage           = lazy(() => import('@/presentation/pages/AuditLogPage'))
 const SecurityNewsPage       = lazy(() => import('@/presentation/pages/SecurityNewsPage'))
-const CveResponsePage        = lazy(() => import('@/presentation/pages/CveResponsePage'))
+const KernelCvePage          = lazy(() => import('@/presentation/pages/KernelCvePage'))
+const SoftwareCvePage        = lazy(() => import('@/presentation/pages/SoftwareCvePage'))
+const SolutionPackagesPage   = lazy(() => import('@/presentation/pages/SolutionPackagesPage'))
 const StoragePage            = lazy(() => import('@/presentation/pages/StoragePage'))
 const StoragePreviewPage     = lazy(() => import('@/presentation/pages/StoragePreviewPage'))
 const LoginPage              = lazy(() => import('@/presentation/pages/LoginPage'))
@@ -36,6 +39,13 @@ const Wrap = ({ children }: { children: React.ReactNode }) => (
     <Suspense fallback={<Fallback />}>{children}</Suspense>
   </LazyErrorBoundary>
 )
+
+const cvePages = {
+  '/cve/os': <KernelCvePage />,
+  '/cve/java': <SoftwareCvePage scope="java" />,
+  '/cve/db': <SoftwareCvePage scope="db" />,
+  '/cve/eyecloudxoar': <SolutionPackagesPage />,
+}
 
 export const router = createBrowserRouter([
   { path: '/login',           element: <Wrap><LoginPage /></Wrap> },
@@ -58,7 +68,10 @@ export const router = createBrowserRouter([
       { path: 'sla-status', element: <Wrap><SlaStatusPage /></Wrap> },
       { path: 'sla-violations/history/:id', element: <Wrap><SlaViolationPage /></Wrap> },
       { path: 'issues',         element: <Wrap><IssueManagementPage /></Wrap> },
-      { path: 'cve-response',   element: <Wrap><CveResponsePage /></Wrap> },
+      ...CVE_VULNERABILITY_LINKS.map(({ to }) => ({
+        path: to,
+        element: <Wrap>{cvePages[to]}</Wrap>,
+      })),
       { path: 'security-news',  element: <Wrap><SecurityNewsPage /></Wrap> },
       { path: 'sla-dashboard',  element: <Wrap><SlaDashboardPage /></Wrap> },
       { path: 'history',        element: <Wrap><HistoryPage /></Wrap> },

@@ -1,5 +1,5 @@
 // frontend/src/presentation/utils/dashboardPdfCapture.ts
-import type { DashboardExportTableData, DashboardPdfBlock, DashboardPdfCell, DashboardPdfDocument } from '@/domain/DashboardExport'
+import type { DashboardExportTableData, DashboardPdfBlock, DashboardPdfCell, DashboardPdfDocument } from '@/application/dto/DashboardExport'
 
 const SVG_PROPERTIES = [
   'fill', 'stroke', 'stroke-width', 'fill-opacity', 'stroke-opacity', 'opacity',

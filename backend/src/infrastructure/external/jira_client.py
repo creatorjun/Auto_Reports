@@ -11,6 +11,8 @@ from urllib.parse import quote
 
 import httpx
 
+from src.application.ports.issue_query import IssueQuery
+from src.infrastructure.external.issue_query import compile_issue_query
 from src.application.ports.jira_port import (
     JiraAssetReference,
     JiraAttachmentContent,
@@ -487,7 +489,8 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         ]
         return list(dict.fromkeys(name for name in names if name))
 
-    async def get_issue_count(self, jql: str) -> int:
+    async def get_issue_count(self, jql: IssueQuery) -> int:
+        jql = compile_issue_query(jql)
         async def fetch(_: str) -> int:
             url = f"{self._base_url}/rest/api/3/search/approximate-count"
             try:
@@ -507,7 +510,7 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
         count = await self._count_cache.async_get(jql, refresh_fn=fetch)
         return count if count is not None else 0
 
-    async def get_issue_counts_batch(self, jqls: list[str]) -> list[int]:
+    async def get_issue_counts_batch(self, jqls: list[IssueQuery]) -> list[int]:
         return list(await asyncio.gather(*[self.get_issue_count(jql) for jql in jqls]))
 
     async def _fetch_page(
@@ -565,10 +568,11 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
 
     async def get_issues(
         self,
-        jql: str,
+        jql: IssueQuery,
         max_results: int | None = JIRA_MAX_RESULT,
         fields: frozenset[JiraIssueField] = frozenset(),
     ) -> list[JiraIssue]:
+        jql = compile_issue_query(jql)
         field_names = {
             **_JIRA_FIELD_NAMES,
             JiraIssueField.TAC_ASSIGNEE: self._tac_assignee_fid,
@@ -615,9 +619,10 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
 
     async def get_issues_with_sla(
         self,
-        jql: str,
+        jql: IssueQuery,
         max_results: int | None = JIRA_MAX_RESULT,
     ) -> list[JiraIssue]:
+        jql = compile_issue_query(jql)
         base = "summary,issuetype,status,created,resolutiondate"
         sla_part = ",".join(filter(None, [self._sla_initial_fid, self._sla_resolution_fid]))
         fields = tuple(filter(None, f"{base},{sla_part}".split(",")))
@@ -625,12 +630,13 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
 
     async def get_report_chart_issues(
         self,
-        jql: str,
+        jql: IssueQuery,
         max_results: int | None,
         fields: frozenset[JiraIssueField],
         with_sla: bool = False,
         with_redeployment: bool = False,
     ) -> JiraChartIssuePage:
+        jql = compile_issue_query(jql)
         if max_results is not None and max_results <= 0:
             raise ValueError("Chart issue limit must be positive")
         field_names = {
@@ -689,9 +695,10 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
 
     async def get_issues_with_assignees(
         self,
-        jql: str,
+        jql: IssueQuery,
         max_results: int | None = JIRA_MAX_RESULT,
     ) -> list[JiraIssue]:
+        jql = compile_issue_query(jql)
         base = "summary,issuetype,status,created,reporter,assignee"
         assignee_part = ",".join(filter(None, [
             self._tac_assignee_fid,
@@ -703,9 +710,10 @@ class JiraClient(JiraPort, SearchPort, ServiceDeskPort):
 
     async def get_redeployment_issues(
         self,
-        jql: str,
+        jql: IssueQuery,
         max_results: int | None = JIRA_MAX_RESULT,
     ) -> list[JiraIssue]:
+        jql = compile_issue_query(jql)
         fields = tuple((
             "summary,issuetype,priority,resolutiondate,assignee,"
             f"{_REDEPLOYMENT_MONTH_FIELD},{_REDEPLOYMENT_CAUSE_FIELD},"

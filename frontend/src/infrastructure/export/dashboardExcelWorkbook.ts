@@ -1,6 +1,6 @@
 // frontend/src/infrastructure/export/dashboardExcelWorkbook.ts
 import { utils, type CellObject, type WorkBook, type WorkSheet } from 'xlsx'
-import type { DashboardExportTableData, DashboardPdfDocument } from '@/domain/DashboardExport'
+import type { DashboardExportTableData, DashboardPdfDocument } from '@/application/dto/DashboardExport'
 
 type Value = string | number | null
 

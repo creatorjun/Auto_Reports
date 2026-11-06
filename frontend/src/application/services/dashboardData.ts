@@ -193,7 +193,7 @@ function sumSelectedTypes(
   )
 }
 
-function filterMonthlyCounts(
+export function filterMonthlyCounts(
   monthly: MonthlyCountEntry[],
   selectedTypes: ReadonlySet<string> | null,
   controlledTypes: ReadonlySet<string>,
@@ -223,7 +223,7 @@ function filterMonthlyCounts(
     }))
 }
 
-function filterSlaMonthly(
+export function filterSlaMonthly(
   monthly: MonthlyEntry[],
   selectedTypes: ReadonlySet<string> | null,
   controlledTypes: ReadonlySet<string>,

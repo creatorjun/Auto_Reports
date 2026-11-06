@@ -1,0 +1,14 @@
+# backend/src/infrastructure/external/query_config.py
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class QueryConfig:
+    project_key: str
+    issue_types: list[str]
+    active_statuses: list[str]
+    closed_statuses: list[str]
+    sla_threshold_days: int
+    year_start: int
+    redeployment_flag_field: str
+    redeployment_month_field: str

@@ -9,8 +9,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.errors import EntityNotFoundError
 from src.application.ports.jira_port import JiraAssetReference, JiraChartIssuePage, JiraIssue, JiraIssueField
-from src.application.services.query_builder import WidgetQueryBuilder
-from src.application.services.query_config import QueryConfig
+from src.infrastructure.external.widget_query_builder import WidgetQueryBuilder
+from src.infrastructure.external.query_config import QueryConfig
 from src.application.use_cases.get_report_chart_issues import GetReportChartIssuesUseCase
 from src.domain.entities.report import Report, ReportScope
 from src.domain.entities.report_chart import ReportChartKind, ReportChartSelection

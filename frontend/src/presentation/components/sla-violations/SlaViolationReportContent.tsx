@@ -1,5 +1,7 @@
 // frontend/src/presentation/components/sla-violations/SlaViolationReportContent.tsx
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
+import { usePersistentFilterSet } from '@/presentation/hooks/usePersistentFilterSet'
 import { Search, X } from 'lucide-react'
 import type { Semester } from '@/domain/Dashboard'
 import type { SlaViolationReport } from '@/domain/SlaViolationReport'
@@ -11,13 +13,13 @@ import SlaViolationList from '@/presentation/components/sla-violations/SlaViolat
 import SlaViolationOverview from './SlaViolationOverview'
 
 export default function SlaViolationReportContent({ report }: { report: SlaViolationReport }) {
-  const [selectedTypes, setSelectedTypes] = useState<Set<string> | null>(null)
-  const [selectedStatuses, setSelectedStatuses] = useState<Set<string> | null>(() => defaultSlaSelectedStatuses(report.tickets))
-  const [selectedSemester, setSelectedSemester] = useState<Semester | null>(null)
-  const [scope, setScope] = useState<SlaViolationScope>('all')
-  const [status, setStatus] = useState<string | null>(null)
-  const [bucket, setBucket] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
+  const [selectedTypes, setSelectedTypes] = usePersistentFilterSet('sla-violations:types')
+  const [selectedStatuses, setSelectedStatuses] = usePersistentFilterSet('sla-violations:statuses', () => defaultSlaSelectedStatuses(report.tickets))
+  const [selectedSemester, setSelectedSemester] = usePersistentFilterState<Semester | null>('sla-violations:semester', null)
+  const [scope, setScope] = usePersistentFilterState<SlaViolationScope>('sla-violations:scope', 'all')
+  const [status, setStatus] = usePersistentFilterState<string | null>('sla-violations:detail-status', null)
+  const [bucket, setBucket] = usePersistentFilterState<string | null>('sla-violations:bucket', null)
+  const [search, setSearch] = usePersistentFilterState('sla-violations:search', '')
   const options = useMemo(() => slaViolationFilterOptions(report.tickets), [report.tickets])
   const tickets = useMemo(() => filterSlaViolationTickets(report.tickets, selectedTypes, selectedStatuses, selectedSemester), [report.tickets, selectedTypes, selectedStatuses, selectedSemester])
   const scopedTickets = useMemo(() => filterSlaViolationScope(tickets, scope), [tickets, scope])
@@ -31,7 +33,7 @@ export default function SlaViolationReportContent({ report }: { report: SlaViola
     const next = new Set(current ?? all)
     if (next.has(value)) next.delete(value)
     else next.add(value)
-    return next.size === all.length && all.every((item) => next.has(item)) ? null : next
+    return all.every((item) => next.has(item)) ? null : next
   }
 
   return (

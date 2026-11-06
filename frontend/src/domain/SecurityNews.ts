@@ -74,13 +74,6 @@ export interface SecurityNewsFilters {
   source: string
   severity: SecuritySeverity | 'all' | 'high-risk'
   exploitedOnly: boolean
-  hideUnknownProducts: boolean
   days: 7 | 30 | 'all'
-  sort: 'newest' | 'severity' | 'software' | 'software-desc' | 'affected-version' | 'affected-version-desc' | 'fixed-version' | 'fixed-version-desc'
-}
-
-export interface SecurityCveRow {
-  id: string
-  item: SecurityNewsItem
-  remediation: SecurityCveRemediation
+  sort: 'newest' | 'severity'
 }

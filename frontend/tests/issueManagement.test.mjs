@@ -383,6 +383,51 @@ const searchableRows = [
   issue('OTHER-ROW', { summary: '부산 요청', status: 'Closed', reporter: '김지원', tac_team: '개발팀', tac_assignee: '이담당', created: '2025-01-01 09:00', elapsed_days: 300 }),
 ]
 
+test('a new visit restores the issue filters, their matching rows and an explicit empty selection', (t) => {
+  const entries = new Map()
+  const storage = {
+    getItem: (key) => entries.get(key) ?? null,
+    setItem: (key, value) => entries.set(key, value),
+    removeItem: (key) => entries.delete(key),
+  }
+  const previousWindow = globalThis.window
+  globalThis.window = { localStorage: storage }
+  t.after(() => {
+    if (previousWindow === undefined) delete globalThis.window
+    else globalThis.window = previousWindow
+  })
+
+  const { view, column } = managementPage(t, searchableRows)
+  const { FilterOwnerContext } = loadSource('presentation/hooks/usePersistentFilterState')
+  const page = React.createElement(FilterOwnerContext.Provider, { value: 'user:test' }, React.createElement(IssueManagementPage))
+  act(() => view.update(page))
+  const controls = () => view.root.find((node) => typeof node.props.onSemesterChange === 'function').props
+  const revisit = () => {
+    act(() => view.update(null))
+    act(() => view.update(page))
+  }
+  act(() => {
+    controls().onStatusToggle('Closed')
+    controls().onSemesterChange('h2')
+    controls().onTitleSearchChange('ABC')
+    view.root.findByType(RecentIssuesWidget).props.onElapsedDaysFilterChange(7, 'lte')
+  })
+  column('제목', '서울')
+  revisit()
+  assert.deepEqual([...controls().selectedStatuses], ['처리 중'])
+  assert.equal(controls().selectedSemester, 'h2')
+  assert.equal(controls().titleSearch, 'ABC')
+  assert.equal(view.root.findByProps({ 'aria-label': '최근 이슈 경과일' }).props.value, '7')
+  assert.equal(view.root.findByProps({ 'aria-label': '최근 이슈 경과일 조건' }).props.value, 'lte')
+  assert.equal(view.root.findByProps({ 'aria-label': '제목 컬럼 검색' }).props.value, '서울')
+  assert.deepEqual(tableKeys(view.root), ['TACEA-TARGET'])
+  act(() => controls().onToggleAll(false))
+  revisit()
+  assert.equal(controls().selectedStatuses.size, 0)
+  assert.equal(controls().selectedTypes.size, 0)
+  assert.deepEqual(tableKeys(view.root), [])
+})
+
 test('the last issue snapshot remains visible during refresh and failures without losing filters, sort or page', (t) => {
   let refreshes = 0
   const rows = Array.from({ length: TABLE_PAGE_SIZE * 2 + 10 }, (_, index) => issue(`T-${String(index).padStart(3, '0')}`, { summary: '서울 기존 요청' }))

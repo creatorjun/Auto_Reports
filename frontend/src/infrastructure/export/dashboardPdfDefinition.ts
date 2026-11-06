@@ -15,7 +15,7 @@ import type {
   DashboardPdfSection,
   DashboardPdfTableBlock,
   DashboardPdfTextBlock,
-} from '@/domain/DashboardExport'
+} from '@/application/dto/DashboardExport'
 
 const PAGE_WIDTH = 841.89
 const PAGE_HEIGHT = 595.28

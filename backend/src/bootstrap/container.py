@@ -10,8 +10,8 @@ from src.application.services.ai_analyzer import AiAnalyzer
 from src.application.services.auth_service import AuthService
 from src.application.services.jira_login_service import JiraLoginService
 from src.application.services.personal_data_reporting_service import PersonalDataReportingService
-from src.application.services.query_builder import WidgetQueryBuilder
-from src.application.services.query_config import QueryConfig
+from src.infrastructure.external.widget_query_builder import WidgetQueryBuilder
+from src.infrastructure.external.query_config import QueryConfig
 from src.application.services.security_news_translation import SecurityNewsTranslationService
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
@@ -32,16 +32,17 @@ from src.application.use_cases.sla_violation_report import SlaViolationReportUse
 from src.application.use_cases.redeployment_report import RedeploymentGenerationInProgress, RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.security_news import SecurityNewsUseCase
-from src.application.use_cases.cve_inventory import CveInventoryUseCase
+from src.application.use_cases.kernel_cves import KernelCveUseCase
+from src.application.use_cases.java_cves import JavaCveUseCase
+from src.application.use_cases.database_cves import DatabaseCveUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.domain.entities.report import Report
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.external.smtp_email_client import SmtpEmailClient
 from src.infrastructure.external.security_news_source import PublicSecurityNewsSource
-from src.infrastructure.external.osv_inventory_source import InventoryCveSources, OsvInventorySource
-from src.infrastructure.external.oracle_cve_source import OracleCveSource
-from src.infrastructure.persistence.cve_inventory_loader import JsonCveInventoryLoader
-from src.infrastructure.persistence.cve_inventory_snapshot_store import SqliteCveInventorySnapshotStore
+from src.infrastructure.external.kernel_cve_source import KernelCveSource
+from src.infrastructure.external.java_cve_source import JavaCveSource
+from src.infrastructure.external.database_cve_source import DatabaseCveSource
 from src.infrastructure.external.gemini_news_translator import GeminiNewsTranslator
 from src.infrastructure.external.jira_oauth_client import JiraOAuthClient
 from src.infrastructure.external.jira_notification_client import JiraNotificationClient
@@ -63,6 +64,9 @@ from src.infrastructure.persistence.personal_data_repository import PersonalData
 from src.infrastructure.persistence.report_repository_impl import ReportRepositoryImpl
 from src.infrastructure.persistence.security_news_translation_cache import SqliteNewsTranslationCache
 from src.infrastructure.persistence.security_news_snapshot_store import SqliteSecurityNewsSnapshotStore
+from src.infrastructure.persistence.kernel_cve_store import SqliteKernelSnapshotStore
+from src.infrastructure.persistence.java_cve_store import SqliteJavaSnapshotStore
+from src.infrastructure.persistence.database_cve_store import SqliteDatabaseSnapshotStore
 from src.infrastructure.persistence.site_repository_impl import SiteRepositoryImpl
 from src.infrastructure.persistence.sla_violation_repository_impl import SlaViolationRepositoryImpl
 from src.infrastructure.persistence.redeployment_repository_impl import RedeploymentRepositoryImpl
@@ -198,6 +202,12 @@ class Container:
         self.search = SearchUseCase(self._jira)
         self.issue_management = IssueManagementUseCase(self._jira, "TACEA", IssueManagementSnapshotRepository(database))
         self._security_news_source = PublicSecurityNewsSource()
+        self._kernel_cve_source = KernelCveSource()
+        self.kernel_cves = KernelCveUseCase(self._kernel_cve_source, SqliteKernelSnapshotStore(settings.kernel_cve_snapshot_path))
+        self._java_cve_source = JavaCveSource()
+        self.java_cves = JavaCveUseCase(self._java_cve_source, SqliteJavaSnapshotStore(settings.java_cve_snapshot_path))
+        self._db_cve_source = DatabaseCveSource()
+        self.db_cves = DatabaseCveUseCase(self._db_cve_source, SqliteDatabaseSnapshotStore(settings.db_cve_snapshot_path))
         self._security_news_store = SqliteSecurityNewsSnapshotStore(settings.security_news_snapshot_path)
         self._news_translator = None
         self._news_translation_cache = None
@@ -218,11 +228,6 @@ class Container:
             )
         self.security_news = SecurityNewsUseCase(
             self._security_news_source, translation=self._news_translation, store=self._security_news_store,
-        )
-        self._cve_inventory_sources = InventoryCveSources({"osv": OsvInventorySource(), "oracle": OracleCveSource()})
-        self._cve_inventory_store = SqliteCveInventorySnapshotStore(settings.cve_inventory_snapshot_path)
-        self.cve_inventory = CveInventoryUseCase(
-            JsonCveInventoryLoader(settings.cve_inventory_path), self._cve_inventory_sources, self._cve_inventory_store,
         )
         self._credential_encryptor = (
             CredentialEncryptor(settings.credential_encryption_key)
@@ -399,7 +404,9 @@ class Container:
                 "_sla_status_source", "sla_status", "_redeployment_source", "_ai", "_cache",
                 "issue_management", "_security_news_source", "_security_news_store",
                 "_news_translator", "_news_translation_cache", "_news_translation", "security_news",
-                "_cve_inventory_sources", "_cve_inventory_store", "cve_inventory",
+                "_kernel_cve_source", "kernel_cves",
+                "_java_cve_source", "java_cves",
+                "_db_cve_source", "db_cves",
             ):
                 resource = getattr(self, name, None)
                 if resource is not None:

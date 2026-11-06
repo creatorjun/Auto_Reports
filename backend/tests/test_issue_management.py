@@ -49,9 +49,8 @@ class IssueManagementTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(2, len(loaded["issues"]))
         self.assertEqual({"Closed", "결과 대기 중"}, {issue.status for issue in loaded["issues"]})
         jql, limit, fields = self.jira.get_report_chart_issues.call_args.args
-        self.assertIn('project = "TACEA"', jql)
-        self.assertNotIn("status", jql)
-        self.assertNotIn("updated >=", jql)
+        self.assertEqual("TACEA", jql.project)
+        self.assertIsNone(jql.updated_within_minutes)
         self.assertIsNone(limit)
         self.assertIn(JiraIssueField.RECENT_TAC_ASSIGNEE, fields)
 
@@ -60,7 +59,7 @@ class IssueManagementTest(unittest.IsolatedAsyncioTestCase):
         _, snapshot = await self.refresh([JiraIssue(key="TACEA-1", status="Closed"), JiraIssue(key="TACEA-3")])
         self.assertEqual(3, len(snapshot["issues"]))
         self.assertEqual("Closed", next(issue.status for issue in snapshot["issues"] if issue.key == "TACEA-1"))
-        self.assertIn('updated >= "-', self.jira.get_report_chart_issues.call_args.args[0])
+        self.assertIsNotNone(self.jira.get_report_chart_issues.call_args.args[0].updated_within_minutes)
 
     async def test_repeated_snapshots_preserve_order_fields_and_response_isolation(self):
         _, loaded = await self.refresh([
@@ -145,7 +144,7 @@ class IssueManagementTest(unittest.IsolatedAsyncioTestCase):
         self.use_case._last_full_sync -= 3601
         _, snapshot = await self.refresh([JiraIssue(key="TACEA-2")])
         self.assertEqual(["TACEA-2"], [issue.key for issue in snapshot["issues"]])
-        self.assertNotIn("updated >=", self.jira.get_report_chart_issues.call_args.args[0])
+        self.assertIsNone(self.jira.get_report_chart_issues.call_args.args[0].updated_within_minutes)
 
     async def test_concurrent_requests_share_background_fetch_and_close_cancels(self):
         started = asyncio.Event()
@@ -259,7 +258,7 @@ class IssueManagementPersistenceTest(unittest.IsolatedAsyncioTestCase):
         await self.use_case._task
         result = await self.use_case.list_issues()
         jql = self.jira.get_report_chart_issues.call_args.args[0]
-        minutes = int(jql.split('updated >= "-')[1].split('m"')[0])
+        minutes = jql.updated_within_minutes
         self.assertGreaterEqual(minutes, 9)
         self.assertLessEqual(minutes, 10)
         saved = self.snapshots.save.call_args.args[1]
@@ -276,7 +275,7 @@ class IssueManagementPersistenceTest(unittest.IsolatedAsyncioTestCase):
         initial = await self.use_case.list_issues()
         self.assertEqual("TACEA-1", initial["issues"][0].key)
         await self.use_case._task
-        self.assertNotIn("updated >=", self.jira.get_report_chart_issues.call_args.args[0])
+        self.assertIsNone(self.jira.get_report_chart_issues.call_args.args[0].updated_within_minutes)
         result = await self.use_case.list_issues()
         self.assertEqual(["TACEA-2"], [row.key for row in result["issues"]])
 
@@ -337,4 +336,4 @@ class IssueManagementPersistenceTest(unittest.IsolatedAsyncioTestCase):
         result = await self.use_case.list_issues()
         self.assertTrue(result["initialized"])
         self.assertEqual("TACEA-2", result["issues"][0].key)
-        self.assertNotIn("updated >=", self.jira.get_report_chart_issues.call_args.args[0])
+        self.assertIsNone(self.jira.get_report_chart_issues.call_args.args[0].updated_within_minutes)

@@ -5,6 +5,10 @@ import { BarChart2, ShieldAlert, Activity, CalendarRange, RefreshCw, Download } 
 import { useAnnualReport, useLatestReport, useReportById } from '@/presentation/hooks/useReport'
 import { useReportStore } from '@/presentation/state/reportStore'
 import { useDashboardData } from '@/presentation/hooks/useDashboardData'
+import { usePreviousYearMonthly, type PreviousYearMonthly } from '@/presentation/hooks/usePreviousYearMonthly'
+import { observedPeriodEnd, throughReportMonth } from '@/presentation/utils/previousYearMonth'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
+import { usePersistentFilterSet } from '@/presentation/hooks/usePersistentFilterSet'
 import { useReportRefreshShortcut } from '@/presentation/hooks/useReportRefreshShortcut'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 import DashboardGenerateForm from '@/presentation/components/common/DashboardGenerateForm'
@@ -18,7 +22,7 @@ import { ModalFallback, ChartFallback } from '@/presentation/components/common/D
 import { MONTHLY_COUNT_COLORS, SLA_MONTHLY_COLORS } from '@/presentation/config/constants'
 import type { ReportDetail } from '@/domain/Report'
 import type { ChartIssue, ChartIssuesRequest } from '@/domain/ReportChartDetails'
-import type { DashboardExportFormat, DashboardPdfDocument } from '@/domain/DashboardExport'
+import type { DashboardExportFormat, DashboardPdfDocument } from '@/application/dto/DashboardExport'
 import type { ElapsedDaysComparison } from '@/domain/Issue'
 import type { IssueColumnFilters } from '@/domain/IssueColumnSearch'
 import { ISSUE_COLUMNS } from '@/presentation/config/issueColumns'
@@ -58,6 +62,7 @@ const SlaDelayModal       = lazy(() => import('@/presentation/components/tables/
 const WORK_TYPE_TONES = ['blue', 'green', 'red', 'yellow', 'purple'] as const
 
 interface ExportSelection {
+  previousYear: PreviousYearMonthly
   selectedIssueTypes: Set<string> | null
   selectedStatuses: Set<string> | null
   selectedSemester: Semester | null
@@ -77,12 +82,13 @@ interface ExportSnapshot {
 function DashboardContent({ report, exportSelection, generationForm }: { report: ReportDetail; exportSelection?: ExportSelection; generationForm?: ReactNode }) {
   const isAnnual = report.scope === 'annual'
   const { setCurrentReport } = useReportStore()
-  const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<string> | null>(null)
-  const [selectedStatuses,   setSelectedStatuses]   = useState<Set<string> | null>(null)
-  const [selectedSemester,   setSelectedSemester]   = useState<Semester | null>(null)
-  const [recentElapsedDaysThreshold, setRecentElapsedDaysThreshold] = useState<number | null>(null)
-  const [recentElapsedDaysComparison, setRecentElapsedDaysComparison] = useState<ElapsedDaysComparison>('gte')
-  const [recentColumnFilters, setRecentColumnFilters] = useState<IssueColumnFilters>({})
+  const filterKey = isAnnual ? `dashboard:annual:${report.report_year}` : 'dashboard:standard'
+  const [selectedIssueTypes, setSelectedIssueTypes] = usePersistentFilterSet(`${filterKey}:types`)
+  const [selectedStatuses, setSelectedStatuses] = usePersistentFilterSet(`${filterKey}:statuses`)
+  const [selectedSemester, setSelectedSemester] = usePersistentFilterState<Semester | null>(`${filterKey}:semester`, null)
+  const [recentElapsedDaysThreshold, setRecentElapsedDaysThreshold] = usePersistentFilterState<number | null>(`${filterKey}:elapsed-days`, null)
+  const [recentElapsedDaysComparison, setRecentElapsedDaysComparison] = usePersistentFilterState<ElapsedDaysComparison>(`${filterKey}:comparison`, 'gte')
+  const [recentColumnFilters, setRecentColumnFilters] = usePersistentFilterState<IssueColumnFilters>(`${filterKey}:columns`, {})
   const [showWeeklyCreated,  setShowWeeklyCreated]  = useState(false)
   const [showWeeklyResolved, setShowWeeklyResolved] = useState(false)
   const [workTypeOpen,       setWorkTypeOpen]       = useState<WorkTypeOpenWidget | null>(null)
@@ -98,42 +104,45 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
   const [annualDetails, setAnnualDetails] = useState<{ title: string; total: number; issues: ChartIssue[] } | null>(null)
   const [remoteDetails, setRemoteDetails] = useState<{ title: string; total: number; request: ChartIssuesRequest } | null>(null)
   const exportPending = useRef(false)
-  const effectiveIssueTypes = exportSelection ? exportSelection.selectedIssueTypes : selectedIssueTypes
-  const effectiveStatuses = exportSelection ? exportSelection.selectedStatuses : selectedStatuses
-  const effectiveSemester = exportSelection ? exportSelection.selectedSemester : selectedSemester
+  const requestedIssueTypes = exportSelection ? exportSelection.selectedIssueTypes : selectedIssueTypes
+  const requestedStatuses = exportSelection ? exportSelection.selectedStatuses : selectedStatuses
+  const requestedSemester = exportSelection ? exportSelection.selectedSemester : selectedSemester
   const effectiveRecentElapsedDaysThreshold = exportSelection ? exportSelection.recentElapsedDaysThreshold : recentElapsedDaysThreshold
   const effectiveRecentElapsedDaysComparison = exportSelection ? exportSelection.recentElapsedDaysComparison : recentElapsedDaysComparison
   const effectiveRecentColumnFilters = exportSelection ? exportSelection.recentColumnFilters : recentColumnFilters
 
   useEffect(() => {
-    setRecentElapsedDaysThreshold(null)
-    setRecentElapsedDaysComparison('gte')
-    setRecentColumnFilters({})
     setWorkTypeOpen(null)
     setSlaViolationEntry(null)
     setSlaDelayEntry(null)
   }, [report.id])
 
   useEffect(() => {
-    setAnnualDetails(null)
-    setRemoteDetails(null)
-  }, [report.id, effectiveIssueTypes, effectiveStatuses, effectiveSemester])
-
-  useEffect(() => {
     if (exportSelection) return
-    setSelectedIssueTypes(null)
-    setSelectedStatuses(null)
-    setSelectedSemester(null)
     setCurrentReport(report)
     return () => setCurrentReport(null)
   }, [exportSelection, report, setCurrentReport])
 
-  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, resolutionByStage, hasStageDurationData, recentAndIncomplete, statusIssues } = useDashboardData(report, effectiveIssueTypes, effectiveSemester, effectiveStatuses)
+  const { filter, yearly, weekly, workTypeOpen: workTypeOpenWidgets, slaMonthly, monthlyCount, slaDonut, slaDelay, resolutionByType, resolutionByStage, hasStageDurationData, recentAndIncomplete, statusIssues } = useDashboardData(report, requestedIssueTypes, requestedSemester, requestedStatuses)
   const { issueTypes, statusTypes, reportYear, supportsIssueTypeFiltering, supportsStatusFiltering, supportsSemesterFiltering, semesterLabel } = filter
+  const effectiveIssueTypes = supportsIssueTypeFiltering ? requestedIssueTypes : null
+  const effectiveStatuses = supportsStatusFiltering ? requestedStatuses : null
+  const effectiveSemester = supportsSemesterFiltering ? requestedSemester : null
+  const history = usePreviousYearMonthly(report, effectiveIssueTypes, effectiveStatuses, effectiveSemester, issueTypes, !exportSelection)
+  const previousYear = exportSelection?.previousYear ?? history
+  const periodEnd = observedPeriodEnd(report)
+  useEffect(() => {
+    setAnnualDetails(null)
+    setRemoteDetails(null)
+  }, [report.id, effectiveIssueTypes, effectiveStatuses, effectiveSemester])
   const { w1YearlyCreated, w2YearlyResolved } = yearly
   const { w3Created, w3Resolved, weeklyCreated, weeklyResolved, dateRange, rangeLabel } = weekly
-  const { w10Monthly, w11Monthly, hasW10, hasW11 } = slaMonthly
-  const { w8Monthly, w9Monthly, hasW8, hasW9 } = monthlyCount
+  const monthly = useMemo(() => ({
+    created: throughReportMonth(monthlyCount.w8Monthly, periodEnd),
+    resolved: throughReportMonth(monthlyCount.w9Monthly, periodEnd),
+    initial: throughReportMonth(slaMonthly.w10Monthly, periodEnd).filter((entry) => !isAnnual || entry.year === reportYear),
+    resolution: throughReportMonth(slaMonthly.w11Monthly, periodEnd).filter((entry) => !isAnnual || entry.year === reportYear),
+  }), [monthlyCount, slaMonthly, periodEnd, isAnnual, reportYear])
   const { w12Total, w12Distribution } = slaDonut
   const { w13ByStatus, w13ByStatusDetails } = slaDelay
   const { recentIssues, incompleteIssues, incompleteTotal } = recentAndIncomplete
@@ -142,10 +151,10 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
     ? report.widgets[WIDGET_ID.REDEPLOYMENT_ANALYTICS]?.data as unknown as RedeploymentAnalytics | null
     : null
   const chartFilters = {
-    filter_statuses: supportsStatusFiltering && effectiveStatuses !== null,
-    selected_statuses: supportsStatusFiltering && effectiveStatuses !== null ? [...effectiveStatuses] : undefined,
-    filter_types: supportsIssueTypeFiltering && effectiveIssueTypes !== null,
-    selected_types: supportsIssueTypeFiltering && effectiveIssueTypes !== null ? [...effectiveIssueTypes] : undefined,
+    filter_statuses: effectiveStatuses !== null,
+    selected_statuses: effectiveStatuses ? [...effectiveStatuses] : undefined,
+    filter_types: effectiveIssueTypes !== null,
+    selected_types: effectiveIssueTypes ? [...effectiveIssueTypes] : undefined,
   }
 
   const slaModalIssues: SlaViolationIssue[] = useMemo(() => {
@@ -163,7 +172,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
       const next = new Set(current ?? issueTypes)
       if (next.has(issueType)) next.delete(issueType)
       else next.add(issueType)
-      return next.size === issueTypes.length ? null : next
+      return issueTypes.every((type) => next.has(type)) ? null : next
     })
   }
 
@@ -172,7 +181,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
       const next = new Set(current ?? statusTypes)
       if (next.has(status)) next.delete(status)
       else next.add(status)
-      return next.size === statusTypes.length ? null : next
+      return statusTypes.every((value) => next.has(value)) ? null : next
     })
   }
 
@@ -187,7 +196,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
   }, [finishExport])
 
   const startExport = () => {
-    if (exportPending.current) return
+    if (exportPending.current || history.isLoading) return
     exportPending.current = true
     setExportError('')
     const title = report.scope === 'annual' ? `${report.report_year} 연간 보고서` : 'TAC 대시보드'
@@ -210,6 +219,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
       format: exportFormat,
       report,
       selection: {
+        previousYear,
         selectedIssueTypes: effectiveIssueTypes === null ? null : new Set(effectiveIssueTypes),
         selectedStatuses: effectiveStatuses === null ? null : new Set(effectiveStatuses),
         selectedSemester: effectiveSemester,
@@ -242,8 +252,9 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
           <button
             type="button"
             onClick={startExport}
-            disabled={exportSnapshot !== null}
-            aria-busy={exportSnapshot !== null}
+            disabled={exportSnapshot !== null || history.isLoading}
+            aria-busy={exportSnapshot !== null || history.isLoading}
+            title={history.isLoading ? '전년 동월 비교 데이터를 불러오는 중입니다.' : undefined}
             className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-control font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60"
           >
             {exportSnapshot ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
@@ -264,7 +275,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
         statuses={statusTypes}
         selectedTypes={selectedIssueTypes}
         selectedStatuses={selectedStatuses}
-        selectedSemester={selectedSemester}
+        selectedSemester={effectiveSemester}
         supported={supportsIssueTypeFiltering}
         statusSupported={supportsStatusFiltering}
         semesterSupported={supportsSemesterFiltering}
@@ -389,12 +400,12 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
         ))}
       </div>
 
-      {(isAnnual ? w8Monthly.length > 0 || w9Monthly.length > 0 : hasW8 || hasW9) && (
+      {(monthly.created.length > 0 || monthly.resolved.length > 0) && (
         <div data-pdf-section="월별 이슈 현황" className="space-y-1">
           <SectionTitle icon={BarChart2} title="월별 이슈 현황" subtitle={semesterLabel} />
           {isAnnual ? (
             <Suspense fallback={<ChartFallback />}>
-              <AnnualMonthlyComparison created={w8Monthly} resolved={w9Monthly} year={reportYear} periodEnd={report.week_end} subtitle={semesterLabel}
+              <AnnualMonthlyComparison created={monthly.created} resolved={monthly.resolved} previousCreated={previousYear.created} previousResolved={previousYear.resolved} year={reportYear} periodEnd={periodEnd} subtitle={semesterLabel}
                 onSelectMonth={!exportSelection ? (month, series, total) => {
                   const prefix = `${reportYear}-${String(month).padStart(2, '0')}`
                   const issues = series === 'created'
@@ -406,21 +417,21 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
             </Suspense>
           ) : <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5">
             <Suspense fallback={<ChartFallback />}>
-              <MonthlyCountChart title="월별 등록 건수" subtitle={semesterLabel} monthly={w8Monthly} color={MONTHLY_COUNT_COLORS.created}  />
+              <MonthlyCountChart title="월별 등록 건수" subtitle={semesterLabel} monthly={monthly.created} previousMonthly={previousYear.created} color={MONTHLY_COUNT_COLORS.created} />
             </Suspense>
             <Suspense fallback={<ChartFallback />}>
-              <MonthlyCountChart title="월별 해결 건수" subtitle={semesterLabel} monthly={w9Monthly} color={MONTHLY_COUNT_COLORS.resolved} />
+              <MonthlyCountChart title="월별 해결 건수" subtitle={semesterLabel} monthly={monthly.resolved} previousMonthly={previousYear.resolved} color={MONTHLY_COUNT_COLORS.resolved} />
             </Suspense>
           </div>}
         </div>
       )}
-      {(hasW10 || hasW11) && (
+      {(monthly.initial.length > 0 || monthly.resolution.length > 0) && (
         <div data-pdf-section="SLA 준수율" className="space-y-1">
           <SectionTitle icon={ShieldAlert} title="SLA 준수율" subtitle={semesterLabel} />
           <div className={isAnnual ? 'grid grid-cols-1 xl:grid-cols-2 gap-4' : 'grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 3xl:gap-5'}>
             <Suspense fallback={<ChartFallback />}>
-              <SlaMonthlyLineChart title="최초응답 SLA" subtitle={semesterLabel} monthly={isAnnual ? w10Monthly.filter((entry) => entry.year === reportYear && entry.month_num <= Number(report.week_end.slice(5, 7))) : w10Monthly} color={SLA_MONTHLY_COLORS.initial}
-                monthOnly
+              <SlaMonthlyLineChart title="최초응답 SLA" subtitle={semesterLabel} monthly={monthly.initial} previousMonthly={previousYear.slaInitial} color={SLA_MONTHLY_COLORS.initial}
+                monthOnly={isAnnual}
                 onMonthClick={isAnnual && !exportSelection ? (entry, status) => setRemoteDetails({
                   title: `${entry.year}년 ${entry.month_num}월 최초응답 SLA · ${status === 'met' ? '준수' : status === 'violated' ? '위반' : '전체'}`,
                   total: status === 'met' ? entry.met : status === 'violated' ? entry.total - entry.met : entry.total,
@@ -429,8 +440,8 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
               />
             </Suspense>
             <Suspense fallback={<ChartFallback />}>
-              <SlaMonthlyLineChart title="해결시간 SLA" subtitle={semesterLabel} monthly={isAnnual ? w11Monthly.filter((entry) => entry.year === reportYear && entry.month_num <= Number(report.week_end.slice(5, 7))) : w11Monthly} color={SLA_MONTHLY_COLORS.resolution}
-                monthOnly
+              <SlaMonthlyLineChart title="해결시간 SLA" subtitle={semesterLabel} monthly={monthly.resolution} previousMonthly={previousYear.slaResolution} color={SLA_MONTHLY_COLORS.resolution}
+                monthOnly={isAnnual}
                 onMonthClick={isAnnual && !exportSelection ? (entry, status) => setRemoteDetails({
                   title: `${entry.year}년 ${entry.month_num}월 해결시간 SLA · ${status === 'met' ? '준수' : status === 'violated' ? '위반' : '전체'}`,
                   total: status === 'met' ? entry.met : status === 'violated' ? entry.total - entry.met : entry.total,
@@ -500,7 +511,7 @@ function DashboardContent({ report, exportSelection, generationForm }: { report:
       </div>
       {redeploymentData && report.report_year != null && (
         <Suspense fallback={<ChartFallback />}>
-          <RedeploymentAnnualSection key={report.id} reportId={report.id} data={redeploymentData} year={report.report_year} />
+          <RedeploymentAnnualSection key={report.id} reportId={report.id} data={redeploymentData} previousMonthly={previousYear.redeployments} periodEnd={periodEnd} year={report.report_year} />
         </Suspense>
       )}
       <Suspense fallback={<ChartFallback />}>

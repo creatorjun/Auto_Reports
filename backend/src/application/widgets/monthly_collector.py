@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from typing import Tuple
 
-from src.application.services.query_builder import ResolvedQueries
+from src.application.ports.report_query_port import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.application.widgets.issue_breakdown import issue_status_name, issue_type_name
 from src.domain.entities.widget import WidgetResult

@@ -42,6 +42,7 @@ function loadSource(relative) {
 }
 
 const { default: SlaMonthlyLineChart } = loadSource('presentation/components/charts/SlaMonthlyLineChart')
+const { default: MonthlyCountChart } = loadSource('presentation/components/charts/MonthlyCountChart')
 const { default: TypeBarChart } = loadSource('presentation/components/charts/TypeBarChart')
 const { DashboardExportProvider } = loadSource('presentation/context/DashboardExportContext')
 const monthly = [
@@ -73,6 +74,32 @@ function render(element) {
   act(() => { view = TestRenderer.create(element) })
   return view
 }
+
+test('monthly count and SLA charts align the gray background by calendar month, preserve zero and omit missing history', (t) => {
+  const months = [1, 2, 3, 4].map((month_num) => ({ year: 2026, month_num, month: `2026-${month_num}`, count: 12, total: 20, met: 15, rate: 75 }))
+  const history = [
+    { ...months[0], year: 2024, count: 1000, rate: 100 },
+    { ...months[2], year: 2025, count: 0, total: 0, met: 0, rate: 0 },
+    { ...months[0], year: 2025, count: 11, total: 4, met: 2, rate: 50 },
+    { ...months[3], year: 2025, count: 3, total: 3, met: 0, rate: 0 },
+  ]
+  for (const [component, key, current, expected] of [
+    [MonthlyCountChart, 'previousCount', 'count', [11, null, 0, 3]],
+    [SlaMonthlyLineChart, 'previousRate', 'rate', [50, null, null, 0]],
+  ]) {
+    const view = render(React.createElement(DashboardExportProvider, null, React.createElement(component, { ...slaProps, monthly: months, previousMonthly: history })))
+    t.after(() => act(() => view.unmount()))
+    const areas = view.root.findAllByType('Area')
+    assert.deepEqual(areas.map((item) => item.props.dataKey), [key, current])
+    assert.match(areas[0].props.fill, /gray/)
+    assert.equal(areas[0].props.isAnimationActive, false)
+    const points = view.root.findByType('AreaChart').props.data
+    assert.deepEqual(points.map((point) => point[key]), expected)
+    const table = JSON.parse(view.root.find((node) => node.type === 'div' && node.props['data-export-table']).props['data-export-table'])
+    assert.match(table.headers.at(-1), /전년 동월/)
+    assert.deepEqual(table.rows.map((row) => row.at(-1)), expected)
+  }
+})
 
 test('SLA chart payload and both dot states select the source month without duplicate bubbling', () => {
   const calls = []

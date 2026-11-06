@@ -110,7 +110,7 @@ test('all navigation surfaces hide sites until verified administrator permission
   await until(() => app.profile?.status === 'success')
   assertVisibility(app, true)
   assert.equal(app.links('collapsed').find((link) => link.props.href === '/sites').props.title, '사이트 관리')
-  assert.equal(app.links('mobile').find((link) => link.props.href === '/sites').props['aria-label'], '사이트')
+  assert.equal(app.links('mobile').find((link) => link.props.href === '/sites').props['aria-label'], '사이트 관리')
 })
 
 test('ordinary local and Jira users and disabled authentication keep sites hidden on every surface', async (t) => {

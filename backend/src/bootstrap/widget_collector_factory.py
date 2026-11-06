@@ -1,7 +1,7 @@
 # backend/src/bootstrap/widget_collector_factory.py
 from datetime import datetime
 
-from src.application.services.query_builder import ResolvedQueries
+from src.application.ports.report_query_port import ResolvedQueries
 from src.application.widgets.collector_factory import CollectorEntry
 from src.application.widgets.count_collector import (
     SimpleWithDetailsCollector,

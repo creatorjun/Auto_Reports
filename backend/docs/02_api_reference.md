@@ -201,3 +201,60 @@ Aggregate 또는 하위 엔티티가 없으면 404입니다.
 선택 작업은 `folder`, `names`를 JSON body로 받으며 한 번에 1개 이상 200개 이하의 현재 폴더 항목을 처리합니다. ZIP 임시 파일은 응답 완료 후 자동 삭제됩니다. 일괄 삭제는 모든 항목의 경로와 존재 여부를 먼저 검증합니다.
 
 경로는 Storage adapter가 정규화하고 root 이탈을 거부합니다. 중복은 409, quota 초과는 413, 잘못된 경로는 400 또는 404로 반환합니다.
+
+## OS 커널 CVE
+
+인증된 `/api/v1/kernel-cves` 경로에서 서버가 매일 수집한 자료를 조회합니다.
+
+| GET 경로 | 조회 조건과 결과 |
+|---|---|
+| `/kernel-cves/targets` | 배포판, 패키지, 아키텍처, 조회 가능 여부와 범위 |
+| `/kernel-cves/releases` | `target`, `package`, `architecture`로 공급사 자료에서 확인한 커널 빌드 목록 조회 |
+| `/kernel-cves` | 위 세 조건과 `version`으로 같은 계열의 수정 빌드를 비교합니다. `severity`, `search`, `page`, `page_size`로 결과를 좁힙니다. |
+| `/kernel-cves/upstream` | 선택한 `target`의 권고에 연결되지 않은 Linux CVE. 공개일순 목록에 검색과 페이지 이동을 지원합니다. |
+
+Oracle Linux는 표준 커널과 UEK의 패키지·계열을 구분합니다. Rocky Linux는 BaseOS 표준 커널의 아키텍처별 업데이트 정보를 읽습니다. CentOS Linux 7.9 x86_64는 Vault에서 확인한 빌드를 기준으로 2024-06-30까지의 Red Hat 보안 권고와 RPM 변경 기록을 대조합니다. Oracle 권고에 CVE별 CVSS v3 점수가 있으면 해당 등급을 사용하고, 그 밖에는 권고 등급 또는 미평가로 표시합니다. [Oracle 보안 자료](https://linux.oracle.com/security/index.html) · [Rocky Linux Errata](https://docs.rockylinux.org/latest/teams/rel_eng/errata/) · [CentOS Vault](https://vault.centos.org/7.9.2009/updates/x86_64/) · [Red Hat OVAL](https://security.access.redhat.com/data/oval/v2/RHEL7/)
+
+배포판 권고 미연결 목록은 OSV의 Linux 전체 공개 자료에서 철회된 CVE를 제외하고 구성합니다. 이 목록의 항목은 설치 커널의 영향 건수와 별도로 표시합니다. [OSV 공개 데이터](https://google.github.io/osv.dev/data/)
+
+## Java CVE
+
+로그인한 사용자는 `/api/v1/java-cves`에서 OpenJDK와 Azul Zulu의 공급사별 취약점 권고를 조회합니다.
+
+| GET 경로 | 조회 조건과 결과 |
+|---|---|
+| `/java-cves/targets` | 조회 가능한 배포판 ID, 표시 이름, 각 출처가 다루는 범위 |
+| `/java-cves/releases` | `target`에 해당하는 버전을 최신순으로 반환합니다. 항목에는 버전 식별자, Java 메이저 버전, 공급사가 밝힌 채널 또는 발표일이 들어갑니다. |
+| `/java-cves` | `target`과 `version`에 대해 적용되는 고유 CVE와 각 판단의 권고 링크를 반환합니다. `search`, `severity`, `page`, `page_size`를 사용할 수 있습니다. |
+
+OpenJDK와 Azul Zulu는 각 공급사가 명시한 버전 기준으로 대조합니다. 권고의 마지막 영향 버전(`affected_through`), 특정 영향 버전(`affected_version`), 수정 버전(`fixed_version`)은 구별하며, 공급사가 밝힌 구성요소와 CVSS 점수도 해당 권고에 함께 표시합니다.
+
+상태와 출처별 마지막 수집 시각은 응답의 `status`, `refreshing`, `sources`에서 확인할 수 있습니다. 출처 수집을 기다리는 중이거나 입력한 버전의 영향 여부를 판단할 수 없으면 `total`은 `null`입니다. 갱신을 진행하는 동안 API는 직전 정상 자료로 응답합니다. 위험도별 집계는 검색어가 일치하는 전체 CVE에 적용하고, 선택한 위험도 필터를 적용한 뒤 페이지를 나눕니다.
+
+## DB CVE
+
+로그인한 사용자는 `/api/v1/db-cves`에서 MariaDB, MySQL, PostgreSQL을 제품·릴리스 계열별로 조회합니다.
+
+| GET 경로 | 조회 조건과 결과 |
+|---|---|
+| `/db-cves/targets` | 제품 ID와 표시 이름, 해당 자료가 다루는 제품 범위 |
+| `/db-cves/releases` | `target=mariadb`, `mysql`, `postgresql` 중 하나를 지정하여 버전과 릴리스 계열(`series`)을 조회 |
+| `/db-cves` | `target`, `version` 필수. 검색(`search`), 위험도(`severity`), 페이지(`page`, `page_size`)로 고유 CVE 목록 조회 |
+
+각 CVE의 `fixes`에는 원문 권고와 제품 계열, 해당 시 특정 영향 버전이나 영향 범위, 공급사가 명시한 수정 버전이 들어갑니다. `affected_from_inclusive`와 `affected_through_inclusive`는 명시된 범위에 양 끝 버전이 들어가는지 표시합니다. 버전 목록만 수집되었거나 선택한 버전의 영향을 판정할 수 없을 때는 `total: null`과 출처 상태를 반환합니다. 정상자료의 수집 시각, 갱신 진행, 일부 실패 여부는 Java CVE와 동일한 필드에서 확인합니다.
+
+## 솔루션 패키지
+
+`GET /api/v1/solution-packages`는 로그인한 사용자가 선택한 제품의 패키지 목록을 반환합니다.
+
+| `product` | `version` |
+|---|---|
+| `eyeCloudSIM` | `3.1.0`, `3.1.03` |
+| `eyeCloudXoar` | `4.0_R1`, `4.0_R2`, `4.0_R3` |
+| `eyeCloudAI` | 생략 |
+
+응답의 `packages`에는 원본 ID(`id`), 구성요소명(`name`), 확인 버전(`version`), 분류(`category`), 버전 근거(`evidence`)가 들어갑니다. 자료 등록을 기다리는 조합은 빈 배열을, 지원 범위 밖의 조합은 HTTP 422를 반환합니다.
+
+eyeCloudXoar 4.0_R2의 인벤토리는 운영 배포 시 백엔드에 별도로 공급합니다. 컨테이너 경로는 `/app/src/infrastructure/data/solution_packages/eyecloudxoar_4_0_r2.json`입니다. 여기에 패키지 객체의 JSON 배열을 배치한 뒤 백엔드를 재시작합니다. 해당 파일이 없는 환경은 빈 목록을 반환합니다.
+
+각 패키지의 `cve_ids`는 조사 당시 매칭된 CVE ID의 배열입니다. 빈 배열은 당시 대조 결과가 0건임을 뜻합니다. 대조 범위가 제한됐거나 기존 자료에 대조 결과가 없으면 `null`을 반환합니다.

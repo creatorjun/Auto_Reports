@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+from src.application.ports.issue_query import IssueOrder, IssueSelection
 from src.application.errors import EntityNotFoundError
 from src.application.ports.jira_port import (
     JiraAttachmentContent,
@@ -41,7 +42,7 @@ class FakeJira:
     def __init__(self) -> None:
         self.issues: list[JiraIssue] = []
         self.comments: list[dict[str, Any]] = []
-        self.issue_requests: list[tuple[str, int, str]] = []
+        self.issue_requests: list[tuple[IssueSelection, int, frozenset[JiraIssueField]]] = []
         self.comment_requests: list[tuple[str, int, int]] = []
         self.single_comment_requests: list[tuple[str, str]] = []
         self.attachment_requests: list[str] = []
@@ -55,7 +56,7 @@ class FakeJira:
 
     async def get_issues(
         self,
-        jql: str,
+        jql: IssueSelection,
         max_results: int,
         fields: frozenset[JiraIssueField],
     ) -> list[JiraIssue]:
@@ -227,8 +228,7 @@ class SlaDashboardUseCaseTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("구현 중", issues[1].status)
         self.assertEqual(
             (
-                "issuekey IN (TACEA-4501, TACEA-4500) "
-                "ORDER BY created ASC, issuekey ASC",
+                IssueSelection(keys=("TACEA-4501", "TACEA-4500"), order=IssueOrder.OLDEST_WITH_KEY),
                 500,
                 frozenset({
                     JiraIssueField.SUMMARY,

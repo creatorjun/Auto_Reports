@@ -1,7 +1,7 @@
 # backend/src/application/widgets/sla_delay_collector.py
 import logging
 
-from src.application.services.query_builder import ResolvedQueries
+from src.application.ports.report_query_port import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import SlaDelayIssueDetail, SlaDelayWidgetData

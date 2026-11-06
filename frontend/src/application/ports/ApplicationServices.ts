@@ -2,9 +2,12 @@
 import type { AuthProviders, JiraLoginStartResponse, JiraPrivacyStatus, LoginRequest, MeResponse, TokenResponse } from '@/domain/Auth'
 import type { AuditLogPage, AuditLogQuery } from '@/domain/AuditLog'
 import type { AppConfig } from '@/domain/Config'
-import type { CveInventoryPackagePage, CveInventoryPackageRequest, CveInventoryRequest, CveInventorySnapshot } from '@/domain/CveInventory'
+import type { CveResults } from '@/domain/Cve'
 import type { IssueManagementSnapshot } from '@/domain/IssueManagement'
-import type { DashboardPdfDocument } from '@/domain/DashboardExport'
+import type { SoftwareCveRequest, SoftwareReleases, SoftwareTarget } from '@/domain/SoftwareCve'
+import type { SolutionPackageInventory, SolutionProduct } from '@/domain/SolutionPackages'
+import type { KernelBuild, KernelCveRequest, KernelCveResults, KernelReleases, KernelTarget, UpstreamKernelRequest, UpstreamKernelResults } from '@/domain/KernelCve'
+import type { DashboardPdfDocument } from '@/application/dto/DashboardExport'
 import type { JobStatus, TriggerAccepted, TriggerParams } from '@/domain/Job'
 import type { JiraNotificationPage, JiraNotificationReadAllRequest, JiraNotificationReadAllResult, JiraNotificationReadRequest, JiraNotificationReadResult, JiraNotificationRequest } from '@/domain/JiraNotification'
 import type { PartnerIssue, PartnerMember, PartnerOrg } from '@/domain/Partner'
@@ -205,13 +208,27 @@ export interface ApplicationServices {
   redeployments: RedeploymentGateway
   issueManagement: IssueContentGateway & { getIssues: () => Promise<IssueManagementSnapshot> }
   securityNews: SecurityNewsGateway
-  cveInventory: CveInventoryGateway
+  kernelCves: KernelCveGateway
+  javaCves: SoftwareCveGateway
+  dbCves: SoftwareCveGateway
+  solutionPackages: SolutionPackagesGateway
 }
 
-export interface CveInventoryGateway {
-  getSnapshot: (request: CveInventoryRequest, signal?: CancellationSignal) => Promise<CveInventorySnapshot>
-  refresh: () => Promise<CveInventorySnapshot>
-  getPackages: (request: CveInventoryPackageRequest, signal?: CancellationSignal) => Promise<CveInventoryPackagePage>
+export interface SolutionPackagesGateway {
+  list: (product: SolutionProduct, version: string | null, signal?: CancellationSignal) => Promise<SolutionPackageInventory>
+}
+
+export interface KernelCveGateway {
+  getTargets: (signal?: CancellationSignal) => Promise<KernelTarget[]>
+  getReleases: (build: KernelBuild, signal?: CancellationSignal) => Promise<KernelReleases>
+  getFindings: (request: KernelCveRequest, signal?: CancellationSignal) => Promise<KernelCveResults>
+  getUpstream: (request: UpstreamKernelRequest, signal?: CancellationSignal) => Promise<UpstreamKernelResults>
+}
+
+export interface SoftwareCveGateway {
+  getTargets: (signal?: CancellationSignal) => Promise<SoftwareTarget[]>
+  getReleases: (target: string, signal?: CancellationSignal) => Promise<SoftwareReleases>
+  getFindings: (request: SoftwareCveRequest, signal?: CancellationSignal) => Promise<CveResults>
 }
 
 export interface SecurityNewsGateway {

@@ -34,6 +34,7 @@ function loadSource(relativePath) {
 }
 
 const { buildDashboardData } = loadSource('application/services/dashboardData.ts')
+const { monthlyComparisonYears, previousYearMonthly } = loadSource('application/services/previousYearMonthly.ts')
 const { useDashboardData } = loadSource('presentation/hooks/useDashboardData.ts')
 const { default: IssueTypeFilter } = loadSource('presentation/components/common/IssueTypeFilter.tsx')
 const { isLicenseIssueType, isDashboardIssueTypeFilterOption } = loadSource('domain/DashboardIssueTypePolicy.ts')
@@ -42,6 +43,107 @@ const VISIBLE_TYPES = ['서비스 요청', '개선', '라이선스']
 const HIDDEN_TYPES = ['승인된 서비스 요청', '케이스']
 const ALL_TYPES = [...VISIBLE_TYPES, ...HIDDEN_TYPES, '기타']
 const STATUSES = ['할 일', '닫힘']
+
+test('prior-year comparisons match calendar years, apply the active filters, and distinguish absent buckets from zero', () => {
+  const report = fixtureReport('annual')
+  report.widgets.w10.data.monthly[0].year = 2025
+  assert.deepEqual(monthlyComparisonYears(report), [2024, 2025])
+  const month = (month_num) => ({ year: 2025, month: `${month_num}월`, month_num })
+  const history = {
+    ...report, report_year: 2025, week_start: '2025-01-01', week_end: '2025-03-31',
+    widgets: {
+      w8: widget({ monthly: [
+        { ...month(1), count: 5, by_status_type: { 닫힘: { 개선: 2, '서비스 요청': 1, 기타: 1 }, 진행: { 개선: 1 } } },
+        { ...month(2), count: 7, by_type: {}, by_status_type: {} },
+        { ...month(3), count: 0 },
+        { ...month(4), count: 0 },
+      ] }),
+      w10: widget({ monthly: [{ ...month(1), met: 2, total: 3, rate: 66.7 }] }),
+      w15: widget({ classification_complete: false, monthly: [{ ...month(1), total: 4, by_type: { 개선: 1, 라이선스: 3 } }] }),
+    },
+  }
+  const all = previousYearMonthly([history], null, null, null, VISIBLE_TYPES)
+  assert.deepEqual(all.created.map((row) => row.count), [5, 7, 0])
+  assert.equal(all.slaInitial[0].rate, 66.7)
+  assert.deepEqual(all.resolved, [])
+  assert.deepEqual(all.redeployments, [])
+  const filtered = previousYearMonthly([history], new Set(['개선']), new Set(['닫힘']), 'h1', VISIBLE_TYPES)
+  assert.deepEqual(filtered.created.map((row) => [row.month_num, row.count]), [[1, 3], [3, 0]])
+  assert.deepEqual(filtered.slaInitial, [])
+  history.widgets.w15.data.classification_complete = true
+  const secondHalf = previousYearMonthly([history], null, null, 'h2', VISIBLE_TYPES)
+  assert.deepEqual(secondHalf.created, [])
+  assert.equal(secondHalf.redeployments[0].total, 1)
+})
+
+test('prior-year type selection uses the same always-included count and SLA buckets as the current report', () => {
+  const history = fixtureReport('annual')
+  history.report_year = 2025
+  history.week_start = '2025-01-01'
+  history.week_end = '2025-12-31'
+  for (const tag of ['w8', 'w9', 'w10', 'w11']) {
+    for (const row of history.widgets[tag].data.monthly) row.year = 2025
+  }
+  const selection = new Set(['개선'])
+  const current = buildDashboardData(history, selection)
+  const prior = previousYearMonthly([history], selection, null, null, VISIBLE_TYPES)
+  assert.deepEqual(prior.created, current.monthlyCount.w8Monthly)
+  assert.deepEqual(prior.slaInitial, current.slaMonthly.w10Monthly)
+  const unknownType = history.widgets.w8.data.monthly[0]
+  unknownType.always_included += unknownType.by_type['서비스 요청']
+  delete unknownType.by_type['서비스 요청']
+  assert.deepEqual(previousYearMonthly([history], selection, null, null, VISIBLE_TYPES).created[0].count, prior.created[0].count)
+  delete unknownType.by_status_type
+  assert.equal(previousYearMonthly([history], selection, null, null, VISIBLE_TYPES).created.some((row) => row.month_num === 1), false)
+})
+
+test('comparisons stop at the report end or current KST date even after in-place annual updates', () => {
+  const { observedPeriodEnd } = loadSource('application/services/reportPeriod.ts')
+  const report = { week_end: '2026-12-31', created_at: '2026-01-02T00:00:00Z' }
+  assert.equal(observedPeriodEnd(report, '2026-11-05'), '2026-11-05')
+  assert.equal(observedPeriodEnd({ ...report, week_end: '2026-09-30' }, '2026-11-05'), '2026-09-30')
+})
+
+test('dashboard comparison reads and reuses only the saved annual reports needed by the visible monthly data', async (t) => {
+  const { QueryClient, QueryClientProvider } = require('@tanstack/react-query')
+  const { ApplicationServicesProvider } = loadSource('presentation/context/ApplicationServicesContext')
+  const { usePreviousYearMonthly } = loadSource('presentation/hooks/usePreviousYearMonthly')
+  const calls = []
+  const services = { reports: { getAnnual: async (year) => {
+    calls.push(year)
+    if (year === 2024) throw Error('No saved report')
+    const history = fixtureReport('annual')
+    history.report_year = year
+    history.week_start = `${year}-01-01`
+    history.week_end = `${year}-12-31`
+    for (const entry of history.widgets.w8.data.monthly) entry.year = year
+    return history
+  } } }
+  const report = fixtureReport()
+  report.widgets.w10.data.monthly[0].year = 2025
+  const client = new QueryClient({ defaultOptions: { queries: { gcTime: 0 } } })
+  let observed, view
+  function Probe({ enabled, types }) {
+    observed = usePreviousYearMonthly(report, types, null, null, VISIBLE_TYPES, enabled)
+    return null
+  }
+  const element = (enabled, types = null) => createElement(ApplicationServicesProvider, { services },
+    createElement(QueryClientProvider, { client }, createElement(Probe, { enabled, types })))
+  act(() => { view = TestRenderer.create(element(false)) })
+  t.after(() => { act(() => view.unmount()); client.clear() })
+  assert.deepEqual(calls, [])
+  await act(async () => { view.update(element(true)) })
+  const deadline = Date.now() + 2500
+  while (observed.isLoading) {
+    assert.ok(Date.now() < deadline)
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)) })
+  }
+  assert.deepEqual(calls.sort(), [2024, 2025])
+  assert.equal(observed.created.length, 12)
+  act(() => view.update(element(true, new Set(['개선']))))
+  assert.equal(observed.created[0].count, 35)
+  assert.equal(calls.length, 2)
+})
 
 test('filter changes reuse report metadata and a new report updates options and counts', (t) => {
   let data

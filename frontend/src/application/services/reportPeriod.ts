@@ -1,11 +1,16 @@
 // frontend/src/application/services/reportPeriod.ts
 import type { DashboardReportPeriod, DashboardReportRequest, ReportPeriod } from '@/domain/ReportPeriod'
+import type { ReportDetail } from '@/domain/Report'
 
 export const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = { day: '일간', week: '주간', month: '월간', year: '연간' }
 export const DASHBOARD_REPORT_PERIOD_LABELS: Record<DashboardReportPeriod, string> = { ...REPORT_PERIOD_LABELS, custom: '기간 지정' }
 
 export function reportToday(now = new Date()): string {
   return new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+export function observedPeriodEnd(report: Pick<ReportDetail, 'week_end'>, today = reportToday()): string {
+  return report.week_end < today ? report.week_end : today
 }
 
 export function annualReportDateRange(year: number, today = reportToday()): { start: string; end: string } | null {

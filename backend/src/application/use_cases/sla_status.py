@@ -1,5 +1,6 @@
 # backend/src/application/use_cases/sla_status.py
 import asyncio
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -15,6 +16,9 @@ from src.domain.entities.sla_digest import SlaDigestEntry
 from src.domain.entities.sla_status import SlaStatusMetric, SlaStatusSnapshot, SlaStatusTicket
 from src.domain.entities.sla_violation_report import SlaViolationIssue
 from src.domain.services.issue_type_policy import is_license_issue_type
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SlaStatusSourceError(RuntimeError):
@@ -144,20 +148,22 @@ class SlaStatusUseCase:
         if self._restored:
             return
         async with self._restore_lock:
-            if self._restored or self._closed:
-                return
-            generation = self._generation
-            try:
-                snapshot = await self._snapshots.load(self._project_key)
-            except Exception as error:
-                raise SlaStatusSourceError("Stored SLA status could not be loaded") from error
-            if generation != self._generation or self._closed:
-                return
-            if snapshot is not None:
-                self._cached = replace(snapshot, refresh_in_progress=False, stale=False, refresh_error=None)
-                age = max(0.0, (self._generated_at() - snapshot.generated_at).total_seconds())
-                self._cached_at = self._clock() - age
-            self._restored = True
+            while not self._restored and not self._closed:
+                generation = self._generation
+                try:
+                    snapshot = await self._snapshots.load(self._project_key)
+                except Exception as error:
+                    raise SlaStatusSourceError("Stored SLA status could not be loaded") from error
+                if self._closed:
+                    return
+                if generation != self._generation:
+                    # Reload the sanitized saved list before deciding whether Jira is needed.
+                    continue
+                if snapshot is not None:
+                    self._cached = replace(snapshot, refresh_in_progress=False, stale=False, refresh_error=None)
+                    age = max(0.0, (self._generated_at() - snapshot.generated_at).total_seconds())
+                    self._cached_at = self._clock() - age
+                self._restored = True
 
     async def get_snapshot(self, refresh: bool = False) -> SlaStatusSnapshot:
         if self._closed:
@@ -205,20 +211,30 @@ class SlaStatusUseCase:
         return replace(self._cached, refresh_in_progress=refreshing, stale=stale, refresh_error=self._refresh_error)
 
     async def _load(self, generation: int) -> SlaStatusSnapshot:
+        started = monotonic()
+        stage = "entries"
         try:
             async with asyncio.timeout(self._timeout_seconds):
                 entries = await self._source.fetch_entries()
                 snapshot = _snapshot(entries, self._generated_at())
                 if self._details is not None and snapshot.tickets:
+                    stage = "details"
                     issues = await self._details.fetch_details(tuple(ticket.key for ticket in snapshot.tickets))
-                    snapshot = _with_details(snapshot, issues, self._generated_at())
+                    stage = "status_durations"
+                    # CPU work in a background asyncio task still blocks cached HTTP reads.
+                    snapshot = await asyncio.to_thread(_with_details, snapshot, issues, self._generated_at())
                 if self._closed or generation != self._generation:
                     raise SlaStatusSourceError("SLA status collection was invalidated")
                 if self._snapshots is not None:
+                    stage = "save"
                     snapshot = await self._snapshots.save(self._project_key, snapshot)
         except asyncio.CancelledError:
             raise
         except Exception as error:
+            _LOGGER.warning(
+                "SLA status refresh failed at %s after %.3fs (%s)",
+                stage, monotonic() - started, type(error).__name__,
+            )
             if generation == self._generation and not self._closed:
                 self._refresh_error = "최신 SLA 현황을 불러오지 못했습니다. 마지막으로 저장된 현황을 표시합니다."
                 self._retry_after = self._clock() + max(self._cache_seconds, 30)
@@ -229,6 +245,7 @@ class SlaStatusUseCase:
         self._cached_at = self._clock()
         self._refresh_error = None
         self._retry_after = 0.0
+        _LOGGER.info("SLA status refreshed in %.3fs (%d tickets)", monotonic() - started, snapshot.ticket_count)
         return snapshot
 
     def _generated_at(self) -> datetime:

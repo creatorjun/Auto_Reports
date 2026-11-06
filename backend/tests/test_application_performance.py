@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 from src.application.ports.jira_port import JiraIssue
-from src.application.services.query_builder import WidgetQueryBuilder
-from src.application.services.query_config import QueryConfig
+from src.infrastructure.external.widget_query_builder import WidgetQueryBuilder
+from src.infrastructure.external.query_config import QueryConfig
 from src.application.services.security_news_translation import SecurityNewsTranslationService, translation_key
 from src.application.use_cases.security_news import SecurityNewsUseCase
 from src.application.widgets.resolution_collector import ResolutionCollector

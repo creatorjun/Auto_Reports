@@ -16,8 +16,8 @@ from src.application.services.issue_age import (
     issue_elapsed_days,
     with_current_issue_age,
 )
-from src.application.services.query_builder import WidgetQueryBuilder
-from src.application.services.query_config import QueryConfig
+from src.infrastructure.external.widget_query_builder import WidgetQueryBuilder
+from src.infrastructure.external.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.get_report import GetReportUseCase
 from src.application.widgets.count_collector import SimpleWithDetailsCollector

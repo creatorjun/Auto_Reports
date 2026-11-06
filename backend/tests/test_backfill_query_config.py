@@ -5,7 +5,7 @@ import inspect
 import unittest
 from pathlib import Path
 
-from src.application.services.query_config import QueryConfig
+from src.infrastructure.external.query_config import QueryConfig
 
 
 class BackfillQueryConfigurationTest(unittest.TestCase):

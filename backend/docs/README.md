@@ -8,6 +8,7 @@
 |---|---|
 | [아키텍처](01_architecture.md) | 레이어 경계, 조립, 트랜잭션과 리소스 수명 |
 | [백엔드 아키텍처 검토](17_backend_architecture_review.md) | 2026-10-21 전체 소스 검토 범위, 확인된 책임·수명 위반과 회귀 검사 |
+| [전체 클린 아키텍처 검토](19_clean_architecture_review.md) | 2026-10-29 백엔드·프론트엔드 계층 검사, 쿼리 구현·출력 DTO 분리와 검증 결과 |
 | [백엔드 성능 검토](18_backend_performance_review.md) | 2026-10-21 전체 소스 검토, 기능을 유지한 SQL·HTTP·집계 최적화와 전후 측정 |
 | [API](02_api_reference.md) | 인증, 일반·연간 보고서, 차트 상세, SLA·재배포, 전체 이슈와 관리 API |
 | [데이터 모델](03_data_model.md) | 저장 테이블, 보고서 scope, JSONB와 migration |
@@ -20,8 +21,7 @@
 | [운영·배포](10_operations.md) | 실행, 백업, migration, 배포와 검증 |
 | [Jira 로그인](11_jira_login.md) | OAuth 앱 등록, 기존 관리자 로그인, JWT 자동 로그인과 검증 |
 | [SLA 일일 알림](12_sla_digest.md) | 매일 09시 잔여 30% 이하 티켓 요약, 위반 이력 제외, 현재 SLA 설정과 메일 미리보기 |
-| [CVE 취약점 대응·보안 뉴스](13_security_news.md) | NVD·CISA KEV 버전 정보, 보안 뉴스 한 줄 요약 목록, 영구 캐시와 호출 제한 |
-| [패키지 인벤토리 CVE 대응](18_cve_inventory.md) | 등록 패키지의 모든 버전 CVE, 위험도 필터, Oracle RPM 수정 정보와 수집 상태 |
+| [보안 뉴스](13_security_news.md) | 보안 권고와 뉴스의 수집 범위, 한 줄 요약, 영구 캐시와 호출 제한 |
 
 일반·연간 보고서는 `reports`를 공유하고, SLA와 재배포는 각각 별도 테이블을 사용합니다. SLA 이력은 불변 저장본이고 재배포는 당일 저장본을 대체합니다. API 명세와 화면 필터 건수의 의미는 해당 기능 문서를 함께 확인합니다.
 

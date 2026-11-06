@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom'
 import { useMe } from '@/presentation/hooks/useAuth'
 import { useAuthStore } from '@/presentation/state/authStore'
 import { useAuthSession } from '@/presentation/hooks/useAuthSession'
+import { FilterOwnerContext } from '@/presentation/hooks/usePersistentFilterState'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -22,7 +23,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   if (isRestoring) return <LoadingSpinner />
 
-  if (!loginRequired) return <>{children}</>
+  if (!loginRequired) return <FilterOwnerContext.Provider key="guest" value="guest">{children}</FilterOwnerContext.Provider>
 
   if (!accessToken) return <Navigate to="/login" replace />
 
@@ -30,5 +31,6 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   if (isError) return <Navigate to="/login" replace />
 
-  return <>{children}</>
+  const owner = data ? `user:${data.username}` : null
+  return <FilterOwnerContext.Provider key={owner} value={owner}>{children}</FilterOwnerContext.Provider>
 }

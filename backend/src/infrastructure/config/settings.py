@@ -34,8 +34,9 @@ class Settings(BaseSettings):
     rovo_automation_timeout_seconds: int = Field(default=180, ge=15, le=300)
     rovo_automation_poll_seconds: float = Field(default=5, ge=1, le=30)
     security_news_snapshot_path: str = "reports/security-news-snapshot.sqlite3"
-    cve_inventory_path: str = "reports/cve-inventory.json"
-    cve_inventory_snapshot_path: str = "reports/cve-inventory.sqlite3"
+    kernel_cve_snapshot_path: str = "reports/kernel-cves.sqlite3"
+    java_cve_snapshot_path: str = "reports/java-cves.sqlite3"
+    db_cve_snapshot_path: str = "reports/db-cves.sqlite3"
     security_news_translation_enabled: bool = True
     security_news_translation_model: SecurityNewsTranslationModel = DEFAULT_SECURITY_NEWS_TRANSLATION_MODEL
     security_news_translation_cache_path: str = "reports/security-news-translations.sqlite3"

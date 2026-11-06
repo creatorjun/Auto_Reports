@@ -1,5 +1,6 @@
 // frontend/src/presentation/pages/RedeploymentPage.tsx
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
 import { CheckCircle2, Loader2, RotateCcw } from 'lucide-react'
 import type { RedeploymentColumn, RedeploymentColumnFilters, RedeploymentScope } from '@/domain/RedeploymentReport'
 import { filterRedeployments, redeploymentIsStale, redeploymentMonths, redeploymentSummary } from '@/application/services/redeploymentReport'
@@ -16,11 +17,11 @@ export default function RedeploymentPage() {
   const query = useRedeployments()
   const refresh = useRefreshRedeployments()
   const report = query.data
-  const [scope, setScope] = useState<RedeploymentScope>('all')
-  const [cause, setCause] = useState('')
-  const [search, setSearch] = useState('')
-  const [columnFilters, setColumnFilters] = useState<RedeploymentColumnFilters>({})
-  const [month, setMonth] = useState('')
+  const [scope, setScope] = usePersistentFilterState<RedeploymentScope>('redeployments:scope', 'all')
+  const [cause, setCause] = usePersistentFilterState('redeployments:cause', '')
+  const [search, setSearch] = usePersistentFilterState('redeployments:search', '')
+  const [columnFilters, setColumnFilters] = usePersistentFilterState<RedeploymentColumnFilters>('redeployments:columns', {})
+  const [month, setMonth] = usePersistentFilterState('redeployments:month', '')
   const selectedScope = month ? 'closed' : scope
   const setCurrentReport = useReportStore((state) => state.setCurrentReport)
   useEffect(() => { setCurrentReport(null) }, [setCurrentReport])

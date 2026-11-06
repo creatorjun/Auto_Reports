@@ -20,11 +20,14 @@ from src.application.use_cases.sla_violation_report import SlaViolationReportUse
 from src.application.use_cases.redeployment_report import RedeploymentReportUseCase
 from src.application.use_cases.issue_management import IssueManagementUseCase
 from src.application.use_cases.security_news import SecurityNewsUseCase
-from src.application.use_cases.cve_inventory import CveInventoryUseCase
+from src.application.use_cases.kernel_cves import KernelCveUseCase
+from src.application.use_cases.java_cves import JavaCveUseCase
+from src.application.use_cases.database_cves import DatabaseCveUseCase
 from src.application.use_cases.storage_use_case import StorageUseCase
 from src.application.use_cases.audit_logs import AuditLogsUseCase
 from src.application.use_cases.notify_sla_digest import NotifySlaDigestUseCase
 from src.application.use_cases.trigger_report import TriggerReportUseCase
+from src.domain.entities.solution_package import SolutionPackage
 from src.presentation.http.request_audit import RequestAudit
 
 
@@ -41,13 +44,16 @@ class ApiServices:
     get_site: Callable[[], AsyncContextManager[SiteUseCase]]
     get_sla_dashboard: Callable[[], AsyncContextManager[SlaDashboardUseCase]]
     get_report_chart_issues: Callable[[], AsyncContextManager[GetReportChartIssuesUseCase]]
+    read_solution_packages: Callable[[str, str | None], tuple[SolutionPackage, ...] | None]
     issue_management: IssueManagementUseCase | None = None
     audit_logs: AuditLogsUseCase | None = None
     get_sla_violation: Callable[[], AsyncContextManager[SlaViolationReportUseCase]] | None = None
     get_redeployment: Callable[[], AsyncContextManager[RedeploymentReportUseCase]] | None = None
     notify_sla_digest: NotifySlaDigestUseCase | None = None
     security_news: SecurityNewsUseCase | None = None
-    cve_inventory: CveInventoryUseCase | None = None
+    kernel_cves: KernelCveUseCase | None = None
+    java_cves: JavaCveUseCase | None = None
+    db_cves: DatabaseCveUseCase | None = None
     sla_status: SlaStatusUseCase | None = None
     jira_notifications: JiraNotificationsUseCase | None = None
     trigger_report: TriggerReportUseCase | None = None

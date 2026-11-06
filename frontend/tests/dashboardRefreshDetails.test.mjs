@@ -90,6 +90,7 @@ for (const item of cases) {
         useReportById: () => ({}), useAnnualReport: () => ({}),
       },
       'presentation/hooks/useReportRefreshShortcut': { useReportRefreshShortcut: () => () => {} },
+      'presentation/hooks/usePreviousYearMonthly': { usePreviousYearMonthly: () => ({ created: [], resolved: [], slaInitial: [], slaResolution: [], redeployments: [], isLoading: false }) },
       'presentation/state/reportStore': { useReportStore: () => ({ setCurrentReport }) },
       'presentation/context/ReportGenerationContext': { useReportGeneration: () => ({ pending: false }) },
     })

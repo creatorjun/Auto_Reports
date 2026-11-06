@@ -1,6 +1,8 @@
 // frontend/src/presentation/components/annual/RedeploymentAnnualSection.tsx
 import designTokens from '@/presentation/config/designTokens.json'
 import { useId, useState } from 'react'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
+import { previousYearMonth, throughReportMonth } from '@/presentation/utils/previousYearMonth'
 import { AlertTriangle, BarChart3, CheckCircle2, Percent, RotateCcw } from 'lucide-react'
 import {
   Bar,
@@ -35,6 +37,8 @@ interface Props {
   data: RedeploymentAnalytics
   year: number
   reportId: number
+  previousMonthly?: RedeploymentMonthlyEntry[]
+  periodEnd?: string
 }
 
 const REDEPLOYMENT_PAGE_SIZE = 5
@@ -81,16 +85,20 @@ function KpiCard({
   )
 }
 
-function MonthlyRedeploymentChart({ data, onDetails }: { data: RedeploymentAnalytics; onDetails: (month: RedeploymentMonthlyEntry, issueType?: string) => void }) {
+function PreviousYearBar({ x = 0, y = 0, width = 0, height = 0 }: { x?: number; y?: number; width?: number; height?: number }) {
+  return <rect x={x - width * 0.1} y={y} width={width * 1.2} height={height} rx={3} fill={CHART_COLORS.previousYear} fillOpacity={0.5} />
+}
+
+function MonthlyRedeploymentChart({ data, months, previousMonthly, year, onDetails }: { data: RedeploymentAnalytics; months: RedeploymentMonthlyEntry[]; previousMonthly: RedeploymentMonthlyEntry[]; year: number; onDetails: (month: RedeploymentMonthlyEntry, issueType?: string) => void }) {
   const exportMode = useDashboardExportMode()
   const controlId = useId()
-  const [monthIndex, setMonthIndex] = useState(0)
-  const [selectedType, setSelectedType] = useState('')
+  const [monthKey, setMonthKey] = usePersistentFilterState(`dashboard:annual:${year}:redeployment-month`, '')
+  const [selectedType, setSelectedType] = usePersistentFilterState(`dashboard:annual:${year}:redeployment-type`, '')
   const issueTypes = Array.from(new Set(
-    data.monthly.flatMap((entry) => Object.keys(entry.by_type))
+    months.flatMap((entry) => Object.keys(entry.by_type))
       .filter((issueType) => !isLicenseIssueType(issueType)),
   ))
-  const chartData = data.monthly.map((entry) => {
+  const chartData = months.map((entry) => {
     const byType = Object.fromEntries(
       Object.entries(entry.by_type)
         .filter(([issueType]) => !isLicenseIssueType(issueType)),
@@ -98,10 +106,12 @@ function MonthlyRedeploymentChart({ data, onDetails }: { data: RedeploymentAnaly
     return {
       month: entry.month,
       total: Object.values(byType).reduce((sum, count) => sum + count, 0),
+      previousTotal: previousYearMonth(entry, previousMonthly)?.total ?? null,
       ...byType,
     }
   })
-  const selectedMonth = data.monthly[monthIndex] ?? data.monthly[0]
+  const hasPrevious = chartData.some((row) => row.previousTotal !== null)
+  const selectedMonth = monthKey ? months.find((month) => `${month.year}-${month.month_num}` === monthKey) : months[0]
   const selectedCount = selectedMonth
     ? selectedType
       ? selectedMonth.by_type[selectedType] ?? 0
@@ -110,7 +120,10 @@ function MonthlyRedeploymentChart({ data, onDetails }: { data: RedeploymentAnaly
         .reduce((sum, [, count]) => sum + count, 0)
     : 0
   return (
-    <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({ headers: ['월', ...issueTypes, '합계'], rows: chartData.map((row) => [row.month, ...issueTypes.map((type) => (row as Record<string, string | number>)[type] ?? 0), row.total]) }) : undefined} className="card">
+    <div data-pdf-kind="chart" data-export-table={exportMode ? JSON.stringify({
+      headers: ['월', ...issueTypes, '합계', ...(hasPrevious ? ['전년 동월 합계'] : [])],
+      rows: chartData.map((row) => [row.month, ...issueTypes.map((type) => (row as Record<string, string | number | null>)[type] ?? 0), row.total, ...(hasPrevious ? [row.previousTotal] : [])]),
+    }) : undefined} className="card">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h3 className="text-section-title font-semibold text-apple-dark">월별 재배포 추이</h3>
@@ -121,33 +134,37 @@ function MonthlyRedeploymentChart({ data, onDetails }: { data: RedeploymentAnaly
         <BarChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis dataKey="month" tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} minTickGap={18} />
+          {hasPrevious && <XAxis dataKey="month" xAxisId="previous-year" hide />}
           <YAxis allowDecimals={false} tick={{ fontSize: REDEPLOYMENT_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={exportMode ? 46 : Math.ceil(REDEPLOYMENT_FONT_SIZE * 4)} />
-          <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString('ko-KR')}건`, String(name)]} />
+          <Tooltip filterNull={false} formatter={(value, name) => [value == null && name === '전년 동월 합계' ? '자료 없음' : `${Number(value ?? 0).toLocaleString('ko-KR')}건`, String(name)]} />
           <Legend iconType="circle" iconSize={REDEPLOYMENT_LEGEND_ICON_SIZE} formatter={(value: string) => <span style={{ color: CHART_LEGEND_COLOR, fontSize: REDEPLOYMENT_FONT_SIZE, fontWeight: designTokens.typography.weight.medium }}>{value}</span>} />
+          {hasPrevious && <Bar dataKey="previousTotal" xAxisId="previous-year" name="전년 동월 합계" fill={CHART_COLORS.previousYear} shape={<PreviousYearBar />} isAnimationActive={false} />}
           {issueTypes.map((issueType, index) => (
             <Bar isAnimationActive={!exportMode} key={issueType} dataKey={issueType} stackId="redeployment" fill={CATEGORICAL_CHART_COLORS[index % CATEGORICAL_CHART_COLORS.length]} stroke="rgb(var(--color-apple-surface))" strokeWidth={1} radius={index === issueTypes.length - 1 ? [5, 5, 0, 0] : 0} cursor={exportMode ? undefined : 'pointer'} onClick={exportMode ? undefined : (_entry, entryIndex) => {
-              const month = data.monthly[entryIndex]
+              const month = months[entryIndex]
               if (month) onDetails(month, issueType)
             }} />
           ))}
         </BarChart>
       </ResponsiveContainer>
-      {!exportMode && selectedMonth && (
+      {!exportMode && (selectedMonth || monthKey) && (
         <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-apple-divider pt-4">
           <div className="min-w-44 flex-1">
             <label htmlFor={`${controlId}-month`} className="mb-1 block text-control-label font-medium text-apple-mid">완료 월</label>
-            <select id={`${controlId}-month`} value={monthIndex} onChange={(event) => setMonthIndex(Number(event.target.value))} className="min-h-11 w-full rounded-lg border border-apple-divider bg-apple-surface px-3 text-control text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
-              {data.monthly.map((month, index) => <option key={`${month.year}-${month.month_num}`} value={index}>{month.year}년 {month.month}</option>)}
+            <select id={`${controlId}-month`} value={selectedMonth ? `${selectedMonth.year}-${selectedMonth.month_num}` : monthKey} onChange={(event) => setMonthKey(event.target.value)} className="min-h-11 w-full rounded-lg border border-apple-divider bg-apple-surface px-3 text-control text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+              {!selectedMonth && <option value={monthKey}>{monthKey} (현재 결과 없음)</option>}
+              {months.map((month) => <option key={`${month.year}-${month.month_num}`} value={`${month.year}-${month.month_num}`}>{month.year}년 {month.month}</option>)}
             </select>
           </div>
           <div className="min-w-36 flex-1">
             <label htmlFor={`${controlId}-type`} className="mb-1 block text-control-label font-medium text-apple-mid">요청 유형</label>
             <select id={`${controlId}-type`} value={selectedType} onChange={(event) => setSelectedType(event.target.value)} className="min-h-11 w-full rounded-lg border border-apple-divider bg-apple-surface px-3 text-control text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
               <option value="">전체 유형</option>
+              {selectedType && !issueTypes.includes(selectedType) && <option value={selectedType}>{selectedType} (현재 결과 없음)</option>}
               {issueTypes.map((issueType) => <option key={issueType} value={issueType}>{issueType}</option>)}
             </select>
           </div>
-          <button type="button" onClick={() => onDetails(selectedMonth, selectedType || undefined)} className={DETAILS_BUTTON_CLASS} aria-label={`${selectedMonth.year}년 ${selectedMonth.month} ${selectedType || '전체 유형'} 재배포 ${selectedCount}건 상세 보기`}>{selectedCount.toLocaleString('ko-KR')}건 상세 보기</button>
+          {selectedMonth && <button type="button" onClick={() => onDetails(selectedMonth, selectedType || undefined)} className={DETAILS_BUTTON_CLASS} aria-label={`${selectedMonth.year}년 ${selectedMonth.month} ${selectedType || '전체 유형'} 재배포 ${selectedCount}건 상세 보기`}>{selectedCount.toLocaleString('ko-KR')}건 상세 보기</button>}
         </div>
       )}
     </div>
@@ -194,12 +211,12 @@ function CauseChart({ values, onDetails }: { values: Record<string, number>; onD
   )
 }
 
-function AssigneeChart({ values, onDetails }: { values: Record<string, number>; onDetails: ShowBreakdown }) {
+function AssigneeChart({ values, year, onDetails }: { values: Record<string, number>; year: number; onDetails: ShowBreakdown }) {
   const exportMode = useDashboardExportMode()
   const controlId = useId()
-  const [selectedAssignee, setSelectedAssignee] = useState('')
+  const [selectedAssignee, setSelectedAssignee] = usePersistentFilterState(`dashboard:annual:${year}:redeployment-assignee`, '')
   const data = Object.entries(values).slice(0, 10).map(([name, value]) => ({ name, value }))
-  const assignee = data.find((entry) => entry.name === selectedAssignee) ?? data[0]
+  const assignee = selectedAssignee ? { name: selectedAssignee, value: values[selectedAssignee] ?? 0 } : data[0]
   const axisWidth = exportMode ? 156 : Math.max(120, Math.ceil(Math.max(0, ...data.map(({ name }) => Array.from(name).length)) * REDEPLOYMENT_FONT_SIZE + 16))
   const exportTickLimit = Math.floor((axisWidth - 16) / 14)
   const formatExportTick = (value: string) => {
@@ -245,6 +262,7 @@ function AssigneeChart({ values, onDetails }: { values: Record<string, number>; 
           {assignee && <div className="min-w-36 flex-1">
             <label htmlFor={controlId} className="mb-1 block text-control-label font-medium text-apple-mid">담당자</label>
             <select id={controlId} value={assignee.name} onChange={(event) => setSelectedAssignee(event.target.value)} className="min-h-11 w-full rounded-lg border border-apple-divider bg-apple-surface px-3 text-control text-apple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+              {selectedAssignee && !data.some((entry) => entry.name === selectedAssignee) && <option value={selectedAssignee}>{selectedAssignee} ({assignee.value}건)</option>}
               {data.map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}
             </select>
           </div>}
@@ -383,10 +401,11 @@ function LatestIssues({ data }: { data: RedeploymentAnalytics }) {
   )
 }
 
-export default function RedeploymentAnnualSection({ data, year, reportId }: Props) {
+export default function RedeploymentAnnualSection({ data, year, reportId, previousMonthly = [], periodEnd }: Props) {
   const exportMode = useDashboardExportMode()
   const [details, setDetails] = useState<IssueDetails | null>(null)
   const classificationComplete = data.classification_complete
+  const months = periodEnd ? throughReportMonth(data.monthly, periodEnd) : data.monthly
   const issues = data.latest_issues.filter((issue) => !isLicenseIssueType(issue.type))
   const showMonthlyDetails = (month: RedeploymentMonthlyEntry, issueType?: string) => {
     const total = Object.entries(month.by_type)
@@ -432,6 +451,9 @@ export default function RedeploymentAnnualSection({ data, year, reportId }: Prop
         <KpiCard label="재배포 이슈" value={classificationComplete ? data.redeployment_total : '집계 불가'} unit={classificationComplete ? '건' : ''} icon={<RotateCcw size={21} />} tone="bg-[rgb(var(--color-chart-orange)/0.16)] text-orange-700" />
         <KpiCard label="재배포율" value={classificationComplete ? data.redeployment_rate : '집계 불가'} unit={classificationComplete ? '%' : ''} icon={<Percent size={21} />} tone="bg-[rgb(var(--color-chart-created)/0.16)] text-blue-600" />
       </div>
+      {classificationComplete && (data.redeployment_total > 0 || months.some((entry) => previousYearMonth(entry, previousMonthly))) && (
+        <MonthlyRedeploymentChart data={data} months={months} previousMonthly={previousMonthly} year={year} onDetails={showMonthlyDetails} />
+      )}
       {!classificationComplete ? (
         <div data-pdf-kind="text" className="card flex min-h-44 flex-col items-center justify-center gap-2 text-center">
           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgb(var(--color-chart-warning)/0.16)] text-amber-600"><AlertTriangle size={22} /></span>
@@ -439,10 +461,9 @@ export default function RedeploymentAnnualSection({ data, year, reportId }: Prop
         </div>
       ) : data.redeployment_total > 0 ? (
         <>
-          <MonthlyRedeploymentChart data={data} onDetails={showMonthlyDetails} />
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <CauseChart values={data.by_cause} onDetails={showCauseDetails} />
-            <AssigneeChart values={data.by_assignee} onDetails={showAssigneeDetails} />
+            <AssigneeChart values={data.by_assignee} year={year} onDetails={showAssigneeDetails} />
           </div>
           <PartnerMatrix matrix={data.partner_matrix} onDetails={showPartnerDetails} />
           <LatestIssues key={year} data={data} />

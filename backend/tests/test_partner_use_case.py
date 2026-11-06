@@ -7,22 +7,23 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.application.use_cases.partner_use_case import PartnerUseCase
 from src.application.ports.jira_port import JiraIssue
+from src.application.ports.issue_query import IssueOrder, IssueSelection
 from src.domain.entities.partner import PartnerMember, PartnerOrganization
 
 
 class PartnerJira:
     def __init__(self) -> None:
-        self.jqls: list[str] = []
+        self.jqls: list[IssueSelection] = []
 
-    async def get_issue_counts_batch(self, jqls: list[str]) -> list[int]:
+    async def get_issue_counts_batch(self, jqls: list[IssueSelection]) -> list[int]:
         self.jqls = jqls
         counts = {
-            '"account-a"': 17,
-            '"account-b"': 204,
+            'account-a': 17,
+            'account-b': 204,
         }
-        return [next(count for account_id, count in counts.items() if account_id in jql) for jql in jqls]
+        return [next(count for account_id, count in counts.items() if account_id in jql.reporters) for jql in jqls]
 
-    async def get_issues_with_assignees(self, jql: str, max_results: int | None) -> list[JiraIssue]:
+    async def get_issues_with_assignees(self, jql: IssueSelection, max_results: int | None) -> list[JiraIssue]:
         self.issue_limit = max_results
         return [JiraIssue(
             key="TACEA-1",
@@ -69,8 +70,8 @@ class PartnerUseCaseTest(unittest.IsolatedAsyncioTestCase):
             [(org.name, org.issue_count) for org in organizations],
         )
         self.assertEqual(2, len(jira.jqls))
-        self.assertTrue(all('project = "TACEA"' in jql for jql in jira.jqls))
-        self.assertTrue(all("ORDER BY" not in jql for jql in jira.jqls))
+        self.assertTrue(all(query.project == "TACEA" for query in jira.jqls))
+        self.assertTrue(all(query.order == IssueOrder.NONE for query in jira.jqls))
 
     async def test_member_issues_keep_current_status_and_are_not_limited_to_500(self) -> None:
         jira = PartnerJira()

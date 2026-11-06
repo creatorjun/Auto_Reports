@@ -1,5 +1,6 @@
 // frontend/src/presentation/components/common/DashboardGenerateForm.tsx
-import { useState, type FormEvent } from 'react'
+import type { FormEvent } from 'react'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
 import { Loader2, RefreshCw } from 'lucide-react'
 import type { DashboardReportPeriod, DashboardReportRequest } from '@/domain/ReportPeriod'
 import type { ReportDetail } from '@/domain/Report'
@@ -9,10 +10,10 @@ import { useReportGeneration } from '@/presentation/context/ReportGenerationCont
 export default function DashboardGenerateForm({ report, loading = false }: { report?: ReportDetail | null; loading?: boolean }) {
   const generation = useReportGeneration()
   const lastRequest = generation.lastRequest
-  const [period, setPeriod] = useState<DashboardReportPeriod>(lastRequest?.period ?? 'week')
-  const [date, setDate] = useState(lastRequest && lastRequest.period !== 'custom' ? lastRequest.date : reportToday())
-  const [startDate, setStartDate] = useState(lastRequest?.period === 'custom' ? lastRequest.start_date : reportToday())
-  const [endDate, setEndDate] = useState(lastRequest?.period === 'custom' ? lastRequest.end_date : reportToday())
+  const [period, setPeriod] = usePersistentFilterState<DashboardReportPeriod>('dashboard:generation:period', lastRequest?.period ?? 'week')
+  const [date, setDate] = usePersistentFilterState('dashboard:generation:date', () => lastRequest && lastRequest.period !== 'custom' ? lastRequest.date : reportToday())
+  const [startDate, setStartDate] = usePersistentFilterState('dashboard:generation:start-date', () => lastRequest?.period === 'custom' ? lastRequest.start_date : reportToday())
+  const [endDate, setEndDate] = usePersistentFilterState('dashboard:generation:end-date', () => lastRequest?.period === 'custom' ? lastRequest.end_date : reportToday())
   const draftRequest: DashboardReportRequest = period === 'custom'
     ? { period, start_date: startDate, end_date: endDate }
     : { period, date }

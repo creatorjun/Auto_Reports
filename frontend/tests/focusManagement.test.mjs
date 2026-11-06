@@ -45,7 +45,7 @@ test('only parent menu buttons open on mouse hover and leaving their group close
   t.after(() => act(() => view.unmount()))
   assert.equal(view.root.findByType('aside').props.onPointerEnter, undefined)
   assert.equal(view.root.findAllByType('a').find((link) => link.props.href === '/issues').props.onPointerEnter, undefined)
-  for (const name of ['집중 관리 항목', '연간 보고서']) {
+  for (const name of ['집중 관리 항목', 'CVE 취약점', '연간 보고서']) {
     const trigger = () => view.root.findByProps({ 'aria-label': name })
     assert.equal(trigger().props['aria-expanded'], false)
     assert.equal(trigger().parent.props.onPointerEnter, undefined)
@@ -59,6 +59,10 @@ test('only parent menu buttons open on mouse hover and leaving their group close
     if (name === '집중 관리 항목') {
       assert.match(trigger().props.className, /nav-link-active/)
       assert.deepEqual(content.findAllByType('a').map((link) => [link.props.href, link.children.join('')]), FOCUS_MANAGEMENT_LINKS.map(({ to, label }) => [to, label]))
+    } else if (name === 'CVE 취약점') {
+      assert.deepEqual(content.findAllByType('a').map((link) => [link.props.href, link.children.join('')]), [
+        ['/cve/os', 'OS'], ['/cve/java', 'JAVA'], ['/cve/db', 'DB'], ['/cve/eyecloudxoar', '솔루션'],
+      ])
     }
     act(() => trigger().parent.props.onPointerLeave({ pointerType: 'mouse' }))
     assert.equal(trigger().props['aria-expanded'], false)
@@ -96,7 +100,7 @@ test('hover temporarily expands a collapsed sidebar and leave or Escape restores
   assert.equal(view.root.findByType(Sidebar).props.collapsed, false)
 })
 
-test('mobile exposes one focus-management trigger and closes after a child route is selected', (t) => {
+test('mobile switches between focus-management and annual menus and closes after navigation', (t) => {
   let view
   act(() => { view = TestRenderer.create(React.createElement(MemoryRouter, null, React.createElement(Mobile))) })
   t.after(() => act(() => view.unmount()))
@@ -106,6 +110,16 @@ test('mobile exposes one focus-management trigger and closes after a child route
   act(() => trigger().props.onClick())
   assert.equal(panel().props.hidden, false)
   assert.deepEqual(panel().findAllByType('a').map((link) => link.props.href), FOCUS_MANAGEMENT_LINKS.map(({ to }) => to))
+  const annualTrigger = () => view.root.findAllByType('button').find((button) => button.props['aria-label'] === '연간 보고서')
+  const annualPanel = () => view.root.findByProps({ id: annualTrigger().props['aria-controls'] })
+  act(() => annualTrigger().props.onClick())
+  assert.equal(panel().props.hidden, true)
+  assert.equal(annualPanel().props.hidden, false)
+  const annualLink = annualPanel().findAllByType('a')[0]
+  act(() => annualLink.props.onClick({ button: 0, defaultPrevented: false, preventDefault() {}, metaKey: false, altKey: false, ctrlKey: false, shiftKey: false }))
+  assert.equal(annualPanel().props.hidden, true)
+  assert.match(annualTrigger().props.className, /text-brand-600/)
+  act(() => trigger().props.onClick())
   const link = panel().findAllByType('a')[0]
   act(() => link.props.onClick({ button: 0, defaultPrevented: false, preventDefault() {}, metaKey: false, altKey: false, ctrlKey: false, shiftKey: false }))
   assert.equal(panel().props.hidden, true)

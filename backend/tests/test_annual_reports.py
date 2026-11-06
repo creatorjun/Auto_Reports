@@ -10,8 +10,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from src.application.ports.report_cache_port import ReportCachePort
 from src.application.ports.report_repository import ReportRepository
 from src.application.ports.jira_port import JiraIssue, JiraStatusChange
-from src.application.services.query_builder import WidgetQueryBuilder
-from src.application.services.query_config import QueryConfig
+from src.infrastructure.external.widget_query_builder import WidgetQueryBuilder
+from src.infrastructure.external.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.generate_report import GenerateReportUseCase
 from src.application.use_cases.refresh_report import RefreshReportUseCase

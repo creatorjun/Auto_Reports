@@ -3,7 +3,7 @@ import asyncio
 from collections import Counter, defaultdict
 
 from src.application.ports.jira_port import JiraAssetReference, JiraIssue, JiraIssueField, JiraPort
-from src.application.services.query_builder import ResolvedQueries
+from src.application.ports.report_query_port import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.constants import REDEPLOYMENT_CLASSIFICATION_START_YEAR, SUMMARY_TRUNCATE_LEN
 from src.domain.entities.widget import WidgetResult
@@ -62,7 +62,7 @@ class RedeploymentAnalyticsCollector(AbstractWidgetCollector):
         )
 
     async def load_details(self, fresh: bool = False) -> list[RedeploymentIssueDetail]:
-        jql = f"{self._queries.w15_redeployment_issues()} ORDER BY resolved DESC"
+        jql = self._queries.w15_redeployment_details()
         if fresh:
             page = await self._jira.get_report_chart_issues(
                 jql,

@@ -15,11 +15,13 @@ import {
   CHART_GRADIENT_STOP_START, CHART_GRADIENT_STOP_END,
 } from '@/presentation/config/constants'
 import type { MonthlyEntry } from '@/domain/Dashboard'
+import { previousYearMonth } from '@/presentation/utils/previousYearMonth'
 
 interface Props {
   title: string
   subtitle: string
   monthly: MonthlyEntry[]
+  previousMonthly?: MonthlyEntry[]
   color: string
   monthOnly?: boolean
   onMonthClick?: (entry: MonthlyEntry, status: 'all' | 'met' | 'violated') => void
@@ -29,6 +31,7 @@ interface ChartPoint {
   month: string
   rate: number | null
   meta: MonthlyEntry
+  previousMeta?: MonthlyEntry
 }
 
 interface ChartDotProps {
@@ -39,38 +42,40 @@ interface ChartDotProps {
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
-  const p    = payload[0]
-  const meta: MonthlyEntry | undefined = p?.payload?.meta
   return (
     <div className="bg-apple-surface border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-caption">
       <p className="font-semibold text-apple-dark mb-1">{label}</p>
-      <div className="flex items-center gap-1.5">
-        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-        <span className="text-apple-light">달성률:</span>
-        <span className="font-medium tabular-nums" style={{ color: p.color }}>
-          {p.value !== null ? `${p.value}%` : '-'}
-        </span>
-        {meta && meta.total > 0 && (
-          <span className="text-apple-light/70">({meta.met}/{meta.total}건)</span>
-        )}
-      </div>
+      {payload.map((item: { dataKey: string; name: string; color: string; value: number | null; payload: ChartPoint }) => {
+        const meta = item.dataKey === 'previousRate' ? item.payload.previousMeta : item.payload.meta
+        return <div key={item.dataKey} className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
+          <span className="text-apple-mid">{item.name}</span>
+          <span className="font-medium tabular-nums text-apple-dark">{item.value == null ? (meta ? '대상 없음' : '자료 없음') : `${item.value}%`}</span>
+          {meta && meta.total > 0 && <span className="text-apple-mid">({meta.met}/{meta.total}건)</span>}
+        </div>
+      })}
     </div>
   )
 }
 
-function SlaMonthlyLineChart({ title, subtitle, monthly, color, monthOnly = false, onMonthClick }: Props) {
+function SlaMonthlyLineChart({ title, subtitle, monthly, previousMonthly = [], color, monthOnly = false, onMonthClick }: Props) {
   const exportMode = useDashboardExportMode()
   const monthLabel = (entry: MonthlyEntry) => monthOnly ? `${entry.month_num}월` : entry.month
-  const exportTable = exportMode ? JSON.stringify({ headers: ['월', '대상 건수', '준수 건수', '위반 건수', '준수율 (%)'], rows: monthly.map((row) => [monthLabel(row), row.total, row.met, Math.max(0, row.total - row.met), row.total > 0 ? row.rate : null]) }) : undefined
   const [detailsOpen, setDetailsOpen] = useState(false)
   const gradientId = `sla-grad-${useId().replace(/:/g, '')}`
   const interactive = !exportMode && Boolean(onMonthClick)
-  const chartData  = monthly.map((e) => ({
-    month: monthLabel(e),
-    rate:  e.total > 0 ? e.rate : null,
-    meta:  e,
-  }))
-  const hasData = chartData.some((d) => d.rate !== null)
+  const chartData = monthly.map((entry) => {
+    const previousMeta = previousYearMonth(entry, previousMonthly)
+    return { month: monthLabel(entry), rate: entry.total > 0 ? entry.rate : null, meta: entry, previousMeta,
+      previousRate: previousMeta && previousMeta.total > 0 ? previousMeta.rate : null }
+  })
+  const hasPrevious = chartData.some((row) => row.previousMeta !== undefined)
+  const hasData = chartData.some((row) => row.rate !== null || row.previousRate !== null)
+  const exportTable = exportMode ? JSON.stringify({
+    headers: ['월', '대상 건수', '준수 건수', '위반 건수', '준수율 (%)', ...(hasPrevious ? ['전년 동월 대상 건수', '전년 동월 준수 건수', '전년 동월 준수율 (%)'] : [])],
+    rows: chartData.map(({ month, meta, rate, previousMeta, previousRate }) => [month, meta.total, meta.met, Math.max(0, meta.total - meta.met), rate,
+      ...(hasPrevious ? [previousMeta?.total ?? null, previousMeta?.met ?? null, previousRate] : [])]),
+  }) : undefined
   const renderDot = ({ cx, cy, payload }: ChartDotProps, active = false) => {
     if (!payload || payload.rate === null) return <g key={`dot-${payload?.month ?? 'empty'}`} />
     return (
@@ -151,7 +156,7 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color, monthOnly = fals
           style={interactive ? { cursor: 'pointer' } : undefined}
           onClick={interactive ? (state) => {
             const entry: MonthlyEntry | undefined = state?.activePayload?.[0]?.payload?.meta
-            if (entry) onMonthClick?.(entry, 'all')
+            if (entry && entry.total > 0) onMonthClick?.(entry, 'all')
           } : undefined}
         >
           <defs>
@@ -163,7 +168,7 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color, monthOnly = fals
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis dataKey="month" tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
           <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={Math.ceil(CHART_TICK_FONT_SIZE * 3.5)} />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip filterNull={false} content={<CustomTooltip />} />
           <ReferenceLine
             y={SLA_TARGET_RATE}
             stroke={CHART_COLORS.slaTarget}
@@ -177,6 +182,8 @@ function SlaMonthlyLineChart({ title, subtitle, monthly, color, monthOnly = fals
               <span style={{ fontSize: CHART_LEGEND_FONT_SIZE, color: CHART_LEGEND_COLOR }}>{value}</span>
             )}
           />
+          {hasPrevious && <Area type="monotone" dataKey="previousRate" name="전년 동월 달성률" stroke={CHART_COLORS.previousYear}
+            fill={CHART_COLORS.previousYear} fillOpacity={0.3} strokeDasharray="4 3" dot={{ r: 2 }} activeDot={false} isAnimationActive={false} />}
           <Area
             isAnimationActive={!exportMode}
             type="monotone" dataKey="rate" name="달성률"

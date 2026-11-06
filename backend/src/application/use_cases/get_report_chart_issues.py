@@ -4,7 +4,7 @@ from typing import Any
 
 from src.application.errors import EntityNotFoundError
 from src.application.ports.jira_port import JiraIssue, JiraIssueField, JiraPort
-from src.application.services.query_builder import WidgetQueryBuilder
+from src.application.ports.report_query_port import ReportQueryPort
 from src.application.services.report_issue_metrics import resolution_elapsed
 from src.application.use_cases.get_report import GetReportUseCase
 from src.application.widgets.redeployment_collector import RedeploymentAnalyticsCollector
@@ -45,7 +45,7 @@ def _timestamp(value: Any) -> str | None:
 
 
 class GetReportChartIssuesUseCase:
-    def __init__(self, reports: GetReportUseCase, jira: JiraPort, query_builder: WidgetQueryBuilder):
+    def __init__(self, reports: GetReportUseCase, jira: JiraPort, query_builder: ReportQueryPort):
         self._reports = reports
         self._jira = jira
         self._query_builder = query_builder

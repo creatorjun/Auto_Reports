@@ -6,7 +6,7 @@
 
 ## 메뉴
 
-대시보드 → 전체 이슈 → 집중 관리 항목 → 연간 보고서 → 파트너 관리 → 사이트 관리 → 장기 이슈 → 파일 보관함 → CVE 취약점 대응 → 보안 뉴스 순서입니다. 데스크톱과 모바일 모두 CVE 취약점 대응을 보안 뉴스 바로 위에 표시합니다. 집중 관리 하위는 SLA 현황 → SLA 위반 → 재배포 현황이며 `presentation/config/focusManagement.ts`를 데스크톱·모바일 메뉴가 공유합니다. 연간 하위는 2024·2025·2026입니다. 감사로그는 관리자에게만 추가 표시합니다. 히스토리와 별도의 보고서 생성 버튼은 대메뉴에 두지 않습니다.
+대시보드 → 전체 이슈 → 집중 관리 항목 → CVE 취약점 → 연간 보고서 → 파트너 관리 → 장기 이슈 → 보안 뉴스 → 파일 보관함 순서입니다. 집중 관리 하위는 SLA 현황 → SLA 위반 → 재배포 현황이며, CVE 취약점 하위는 OS → JAVA → DB → 솔루션입니다. 연간 하위는 2024·2025·2026입니다. 관리자에게는 사이트 관리와 감사로그가 추가됩니다.
 
 데스크톱에서는 하위 메뉴 버튼에 pointer가 진입할 때 펼칩니다. 하위 영역까지 열린 상태를 유지하고 벗어나면 접습니다. 접힌 사이드바는 그동안 임시 확장하며 빈 공간·일반 메뉴 hover로 확장하지 않습니다. 클릭과 Escape를 지원합니다. 모바일은 클릭으로 열고 선택·바깥 영역·Escape로 닫습니다.
 
@@ -22,6 +22,10 @@
 | `/storage/preview` | StoragePreviewPage | Layout 밖 | 파일별 API 인증을 적용하는 공유 preview |
 | `/` | DashboardPage | ProtectedRoute | 최신 일반 대시보드 |
 | `/issues` | IssueManagementPage | ProtectedRoute | 전체 이슈 |
+| `/cve/os` | KernelCvePage | ProtectedRoute | 배포판·패키지·아키텍처·설치 버전별 커널 보안 권고 |
+| `/cve/java` | SoftwareCvePage | ProtectedRoute | OpenJDK 버전·Azul Zulu 배포 빌드별 보안 권고 |
+| `/cve/db` | SoftwareCvePage | ProtectedRoute | MariaDB·MySQL·PostgreSQL 서버 버전별 보안 권고 |
+| `/cve/eyecloudxoar` | SolutionPackagesPage | ProtectedRoute | 솔루션 제품·버전별 확인된 패키지 목록 |
 | `/redeployments` | RedeploymentPage | ProtectedRoute | 재배포 현황 |
 | `/sla-status` | SlaStatusPage | ProtectedRoute | SLA 현황: 잔여율 30% 미만 미위반 티켓의 현재 수집 스냅샷 |
 | `/sla-violations` | SlaViolationPage | ProtectedRoute | SLA 위반: 최신 저장 보고서 및 기간별 수동 생성 |
@@ -36,7 +40,6 @@
 | `/sites/:id/edit` | SiteCreatePage | ProtectedRoute | 사이트 편집 |
 | `/sla-dashboard` | SlaDashboardPage | ProtectedRoute | 장기 이슈·댓글 |
 | `/storage` | StoragePage | ProtectedRoute | 파일 보관함 |
-| `/cve-response` | CveResponsePage | ProtectedRoute | 인벤토리 패키지의 모든 버전 CVE, 위험도·파일 버전 영향 필터, 영향·해결 범위와 수집 현황 |
 | `/security-news` | SecurityNewsPage | ProtectedRoute | 보안 권고·뉴스, 한국어 번역과 출처별 수집 상태 |
 | `/audit-logs` | AuditLogPage | ProtectedRoute + SuperadminRoute | 관리자 감사로그 |
 | `*` | Navigate | — | `/login`으로 이동 |

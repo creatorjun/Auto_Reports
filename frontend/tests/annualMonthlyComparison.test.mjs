@@ -150,3 +150,30 @@ test('monthly PDF export suppresses drilldown even when a callback is supplied',
   assert.ok(view.root.findAllByType('Bar').every((bar) => bar.props.onClick === undefined))
   act(() => view.unmount())
 })
+
+test('previous-year bars share the scale and calendar month while preserving gaps, zeroes and current-year drilldowns', () => {
+  const props = {
+    created: [entry(1, 2), entry(2, 4), entry(3, 0)],
+    resolved: [entry(1, 0), entry(2, 3)],
+    previousCreated: [entry(3, 90, 2025), entry(1, 0, 2025), entry(1, 999, 2024)],
+    previousResolved: [entry(2, 8, 2025)],
+    year: 2026, periodEnd: '2026-02-28', subtitle: '전체 기간', onSelectMonth() {},
+  }
+  let view
+  act(() => { view = TestRenderer.create(React.createElement(AnnualMonthlyComparison, props)) })
+  const bars = view.root.findAllByType('Bar')
+  assert.deepEqual(bars.map((bar) => bar.props.dataKey), ['previousCreated', 'previousResolved', 'created', 'resolved'])
+  assert.equal(bars[0].props.xAxisId, 'previous')
+  assert.equal(bars[0].props.onClick, undefined)
+  assert.equal(typeof bars[2].props.onClick, 'function')
+  assert.equal(view.root.findAllByType('YAxis').length, 1)
+  assert.deepEqual(view.root.findByType('BarChart').props.data.map(({ previousCreated, previousResolved }) => [previousCreated, previousResolved]), [[0, null], [null, 8]])
+  act(() => {
+    view.update(React.createElement(DashboardExportProvider, null, React.createElement(AnnualMonthlyComparison, props)))
+  })
+  const chart = view.root.findByProps({ 'data-pdf-kind': 'chart' })
+  const data = JSON.parse(chart.props['data-export-table'])
+  assert.deepEqual(data.headers.slice(-2), ['2025년 등록 건수', '2025년 해결 건수'])
+  assert.deepEqual(data.rows, [['1월', 2, 0, 0, null], ['2월', 4, 3, null, 8]])
+  act(() => view.unmount())
+})

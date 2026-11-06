@@ -7,6 +7,7 @@ import { auditDefaultFilters, auditEventLabel, auditFilterError, auditLogQuery, 
 import type { AuditLogFilters } from '@/application/services/auditLog'
 import type { AuditLogEntry } from '@/domain/AuditLog'
 import { useAuditLogs } from '@/presentation/hooks/useAuditLogs'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
 import LoadingSpinner from '@/presentation/components/common/LoadingSpinner'
 
 const fieldClass = 'w-full rounded-xl border border-apple-divider bg-apple-surface px-3 py-2.5 text-control text-apple-dark focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30'
@@ -37,8 +38,8 @@ function AuditDetails({ entry }: { entry: AuditLogEntry }) {
 }
 
 export default function AuditLogPage() {
-  const [draft, setDraft] = useState<AuditLogFilters>(() => auditDefaultFilters())
-  const [filters, setFilters] = useState(draft)
+  const [filters, setFilters] = usePersistentFilterState<AuditLogFilters>('audit-log.applied', auditDefaultFilters)
+  const [draft, setDraft] = usePersistentFilterState<AuditLogFilters>('audit-log.draft', filters)
   const [page, setPage] = useState(0)
   const [validation, setValidation] = useState<string | null>(null)
   const request = useMemo(() => auditLogQuery(filters, page), [filters, page])

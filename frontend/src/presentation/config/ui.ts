@@ -14,6 +14,7 @@ export const STAGE_MAP: Record<string, number> = {
 }
 
 export const CHART_COLORS = {
+  previousYear: 'rgb(var(--color-gray-400))',
   slaTarget: 'rgb(var(--color-chart-target))',
   axisText:  'rgb(var(--color-chart-axis))',
   grid:      'rgb(var(--color-chart-grid))',

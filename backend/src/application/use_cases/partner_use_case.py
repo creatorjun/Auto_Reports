@@ -4,6 +4,7 @@ import logging
 from dataclasses import replace
 from datetime import datetime
 
+from src.application.ports.issue_query import IssueOrder, IssueSelection
 from src.application.ports.jira_port import JiraIssue, JiraPort
 from src.application.ports.service_desk_port import ServiceDeskPort
 from src.domain.constants import STAGE_MAP, SUMMARY_TRUNCATE_LEN
@@ -57,15 +58,15 @@ class PartnerUseCase:
             replace(org, issue_count=0)
             for org in organizations
         ]
-        count_targets: list[tuple[int, str]] = []
+        count_targets: list[tuple[int, IssueSelection]] = []
         for index, members in enumerate(members_by_org):
-            jql = self._reporter_jql(members)
-            if jql:
-                count_targets.append((index, jql))
+            selection = self._reporter_selection(members)
+            if selection:
+                count_targets.append((index, selection))
 
         if count_targets:
             counts = await self._jira.get_issue_counts_batch([
-                jql for _, jql in count_targets
+                selection for _, selection in count_targets
             ])
             for (index, _), count in zip(count_targets, counts, strict=True):
                 organizations_with_counts[index] = replace(
@@ -85,21 +86,21 @@ class PartnerUseCase:
 
     async def get_issues_by_org(self, org_id: str) -> list[PartnerIssue]:
         members = await self._service_desk.get_members(org_id)
-        jql = self._reporter_jql(members, order_by_created=True)
-        if not jql:
+        selection = self._reporter_selection(members, order_by_created=True)
+        if not selection:
             org_name = await self._service_desk.resolve_org_name(org_id)
             logger.info(f"[파트너 이슈] org_id={org_id} ({org_name}) 멤버 없음 → 0건")
             return []
         org_name = await self._service_desk.resolve_org_name(org_id)
-        logger.info(f"[파트너 이슈] org={org_name}({org_id}) 멤버={len(members)}명 → reporter IN 방식")
-        return await self._fetch_issues(jql)
+        logger.info(f"[파트너 이슈] org={org_name}({org_id}) 멤버={len(members)}명 → 작성자별 조회")
+        return await self._fetch_issues(selection)
 
-    def _reporter_jql(
+    def _reporter_selection(
         self,
         members: list[PartnerMember],
         *,
         order_by_created: bool = False,
-    ) -> str | None:
+    ) -> IssueSelection | None:
         account_ids = [
             member.account_id
             for member in members
@@ -107,24 +108,23 @@ class PartnerUseCase:
         ]
         if not account_ids:
             return None
-        ids_str = ", ".join(f'"{account_id}"' for account_id in account_ids)
-        jql = f'project = "{self._project_key}" AND reporter IN ({ids_str})'
-        return f"{jql} ORDER BY created DESC" if order_by_created else jql
+        return IssueSelection(
+            project=self._project_key,
+            reporters=tuple(account_ids),
+            order=IssueOrder.NEWEST if order_by_created else IssueOrder.NONE,
+        )
 
     async def get_issues_by_member(self, account_id: str) -> list[PartnerIssue]:
-        jql = (
-            f'project = "{self._project_key}" '
-            f'AND reporter = "{account_id}" '
-            f'ORDER BY created DESC'
-        )
-        return await self._fetch_issues(jql)
+        return await self._fetch_issues(IssueSelection(
+            project=self._project_key, reporter=account_id, order=IssueOrder.NEWEST,
+        ))
 
-    async def _fetch_issues(self, jql: str) -> list[PartnerIssue]:
+    async def _fetch_issues(self, selection: IssueSelection) -> list[PartnerIssue]:
         issues = await self._jira.get_issues_with_assignees(
-            jql,
+            selection,
             max_results=None,
         )
         now_ts = datetime.now()
         result = [_build_issue(i, now_ts) for i in issues]
-        logger.info(f"[파트너 이슈] JQL={jql[:80]} → {len(result)}건")
+        logger.info("[파트너 이슈] 조회 결과 %s건", len(result))
         return result

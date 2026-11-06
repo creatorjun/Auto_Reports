@@ -220,16 +220,37 @@ test('monthly accessible selectors retain exact totals, exclude license issues a
   click(button(view, '2026년 1월 전체 유형 재배포 2건 상세 보기'))
   assert.equal(localDetails(view).total, 2)
   assert.deepEqual(localDetails(view).issues.map((issue) => issue.key), ['ANNUAL-1', 'ANNUAL-3'])
-  select(view, '완료 월', '1')
+  select(view, '완료 월', '2026-2')
   select(view, '요청 유형', '인시던트')
   click(button(view, '2026년 2월 인시던트 재배포 0건 상세 보기'))
   assert.equal(localDetails(view).total, 0)
   assert.deepEqual(localDetails(view).issues, [])
-  select(view, '완료 월', '2')
+  select(view, '완료 월', '2026-3')
   select(view, '요청 유형', '')
   click(button(view, '2026년 3월 전체 유형 재배포 0건 상세 보기'))
   assert.equal(localDetails(view).total, 0)
   assert.deepEqual(localDetails(view).issues, [])
+})
+
+test('redeployment monthly export places comparable totals behind the stack and retains missing months', (t) => {
+  const data = fixtureAnalytics()
+  const previousMonthly = [
+    { ...data.monthly[2], year: 2025, total: 0 },
+    { ...data.monthly[0], year: 2025, total: 4 },
+  ]
+  const view = render(t, RedeploymentAnnualSection, { data, year: 2026, reportId: 42, previousMonthly }, true)
+  const chart = view.root.findAllByType('BarChart').find((node) => node.props.layout !== 'vertical')
+  const bars = chart.findAllByType('Bar')
+  assert.equal(bars[0].props.dataKey, 'previousTotal')
+  assert.equal(bars[0].props.xAxisId, 'previous-year')
+  assert.ok(bars.slice(1).every((bar) => bar.props.stackId === 'redeployment'))
+  const shape = bars[0].props.shape.type({ x: 30, y: 0, width: 10, height: 50 })
+  assert.equal(shape.props.x + shape.props.width / 2, 35)
+  assert.ok(shape.props.width > 10)
+  assert.deepEqual(chart.props.data.map((row) => row.previousTotal), [4, null, 0])
+  const table = view.root.findAll((node) => node.type === 'div' && node.props['data-export-table'])
+    .map((node) => JSON.parse(node.props['data-export-table'])).find((item) => item.headers.includes('전년 동월 합계'))
+  assert.deepEqual(table.rows.map((row) => row.at(-1)), [4, null, 0])
 })
 
 test('cause pie and count legend select the same tickets and keep zero causes accessible', (t) => {

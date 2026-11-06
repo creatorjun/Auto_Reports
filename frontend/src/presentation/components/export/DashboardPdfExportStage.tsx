@@ -1,6 +1,6 @@
 // frontend/src/presentation/components/export/DashboardPdfExportStage.tsx
 import { Component, useEffect, useRef, type ReactNode } from 'react'
-import type { DashboardExportFormat, DashboardPdfDocument } from '@/domain/DashboardExport'
+import type { DashboardExportFormat, DashboardPdfDocument } from '@/application/dto/DashboardExport'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import { DashboardExportProvider } from '@/presentation/context/DashboardExportContext'
 import { captureDashboardPdf, waitForDashboardPdf } from '@/presentation/utils/dashboardPdfCapture'

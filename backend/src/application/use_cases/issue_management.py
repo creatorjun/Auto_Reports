@@ -7,6 +7,7 @@ from dataclasses import replace
 from datetime import date, datetime
 from time import monotonic
 
+from src.application.ports.issue_query import IssueOrder, IssueSelection
 from src.application.errors import EntityNotFoundError
 from src.application.ports.jira_port import JiraAttachmentContent
 from src.application.ports.jira_port import JiraIssue, JiraIssueField, JiraPort
@@ -126,14 +127,14 @@ class IssueManagementUseCase:
         started = monotonic()
         started_at = datetime.now(KST)
         full = not self._initialized or not self._transition_history_ready or started - self._last_full_sync >= 3600
-        jql = f'project = "{self._project_key}"'
-        if not full:
-            minutes = math.ceil((started - self._last_sync) / 60) + 2
-            jql += f' AND updated >= "-{minutes}m"'
-        jql += " ORDER BY created DESC, key DESC"
+        selection = IssueSelection(
+            project=self._project_key,
+            updated_within_minutes=None if full else math.ceil((started - self._last_sync) / 60) + 2,
+            order=IssueOrder.NEWEST_WITH_KEY,
+        )
         try:
             page = await self._jira.get_report_chart_issues(
-                jql, None, frozenset(JiraIssueField),
+                selection, None, frozenset(JiraIssueField),
             )
             if page.has_more or any(not issue.key for issue in page.issues):
                 raise RuntimeError("Incomplete Jira snapshot")

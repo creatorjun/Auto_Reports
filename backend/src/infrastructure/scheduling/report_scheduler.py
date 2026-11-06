@@ -34,7 +34,9 @@ def create_scheduler(
     report_personal_data: Callable[[], Awaitable[dict]] | None = None,
     notify_sla_digest: Callable[[], Awaitable[int]] | None = None,
     refresh_security_news: Callable[[], Awaitable[None]] | None = None,
-    refresh_cve_inventory: Callable[[], Awaitable[None]] | None = None,
+    refresh_kernel_cves: Callable[[], Awaitable[None]] | None = None,
+    refresh_java_cves: Callable[[], Awaitable[None]] | None = None,
+    refresh_db_cves: Callable[[], Awaitable[None]] | None = None,
 ) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=timezone)
     scheduler.add_job(
@@ -83,11 +85,15 @@ def create_scheduler(
             coalesce=True, max_instances=1, misfire_grace_time=3600,
         )
         logger.info("스케줄러 등록 [보안 뉴스]: 매일 08:00 KST")
-    if refresh_cve_inventory:
-        scheduler.add_job(
-            refresh_cve_inventory,
-            IntervalTrigger(hours=2),
-            id="cve_inventory_refresh", name="CVE 인벤토리 2시간 주기 수집",
-            coalesce=True, max_instances=1, misfire_grace_time=3600,
-        )
+    for callback, job_id, name in (
+        (refresh_kernel_cves, "kernel_cves_daily", "OS 커널 CVE"),
+        (refresh_java_cves, "java_cves_daily", "Java CVE"),
+        (refresh_db_cves, "db_cves_daily", "DB CVE"),
+    ):
+        if callback:
+            scheduler.add_job(
+                callback, CronTrigger(hour=8, minute=0, timezone=KST),
+                id=job_id, name=f"{name} 매일 08:00 KST",
+                next_run_time=datetime.now(KST), coalesce=True, max_instances=1, misfire_grace_time=None,
+            )
     return scheduler

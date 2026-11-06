@@ -3,6 +3,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
 import type { SiteSummary } from '@/domain/Site'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -34,7 +35,7 @@ export default function SiteManagementPage() {
   const { sites } = useApplicationServices()
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = usePersistentFilterState('sites.search', '')
   const [activeIndex, setActiveIndex] = useState(-1)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const debouncedQuery = useDebounce(query.trim(), 300)
@@ -59,7 +60,6 @@ export default function SiteManagementPage() {
 
   const handleSelect = useCallback(
     (site: SiteSummary) => {
-      setQuery('')
       setDropdownOpen(false)
       navigate(`/sites/${site.id}`)
     },

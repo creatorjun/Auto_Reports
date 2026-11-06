@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 
 from src.application.services.issue_age import issue_created_display, issue_elapsed_days
-from src.application.services.query_builder import ResolvedQueries
+from src.application.ports.report_query_port import ResolvedQueries
 from src.application.widgets.base import AbstractWidgetCollector
 from src.domain.entities.widget import WidgetResult
 from src.domain.entities.widget_data import RecentIssueWidgetData, RecentIssueDetail

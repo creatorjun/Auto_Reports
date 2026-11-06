@@ -6,8 +6,8 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from src.application.services.query_builder import WidgetQueryBuilder
-from src.application.services.query_config import QueryConfig
+from src.infrastructure.external.widget_query_builder import WidgetQueryBuilder
+from src.infrastructure.external.query_config import QueryConfig
 from src.application.ports.jira_port import JiraIssue, JiraIssueField
 from src.application.widgets.count_collector import TypeCountCollector
 from src.application.widgets.monthly_collector import MonthlyCollector

@@ -1,5 +1,5 @@
 // frontend/src/presentation/components/notifications/JiraNotificationsPanel.tsx
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Check, ExternalLink, Loader2, RefreshCw, X } from 'lucide-react'
 import type { JiraNotification, JiraNotificationCategory } from '@/domain/JiraNotification'
@@ -7,6 +7,7 @@ import { RequestError } from '@/application/errors/RequestError'
 import { safeJiraNotificationUrl } from '@/application/services/jiraNotifications'
 import { useApplicationServices } from '@/presentation/context/ApplicationServicesContext'
 import { useJiraNotifications } from '@/presentation/hooks/useJiraNotifications'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
 import { useAuthStore } from '@/presentation/state/authStore'
 
 const categories = [{ value: 'all', label: '전체' }, { value: 'direct', label: '직접' }, { value: 'watching', label: '관심' }] as const
@@ -49,8 +50,8 @@ interface Props {
 }
 
 export default function JiraNotificationsPanel({ id, trigger, sessionToken, sidebarCollapsed = false, onClose }: Props) {
-  const [category, setCategory] = useState<JiraNotificationCategory>('all')
-  const [unreadOnly, setUnreadOnly] = useState(false)
+  const [category, setCategory] = usePersistentFilterState<JiraNotificationCategory>('notifications.category', 'all')
+  const [unreadOnly, setUnreadOnly] = usePersistentFilterState('notifications.unreadOnly', false)
   const panel = useRef<HTMLElement>(null)
   const active = useRef(true)
   const { auth } = useApplicationServices()

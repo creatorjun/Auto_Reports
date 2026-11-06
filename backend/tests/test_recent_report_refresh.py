@@ -11,8 +11,8 @@ import httpx
 
 from src.application.ports.job_repository import JobRepository
 from src.application.ports.report_repository import ReportRepository
-from src.application.services.query_builder import WidgetQueryBuilder
-from src.application.services.query_config import QueryConfig
+from src.infrastructure.external.widget_query_builder import WidgetQueryBuilder
+from src.infrastructure.external.query_config import QueryConfig
 from src.application.services.report_assembler import ReportAssembler
 from src.application.use_cases.get_report import GetReportUseCase
 from src.application.use_cases.trigger_report import TriggerReportUseCase

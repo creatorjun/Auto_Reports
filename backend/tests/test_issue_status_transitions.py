@@ -94,7 +94,7 @@ class IssueManagementStatusTransitionsTest(unittest.IsolatedAsyncioTestCase):
         result = await self.refresh([self.issue])
         self.jira.get_issue_status_changes_batch.assert_awaited_once()
         self.assertEqual({self.issue.key}, set(result["status_transitions"]))
-        self.assertNotIn("updated >=", self.jira.get_report_chart_issues.call_args.args[0])
+        self.assertIsNone(self.jira.get_report_chart_issues.call_args.args[0].updated_within_minutes)
 
     async def test_incremental_update_fetches_only_changed_issue_and_resets_latest_transition(self):
         other = replace(self.issue, key="TACEA-2", issue_id="2")
@@ -104,7 +104,7 @@ class IssueManagementStatusTransitionsTest(unittest.IsolatedAsyncioTestCase):
         result = await self.refresh([updated, other])
         self.jira.get_issue_status_changes_batch.assert_awaited_with([updated])
         self.assertEqual(0, result["status_transition_days"][self.issue.key]["닫힘"])
-        self.assertIn("updated >=", self.jira.get_report_chart_issues.call_args.args[0])
+        self.assertIsNotNone(self.jira.get_report_chart_issues.call_args.args[0].updated_within_minutes)
 
     async def test_failed_history_fetch_keeps_previous_rows_dates_and_cursor(self):
         previous = await self.refresh([self.issue])
@@ -151,7 +151,7 @@ class IssueManagementStatusTransitionsTest(unittest.IsolatedAsyncioTestCase):
         await self.use_case._task
         result = await self.use_case.list_issues()
         self.assertTrue(result["transition_history_ready"])
-        self.assertNotIn("updated >=", self.jira.get_report_chart_issues.call_args.args[0])
+        self.assertIsNone(self.jira.get_report_chart_issues.call_args.args[0].updated_within_minutes)
         self.assertTrue(snapshots.save.call_args.args[1].transition_history_ready)
 
     async def test_close_cancels_inflight_bulk_history_and_does_not_publish(self):

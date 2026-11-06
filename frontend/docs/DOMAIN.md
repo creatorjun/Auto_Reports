@@ -19,7 +19,6 @@
 | `SlaDashboard.ts` | 최근 이슈 활동, 본문·첨부 이미지, 댓글과 댓글 페이지 표시 계약 |
 | `Storage.ts` | `StorageItem`, `StorageFile`, `StorageQuota` |
 | `Dashboard.ts` | SLA·월별·상태별 widget 표시 모델 |
-| `DashboardExport.ts` | PDF·Excel 형식, 문서 메타데이터, 섹션, 지표·텍스트·SVG 차트·표 블록과 차트 수치 데이터 |
 | `DashboardIssueTypePolicy.ts` | 대시보드·연간 보고서의 통계 제외 및 요청 유형 선택항목 정책 |
 | `DashboardStatusPolicy.ts` | 대시보드·연간 보고서·파트너사의 현재 상태 선택 및 표시 순서 정책 |
 | `AuditLog.ts` | 감사 이벤트, 검색 조건과 페이지 |
@@ -83,3 +82,5 @@ widget ID는 화면에서 데이터가 처음 렌더링되는 순서를 따릅�
 ## 경계 규칙
 
 Domain에 HTTP status, axios response, React props, query key, CSS token을 추가하지 않습니다. 외부 동작은 `application/ports`, 화면 전용 모델과 상수는 `presentation`이 소유합니다.
+
+PDF·Excel 문서의 색상·SVG·표 너비 등 출력 형식 계약은 `application/dto/DashboardExport.ts`에 둡니다. 도메인은 문서 레이아웃을 소유하지 않습니다.

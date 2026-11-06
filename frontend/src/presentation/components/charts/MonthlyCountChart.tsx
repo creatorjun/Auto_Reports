@@ -13,35 +13,42 @@ import {
   CHART_GRADIENT_STOP_START, CHART_GRADIENT_STOP_END,
 } from '@/presentation/config/constants'
 import type { MonthlyCountEntry } from '@/domain/Dashboard'
+import { previousYearMonth } from '@/presentation/utils/previousYearMonth'
 
 interface Props {
   title: string
   subtitle: string
   monthly: MonthlyCountEntry[]
+  previousMonthly?: MonthlyCountEntry[]
   color: string
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
-  const p = payload[0]
   return (
     <div className="bg-apple-surface border border-apple-divider rounded-lg shadow-sm px-3 py-2 text-caption">
       <p className="font-semibold text-apple-dark mb-1">{label}</p>
-      <div className="flex items-center gap-1.5">
-        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-        <span className="text-apple-light">건수:</span>
-        <span className="font-medium tabular-nums" style={{ color: p.color }}>{p.value}건</span>
-      </div>
+      {payload.map((item: { dataKey: string; name: string; color: string; value: number | null }) => (
+        <div key={item.dataKey} className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
+          <span className="text-apple-mid">{item.name}</span>
+          <span className="font-medium tabular-nums text-apple-dark">{item.value == null ? '자료 없음' : `${item.value.toLocaleString('ko-KR')}건`}</span>
+        </div>
+      ))}
     </div>
   )
 }
 
-function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
+function MonthlyCountChart({ title, subtitle, monthly, previousMonthly = [], color }: Props) {
   const exportMode = useDashboardExportMode()
   const gradientId = `mc-grad-${useId().replace(/:/g, '')}`
-  const chartData  = monthly.map((e) => ({ month: e.month, count: e.count }))
-  const exportTable = exportMode ? JSON.stringify({ headers: ['월', '건수'], rows: chartData.map((row) => [row.month, row.count]) }) : undefined
-  const hasData    = chartData.some((d) => d.count > 0)
+  const chartData = monthly.map((entry) => ({ month: entry.month, count: entry.count, previousCount: previousYearMonth(entry, previousMonthly)?.count ?? null }))
+  const hasPrevious = chartData.some((row) => row.previousCount !== null)
+  const exportTable = exportMode ? JSON.stringify({
+    headers: hasPrevious ? ['월', '건수', '전년 동월 건수'] : ['월', '건수'],
+    rows: chartData.map((row) => hasPrevious ? [row.month, row.count, row.previousCount] : [row.month, row.count]),
+  }) : undefined
+  const hasData = hasPrevious || chartData.some((row) => row.count > 0)
 
   if (!hasData) {
     return (
@@ -74,7 +81,7 @@ function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis dataKey="month" tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} />
           <YAxis allowDecimals={false} tick={{ fontSize: CHART_TICK_FONT_SIZE, fill: CHART_COLORS.axisText }} axisLine={false} tickLine={false} width={exportMode ? 36 : Math.ceil(CHART_TICK_FONT_SIZE * 4)} />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip filterNull={false} content={<CustomTooltip />} />
           <Legend
             layout="horizontal" verticalAlign="bottom" align="center"
             iconType="circle" iconSize={CHART_LEGEND_ICON_SIZE}
@@ -82,6 +89,8 @@ function MonthlyCountChart({ title, subtitle, monthly, color }: Props) {
               <span style={{ fontSize: CHART_LEGEND_FONT_SIZE, color: CHART_LEGEND_COLOR }}>{value}</span>
             )}
           />
+          {hasPrevious && <Area type="monotone" dataKey="previousCount" name="전년 동월 건수" stroke={CHART_COLORS.previousYear}
+            fill={CHART_COLORS.previousYear} fillOpacity={0.3} strokeDasharray="4 3" dot={{ r: 2 }} activeDot={false} isAnimationActive={false} />}
           <Area
             isAnimationActive={!exportMode}
             type="monotone" dataKey="count" name="건수"

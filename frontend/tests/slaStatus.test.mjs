@@ -322,3 +322,30 @@ test('background result updates retain selected filters, sort and expanded detai
   assert.match(text(view), /최신 SLA 수집에 실패했습니다/)
   assert.deepEqual(visibleKeys(view), ['TAC-1'])
 })
+
+test('page reentry shows saved rows immediately while the refreshed request is still pending', async (t) => {
+  const pending = deferred()
+  const calls = []
+  const instance = sourceLoader({ ...jiraOverride, 'presentation/state/reportStore': { useReportStore: (selector) => selector(currentReport) } })
+  const Page = instance('presentation/pages/SlaStatusPage').default
+  const { ApplicationServicesProvider } = instance('presentation/context/ApplicationServicesContext')
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const stored = { ...snapshot(), refresh_in_progress: true, stale: true }
+  client.setQueryData(['sla-status'], stored)
+  const services = { slaStatus: { getSnapshot(refresh, signal) { calls.push({ refresh, signal }); return pending.promise } } }
+  const tree = () => React.createElement(ApplicationServicesProvider, { services }, React.createElement(QueryClientProvider, { client }, React.createElement(Page)))
+  let view
+  t.after(() => { act(() => view?.unmount()); client.clear() })
+  act(() => { view = TestRenderer.create(tree()) })
+  assert.deepEqual(visibleKeys(view), ['TAC-10', 'TAC-2', 'TAC-3'])
+  await until(() => calls.length === 1)
+  act(() => view.unmount())
+  assert.equal(calls[0].signal.aborted, true)
+  act(() => { view = TestRenderer.create(tree()) })
+  assert.deepEqual(visibleKeys(view), ['TAC-10', 'TAC-2', 'TAC-3'])
+  assert.match(text(view), /최신 SLA를 불러오는 중입니다/)
+  assert.doesNotMatch(text(view), /SLA 현황을 불러오는 중입니다/)
+  await until(() => calls.length === 2)
+  await act(async () => pending.resolve({ ...snapshot([ticket()]), generated_at: '2026-10-21T04:00:00Z' }))
+  await until(() => visibleKeys(view).join() === 'TAC-1')
+})

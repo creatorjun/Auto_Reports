@@ -1,5 +1,6 @@
 // frontend/src/presentation/pages/SlaStatusPage.tsx
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
+import { usePersistentFilterState } from '@/presentation/hooks/usePersistentFilterState'
 import { Loader2, RefreshCw, Search, X } from 'lucide-react'
 import type { SlaStatusFilters } from '@/domain/SLAStatus'
 import { RequestError } from '@/application/errors/RequestError'
@@ -14,8 +15,8 @@ import SlaStatusList from '@/presentation/components/sla-status/SlaStatusList'
 export default function SlaStatusPage() {
   const query = useSlaStatus()
   const snapshot = query.data
-  const [filters, setFilters] = useState(defaultSlaStatusFilters)
-  const [selectedStageName, setSelectedStageName] = useState('')
+  const [filters, setFilters] = usePersistentFilterState('sla-status:filters', defaultSlaStatusFilters)
+  const [selectedStageName, setSelectedStageName] = usePersistentFilterState('sla-status:stage-name', '')
   const setCurrentReport = useReportStore((state) => state.setCurrentReport)
   useEffect(() => { setCurrentReport(null) }, [setCurrentReport])
   const options = useMemo(() => slaStatusFilterOptions(snapshot?.tickets ?? []), [snapshot])

@@ -61,12 +61,20 @@ function imports(file) {
 }
 
 function dependencyLayer(file, dependency) {
-  if (dependency.startsWith('@/')) return dependency.slice(2).split('/')[0]
+  const layerName = (relative) => relative.split('/')[0].replace(/\.(?:ts|tsx|js|jsx)$/, '')
+  if (dependency.startsWith('@/')) return layerName(dependency.slice(2))
   if (!dependency.startsWith('.')) return null
   const target = path.resolve(path.dirname(file), dependency)
   const relative = path.relative(source, target).replaceAll('\\', '/')
-  return relative.startsWith('../') ? null : relative.split('/')[0]
+  return relative.startsWith('../') ? null : layerName(relative)
 }
+
+test('composition root imports are identified with explicit file extensions', () => {
+  const file = path.join(source, 'domain/Example.ts')
+  for (const dependency of ['@/main', '@/main.tsx', '../main', '../main.tsx']) {
+    assert.equal(dependencyLayer(file, dependency), 'main')
+  }
+})
 
 function transportUsages(file) {
   const violations = []
@@ -93,11 +101,11 @@ function transportUsages(file) {
 
 test('dependency rule', () => {
   const forbidden = {
-    domain: ['application', 'infrastructure', 'presentation', 'app'],
-    application: ['infrastructure', 'presentation', 'app'],
-    infrastructure: ['presentation', 'app'],
-    presentation: ['infrastructure', 'app'],
-    app: ['infrastructure'],
+    domain: ['application', 'infrastructure', 'presentation', 'app', 'main'],
+    application: ['infrastructure', 'presentation', 'app', 'main'],
+    infrastructure: ['presentation', 'app', 'main'],
+    presentation: ['infrastructure', 'app', 'main'],
+    app: ['infrastructure', 'main'],
   }
   const violations = []
   for (const file of files(source)) {
@@ -108,6 +116,30 @@ test('dependency rule', () => {
       if (forbidden[layer].includes(dependencyLayer(file, dependency))) {
         violations.push(`${relative}:${dependency}`)
       }
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
+test('all core modules stay independent from browser runtime and DOM types', () => {
+  const platformNames = new Set([
+    'window', 'document', 'localStorage', 'sessionStorage', 'navigator',
+    'fetch', 'XMLHttpRequest', 'EventSource', 'WebSocket', 'FormData',
+    'File', 'Blob', 'AbortController', 'AbortSignal', 'HTMLElement', 'HTMLCanvasElement',
+  ])
+  const violations = []
+  for (const layer of ['domain', 'application']) {
+    for (const file of files(path.join(source, layer))) {
+      const visit = (node) => {
+        const reference = ts.isTypeReferenceNode(node) ? node.typeName
+          : ts.isCallExpression(node) || ts.isNewExpression(node) ? node.expression
+            : ts.isPropertyAccessExpression(node) ? node.expression : null
+        if (reference && ts.isIdentifier(reference) && platformNames.has(reference.text)) {
+          violations.push(`${path.relative(source, file)}:${reference.text}`)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(parsedSource(file))
     }
   }
   assert.deepEqual(violations, [])
@@ -458,8 +490,8 @@ test('partner management filters organizations members and issues independently'
   assert.match(page, /searchQuery=\{memberQuery\}/)
   assert.match(page, /searchQuery=\{issueQuery\}/)
   assert.match(page, /<IssueTypeFilter/)
-  assert.match(page, /useState<Set<string> \| null>\(null\)/)
-  assert.match(page, /useState<Semester \| null>\(null\)/)
+  assert.match(page, /usePersistentFilterSet\('partners\.types'\)/)
+  assert.match(page, /usePersistentFilterState<Semester \| null>\('partners\.semester', null\)/)
   assert.match(page, /resolveDashboardFilterContract\(latestReport\.data\)/)
   assert.match(page, /loadedPartnerStatuses/)
   assert.match(page, /onStatusesChange=\{handlePartnerStatusesChange\}/)
@@ -632,8 +664,8 @@ test('dashboard request type current status and semester filters drive every wid
     'utf8',
   )
 
-  assert.match(page, /useState<Set<string> \| null>\(null\)/)
-  assert.match(page, /useState<Semester \| null>\(null\)/)
+  assert.match(page, /usePersistentFilterSet\(/)
+  assert.match(page, /usePersistentFilterState<Semester \| null>/)
   assert.match(page, /<IssueTypeFilter/)
   assert.match(page, /selectedStatuses: Set<string> \| null/)
   assert.match(page, /전체 현재 상태/)
