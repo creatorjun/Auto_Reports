@@ -1,17 +1,17 @@
 // frontend/src/presentation/components/cve/CveFindings.tsx
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, ExternalLink, RefreshCw, Search } from 'lucide-react'
+import { ExternalLink, RefreshCw, Search } from 'lucide-react'
 import type { CveFilters, CveFinding, CveFix, CveResults } from '@/domain/Cve'
 import type { SecuritySeverity } from '@/domain/SecurityNews'
 import { RequestError } from '@/application/errors/RequestError'
 import { cveReferenceUrl, safeSecurityNewsUrl } from '@/application/services/securityNews'
 import { useCveSnapshot } from '@/presentation/hooks/useCveSnapshot'
 import { securityDateLabel, securitySeverityClasses, securitySeverityLabels } from '@/presentation/components/security/securityNewsFormatting'
+import { cveAction, CveCountFilter, CvePagination } from './CveResultControls'
 import CveCoveragePanel from './CveCoveragePanel'
 
 const severities: SecuritySeverity[] = ['critical', 'high', 'medium', 'low', 'unknown']
 const indicators: Record<SecuritySeverity, string> = { critical: 'bg-red-600', high: 'bg-amber-500', medium: 'bg-blue-500', low: 'bg-green-600', unknown: 'bg-apple-light' }
-const action = 'inline-flex items-center justify-center gap-1.5 rounded-lg border border-apple-divider bg-apple-surface px-3 py-2 text-control font-medium text-apple-dark hover:bg-apple-gray focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-40'
 
 function Advisory({ fix, showFixedLabel }: { fix: CveFix; showFixedLabel: boolean }) {
   const href = safeSecurityNewsUrl(fix.advisory_url)
@@ -94,20 +94,17 @@ export default function CveFindings<S extends { version: string }>({ scope, sele
           </span>}</h2>
           <p className="mt-1 hidden break-all font-mono text-caption text-apple-mid sm:block">{description}</p>
         </div>
-        <button type="button" className={action} disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw size={14} className={query.isFetching ? 'animate-spin' : ''} aria-hidden="true" />다시 조회</button>
+        <button type="button" className={cveAction} disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw size={14} className={query.isFetching ? 'animate-spin' : ''} aria-hidden="true" />다시 조회</button>
       </header>
       {query.isError && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-control text-amber-800">{errorText}{hasData && ' 마지막 조회 결과를 표시합니다.'}</p>}
       <div role="group" aria-label="검색 조건별 위험도 필터" className="grid grid-cols-3 gap-2 lg:grid-cols-6">
         {(['all', ...severities] as const).map((key) => {
           const selected = filters.severity === key
           const count = key === 'all' ? totalAcrossSeverities : counts?.[key]
-          return <button type="button" key={key} aria-controls={listId} aria-pressed={selected} onClick={() => setFilters((prev) => ({ ...prev, severity: key, page: 1 }))}
-            className={`min-w-0 rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline-brand-500 md:px-4 ${selected ? 'border-brand-500 bg-brand-50' : 'border-apple-divider bg-apple-surface hover:bg-apple-gray'}`}>
-            <span className="flex items-center gap-2 text-caption font-medium text-apple-mid">
-              <span className={`h-2 w-2 rounded-full ${key === 'all' ? 'bg-brand-600' : indicators[key]}`} aria-hidden="true" />{key === 'all' ? '전체' : securitySeverityLabels[key]}
-            </span>
-            <strong className="mt-1 block text-section-title font-semibold tabular-nums text-apple-dark">{hasData && count != null ? count.toLocaleString('ko-KR') : '—'}</strong>
-          </button>
+          return <CveCountFilter key={key} controls={listId} selected={selected}
+            label={key === 'all' ? '전체' : securitySeverityLabels[key]} count={hasData ? count ?? null : null}
+            indicator={key === 'all' ? 'bg-brand-600' : indicators[key]}
+            onClick={() => setFilters((prev) => ({ ...prev, severity: key, page: 1 }))} />
         })}
       </div>
       <div className="rounded-2xl border border-apple-divider bg-apple-surface shadow-apple-sm">
@@ -118,7 +115,7 @@ export default function CveFindings<S extends { version: string }>({ scope, sele
             setSearch(value)
             if (!value) setFilters((prev) => ({ ...prev, search: '', page: 1 }))
           }} className="min-w-0 flex-1 rounded-lg border border-apple-divider bg-apple-surface px-3 py-2 text-control text-apple-dark focus:outline-brand-500" />
-          <button type="submit" className={action}><Search size={14} aria-hidden="true" />검색</button></div>
+          <button type="submit" className={cveAction}><Search size={14} aria-hidden="true" />검색</button></div>
         </form>
         <div id={listId} aria-busy={query.isFetching}>
           {results && results.items.length > 0 ? <>
@@ -129,14 +126,9 @@ export default function CveFindings<S extends { version: string }>({ scope, sele
               '현재 자료로는 선택한 조건의 CVE를 확인할 수 없습니다.'}
           </p>}
         </div>
-        {hasData && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-apple-divider px-4 py-3 text-caption text-apple-mid md:px-5">
-          <label>페이지당 <select aria-label="페이지당 표시 건수" value={filters.page_size} onChange={(event) => setFilters((prev) => ({ ...prev, page_size: Number(event.target.value), page: 1 }))} className="rounded-lg border border-apple-divider bg-apple-surface px-2 py-1.5 text-control">{[25, 50, 100].map((size) => <option value={size} key={size}>{size}건</option>)}</select></label>
-          <nav aria-label="CVE 검색 결과 페이지" className="flex items-center gap-3">
-            <button type="button" className={action} aria-label="이전 페이지" disabled={filters.page <= 1} onClick={() => setFilters((prev) => ({ ...prev, page: prev.page - 1 }))}><ChevronLeft size={16} /></button>
-            <span className="tabular-nums">{filters.page} / {pageCount}</span>
-            <button type="button" className={action} aria-label="다음 페이지" disabled={filters.page >= pageCount} onClick={() => setFilters((prev) => ({ ...prev, page: prev.page + 1 }))}><ChevronRight size={16} /></button>
-          </nav>
-        </footer>}
+        {hasData && <CvePagination label="CVE 검색 결과 페이지" page={filters.page} pageCount={pageCount} pageSize={filters.page_size}
+          onPage={(page) => setFilters((prev) => ({ ...prev, page }))}
+          onPageSize={(page_size) => setFilters((prev) => ({ ...prev, page_size, page: 1 }))} />}
       </div>
     </section>
   </>
